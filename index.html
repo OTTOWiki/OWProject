@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>棍维Project</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 主菜单 -->
+    <div id="screen-menu" class="screen active">
+      <div class="menu-bg"></div>
+      <div class="menu-title-art" id="menu-title-art" aria-hidden="true"></div>
+      <div class="th-ornament top-left"></div>
+      <div class="th-ornament top-right"></div>
+      <div class="menu-panel th-panel">
+        <div class="th-panel-frame">
+          <p class="game-brand">東方風 · 弾幕STG</p>
+          <h1 class="game-title">棍维<span>Project</span></h1>
+          <p class="game-subtitle">— OTTOWiki Danmaku —</p>
+          <nav class="menu-nav" id="main-menu-nav">
+            <button class="menu-btn" data-action="start"><span class="star">★</span> Start Game</button>
+            <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
+            <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
+            <button class="menu-btn" data-action="key-config"><span class="star">★</span> Key Config</button>
+            <button class="menu-btn" data-action="practice"><span class="star">★</span> Practice</button>
+            <button class="menu-btn" data-action="exit"><span class="star">★</span> Exit</button>
+          </nav>
+          <p class="menu-hint">↑↓ 選択 · Z/Enter 決定 · Esc 戻る</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 难度选择 -->
+    <div id="screen-difficulty" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">難易度選択 · Difficulty</h2>
+          <p class="keys-hint">选择难度后继续自机选择</p>
+          <div class="diff-list" id="diff-list"></div>
+          <button class="menu-btn ghost" data-action="back">返回</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自机选择 -->
+    <div id="screen-player-select" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">自機選択 · Player</h2>
+          <div class="player-cards">
+            <button class="player-card" data-player="yinquan">
+              <div class="player-portrait" style="background-image:url('assets/portraits/yinquan.jpg')"></div>
+              <h3>饮泉思源</h3>
+              <p>主弹 + 侧方追踪子机</p>
+            </button>
+            <button class="player-card" data-player="shama">
+              <div class="player-portrait" style="background-image:url('assets/portraits/shama.jpg')"></div>
+              <h3>誓约沙玛</h3>
+              <p>机制相同 · 剧情对应</p>
+            </button>
+          </div>
+          <button class="menu-btn ghost" data-action="back-diff">返回难度</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关卡选择 -->
+    <div id="screen-stage-select" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Stage Select</h2>
+          <div class="stage-grid" id="stage-grid"></div>
+          <button class="menu-btn ghost" data-action="back">返回</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 练习模式 -->
+    <div id="screen-practice" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Practice Mode</h2>
+          <div class="practice-form">
+            <label>关卡章节
+              <select id="practice-chapter"></select>
+            </label>
+            <label>初始残机
+              <input type="number" id="practice-lives" min="0" max="9" value="2" />
+            </label>
+            <label class="check">
+              <input type="checkbox" id="practice-unstable" checked />
+              Unstable Machine
+            </label>
+          </div>
+          <div class="row-btns">
+            <button class="menu-btn" data-action="practice-start">开始练习</button>
+            <button class="menu-btn ghost" data-action="back">返回</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 键位配置 -->
+    <div id="screen-keys" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Key Config</h2>
+          <p class="keys-hint">点击项目后按下任意键绑定</p>
+          <div class="key-list" id="key-list">
+            <button class="key-row" data-bind="shot"><span>Shot</span><kbd id="key-shot">Z</kbd></button>
+            <button class="key-row" data-bind="bomb"><span>Bomb</span><kbd id="key-bomb">X</kbd></button>
+            <button class="key-row" data-bind="item"><span>Item</span><kbd id="key-item">C</kbd></button>
+          </div>
+          <div class="row-btns">
+            <button class="menu-btn ghost" data-action="keys-reset">恢复默认</button>
+            <button class="menu-btn" data-action="back">完成</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual -->
+    <div id="screen-manual" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel manual-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Manual</h2>
+          <div class="manual-body" id="manual-body"></div>
+          <button class="menu-btn" data-action="back">返回</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏主界面 -->
+    <div id="screen-game" class="screen">
+      <div class="game-layout">
+        <aside class="panel-left" id="stage-impression">
+          <canvas id="bg3d"></canvas>
+          <div class="overlay-fx" id="bg-overlay"></div>
+          <div class="stage-label" id="stage-label">Stage 1</div>
+        </aside>
+
+        <main class="panel-center">
+          <div class="playfield-wrap">
+            <canvas id="playfield" width="450" height="600"></canvas>
+            <div id="dialogue-box" class="dialogue-box hidden">
+              <div class="dialogue-layout">
+                <div class="dialogue-portrait-wrap">
+                  <img id="dialogue-portrait" class="dialogue-portrait hidden" alt="" />
+                </div>
+                <div class="dialogue-content">
+                  <div class="dialogue-name" id="dialogue-name"></div>
+                  <div class="dialogue-text" id="dialogue-text"></div>
+                  <div class="dialogue-hint">Z / 点击 继续</div>
+                </div>
+              </div>
+            </div>
+            <div id="pause-overlay" class="pause-overlay hidden">
+              <h2>PAUSED</h2>
+              <p>Esc 继续 · R 重开 · Q 退出</p>
+            </div>
+            <div id="letter-banner" class="letter-banner hidden">
+              <div class="letter-name" id="letter-name"></div>
+              <div class="letter-timer" id="letter-timer"></div>
+            </div>
+            <div id="flash-msg" class="flash-msg hidden"></div>
+          </div>
+        </main>
+
+        <aside class="panel-right">
+          <div class="score-panel th-score">
+            <div class="th-score-title">棍维Project</div>
+            <div class="stat-block">
+              <div class="stat-row th-hi"><span>HiScore</span><strong id="ui-hiscore">0</strong></div>
+              <div class="stat-row th-sc"><span>Score</span><strong id="ui-score">0</strong></div>
+              <div class="stat-row"><span>Player</span><strong id="ui-player-name">—</strong></div>
+              <div class="stat-row"><span>Rank</span><strong id="ui-difficulty">NORMAL 白银</strong></div>
+              <div class="stat-row lives"><span>Player</span><div id="ui-lives" class="icon-row"></div></div>
+              <div class="stat-row bombs"><span>Bomb</span><div id="ui-bombs" class="icon-row"></div></div>
+              <div class="stat-row">
+                <span>Edit</span>
+                <div class="edit-bar"><div id="ui-edit" class="edit-fill"></div></div>
+              </div>
+              <div class="stat-row"><span>Unstable</span><strong id="ui-unstable">OFF</strong></div>
+              <div class="stat-row"><span>A / B</span><strong id="ui-tendency">0 / 0</strong></div>
+              <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>
+              <div class="stat-row"><span>Bonus</span><strong id="ui-bonus">—</strong></div>
+            </div>
+            <div class="touch-keys">
+              <button type="button" id="btn-item" class="touch-btn">Item</button>
+              <button type="button" id="btn-bomb" class="touch-btn bomb">Bomb</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- 结果 / 结局 -->
+    <div id="screen-result" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel result-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title" id="result-title">Result</h2>
+          <div class="result-body" id="result-body"></div>
+          <div class="row-btns">
+            <button class="menu-btn" data-action="result-retry">再试一次</button>
+            <button class="menu-btn ghost" data-action="result-menu">主菜单</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

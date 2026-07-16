@@ -1,0 +1,22 @@
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editors / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs & local env
+*.log
+.env
+.env.*
+
+# Python cache (MIDI tools)
+__pycache__/
+*.pyc
+.venv/
+venv/
