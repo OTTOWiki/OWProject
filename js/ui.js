@@ -5,7 +5,7 @@ import {
   FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
 } from './config.js';
 import {
-  loadKeys, saveKeys, loadUnlocked, loadSettings, saveSettings,
+  loadKeys, saveKeys, loadSettings, saveSettings,
   normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
 } from './storage.js';
 import { stageSelectEntries, buildChapterList } from './stages/index.js';
@@ -274,7 +274,7 @@ export class UI {
   }
 
   _stageItems() {
-    const stages = [...document.querySelectorAll('#stage-grid .stage-btn:not(:disabled)')];
+    const stages = [...document.querySelectorAll('#stage-grid .stage-btn')];
     const back = document.querySelector('#screen-stage-select [data-action="back"]');
     const items = stages.map((el) => ({ type: 'stage', el }));
     if (back) items.push({ type: 'button', el: back });
@@ -554,7 +554,6 @@ export class UI {
       this.pendingStart = { startChapter: 129, mode: 'extra' };
       this.show('difficulty');
     } else if (action === 'stage-select') {
-      this._refreshStageLocks();
       this.show('stage');
     } else if (action === 'manual') {
       this.show('manual');
@@ -619,39 +618,6 @@ export class UI {
     } else if (action === 'result-menu') {
       this.show('menu');
     }
-  }
-
-  /**
-   * 选关解锁：与 storage.gunwei_unlocked 对齐
-   */
-  _isStageUnlocked(stageId, unlocked) {
-    const id = String(stageId);
-    const st = Number(unlocked?.stage) || 1;
-    const routes = unlocked?.routes || {};
-    if (id === '1') return true;
-    if (id === '2') return st >= 2;
-    if (id === '3') return st >= 3;
-    if (id === 'patrol') return st >= 4;
-    if (id.startsWith('A')) return !!routes.A;
-    if (id.startsWith('B')) return !!routes.B;
-    if (id === 'EX') return !!(routes.A || routes.B);
-    return true;
-  }
-
-  _refreshStageLocks() {
-    const u = loadUnlocked();
-    document.querySelectorAll('.stage-btn').forEach((btn) => {
-      const id = btn.dataset.stage;
-      const ok = this._isStageUnlocked(id, u);
-      btn.disabled = !ok;
-      btn.title = ok ? '' : '未解锁';
-      const small = btn.querySelector('small');
-      if (small) {
-        if (!btn.dataset.desc) btn.dataset.desc = small.textContent;
-        small.textContent = ok ? btn.dataset.desc : '未解锁';
-      }
-    });
-    this.stageIndex = 0;
   }
 
   _practiceItems() {
