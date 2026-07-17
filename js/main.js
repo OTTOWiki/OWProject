@@ -10,6 +10,7 @@ import { getAssetPaths, preloadArtAssets } from './assets.js';
 import { getSpritePaths, preloadSprites } from './sprites.js';
 import { getPlayfieldBgPaths, preloadPlayfieldBg } from './playfieldBg.js';
 import { VERSION_LABEL, applyVersionToDom } from './version.js';
+import { installDebug } from './debug.js';
 
 const canvas = document.getElementById('playfield');
 const bgCanvas = document.getElementById('bg3d');
@@ -180,6 +181,7 @@ async function boot() {
     game = new Game({ canvas, input, audio, background, ui });
     // 启动时套用本地设置
     game.applySettings();
+    installDebug(game);
 
     // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
     // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）

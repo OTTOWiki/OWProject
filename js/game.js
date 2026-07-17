@@ -20,6 +20,10 @@ import {
   createHudCache, updateGameHud, updateLetterHud,
   drawChapterBanner, unstableHintFor,
 } from './hud.js';
+import {
+  getDebugTimeScale, debugBlocksHit, debugLocksLives, debugLocksBombs,
+  debugSkipDialogue, debugTick, debugAutoEdit,
+} from './debug.js';
 
 export class Game {
   constructor({ canvas, input, audio, background, ui }) {
@@ -551,6 +555,12 @@ export class Game {
   }
 
   _openDialogue(lines, after) {
+    if (debugSkipDialogue()) {
+      this.el.dialogueBox?.classList.add('hidden');
+      this.state = 'playing';
+      after?.();
+      return;
+    }
     this.state = 'dialogue';
     this.dialogueQueue = lines;
     this.dialogueIdx = 0;
@@ -638,6 +648,15 @@ export class Game {
       dt = Math.min(0.05, elapsedMs / 1000);
     }
 
+    // Debug 整体加速（只乘逻辑 dt；不改变 rAF 本身）
+    const dbgScale = getDebugTimeScale();
+    if (dbgScale !== 1) {
+      dt *= dbgScale;
+      // 加速时放宽单帧上限，避免 5× 时被 0.05 卡成「并没快多少」
+      const capDt = 0.05 * Math.max(1, dbgScale);
+      if (dt > capDt) dt = capDt;
+    }
+
     // 帧率统计（仅统计实际推进的逻辑帧）
     if (this._fpsLastT != null) {
       const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
@@ -658,6 +677,7 @@ export class Game {
       } else if (this.state === 'playing' && !this.paused) {
         this._update(dt);
       }
+      debugTick();
       // 背景始终滚动（对话/过渡时也缓慢前推）
       const bgMul = this.paused ? 0
         : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
@@ -944,6 +964,8 @@ export class Game {
     const ch = this.chapters[this.chapterIndex];
     const settling = !!this.chapterDone;
 
+    if (debugAutoEdit() && p) p.edit = BALANCE.editMax;
+
     // 决死 Bomb：在审核窗口内优先处理
     let deathSaved = false;
     if (!settling && p.arbitration > 0) {
@@ -1150,10 +1172,11 @@ export class Game {
     const p = this.player;
     if (this.noBomb && !isDeath) return false;
     const cost = this.bombCost;
-    if (p.bombs < cost) return false;
+    const freeBomb = debugLocksBombs();
+    if (!freeBomb && p.bombs < cost) return false;
     if (p.bombTimer > 0 && !isDeath) return false;
 
-    p.bombs -= cost;
+    if (!freeBomb) p.bombs -= cost;
     p.bombTimer = BALANCE.bombDuration;
     p.invuln = BALANCE.bombInvuln;
     this.chapterBomb = true;
@@ -1168,7 +1191,7 @@ export class Game {
   _miss() {
     const p = this.player;
     this.chapterMiss = true;
-    p.lives -= 1;
+    if (!debugLocksLives()) p.lives -= 1;
     p.arbitration = 0;
     p.edit = Math.min(p.edit, BALANCE.editMax * 0.3);
     this.audio.sfx('dead');
@@ -1187,6 +1210,7 @@ export class Game {
 
   _hitPlayer() {
     const p = this.player;
+    if (debugBlocksHit()) return;
     if (p.invuln > 0 || p.arbitration > 0 || p.bombTimer > 0) return;
     p.arbitration = this.deathBombWindow || BALANCE.deathBombWindow;
     this.audio.sfx('hit');

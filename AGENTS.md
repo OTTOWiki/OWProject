@@ -14,6 +14,23 @@ python -m http.server 8080
 
 无构建步骤、无 npm 依赖包。改 JS/CSS/HTML 后刷新浏览器即可。
 
+### Debug 模式（自测）
+
+浏览器控制台：
+
+```js
+owDebug()                 // 开启并打开面板
+owDebug(false)            // 关闭
+owDebug.help()            // 完整命令
+owDebug.set({ invincible: true, lockLives: true, lockBombs: true, timeScale: 3, skipDialogue: true })
+owDebug.softJump(129)     // 软跳章节 id（保留分数资源）
+owDebug.kill()            // 清敌+清弹+本章成功
+```
+
+- 面板：锁残 / 锁 B / 不受伤 / Edit 常满 / 跳过对话 / 整体加速 / 跳章 / 清弹清敌等
+- 热键：`F8` 开关面板（首次也可开启）、`F9` 循环加速
+- 实现：`js/debug.js`（不写 localStorage，刷新即关）
+
 ### 自动化测试（零依赖，浏览器）
 
 ```bash

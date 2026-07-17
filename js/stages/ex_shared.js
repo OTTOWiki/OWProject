@@ -1,6 +1,6 @@
 /** Extra 共用：强度 ×0.8、章时 ×0.5 */
-import { mob, elite, boss, timer } from './_shared.js';
-import { LOGICAL_W, LOGICAL_H } from '../config.js';
+import { elite, boss, timer } from './_shared.js';
+import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain,
 } from '../patterns.js';
@@ -56,156 +56,7 @@ export function exLetter(mainlineSec) {
   return Math.max(14, Math.round(mainlineSec * EX.time));
 }
 
-/** 道中杂鱼波：左右/随机 descend + 狙 */
-export function buildMidWave(g, opts = {}) {
-  const {
-    interval = 0.9,
-    maxWaves = 6,
-    hp = 32,
-    n = 1,
-    parity = 'odd',
-    speed = 2.2,
-    type = 'dot',
-    color = C.green,
-    mode = 'sides', // sides | random | lane
-    fireEvery = 0.9,
-  } = opts;
-  const spawnI = interval * EX.spawn;
-  const fireI = exFire(fireEvery);
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < spawnI) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > maxWaves) return;
-    const w = g.waveCount;
-    let xs = [];
-    if (mode === 'sides') {
-      xs = [w % 2 === 0 ? 70 : LOGICAL_W - 70];
-    } else if (mode === 'lane') {
-      xs = [60 + (w % 5) * ((LOGICAL_W - 120) / 4)];
-    } else {
-      xs = [40 + Math.random() * (LOGICAL_W - 80)];
-    }
-    for (const x of xs) {
-      const e = mob(x, -18, exHp(hp), color);
-      e.vy = 1.1 + (w % 3) * 0.15;
-      e.script = (en, d, game) => {
-        timer(en, 's', fireI, d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(n, parity), parity, type, speed: exSp(speed), color,
-          });
-        });
-      };
-      g.enemies.push(e);
-    }
-  };
-}
-
-/** 双侧同时刷 */
-export function buildMidSides(g, opts = {}) {
-  const {
-    interval = 0.85,
-    maxWaves = 5,
-    hp = 30,
-    n = 2,
-    speed = 2.0,
-    color = C.cyan,
-  } = opts;
-  const spawnI = interval * EX.spawn;
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < spawnI) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > maxWaves) return;
-    for (const x of [55, LOGICAL_W - 55]) {
-      const e = mob(x, -15, exHp(hp), color);
-      e.vy = 1.25;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.95), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(n, 'even'), parity: 'even', type: 'rice',
-            speed: exSp(speed), spread: 0.14, color,
-          });
-        });
-      };
-      g.enemies.push(e);
-    }
-  };
-}
-
-/** 重力雨 + 少量杂鱼 */
-export function buildMidRain(g, opts = {}) {
-  const {
-    interval = 1.0,
-    maxWaves = 5,
-    rainEvery = 0.45,
-    rainN = 2,
-    color = C.violet,
-  } = opts;
-  const spawnI = interval * EX.spawn;
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.rainT = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT >= rainEvery * EX.fire) {
-      g.rainT = 0;
-      spawnGravityRain(g, Math.max(1, exN(rainN)), 'rice', color, exSp(1.8));
-    }
-    if (g.waveTimer < spawnI) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > maxWaves) return;
-    const e = mob(50 + Math.random() * (LOGICAL_W - 100), -20, exHp(36), color);
-    e.vy = 1.0;
-    e.script = (en, d, game) => {
-      timer(en, 's', exFire(1.1), d, () => {
-        spawnAimed(game, en, game.player, {
-          n: exN(1, 'odd'), parity: 'odd', type: 'dot', speed: exSp(2.3), color,
-        });
-      });
-    };
-    g.enemies.push(e);
-  };
-}
-
-/** 环弹杂鱼 */
-export function buildMidRing(g, opts = {}) {
-  const {
-    interval = 1.1,
-    maxWaves = 4,
-    hp = 48,
-    ringN = 10,
-    color = C.gold,
-  } = opts;
-  const spawnI = interval * EX.spawn;
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < spawnI) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > maxWaves) return;
-    const x = LOGICAL_W * (0.25 + (g.waveCount % 3) * 0.25);
-    const e = mob(x, -20, exHp(hp), color);
-    e.vy = 0.9;
-    e.script = (en, d, game) => {
-      if (en.y > 90 && en.y < 200) en.vy = 0.15;
-      timer(en, 'r', exFire(1.4), d, () => {
-        spawnRingAt(game, en.x, en.y, exN(ringN), exSp(2.0), 'talisman', color, en.age);
-      });
-    };
-    g.enemies.push(e);
-  };
-}
+// 道中波次：现网由 ex_mid.js 的 MID_PATTERNS + buildExMid 承担（已无 buildMid* 调用方）
 
 export function pushMidboss(g, opts = {}) {
   const {
@@ -380,4 +231,7 @@ export function pushBossLetter(g, opts = {}) {
   g.bossRef = e;
 }
 
-export { mob, elite, boss, timer, LOGICAL_W, LOGICAL_H, spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, Bullet };
+export {
+  elite, boss, timer, LOGICAL_W,
+  spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, Bullet,
+};
