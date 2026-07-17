@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OWProject Tests</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c1018;
+      --panel: #141a24;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --ok: #4ade80;
+      --bad: #f87171;
+      --line: #1e293b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 24px 20px 48px;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0 0 4px;
+      letter-spacing: 0.02em;
+    }
+    #meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    #summary {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+    #summary.ok { color: var(--ok); border-color: rgba(74, 222, 128, 0.35); }
+    #summary.bad { color: var(--bad); border-color: rgba(248, 113, 113, 0.4); }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    li {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px 10px;
+      align-items: baseline;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+    li pre {
+      grid-column: 1 / -1;
+      margin: 0;
+      padding: 8px 10px;
+      background: #0a0e14;
+      border-radius: 6px;
+      color: #fca5a5;
+      font-size: 0.78rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, Consolas, monospace;
+    }
+    li.pass .badge { background: rgba(74, 222, 128, 0.15); color: var(--ok); }
+    li.fail .badge { background: rgba(248, 113, 113, 0.18); color: var(--bad); }
+    .name { color: var(--text); }
+    .ms { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+    .hint {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--panel);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>OWProject · 自动化测试</h1>
+    <div id="meta">加载中…</div>
+    <div id="summary">准备运行…</div>
+    <ul id="results"></ul>
+    <p class="hint">
+      须通过本地 HTTP 打开（与游戏相同），例如项目根目录执行
+      <code>npx --yes serve .</code>
+      后访问 <code>/test/</code>。
+      结果也会写到 <code>window.__TEST_RESULT__</code> 与控制台。
+    </p>
+  </main>
+  <script type="module" src="./run.js"></script>
+</body>
+</html>

@@ -227,7 +227,8 @@ export function drawChapterBanner(ctx, s, W, H) {
   if (s.perfect) {
     ctx.fillStyle = '#fbbf24';
     ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('PERFECT ×1.05', cx, nextY);
+    const mul = s.settleMul > 1 ? s.settleMul : 1.05;
+    ctx.fillText(`PERFECT ×${Number(mul).toFixed(2)}`, cx, nextY);
     nextY += 18;
   }
   if (s.unstableComp > 1) {

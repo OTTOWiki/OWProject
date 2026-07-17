@@ -86,6 +86,7 @@ export const BALANCE = {
   midBossTime: 28,
 
   tendencyMaxPerChapter: 10,
+  /** 3 面结束后 |倾向| ≥ 此值进对应 A/B 线，否则巡查拦截。以代码为准（旧需求稿中的 14 已废弃） */
   tendencyThreshold: 70,
   tendencyMinPerChapter: 1,
   tendencySpeed: 2,

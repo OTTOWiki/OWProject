@@ -101,27 +101,42 @@ export function saveHiscore(score) {
   return false;
 }
 
+/** 进度记录（Stage Select 不门禁；见 AGENTS.md）。损坏数据时回落默认。 */
 export function loadUnlocked() {
+  const fallback = { stage: 1, routes: { A: false, B: false } };
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.unlocked);
-    if (!raw) return { stage: 1, routes: { A: false, B: false } };
-    return JSON.parse(raw);
+    if (!raw) return { ...fallback, routes: { ...fallback.routes } };
+    const u = JSON.parse(raw);
+    const stage = Number(u?.stage);
+    const routes = u?.routes && typeof u.routes === 'object' ? u.routes : {};
+    return {
+      stage: Number.isFinite(stage) && stage >= 1 ? stage : 1,
+      routes: {
+        A: !!routes.A,
+        B: !!routes.B,
+      },
+    };
   } catch {
-    return { stage: 1, routes: { A: false, B: false } };
+    return { ...fallback, routes: { ...fallback.routes } };
   }
 }
 
 export function unlockStage(stage) {
-  const u = loadUnlocked();
-  if (stage > u.stage) {
-    u.stage = stage;
-    localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
-  }
+  try {
+    const u = loadUnlocked();
+    if (stage > u.stage) {
+      u.stage = stage;
+      localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
+    }
+  } catch { /* ignore quota / private mode */ }
 }
 
 export function unlockRoute(route) {
-  const u = loadUnlocked();
-  u.routes[route] = true;
-  if (u.stage < 4) u.stage = 4;
-  localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
+  try {
+    const u = loadUnlocked();
+    if (route === 'A' || route === 'B') u.routes[route] = true;
+    if (u.stage < 4) u.stage = 4;
+    localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
+  } catch { /* ignore quota / private mode */ }
 }

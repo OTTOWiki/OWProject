@@ -276,7 +276,14 @@ async function boot() {
     if (elLoad) {
       elLoad.dataset.dismissed = '';
       elLoad.classList.remove('done');
-      elLoad.innerHTML = '<div style="color:#f87171;font-size:16px;text-align:center;padding:40px">启动失败<br><small>' + e.message + '</small></div>';
+      elLoad.replaceChildren();
+      const box = document.createElement('div');
+      box.style.cssText = 'color:#f87171;font-size:16px;text-align:center;padding:40px';
+      box.append('启动失败', document.createElement('br'));
+      const small = document.createElement('small');
+      small.textContent = e?.message || String(e);
+      box.append(small);
+      elLoad.append(box);
     }
   }
 }
@@ -284,6 +291,13 @@ async function boot() {
 boot().catch((e) => {
   console.error('Boot crashed:', e);
   if (elLoad) {
-    elLoad.innerHTML = '<div style="color:#f87171;font-size:16px;text-align:center;padding:40px">启动失败<br><small>' + (e?.message || e) + '</small></div>';
+    elLoad.replaceChildren();
+    const box = document.createElement('div');
+    box.style.cssText = 'color:#f87171;font-size:16px;text-align:center;padding:40px';
+    box.append('启动失败', document.createElement('br'));
+    const small = document.createElement('small');
+    small.textContent = e?.message || String(e);
+    box.append(small);
+    elLoad.append(box);
   }
 });

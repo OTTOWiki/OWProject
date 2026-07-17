@@ -304,6 +304,21 @@ export class Enemy {
     }
     return false;
   }
+
+  /**
+   * 击破时触发一次 onDeath（死亡散射等），之后清空避免重复。
+   * 须在击杀路径调用；屏外消失不应走这里。
+   */
+  fireOnDeath(game) {
+    if (!this.onDeath) return;
+    const fn = this.onDeath;
+    this.onDeath = null;
+    try {
+      fn(this, game);
+    } catch (err) {
+      console.error('[enemy onDeath]', err);
+    }
+  }
 }
 
 /* ========== Item drops ========== */

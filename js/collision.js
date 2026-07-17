@@ -142,6 +142,8 @@ export function runCollisions(game) {
         const drop = e.drop || game._defaultKillDrop(e);
         if (drop) game.spawnItem(e.x, e.y, drop);
         else if (Math.random() < 0.35) game.spawnItem(e.x, e.y, 'score');
+        // 击杀在碰撞阶段发生，须在此触发 onDeath（update 已跑过，且 purge 会立刻移除）
+        e.fireOnDeath?.(game);
       }
       return true;
     };

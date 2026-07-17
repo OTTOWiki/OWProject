@@ -1012,20 +1012,13 @@ export class Game {
       // waves
       this.waveFn?.(dt);
 
-      // enemies
+      // enemies（击杀 onDeath 在 collision 击破路径触发；此处不跑，避免屏外消失误触发）
       for (const e of this.enemies) {
         try {
           e.update(dt, this);
         } catch (err) {
           console.error('[enemy script]', e?.label || e?.kind, err);
           e.script = null;
-        }
-        if (e.dead && e.onDeath) {
-          try {
-            e.onDeath(e, this);
-          } catch (err) {
-            console.error('[enemy onDeath]', err);
-          }
         }
       }
     }
@@ -1098,8 +1091,15 @@ export class Game {
           this._finishChapter(false);
         }
       } else if (ch.duration && this.chapterTime >= ch.duration && !this.chapterDone) {
-        // 道中时长保底（无限刷怪/纯弹幕等）：存活到时即成功
-        this._finishChapter(true);
+        // 有 bossRef 的限时章（道中精英/midboss）：到时未击破 → 失败收场
+        // 纯道中：存活到时即成功（无限刷怪/纯弹幕保底）
+        if (this.bossRef && !this.bossRef.dead) {
+          this.bossRef.hp = 0;
+          this.bossRef.dead = true;
+          this._finishChapter(false);
+        } else {
+          this._finishChapter(true);
+        }
       }
 
       // Boss / Letter：击破即本章结束（以 dead 为准，避免阶段切血误伤）
@@ -1314,7 +1314,9 @@ export class Game {
     if (this.chapterDone) return;
     this.chapterDone = true;
     const ch = this.chapters[this.chapterIndex];
-    const perfect = !this.chapterMiss && !this.chapterBomb;
+    // 无 Miss/Bomb；奖励须成功通关（Letter/midboss 超时失败不发 Perfect/NMNB）
+    const clean = !this.chapterMiss && !this.chapterBomb;
+    const perfect = success && clean;
 
     // NMNB 结算：Perfect ×1.05 + 负面 Unstable 补偿倍率（仅负面，乘在章分上）
     // chapterScore 已含 scoreMul / diffScoreMul，加成直接加算，禁止再走 addScore 二次乘倍率
@@ -1340,10 +1342,10 @@ export class Game {
 
     // Letter 符卡红利：无 Miss/Bomb 且限时内击破；随剩余时间线性递减，随关卡进程抬高
     let letterBonus = 0;
-    if (success && perfect && this.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
+    if (perfect && this.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
       letterBonus = calcLetterBonus(ch.stageKey, this.letterTimeLeft, this.letterTimeMax);
       if (letterBonus > 0) this.addScore(letterBonus);
-      this._grantLetterResource(ch, perfect, success);
+      this._grantLetterResource(ch, true, true);
     }
 
     // 负面 Unstable 高补偿 NMNB → 额外 +1 Bomb
@@ -1417,7 +1419,7 @@ export class Game {
       this._scheduleAdvance(NEXT_DELAY, () => {
         this._openResult({
           title: '练习结束',
-          body: `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n${(!this.chapterMiss && !this.chapterBomb) ? 'Perfect Clear!' : ''}`,
+          body: `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n${perfect ? 'Perfect Clear!' : ''}`,
           retryChapter: ch.id,
         });
       });

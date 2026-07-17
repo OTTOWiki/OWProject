@@ -1,3 +1,6 @@
+【已过时 · 仅供参考】本文件为早期产品/关卡草稿，已移入「参考/」。
+实现与数值以当前代码及仓库根目录 AGENTS.md / README.md 为准；冲突时勿按本稿强行对齐。
+
 制作一个基于html的弹幕游戏，名为OTTOWiki Project（简称 OWProject）
 
 [MAIN MENU & CONFIGURATION] (主菜单与键位配置)

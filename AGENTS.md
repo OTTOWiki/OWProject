@@ -12,21 +12,35 @@ npx --yes serve .
 python -m http.server 8080
 ```
 
-无构建步骤、无 npm 依赖包、无测试套件。改 JS/CSS/HTML 后刷新浏览器即可。
+无构建步骤、无 npm 依赖包。改 JS/CSS/HTML 后刷新浏览器即可。
+
+### 自动化测试（零依赖，浏览器）
+
+```bash
+npx --yes serve .
+# 浏览器打开 http://localhost:3000/test/  （端口以 serve 输出为准）
+```
+
+- 入口：`test/index.html` → `test/run.js` + `test/cases.js`
+- 覆盖：配置/难度、章节表完整性、`scaleBulletCount`、碰撞几何、版本号等纯逻辑
+- 不启动 Game 主循环；结果见页面与 `window.__TEST_RESULT__`
+- Node 也可跑：`node --input-type=module -e "import './test/cases.js'; import { runAll } from './test/assert.js'; const r=await runAll(); console.log(r); if(r.failed) process.exit(1)"`
 
 ## 目录结构
 
 ```
 index.html          # 三栏 UI 壳 + 屏幕切换
+test/               # 零依赖自动化测试（assert + cases + 结果页）
 css/style.css       # 布局与东方风菜单样式
 js/
   main.js           # 入口：组装 Input / Audio / Background / Game / UI
   version.js        # 应用版本号 VERSION（与 git tag 对齐）
   config.js         # 逻辑分辨率、BALANCE、难度、角色色、Unstable 池、说明书
-  game.js           # 主循环、状态机、章节推进、碰撞、得分、A/B 线
-  stages.js         # 章节表 buildChapterList() + 各章刷怪/弹幕 build
+  game.js           # 主循环、状态机、章节推进、得分、A/B 线
+  collision.js      # 碰撞与网格粗筛
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
   entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制
+  stages/           # 章节表（index.js 聚合）+ 各面 build
   dialogue.js       # 剧情对话与结局文本
   ui.js             # 菜单编排：难度/自机/关卡/练习/设置（含键位）
   menuNav.js        # 菜单键盘导航：键位判定 + 列表/网格/表单通用处理
@@ -38,14 +52,15 @@ js/
   playfieldBg.js    # 版面伪 3D / 贴图背景
   sprites.js        # 角色/敌人贴图绘制
   assets.js         # 立绘与标题图预加载
-  storage.js        # localStorage（键位、高分、解锁、设置）
+  storage.js        # localStorage（键位、高分、进度记录、设置）
+functions/api/      # Cloudflare Pages Functions（History 版本列表等）
 assets/
   bg/ portraits/ sprites/ ui/   # 图片资源
   midi/*.json                   # 解析后的 MIDI 音符数据（运行时使用）
 tools/
   parse_midi.py / parse_all_midis.py   # 将 参考/*.mid → assets/midi/*.json
-参考/               # 源 MIDI（不直接在运行时加载）
-需求.txt            # 完整产品/关卡规格（权威需求文档）
+参考/               # 源 MIDI + 过时设计稿等（不直接在运行时加载）
+  需求.txt          # 早期产品/关卡草稿（已过时，仅供参考，非权威）
 ```
 
 ## 架构要点
@@ -63,7 +78,8 @@ tools/
 |------|--------|------------|
 | `config.js` | 数值、难度倍率、文案常量 | 游戏逻辑 |
 | `game.js` | 状态、更新/渲染循环、章节切换 | 具体弹幕公式（应放 patterns/stages） |
-| `stages.js` | 章节定义 + 刷怪时间轴 | 全局状态机 |
+| `collision.js` | 自机弹/敌弹碰撞 | 章节编排 |
+| `stages/*` | 章节定义 + 刷怪时间轴（`stages/index.js` 聚合） | 全局状态机 |
 | `patterns.js` | 弹幕生成工具函数 | UI / 存档 |
 | `entities.js` | 实体数据与 Canvas 绘制 | 章节编排 |
 | `ui.js` | 菜单与屏幕切换 | 碰撞/得分 |
@@ -77,26 +93,29 @@ tools/
 
 ### 章节流
 
-1. 前三面：章节 id **1–22**（道中 + Boss Letter card）
-2. 3 面结算：A/B 倾向 ≥14 进对应线；否则 **巡查姬 23–24** 拦截
+1. 前三面：章节 id **1–22**（各面多段道中 + midboss + Boss Letter）
+2. 3 面结算：|A/B 倾向| ≥ `BALANCE.tendencyThreshold`（当前 **70**）进对应线；否则 **巡查姬 23–24** 拦截
 3. 拦截胜利 → `routeSelect` 手选 A/B
-4. A 线 **25–31**（门百梁 → 主角冲突 → 一美个）→ 结局 A
-5. B 线 **32–38**（赌人时尚 → 棍电噢哆 → 拉斯特神炫）→ 结局 B
+4. A 线（门百梁 → 主角冲突 → 一美个）→ 结局 A；B 线（赌人时尚 → 棍电噢哆 → 拉斯特神炫）→ 结局 B；另有 EX
+5. 每面为多 mid + midboss + 多 Letter 的章节串；具体 id 以 `js/stages/*.js` 为准
 
-章节对象字段（`stages.js`）：`id, name, stage, stageKey, kind, music, bg, duration?, unstable?, tendencyPoints?, dialogue?, letter?, letterTime?, build(g)`
+章节对象字段（`js/stages/*`）：`id, name, stage, stageKey, kind, music, bg, duration?, unstable?, dialogue?, letter?, letterTime?, build(g)`
 
 - `kind`: `mid` | `midboss` | `boss`
 - `build(g)` 向 `game` 注册敌人/刷怪逻辑
 - 难度通过敌人上的 `_fireMul` 等与 `DIFFICULTIES` 倍率注入
+- `duration`：纯道中存活保底成功；若章内有 `bossRef`（midboss 等）则到时未击破为失败
+- `letterTime`：Letter 限时，超时失败（不发 Perfect/NMNB）
 
 ### 核心机制（实现位置）
 
-- **章节 Perfect ×1.05**：章内无 Miss/Bomb → `BALANCE.chapterPerfectMul`
+- **章节 Perfect ×1.05**：成功通关且章内无 Miss/Bomb → `BALANCE.chapterPerfectMul`（超时失败不发）
 - **擦弹编辑度**：判定附近 graze → `edit` 槽；满 100 按 Item → 半径 50 消弹变分
 - **决死 Bomb**：被弹后 `deathBombWindow`（难度相关）内按 Bomb 免死全清
 - **Unstable Machine**：道中 `unstable: true` 章节从 `UNSTABLE_POOL` 抽效果
-- **A/B 倾向**：自机在左/右半场累计（`tendencyLeftBound` / `tendencyRightBound`）
+- **A/B 倾向**：自机在左/右半场累计；阈值见 `BALANCE.tendencyThreshold`
 - **默认资源**：2 残 3B（难度可覆盖）
+- **Stage Select**：**不锁关**；1–3 / 巡查 / A4–A6 / B4–B6 / EX 均可直接选
 
 ### 自机
 
@@ -128,7 +147,7 @@ tools/
 |-----|------|
 | `gunwei_keys` | Shot/Bomb/Item 键位 |
 | `gunwei_hiscore` | 高分 |
-| `gunwei_unlocked` | 关卡/路线解锁 |
+| `gunwei_unlocked` | 进度记录（通关推进时写入 stage/route）；**Stage Select 不读取、不门禁** |
 | `gunwei_difficulty` | 上次难度 |
 | `gunwei_settings` | 音量、子弹不透明度、单击发射等 |
 
@@ -178,15 +197,16 @@ tools/
 ## 改代码约定
 
 1. **平衡数值**优先改 `js/config.js` 的 `BALANCE` / `DIFFICULTIES`，不要在 `game.js` 里散落魔法数。
-2. **新章节/弹幕**：在 `stages.js` 的 `buildChapterList` 增加条目，实现 `chapter_*` 函数；复用 `patterns.js` 的 `spawnAimed` / `oddAim` / `evenAim` / `spawnRingAt` 等。
+2. **新章节/弹幕**：在 `js/stages/` 对应面文件增加章节，并确保 `stages/index.js` 的 `buildChapterList` 已聚合；复用 `patterns.js` 的 `spawnAimed` / `oddAim` / `evenAim` / `spawnRingAt` 等。
 3. **新对话**：`dialogue.js` 的 `getDialogues(playerId)`；说话人颜色在 `SPEAKER_COLORS`。
 4. **新背景模式**：`backgrounds.js` 的 `setMode` / `bgModeFor`，必要时补 `assets/bg/` 贴图。
 5. **保持 ES modules**：`import`/`export`，无打包器；浏览器原生加载。
 6. **语言**：UI/剧情以中文为主；代码标识符英文；注释可用中文。
-7. **需求冲突时**：以当前可运行代码为准，并用 `需求.txt` 核对设计意图；README 中“纯程序化 BGM、无音频文件”已过时——实际为 **MIDI JSON + Web Audio**。
+7. **规格冲突时**：以当前可运行代码与本文件为准。`参考/需求.txt` 是早期草稿、**已过时、仅供参考**，不要当作权威规格去“对齐”实现。
 8. **不要**引入构建工具/框架，除非用户明确要求；保持单页静态可托管。
 9. **不要**在运行时修改 playfield 的 `width`/`height` 属性。
-10. 大文件：`stages.js`、`game.js`、`entities.js` 已较大——新增内容优先按现有模式扩展，避免无关大重构。
+10. 大文件：`game.js`、`entities.js`、各 `stages/*` 已较大——新增内容优先按现有模式扩展，避免无关大重构。
+11. **Stage Select 保持全开放**；不要为关卡按钮加 unlock 门禁，除非产品明确改需求。
 
 ## 弹种（`entities.js` / `patterns.js`）
 
@@ -204,17 +224,17 @@ tools/
 
 ## 规格来源
 
-- 产品与关卡设计：`需求.txt`
+- **权威**：当前可运行代码（`js/` 等）+ 本 `AGENTS.md`
 - 玩家向说明：`README.md`、`config.js` 的 `MANUAL_TEXT`
-- 实现以 `js/` 为准
+- **仅供参考（过时）**：`参考/需求.txt`（早期设计稿，数值/章节表/流程可能与现网不符；查意图时可翻，冲突时以代码为准）
 
 ## 常见任务速查
 
 | 任务 | 主要文件 |
 |------|----------|
 | 调难度/手感 | `config.js` |
-| 改某一章弹幕 | `stages.js` + `patterns.js` |
-| 改碰撞/Bomb/擦弹 | `game.js` |
+| 改某一章弹幕 | `js/stages/*` + `patterns.js` |
+| 改碰撞/Bomb/擦弹 | `collision.js` / `game.js` |
 | 改菜单流程 | `ui.js` + `index.html` |
 | 改设置/键位 | `ui.js` + `storage.js` + `config.js` |
 | 改 BGM 映射 | `audio.js` + `assets/midi/` |
@@ -222,3 +242,4 @@ tools/
 | 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/` |
 | 重新解析 MIDI | `tools/parse_all_midis.py` |
 | 发版 / 升版本号 | `js/version.js` + git tag `vX.Y.Z`（见上文） |
+| 跑自动化测试 | 本地 HTTP 打开 `/test/`（见上文） |
