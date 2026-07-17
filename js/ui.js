@@ -29,14 +29,12 @@ export class UI {
     this.menuIndex = 0;
     this.pendingStart = null;
     this.pendingDifficulty = 'normal';
-    this.lastResult = null;
     this.binding = null;
     this.diffIndex = 1;
     this.playerIndex = 0;
     this.stageIndex = 0;
     this.manualIndex = 1;
     this.practiceIndex = 0;
-    this.resultIndex = 0;
     this.settingsIndex = 0;
     /** 从暂停菜单进入设置时的返回回调 */
     this.settingsReturn = null;
@@ -52,7 +50,6 @@ export class UI {
       manual: document.getElementById('screen-manual'),
       history: document.getElementById('screen-history'),
       game: document.getElementById('screen-game'),
-      result: document.getElementById('screen-result'),
     };
 
     this.history = new HistoryScreen({
@@ -172,20 +169,6 @@ export class UI {
         });
       },
       history: (e) => this.history.handleKey(e),
-      result: (e) => {
-        const rowBtns = [
-          document.querySelector('#screen-result [data-action="result-retry"]'),
-          document.querySelector('#screen-result [data-action="result-menu"]'),
-        ].filter(Boolean);
-        handleListKey(e, {
-          count: rowBtns.length,
-          index: this.resultIndex,
-          setIndex: (i) => { this.resultIndex = i; },
-          highlight: () => highlightButtons(rowBtns, this.resultIndex),
-          onConfirm: () => rowBtns[this.resultIndex]?.click(),
-          onBack: () => this._action('result-menu'),
-        });
-      },
     };
   }
 
@@ -606,17 +589,6 @@ export class UI {
     } else if (action === 'back-diff') {
       this._sfx('cancel');
       this.show('difficulty');
-    } else if (action === 'result-retry') {
-      const r = this.lastResult;
-      this.pendingStart = {
-        startChapter: r?.retryChapter || 1,
-        mode: 'story',
-        difficulty: r?.difficulty || this.pendingDifficulty,
-      };
-      if (r?.difficulty) this.pendingDifficulty = r.difficulty;
-      this.show('player');
-    } else if (action === 'result-menu') {
-      this.show('menu');
     }
   }
 
@@ -758,14 +730,6 @@ export class UI {
     if (name === 'history') {
       this.history.resetFocus();
     }
-    if (name === 'result') {
-      this.resultIndex = 0;
-      const rowBtns = [
-        document.querySelector('#screen-result [data-action="result-retry"]'),
-        document.querySelector('#screen-result [data-action="result-menu"]'),
-      ].filter(Boolean);
-      highlightButtons(rowBtns, this.resultIndex);
-    }
   }
 
   showMenu() {
@@ -774,17 +738,5 @@ export class UI {
 
   showGame() {
     this.show('game');
-  }
-
-  showResult({ title, body, retryChapter, difficulty }) {
-    this.lastResult = {
-      title,
-      body,
-      retryChapter,
-      difficulty: difficulty || this.pendingDifficulty,
-    };
-    document.getElementById('result-title').textContent = title;
-    document.getElementById('result-body').textContent = body;
-    this.show('result');
   }
 }

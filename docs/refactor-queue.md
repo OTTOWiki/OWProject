@@ -39,7 +39,7 @@
 ### T01 删除未使用的 EX mid 构建器
 | | |
 |--|--|
-| **状态** | 等手测 |
+| **状态** | 完成 |
 | **审查对应** | Issue 8（死双系统） |
 | **范围** | `js/stages/ex_shared.js` 中未被引用的 `buildMidWave` / `buildMidSides` / `buildMidRain` / `buildMidRing`（改前用 grep 再确认无 import） |
 | **不做** | 不改 `MID_PATTERNS` / `buildExMid` / 现网 EX 章节表 |
@@ -50,7 +50,7 @@
 ### T02 删除死结果页路径（或确认保留理由）
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 等手测 |
 | **审查对应** | Issue 8 |
 | **范围** | `UI.showResult` / `lastResult` / `result-*` 相关逻辑；`index.html` 中若仅服务于该死路径的 `screen-result` 一并清理。**先确认游戏内结算只走 Game overlay** |
 | **不做** | 不改暂停 / 练习结束 / GameOver 的 overlay 行为 |
@@ -200,7 +200,7 @@ T01 → 手测 → T02 → 手测 → T03 → 手测 → T04 → 手测 → T05 
   → （再开阶段 D，另议）
 ```
 
-当前应执行：~~T01~~ 插队 **Debug 模式**（手测中）→ 确认后再继续 **T02**。
+当前应执行：**T02 等手测** → 通过后开 **T03**。
 
 ---
 
@@ -208,8 +208,9 @@ T01 → 手测 → T02 → 手测 → T03 → 手测 → T04 → 手测 → T05 
 
 | 日期 | 任务 | 自动测试 | 手测 | 备注 |
 |------|------|----------|------|------|
-| 2026-07-18 | T01 | 17/17 通过 | 待确认 | 删 `buildMidWave/Sides/Rain/Ring`；清理无用 `mob`/`LOGICAL_H` 导入与再导出 |
-| 2026-07-18 | Debug 模式 | 17/17 通过 | 待确认 | `js/debug.js` + 主循环加速/作弊；控制台 `owDebug()` |
+| 2026-07-18 | T01 | 17/17 通过 | 完成 | 删 `buildMidWave/Sides/Rain/Ring`；清理无用 `mob`/`LOGICAL_H` 导入与再导出 |
+| 2026-07-18 | Debug 模式 | 17/17 通过 | 完成 | `js/debug.js`；已提交 `4e6bdde` 并推送 |
+| 2026-07-18 | T02 | 17/17 通过 | 待确认 | 删死 `screen-result` / `showResult`；结算仍走 Game overlay |
 
 ---
 

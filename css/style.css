@@ -1242,24 +1242,6 @@ html, body {
   background: #142838;
 }
 
-/* Result */
-.result-panel { max-width: min(560px, 94vw); }
-.result-body {
-  text-align: left;
-  font-size: 0.9rem;
-  line-height: 1.7;
-  color: #d8cbb0;
-  max-height: 50vh;
-  overflow-y: auto;
-  margin-bottom: 1.25rem;
-  white-space: pre-wrap;
-}
-.result-body .score-line {
-  font-family: var(--mono);
-  color: var(--gold);
-  margin: 0.5rem 0;
-}
-
 /* ===== Debug 面板（控制台 owDebug()） ===== */
 .debug-panel {
   position: fixed;
