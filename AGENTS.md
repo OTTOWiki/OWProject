@@ -21,20 +21,21 @@ index.html          # 三栏 UI 壳 + 屏幕切换
 css/style.css       # 布局与东方风菜单样式
 js/
   main.js           # 入口：组装 Input / Audio / Background / Game / UI
+  version.js        # 应用版本号 VERSION（与 git tag 对齐）
   config.js         # 逻辑分辨率、BALANCE、难度、角色色、Unstable 池、说明书
   game.js           # 主循环、状态机、章节推进、碰撞、得分、A/B 线
   stages.js         # 章节表 buildChapterList() + 各章刷怪/弹幕 build
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
   entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制
   dialogue.js       # 剧情对话与结局文本
-  ui.js             # 菜单、难度/自机/关卡/练习/键位
+  ui.js             # 菜单、难度/自机/关卡/练习/设置（含键位）
   input.js          # 键盘 + 触屏相对滑动 + 虚拟键
   audio.js          # Web Audio：MIDI JSON 合成 BGM + SFX
   backgrounds.js    # 左侧 Three.js 关卡印象
   playfieldBg.js    # 版面伪 3D / 贴图背景
   sprites.js        # 角色/敌人贴图绘制
   assets.js         # 立绘与标题图预加载
-  storage.js        # localStorage（键位、高分、解锁）
+  storage.js        # localStorage（键位、高分、解锁、设置）
 assets/
   bg/ portraits/ sprites/ ui/   # 图片资源
   midi/*.json                   # 解析后的 MIDI 音符数据（运行时使用）
@@ -126,6 +127,50 @@ tools/
 | `gunwei_hiscore` | 高分 |
 | `gunwei_unlocked` | 关卡/路线解锁 |
 | `gunwei_difficulty` | 上次难度 |
+| `gunwei_settings` | 音量、子弹不透明度、单击发射等 |
+
+## 版本号与发版流程
+
+### 约定
+
+- **单一源**：`js/version.js` 中的 `VERSION`（如 `'0.1.0'`）
+- **显示**：`VERSION_LABEL` = `v` + `VERSION`（如 `v0.1.0`），写在主菜单与暂停界面右下角（`[data-app-version]`）
+- **Git tag**：必须与显示一致，格式 **`vX.Y.Z`**（SemVer，带 `v` 前缀）
+- **范围**：从 `v0.1.0` 起；小改补丁 `Z+1`，功能增量 `Y+1`，不兼容大改 `X+1`（预发布阶段以 `0.y.z` 为主即可）
+
+### 发版步骤（每次发布都按此执行）
+
+1. **确认可发布**：本地可运行、关键改动已提交到目标分支（通常 `main`）。
+2. **改版本号**：编辑 `js/version.js`：
+   ```js
+   export const VERSION = '0.1.1'; // 示例：升补丁
+   ```
+   不要只改 HTML 里的占位文字；运行时由 `applyVersionToDom()` 覆盖。
+3. **提交**：
+   ```bash
+   git add js/version.js
+   # 若本次还有功能/修复，一并加入
+   git commit -m "Release v0.1.1"
+   ```
+4. **打 tag**（annotated，推荐）：
+   ```bash
+   git tag -a v0.1.1 -m "棍维Project v0.1.1"
+   ```
+   - tag 名必须等于 `v` + `VERSION`
+   - 勿在脏工作区乱打 tag；应指向上述 release commit
+5. **同步远程**：
+   ```bash
+   git push origin main
+   git push origin v0.1.1
+   # 或一次性：git push origin main --tags
+   ```
+6. **自检**：打开主菜单 / 暂停界面右下角应为 `v0.1.1`；`git describe --tags` 应能指到该 tag。
+
+### 注意
+
+- **不要**在未改 `version.js` 的情况下只推 tag（界面版本会与 tag 不一致）。
+- **不要**移动/复用已推送的历史 tag（需要改版请升版本号新打 tag）。
+- 热修同一 commit 极少需要 force-move tag；优先新补丁号。
 
 ## 改代码约定
 
@@ -168,7 +213,9 @@ tools/
 | 改某一章弹幕 | `stages.js` + `patterns.js` |
 | 改碰撞/Bomb/擦弹 | `game.js` |
 | 改菜单流程 | `ui.js` + `index.html` |
+| 改设置/键位 | `ui.js` + `storage.js` + `config.js` |
 | 改 BGM 映射 | `audio.js` + `assets/midi/` |
 | 改左侧 3D 场景 | `backgrounds.js` |
 | 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/` |
 | 重新解析 MIDI | `tools/parse_all_midis.py` |
+| 发版 / 升版本号 | `js/version.js` + git tag `vX.Y.Z`（见上文） |

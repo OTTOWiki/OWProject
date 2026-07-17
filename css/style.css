@@ -847,10 +847,10 @@ html, body {
   letter-spacing: 0.04em;
 }
 
-/* 版本号（主菜单 / 暂停右下角） */
-#screen-menu {
-  position: relative;
-}
+/* 版本号（主菜单 / 暂停右下角）
+ * 注意：#screen-menu 继承 .screen 的 position:absolute + inset:0，
+ * 已能作为绝对定位子元素的包含块，勿再写成 relative，否则会顶掉铺满视口布局。
+ */
 .version-badge {
   position: absolute;
   right: 14px;
