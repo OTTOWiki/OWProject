@@ -17,14 +17,32 @@ export const STORAGE_KEYS = {
   settings: 'gunwei_settings',
 };
 
+/** 自机子弹不透明度下限（设置滑条与存档钳制） */
+export const PLAYER_BULLET_OPACITY_MIN = 0.1;
+
+/**
+ * 帧率限制滑条
+ * - 有限：24–240 FPS（键盘可超过 120，最高 240）
+ * - 最右一格：无限制（仅鼠标拖到 / Z·Enter 切换，键盘加减到不了）
+ */
+export const FPS_LIMIT_MIN = 24;
+export const FPS_LIMIT_CAP = 240;
+/** 滑条 DOM 最大值：表示无限制（存档 fpsLimit=0） */
+export const FPS_SLIDER_UNLIMITED = 241;
+
 /** 玩家设置默认值 */
 export const DEFAULT_SETTINGS = {
   /** 音乐音量 0–1（默认 100%） */
   musicVolume: 1,
-  /** 自机子弹不透明度 0–1（默认 30%） */
+  /** 自机子弹不透明度 0–1（默认 30%，最低 10%） */
   playerBulletOpacity: 0.3,
   /** 单击 Shot 键切换发射/停止（默认关闭，按住发射） */
   shotToggle: false,
+  /**
+   * 逻辑/绘制帧率上限：0 = 不限制；否则 24–240
+   * ←→ 调数值（永不到无限制）；Z/Enter 切换无限制/有限制；鼠标拖最右=无限制
+   */
+  fpsLimit: 0,
 };
 
 /** 基础平衡（以 Normal 为基准） */

@@ -1,4 +1,7 @@
-import { DEFAULT_KEYS, DEFAULT_SETTINGS, STORAGE_KEYS } from './config.js';
+import {
+  DEFAULT_KEYS, DEFAULT_SETTINGS, STORAGE_KEYS,
+  PLAYER_BULLET_OPACITY_MIN, FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
+} from './config.js';
 
 export function loadKeys() {
   try {
@@ -21,6 +24,37 @@ function clamp01(v, fallback) {
   return Math.max(0, Math.min(1, n));
 }
 
+/** 自机子弹不透明度：默认 30%，硬下限 10% */
+function clampBulletOpacity(v, fallback = DEFAULT_SETTINGS.playerBulletOpacity) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(PLAYER_BULLET_OPACITY_MIN, Math.min(1, n));
+}
+
+/**
+ * 帧率限制：0 = 无限制；有限时钳制到 24–240
+ */
+export function normalizeFpsLimit(v, fallback = DEFAULT_SETTINGS.fpsLimit) {
+  if (v == null || v === '' || v === 'unlimited') return 0;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, n));
+}
+
+/** 设置值 → 滑条 DOM 值（无限制 = FPS_SLIDER_UNLIMITED） */
+export function fpsLimitToSlider(fpsLimit) {
+  const n = normalizeFpsLimit(fpsLimit, 0);
+  return n <= 0 ? FPS_SLIDER_UNLIMITED : n;
+}
+
+/** 滑条 DOM 值 → 设置值（最右 = 0 无限制） */
+export function sliderToFpsLimit(sliderVal) {
+  const n = Math.round(Number(sliderVal));
+  if (!Number.isFinite(n) || n >= FPS_SLIDER_UNLIMITED) return 0;
+  if (n <= 0) return 0;
+  return Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, n));
+}
+
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.settings);
@@ -28,8 +62,12 @@ export function loadSettings() {
     const parsed = JSON.parse(raw);
     return {
       musicVolume: clamp01(parsed.musicVolume, DEFAULT_SETTINGS.musicVolume),
-      playerBulletOpacity: clamp01(parsed.playerBulletOpacity, DEFAULT_SETTINGS.playerBulletOpacity),
+      playerBulletOpacity: clampBulletOpacity(
+        parsed.playerBulletOpacity,
+        DEFAULT_SETTINGS.playerBulletOpacity,
+      ),
       shotToggle: !!parsed.shotToggle,
+      fpsLimit: normalizeFpsLimit(parsed.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -39,8 +77,12 @@ export function loadSettings() {
 export function saveSettings(settings) {
   const next = {
     musicVolume: clamp01(settings.musicVolume, DEFAULT_SETTINGS.musicVolume),
-    playerBulletOpacity: clamp01(settings.playerBulletOpacity, DEFAULT_SETTINGS.playerBulletOpacity),
+    playerBulletOpacity: clampBulletOpacity(
+      settings.playerBulletOpacity,
+      DEFAULT_SETTINGS.playerBulletOpacity,
+    ),
     shotToggle: !!settings.shotToggle,
+    fpsLimit: normalizeFpsLimit(settings.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
   };
   localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
   return next;

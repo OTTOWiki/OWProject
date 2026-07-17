@@ -574,6 +574,7 @@ html, body {
   text-align: right;
 }
 
+
 /* History builds */
 .history-panel { max-height: 90vh; overflow: hidden; }
 .history-panel .th-panel-frame {

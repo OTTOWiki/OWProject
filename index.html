@@ -132,7 +132,7 @@
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">Settings · 设置</h2>
-          <p class="keys-hint">↑↓ 移动 · ←→ 调值 · Z/Enter 开关/改键 · Esc/X 返回 · Shift+←→ 细调</p>
+          <p class="keys-hint">↑↓ 移动 · ←→ 调值 · Z/Enter 确认 · 帧率：←→调数值 · Z切换无限制 · 拖最右=无限制</p>
           <div class="settings-form" id="settings-form">
             <label class="settings-row">
               <span class="settings-label">音乐音量</span>
@@ -144,8 +144,15 @@
             <label class="settings-row">
               <span class="settings-label">自机子弹不透明度</span>
               <div class="settings-control">
-                <input type="range" id="set-bullet-opacity" min="0" max="100" step="1" value="30" />
+                <input type="range" id="set-bullet-opacity" min="10" max="100" step="1" value="30" />
                 <span class="settings-value" id="set-bullet-opacity-val">30%</span>
+              </div>
+            </label>
+            <label class="settings-row">
+              <span class="settings-label">帧率限制</span>
+              <div class="settings-control">
+                <input type="range" id="set-fps-limit" min="24" max="241" step="1" value="241" aria-label="帧率限制" />
+                <span class="settings-value" id="set-fps-limit-val">无限制</span>
               </div>
             </label>
             <label class="settings-row check">

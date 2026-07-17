@@ -54,13 +54,18 @@ export class Game {
     this.lastT = 0;
     this.playBg = new PlayfieldBackground();
     this._lastBgMode = null;
-    this.playerBulletOpacity = loadSettings().playerBulletOpacity;
+    const initSettings = loadSettings();
+    this.playerBulletOpacity = initSettings.playerBulletOpacity;
+    /** 0 = 不限制；>0 为目标 FPS 上限 */
+    this.fpsLimit = initSettings.fpsLimit || 0;
+    /** 限帧时间银行（ms），累加 rAF 间隔后按 1000/cap 扣款 */
+    this._fpsBankMs = 0;
     this._hudCache = createHudCache();
     this.playerBullets = [];
     this.enemyBullets = [];
     this._homeList = null;
     this._homeTarget = null;
-    /** 版面左上角帧率（约 0.5s 平滑） */
+    /** 版面左上角帧率（约 0.5s 平滑，统计逻辑/绘制帧） */
     this._fps = 0;
     this._fpsFrames = 0;
     this._fpsAccum = 0;
@@ -78,6 +83,13 @@ export class Game {
   applySettings(settings) {
     const s = settings || loadSettings();
     this.playerBulletOpacity = s.playerBulletOpacity ?? 0.3;
+    const nextCap = Number(s.fpsLimit) > 0 ? Math.round(Number(s.fpsLimit)) : 0;
+    if (nextCap !== this.fpsLimit) {
+      this.fpsLimit = nextCap;
+      this._fpsBankMs = 0;
+    } else {
+      this.fpsLimit = nextCap;
+    }
     this.input.applySettings(s);
     this.audio.setMusicVolume(s.musicVolume ?? 1);
   }
@@ -232,6 +244,10 @@ export class Game {
     this.audio.ensure();
     this._startChapter();
     this.lastT = performance.now();
+    this._fpsBankMs = 0;
+    this._fpsLastT = null;
+    this._fpsFrames = 0;
+    this._fpsAccum = 0;
     cancelAnimationFrame(this.raf);
     this.raf = requestAnimationFrame((t) => this._loop(t));
   }
@@ -578,12 +594,51 @@ export class Game {
     this._showDialogueLine();
   }
 
+  /**
+   * 主循环。限帧用「时间银行」：
+   * - rAF 仍跟显示器刷新，把间隔存入 bank
+   * - 攒够 1000/cap ms 才扣款推进逻辑/绘制（固定步长 1/cap）
+   * - 比简单 skip 帧更稳：50/90 等非整除刷新率也能贴近目标
+   * 注意：显示器 60Hz 时 cap>60 实际只能到 ~60，属硬件上限
+   */
   _loop(t) {
     if (!this.running) return;
-    const dt = Math.min(0.05, (t - this.lastT) / 1000);
+    // 先挂下一帧，避免中途 return 断链
+    this.raf = requestAnimationFrame((nt) => this._loop(nt));
+
+    if (!this.lastT) this.lastT = t;
+    const elapsedMs = Math.max(0, t - this.lastT);
     this.lastT = t;
 
-    // 帧率统计（真实帧间隔，约 0.5s 取平均）
+    const cap = this.fpsLimit > 0 ? this.fpsLimit : 0;
+    let dt;
+
+    if (cap > 0) {
+      const frameMs = 1000 / cap;
+      const frameDt = 1 / cap;
+      this._fpsBankMs += elapsedMs;
+      // 防止切后台后一次补太多帧
+      if (this._fpsBankMs > frameMs * 4) this._fpsBankMs = frameMs * 4;
+
+      if (this._fpsBankMs < frameMs * 0.92) {
+        // 未攒够一帧：不推进逻辑（避免半帧抖动）
+        return;
+      }
+
+      // 可追上最多 3 个逻辑步，合并为一次 update（保持墙钟时间）
+      let steps = 0;
+      while (this._fpsBankMs >= frameMs * 0.92 && steps < 3) {
+        this._fpsBankMs -= frameMs;
+        steps++;
+      }
+      if (this._fpsBankMs < 0) this._fpsBankMs = 0;
+      dt = Math.min(0.05, frameDt * Math.max(1, steps));
+    } else {
+      this._fpsBankMs = 0;
+      dt = Math.min(0.05, elapsedMs / 1000);
+    }
+
+    // 帧率统计（仅统计实际推进的逻辑帧）
     if (this._fpsLastT != null) {
       const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
       this._fpsFrames += 1;
@@ -624,12 +679,12 @@ export class Game {
         }
       } catch (_) { /* ignore */ }
     }
-    this.raf = requestAnimationFrame((nt) => this._loop(nt));
   }
 
-  /** 版面左上角帧率 */
+  /** 版面左上角帧率（限帧时显示 实际/目标） */
   _drawFps(ctx) {
     const fps = this._fps || 0;
+    const cap = this.fpsLimit > 0 ? this.fpsLimit : 0;
     ctx.save();
     ctx.globalAlpha = 0.75;
     ctx.font = 'bold 12px ui-monospace, Consolas, monospace';
@@ -638,7 +693,7 @@ export class Game {
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.fillStyle = fps > 0 && fps < 50 ? '#fbbf24' : '#e2e8f0';
-    const label = `${fps} FPS`;
+    const label = cap > 0 ? `${fps}/${cap} FPS` : `${fps} FPS`;
     ctx.strokeText(label, 8, 8);
     ctx.fillText(label, 8, 8);
     ctx.restore();
