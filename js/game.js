@@ -375,8 +375,9 @@ export class Game {
       this.bombCost = this.unstableFx.bombCost || 1;
     }
 
+    // Letter 限时与道中 duration 分离：仅 letterTime 走失败超时；duration 见 _update 保底成功
     this.letterTimeMax = ch.letterTime || 0;
-    this.letterTimeLeft = this.letterTimeMax || ch.duration || 0;
+    this.letterTimeLeft = this.letterTimeMax;
     this.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
     // audio & bg
@@ -719,6 +720,7 @@ export class Game {
       return;
     }
     if (action === 'menu') {
+      saveHiscore(this.score);
       this._hideOverlay();
       this.stop();
       this.ui.showMenu();
@@ -778,10 +780,14 @@ export class Game {
     }
 
     if (this.state === 'dialogue') {
-      if (this.input.shotPressed() || this.input.justPressed('Enter') || this.input.justPressed('Space')) {
+      // Shot 默认即 KeyZ：只走一条确认路径，避免同帧连跳两句
+      if (
+        this.input.shotPressed()
+        || this.input.justPressed('Enter')
+        || this.input.justPressed('Space')
+      ) {
         this._advanceDialogue();
       }
-      if (this.input.justPressed('KeyZ')) this._advanceDialogue();
       return;
     }
 
@@ -938,7 +944,8 @@ export class Game {
 
       const living = this.enemies.some((e) => !e.dead);
 
-      if (this.letterTimeLeft > 0) {
+      // Letter 限时：超时未击破 → 失败（强制击破收场）
+      if (this.letterTimeMax > 0) {
         this.letterTimeLeft -= dt;
         this._updateLetterHud();
         if (this.letterTimeLeft <= 0 && !this.chapterDone) {
@@ -949,7 +956,7 @@ export class Game {
           this._finishChapter(false);
         }
       } else if (ch.duration && this.chapterTime >= ch.duration && !this.chapterDone) {
-        // 时长保底（无限刷怪/纯弹幕章等）
+        // 道中时长保底（无限刷怪/纯弹幕等）：存活到时即成功
         this._finishChapter(true);
       }
 
@@ -1251,6 +1258,7 @@ export class Game {
     const perfect = !this.chapterMiss && !this.chapterBomb;
 
     // NMNB 结算：Perfect ×1.05 + 负面 Unstable 补偿倍率（仅负面，乘在章分上）
+    // chapterScore 已含 scoreMul / diffScoreMul，加成直接加算，禁止再走 addScore 二次乘倍率
     const baseChapter = this.chapterScore;
     let settleMul = 1;
     let unstableComp = 1;
@@ -1259,7 +1267,15 @@ export class Game {
       unstableComp = unstableCompMul(this.unstableFx);
       if (unstableComp > 1) settleMul *= unstableComp;
       if (settleMul > 1 && baseChapter > 0) {
-        this.addScore(baseChapter * (settleMul - 1));
+        const bonus = Math.floor(baseChapter * (settleMul - 1));
+        if (bonus > 0) {
+          this.score += bonus;
+          this.chapterScore += bonus;
+          const dm = this.diffScoreMul || 1;
+          this.baseScore += Math.floor(bonus / dm);
+          if (this.score > this.hiscore) this.hiscore = this.score;
+          this._checkExtend();
+        }
       }
     }
 
@@ -1287,12 +1303,14 @@ export class Game {
       this.el.bonus.textContent = '—';
     }
 
-    // tendency award: apply per-chapter percentage
+    // tendency award：|偏移| 过小视为中立（贡献 0），不强制偏向 B
     let tendencyContrib = null;
     if (typeof ch.stage === 'number' && ch.stage <= 3) {
-      tendencyContrib = Math.abs(this.chapterTendency) < BALANCE.tendencyMinPerChapter
-        ? (this.chapterTendency >= 0 ? BALANCE.tendencyMinPerChapter : -BALANCE.tendencyMinPerChapter)
-        : this.chapterTendency;
+      if (Math.abs(this.chapterTendency) < BALANCE.tendencyMinPerChapter) {
+        tendencyContrib = 0;
+      } else {
+        tendencyContrib = this.chapterTendency;
+      }
       this.totalTendency += tendencyContrib;
       this.chapterTendency = 0;
     }

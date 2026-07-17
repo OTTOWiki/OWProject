@@ -24,6 +24,11 @@ export class Input {
     /** 版面轻触一次（逻辑坐标），仅当帧有效 */
     this.tap = null;
 
+    this.canvas = null;
+    this.getPlayerPos = null;
+    this._canvasBound = false;
+    this._touchBtnsBound = false;
+
     this._onKeyDown = (e) => {
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
       if (!this.down.has(e.code)) this.pressed.add(e.code);
@@ -54,34 +59,39 @@ export class Input {
     this.shotLatched = false;
   }
 
+  /**
+   * 绑定版面触控。可重复调用以刷新 getPlayerPos；监听器只挂一次，避免重开叠层。
+   */
   bindCanvas(canvas, getPlayerPos) {
     this.canvas = canvas;
     this.getPlayerPos = getPlayerPos;
+    if (this._canvasBound) return;
+    this._canvasBound = true;
 
     const logical = (touch) => {
-      const rect = canvas.getBoundingClientRect();
+      const rect = this.canvas.getBoundingClientRect();
       const clientX = touch.clientX - rect.left;
       const clientY = touch.clientY - rect.top;
       return {
-        x: clientX * (canvas.width / rect.width),
-        y: clientY * (canvas.height / rect.height),
+        x: clientX * (this.canvas.width / rect.width),
+        y: clientY * (this.canvas.height / rect.height),
       };
     };
 
-    canvas.addEventListener('touchstart', (e) => {
+    this._onTouchStart = (e) => {
       e.preventDefault();
       if (!e.touches.length) return;
       const p = logical(e.touches[0]);
-      const pl = getPlayerPos();
+      const pl = this.getPlayerPos?.() || { x: LOGICAL_W / 2, y: LOGICAL_H * 0.82 };
       this.touchActive = true;
       this.autoShot = true;
       this._touchStart = p;
       this._touchLast = p;
       this._playerStart = { x: pl.x, y: pl.y };
       this.virtualMove = { x: pl.x, y: pl.y };
-    }, { passive: false });
+    };
 
-    canvas.addEventListener('touchmove', (e) => {
+    this._onTouchMove = (e) => {
       e.preventDefault();
       if (!e.touches.length || !this._touchStart || !this._playerStart) return;
       const cur = logical(e.touches[0]);
@@ -92,9 +102,9 @@ export class Input {
         x: Math.max(0, Math.min(LOGICAL_W, this._playerStart.x + dx)),
         y: Math.max(0, Math.min(LOGICAL_H, this._playerStart.y + dy)),
       };
-    }, { passive: false });
+    };
 
-    const end = (e) => {
+    this._onTouchEnd = (e) => {
       e.preventDefault();
       // 轻触（位移小）→ 记一次 tap，供路线选择等 UI 用
       if (this._touchStart) {
@@ -109,11 +119,16 @@ export class Input {
       this._playerStart = null;
       this.virtualMove = null;
     };
-    canvas.addEventListener('touchend', end, { passive: false });
-    canvas.addEventListener('touchcancel', end, { passive: false });
+
+    canvas.addEventListener('touchstart', this._onTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', this._onTouchMove, { passive: false });
+    canvas.addEventListener('touchend', this._onTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', this._onTouchEnd, { passive: false });
   }
 
   bindTouchButtons(itemBtn, bombBtn, pauseBtn) {
+    if (this._touchBtnsBound) return;
+    this._touchBtnsBound = true;
     const bind = (el, flag) => {
       if (!el) return;
       const down = (e) => {

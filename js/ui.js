@@ -320,10 +320,41 @@ export class UI {
     }
   }
 
+  /**
+   * 选关解锁：与 storage.gunwei_unlocked 对齐
+   * - 1/2/3 面：unlocked.stage
+   * - 巡查姬：通关 3 面后 stage>=4
+   * - A/B 线：对应 route
+   * - Extra：任一路线解锁后可进
+   */
+  _isStageUnlocked(stageId, unlocked) {
+    const id = String(stageId);
+    const st = Number(unlocked?.stage) || 1;
+    const routes = unlocked?.routes || {};
+    if (id === '1') return true;
+    if (id === '2') return st >= 2;
+    if (id === '3') return st >= 3;
+    if (id === 'patrol') return st >= 4;
+    if (id.startsWith('A')) return !!routes.A;
+    if (id.startsWith('B')) return !!routes.B;
+    if (id === 'EX') return !!(routes.A || routes.B);
+    return true;
+  }
+
   _refreshStageLocks() {
+    const u = loadUnlocked();
     document.querySelectorAll('.stage-btn').forEach((btn) => {
-      btn.disabled = false;
+      const id = btn.dataset.stage;
+      const ok = this._isStageUnlocked(id, u);
+      btn.disabled = !ok;
+      btn.title = ok ? '' : '未解锁';
+      const small = btn.querySelector('small');
+      if (small) {
+        if (!btn.dataset.desc) btn.dataset.desc = small.textContent;
+        small.textContent = ok ? btn.dataset.desc : '未解锁';
+      }
     });
+    this.stageIndex = 0;
   }
 
   _isConfirm(e) {
