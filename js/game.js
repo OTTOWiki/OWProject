@@ -60,6 +60,10 @@ export class Game {
     this.enemyBullets = [];
     this._homeList = null;
     this._homeTarget = null;
+    /** 版面左上角帧率（约 0.5s 平滑） */
+    this._fps = 0;
+    this._fpsFrames = 0;
+    this._fpsAccum = 0;
 
     this._bindUI();
   }
@@ -579,6 +583,19 @@ export class Game {
     const dt = Math.min(0.05, (t - this.lastT) / 1000);
     this.lastT = t;
 
+    // 帧率统计（真实帧间隔，约 0.5s 取平均）
+    if (this._fpsLastT != null) {
+      const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
+      this._fpsFrames += 1;
+      this._fpsAccum += rawDt;
+      if (this._fpsAccum >= 0.5) {
+        this._fps = Math.round(this._fpsFrames / this._fpsAccum);
+        this._fpsFrames = 0;
+        this._fpsAccum = 0;
+      }
+    }
+    this._fpsLastT = t;
+
     try {
       this._handleGlobalInput();
       if (this.state === 'stageTransit' && !this.paused) {
@@ -603,10 +620,28 @@ export class Game {
           this.ctx.fillStyle = '#0c1018';
           this.ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
           if (this.player) drawPlayer(this.ctx, this.player);
+          this._drawFps(this.ctx);
         }
       } catch (_) { /* ignore */ }
     }
     this.raf = requestAnimationFrame((nt) => this._loop(nt));
+  }
+
+  /** 版面左上角帧率 */
+  _drawFps(ctx) {
+    const fps = this._fps || 0;
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.font = 'bold 12px ui-monospace, Consolas, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillStyle = fps > 0 && fps < 50 ? '#fbbf24' : '#e2e8f0';
+    const label = `${fps} FPS`;
+    ctx.strokeText(label, 8, 8);
+    ctx.fillText(label, 8, 8);
+    ctx.restore();
   }
 
   /** 关卡过渡页计时；期间继续吸点，不刷怪 */
@@ -1741,10 +1776,11 @@ export class Game {
     const W = LOGICAL_W;
     const H = LOGICAL_H;
 
-    // 结局故事：纯黑空白，不画版面/实体
+    // 结局故事：纯黑空白，不画版面/实体（仍保留 FPS）
     if (this.endingCinematic) {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, W, H);
+      this._drawFps(ctx);
       return;
     }
 
@@ -1844,5 +1880,8 @@ export class Game {
     if (this.chapterBanner || this.settlement) {
       if (!this.stageTransit) this._drawChapterBanner(ctx, W, H);
     }
+
+    // 版面左上角帧率（最上图层，便于看性能）
+    this._drawFps(ctx);
   }
 }
