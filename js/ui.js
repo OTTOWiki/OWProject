@@ -4,6 +4,11 @@ import {
 } from './config.js';
 import { loadKeys, saveKeys, loadUnlocked, loadSettings, saveSettings } from './storage.js';
 import { stageSelectEntries, buildChapterList } from './stages/index.js';
+import {
+  fetchHistoryVersions,
+  isCurrentDeployment,
+  formatDeployTime,
+} from './historyVersions.js';
 
 export class UI {
   constructor({ onStartGame, onSettingsChange, audio }) {
@@ -21,6 +26,11 @@ export class UI {
     this.practiceBtnIndex = 0; // 0 开始练习 / 1 返回
     this.resultIndex = 0; // 0 再试 / 1 主菜单
     this.settingsBtnIndex = 0; // 0 恢复默认 / 1 完成
+    this.historyIndex = 0;
+    this.historyFocus = 'list'; // list | actions
+    this.historyActionIndex = 1; // 0 刷新 / 1 返回
+    this.historyItems = [];
+    this.historyLoading = false;
     /** 从暂停菜单进入设置时的返回回调 */
     this.settingsReturn = null;
 
@@ -32,6 +42,7 @@ export class UI {
       practice: document.getElementById('screen-practice'),
       settings: document.getElementById('screen-settings'),
       manual: document.getElementById('screen-manual'),
+      history: document.getElementById('screen-history'),
       game: document.getElementById('screen-game'),
       result: document.getElementById('screen-result'),
     };
@@ -261,6 +272,11 @@ export class UI {
       this.show('stage');
     } else if (action === 'manual') {
       this.show('manual');
+    } else if (action === 'history') {
+      this.show('history');
+      this._loadHistory();
+    } else if (action === 'history-refresh') {
+      this._loadHistory(true);
     } else if (action === 'settings' || action === 'key-config') {
       // key-config 兼容旧入口 → 设置页
       this.settingsReturn = null;
@@ -533,6 +549,66 @@ export class UI {
         return;
       }
 
+      // 历史构建
+      if (this.screens.history?.classList.contains('active')) {
+        const listBtns = [...document.querySelectorAll('#history-list .history-item')];
+        const actionBtns = [
+          document.querySelector('#screen-history [data-action="history-refresh"]'),
+          document.querySelector('#screen-history [data-action="back"]'),
+        ].filter(Boolean);
+
+        if (this._isBack(e)) {
+          e.preventDefault();
+          this._action('back');
+          return;
+        }
+
+        if (this.historyFocus === 'list' && listBtns.length) {
+          if (e.code === 'ArrowDown') {
+            e.preventDefault();
+            if (this.historyIndex >= listBtns.length - 1) {
+              this.historyFocus = 'actions';
+              this.historyActionIndex = 0;
+              this._highlightHistory();
+            } else {
+              this.historyIndex += 1;
+              this._highlightHistory();
+            }
+          } else if (e.code === 'ArrowUp') {
+            e.preventDefault();
+            this.historyIndex = Math.max(0, this.historyIndex - 1);
+            this._highlightHistory();
+          } else if (this._isConfirm(e)) {
+            e.preventDefault();
+            listBtns[this.historyIndex]?.click();
+          }
+          return;
+        }
+
+        // 底部按钮，或列表为空
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          if (this.historyFocus === 'actions' && this.historyActionIndex === 0 && listBtns.length) {
+            this.historyFocus = 'list';
+            this.historyIndex = listBtns.length - 1;
+          } else {
+            this.historyFocus = 'actions';
+            this.historyActionIndex =
+              (this.historyActionIndex - 1 + actionBtns.length) % actionBtns.length;
+          }
+          this._highlightHistory();
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+          e.preventDefault();
+          this.historyFocus = 'actions';
+          this.historyActionIndex = (this.historyActionIndex + 1) % actionBtns.length;
+          this._highlightHistory();
+        } else if (this._isConfirm(e)) {
+          e.preventDefault();
+          actionBtns[this.historyActionIndex]?.click();
+        }
+        return;
+      }
+
       // 结果页
       if (this.screens.result?.classList.contains('active')) {
         const rowBtns = [
@@ -584,6 +660,94 @@ export class UI {
     btns.forEach((b, i) => b?.classList.toggle('selected', i === index));
   }
 
+  async _loadHistory(force = false) {
+    if (this.historyLoading && !force) return;
+    this.historyLoading = true;
+    const statusEl = document.getElementById('history-status');
+    const listEl = document.getElementById('history-list');
+    if (statusEl) statusEl.textContent = '加载中…';
+    if (listEl && force) listEl.innerHTML = '';
+
+    const data = await fetchHistoryVersions();
+    this.historyLoading = false;
+    if (!this.screens.history?.classList.contains('active')) return;
+
+    this.historyItems = data.versions || [];
+    this.historyIndex = 0;
+    this.historyFocus = this.historyItems.length ? 'list' : 'actions';
+    this.historyActionIndex = this.historyItems.length ? 1 : 0;
+
+    if (statusEl) {
+      if (!data.ok) {
+        statusEl.textContent = data.error || '加载失败';
+        statusEl.classList.add('error');
+      } else if (!this.historyItems.length) {
+        statusEl.textContent = '暂无成功部署记录';
+        statusEl.classList.remove('error');
+      } else {
+        statusEl.textContent = `共 ${this.historyItems.length} 次构建` +
+          (data.project ? ` · ${data.project}` : '');
+        statusEl.classList.remove('error');
+      }
+    }
+
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    for (const v of this.historyItems) {
+      const current = isCurrentDeployment(v.url);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'history-item' + (current ? ' is-current' : '');
+      btn.dataset.url = v.url;
+      btn.setAttribute('role', 'listitem');
+      const envLabel = v.env === 'production' ? '生产' : v.env === 'preview' ? '预览' : v.env;
+      btn.innerHTML = `
+        <div class="history-item-top">
+          <span class="history-time">${formatDeployTime(v.createdAt)}</span>
+          <span class="history-meta">
+            <span class="history-env">${envLabel}</span>
+            ${v.branch ? `<span class="history-branch">${v.branch}</span>` : ''}
+            ${v.commit ? `<code class="history-commit">${v.commit}</code>` : ''}
+            ${current ? '<span class="history-current-tag">当前</span>' : ''}
+          </span>
+        </div>
+        <div class="history-msg">${escapeHtml(v.message || '')}</div>
+      `;
+      btn.addEventListener('click', () => {
+        this.audio.sfx('ok');
+        if (!v.url) return;
+        if (current) {
+          if (statusEl) {
+            statusEl.textContent = '这就是当前正在打开的构建';
+            statusEl.classList.remove('error');
+          }
+          return;
+        }
+        window.open(v.url, '_blank', 'noopener,noreferrer');
+      });
+      listEl.appendChild(btn);
+    }
+    this._highlightHistory();
+  }
+
+  _highlightHistory() {
+    const listBtns = [...document.querySelectorAll('#history-list .history-item')];
+    const actionBtns = [
+      document.querySelector('#screen-history [data-action="history-refresh"]'),
+      document.querySelector('#screen-history [data-action="back"]'),
+    ].filter(Boolean);
+
+    listBtns.forEach((b, i) => {
+      b.classList.toggle('selected', this.historyFocus === 'list' && i === this.historyIndex);
+    });
+    actionBtns.forEach((b, i) => {
+      b.classList.toggle('selected', this.historyFocus === 'actions' && i === this.historyActionIndex);
+    });
+
+    const sel = this.historyFocus === 'list' ? listBtns[this.historyIndex] : null;
+    sel?.scrollIntoView?.({ block: 'nearest' });
+  }
+
   show(name) {
     if (name === 'difficulty') this._rebuildDifficulty();
     Object.values(this.screens).forEach((s) => s?.classList.remove('active'));
@@ -612,6 +776,12 @@ export class UI {
         document.querySelector('#screen-settings [data-action="back"]'),
       ].filter(Boolean);
       this._highlightButtons(rowBtns, this.settingsBtnIndex);
+    }
+    if (name === 'history') {
+      this.historyIndex = 0;
+      this.historyFocus = 'list';
+      this.historyActionIndex = 1;
+      this._highlightHistory();
     }
     if (name === 'result') {
       this.resultIndex = 0;
@@ -642,4 +812,12 @@ export class UI {
     document.getElementById('result-body').textContent = body;
     this.show('result');
   }
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

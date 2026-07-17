@@ -38,6 +38,7 @@
             <button class="menu-btn" data-action="extra-start"><span class="star">★</span> Extra Start</button>
             <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
             <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
+            <button class="menu-btn" data-action="history"><span class="star">★</span> History</button>
             <button class="menu-btn" data-action="settings"><span class="star">★</span> Settings</button>
             <button class="menu-btn" data-action="practice"><span class="star">★</span> Practice</button>
             <button class="menu-btn" data-action="exit"><span class="star">★</span> Exit</button>
@@ -175,6 +176,23 @@
           <h2 class="panel-title">Manual</h2>
           <div class="manual-body" id="manual-body"></div>
           <button class="menu-btn" data-action="back">返回</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史构建（每次 CF 部署 / 提交） -->
+    <div id="screen-history" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide history-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">History · 历史构建</h2>
+          <p class="keys-hint">每次成功部署对应一次提交 · ↑↓ 选择 · Z/Enter 打开 · Esc 返回</p>
+          <p class="history-status" id="history-status">加载中…</p>
+          <div class="history-list" id="history-list" role="list"></div>
+          <div class="row-btns">
+            <button class="menu-btn ghost" data-action="history-refresh">刷新</button>
+            <button class="menu-btn" data-action="back">返回</button>
+          </div>
         </div>
       </div>
     </div>

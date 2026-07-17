@@ -538,6 +538,97 @@ html, body {
   text-align: right;
 }
 
+/* History builds */
+.history-panel { max-height: 90vh; overflow: hidden; }
+.history-panel .th-panel-frame {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.history-status {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: #a89878;
+  text-align: left;
+}
+.history-status.error {
+  color: #e08080;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow-y: auto;
+  max-height: 52vh;
+  text-align: left;
+  padding: 0.15rem 0.2rem 0.5rem;
+  margin-bottom: 0.65rem;
+}
+.history-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: rgba(12, 14, 20, 0.55);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  color: #d8cbb0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.history-item:hover,
+.history-item.selected {
+  border-color: var(--gold, #d4af37);
+  background: rgba(40, 32, 16, 0.75);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25);
+}
+.history-item.is-current {
+  border-color: rgba(120, 180, 220, 0.45);
+}
+.history-item-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+}
+.history-time {
+  color: var(--gold2, #d4a574);
+  font-family: var(--mono, monospace);
+}
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+.history-env,
+.history-branch,
+.history-current-tag {
+  font-size: 0.72rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  color: #c9b896;
+}
+.history-current-tag {
+  color: #9ec9e8;
+  border-color: rgba(120, 180, 220, 0.45);
+}
+.history-commit {
+  font-family: var(--mono, monospace);
+  font-size: 0.75rem;
+  color: #b8a888;
+}
+.history-msg {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: #e8dcc4;
+  word-break: break-word;
+}
+
 /* Manual */
 .manual-panel { max-height: 90vh; overflow: hidden; }
 .manual-panel .th-panel-frame {
