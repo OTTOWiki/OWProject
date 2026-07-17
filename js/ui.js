@@ -529,7 +529,10 @@ export class UI {
   }
 
   _action(action) {
-    this._sfx('ok');
+    // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
+    const isCancel = action === 'back' || action === 'back-diff';
+    this._sfx(isCancel ? 'cancel' : 'ok');
+
     if (action === 'start') {
       this.pendingStart = { startChapter: 1, mode: 'story' };
       this.show('difficulty');
@@ -578,7 +581,6 @@ export class UI {
         document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c10;color:#c9b896;font-family:serif">已退出 · 可关闭标签页</div>';
       }
     } else if (action === 'back') {
-      this._sfx('cancel');
       if (this.settingsReturn) {
         const cb = this.settingsReturn;
         this.settingsReturn = null;
@@ -587,7 +589,6 @@ export class UI {
         this.show('menu');
       }
     } else if (action === 'back-diff') {
-      this._sfx('cancel');
       this.show('difficulty');
     }
   }

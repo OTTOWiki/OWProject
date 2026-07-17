@@ -108,32 +108,13 @@ export function getDialogues(playerId) {
       { name: '拉斯特神炫', text: 'OTTOWiki 将改造成只有炫狗和防御塔的绝对帝国！' },
       { name: me, text: '……最后的 Letter Card。结束这一切。' },
     ],
+    // Extra 现网仅引用：ex_open / ex_van / ex_last（旧多阶段 ex_p2…ex_p5 无章节挂载，已删）
     ex_open: [
       { name: '系统', text: '警告：检测到 OTTOWiki 词条被批量键政覆写。来源锁定——van♂。' },
       { name: me, text: '键政……灌进百科？这比欠费还离谱。' },
       { name: 'van♂分身', text: '先从外围草稿污染起。表态、站队、转发——编辑者会自己完成剩下的。' },
       { name: me, text: '立刻停止对词条的污染。' },
       { name: 'van♂分身', text: 'Letter Card 展开——先证明你们不是又一批水军。' },
-    ],
-    ex_p2: [
-      { name: 'van♂代理', text: '议程已置顶。热搜位、标签、自我引用——闭环完成。' },
-      { name: me, text: '百科不是你的发言台。' },
-      { name: 'van♂代理', text: '不，百科就是最好的发言台。开战。' },
-    ],
-    ex_p3: [
-      { name: 'van♂使徒', text: '非友即敌。左右撕裂后，中间人最好管。' },
-      { name: me, text: '维基需要事实，不是动员令。' },
-      { name: 'van♂使徒', text: '事实由多数定义——而多数由我们定义。' },
-    ],
-    ex_p4: [
-      { name: 'van♂工厂', text: '欢迎参观话术产线：模板、情绪、伪信源，一键量产。' },
-      { name: me, text: '……你们把讨论当成流水线了。' },
-      { name: 'van♂工厂', text: '产能即正义。下一张 Letter。' },
-    ],
-    ex_p5: [
-      { name: 'van♂审判', text: '共识法庭开庭。举报即证据，站队即判决。' },
-      { name: me, text: '这不是审判，是围猎。' },
-      { name: 'van♂审判', text: '围猎效率更高。请入座——被告席。' },
     ],
     ex_van: [
       { name: 'van♂', text: '终于到终局了。OTTOWiki 将被改写成键政圣经的注释本。' },

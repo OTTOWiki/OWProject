@@ -131,7 +131,8 @@ export class StageBackground {
     }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({
-      color, size, transparent: true, opacity: 0.85, depthAttenuation: true,
+      // Three r160+：PointsMaterial 用 sizeAttenuation（depthAttenuation 会告警且无效）
+      color, size, transparent: true, opacity: 0.85, sizeAttenuation: true,
     });
     const pts = new THREE.Points(geo, mat);
     this.root.add(pts);
