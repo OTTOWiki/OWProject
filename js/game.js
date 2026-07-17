@@ -15,6 +15,11 @@ import { trackForStage } from './audio.js';
 import { bgModeFor } from './backgrounds.js';
 import { portraitFor } from './assets.js';
 import { PlayfieldBackground } from './playfieldBg.js';
+import { runCollisions, rebuildBulletLists } from './collision.js';
+import {
+  createHudCache, updateGameHud, updateLetterHud,
+  drawChapterBanner, unstableHintFor,
+} from './hud.js';
 
 export class Game {
   constructor({ canvas, input, audio, background, ui }) {
@@ -26,6 +31,22 @@ export class Game {
     this.ui = ui;
 
     this.chapters = buildChapterList();
+    /** @type {Map<number, number>} chapter id → chapters 下标 */
+    this.chapterIndexById = new Map(this.chapters.map((c, i) => [c.id, i]));
+    /** stageKey+kind 快速定位（跳线用） */
+    this._chapterIndexByStageMid = new Map();
+    this._chapterIndexByStageAny = new Map();
+    for (let i = 0; i < this.chapters.length; i++) {
+      const c = this.chapters[i];
+      const sk = String(c.stageKey);
+      if (c.kind === 'mid' && !this._chapterIndexByStageMid.has(sk)) {
+        this._chapterIndexByStageMid.set(sk, i);
+      }
+      if (!this._chapterIndexByStageAny.has(sk)) {
+        this._chapterIndexByStageAny.set(sk, i);
+      }
+    }
+
     this.running = false;
     this.paused = false;
     this.mode = 'story'; // story | practice | stage
@@ -34,8 +55,19 @@ export class Game {
     this.playBg = new PlayfieldBackground();
     this._lastBgMode = null;
     this.playerBulletOpacity = loadSettings().playerBulletOpacity;
+    this._hudCache = createHudCache();
+    this.playerBullets = [];
+    this.enemyBullets = [];
+    this._homeList = null;
+    this._homeTarget = null;
 
     this._bindUI();
+  }
+
+  /** 按章节 id 取下标；未知 id → 0 */
+  _indexForChapterId(id) {
+    const idx = this.chapterIndexById.get(id);
+    return idx != null ? idx : 0;
   }
 
   /** 从设置同步运行时参数（菜单改设置后 / 开局） */
@@ -133,8 +165,12 @@ export class Game {
     this.rainT = 0;
     this.laserT = 0;
 
-    this.chapterIndex = this.chapters.findIndex((c) => c.id === startChapter);
-    if (this.chapterIndex < 0) this.chapterIndex = 0;
+    this.chapterIndex = this._indexForChapterId(startChapter);
+    this._hudCache = createHudCache();
+    this.playerBullets = [];
+    this.enemyBullets = [];
+    this._homeList = null;
+    this._homeTarget = null;
 
     this.chapterTime = 0;
     this.chapterScore = 0;
@@ -437,12 +473,17 @@ export class Game {
     };
 
     const showStartTitle = () => {
+      const fx = this.unstableFx;
       const title = {
         kind: 'start',
         name: ch.name,
         letter: ch.letter || '',
+        // 当前章 Unstable 说明（有则显示）
+        unstable: fx ? fx.label : '',
+        unstableHint: fx ? unstableHintFor(fx) : '',
+        unstableNegative: !!(fx && fx.negative),
         t: 0,
-        duration: 2.0,
+        duration: fx ? 2.4 : 2.0,
       };
       // 结束条还在播：排队，不打断渐隐
       if (this.chapterBanner && this.chapterBanner.kind === 'end') {
@@ -893,25 +934,27 @@ export class Game {
       }
     }
 
-    // 最近敌机 → 子机追踪目标；Bomb 巨弹按 slot 分摊目标
+    // 最近敌机 → 子机追踪目标；Bomb 巨弹按 slot 分摊（本帧复用给碰撞）
     let homeTarget = null;
     let bestD = Infinity;
     const homeList = [];
     for (const e of this.enemies) {
       if (e.dead || e.isSpawning) continue;
       homeList.push(e);
-      // 优先画面中前方目标
       const d = Math.hypot(e.x - p.x, e.y - p.y) + (e.y > p.y ? 80 : 0);
       if (d < bestD) {
         bestD = d;
         homeTarget = e;
       }
     }
+    this._homeList = homeList;
+    this._homeTarget = homeTarget;
 
-    // bullets
-    for (const b of this.bullets) {
+    // bullets：分表更新，避免每发扫 from
+    rebuildBulletLists(this);
+    for (const b of this.playerBullets) {
       let ht = null;
-      if (b.from === 'player' && b.homing) {
+      if (b.homing) {
         if (b.type === 'bomb' && homeList.length) {
           ht = homeList[(b._homeSlot || 0) % homeList.length];
         } else {
@@ -919,6 +962,9 @@ export class Game {
         }
       }
       b.update(dt, p, ht);
+    }
+    for (const b of this.enemyBullets) {
+      b.update(dt, p, null);
     }
 
     // items（结算中强制吸引）
@@ -933,8 +979,8 @@ export class Game {
     // particles
     for (const pt of this.particles) pt.update(dt);
 
-    // collisions
-    if (!settling) this._collisions();
+    // collisions（网格粗筛 + 分弹表，见 collision.js）
+    if (!settling) runCollisions(this);
 
     // chapter 结束判定
     // 本章所有怪打完 → 强制 _finishChapter（残弹变点）→ 0.8s 后进下一章
@@ -1048,89 +1094,6 @@ export class Game {
     if (p.invuln > 0 || p.arbitration > 0 || p.bombTimer > 0) return;
     p.arbitration = this.deathBombWindow || BALANCE.deathBombWindow;
     this.audio.sfx('hit');
-  }
-
-  /** 点到线段最短距离（激光判定用） */
-  _distPointSeg(px, py, x1, y1, x2, y2) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len2 = dx * dx + dy * dy;
-    if (len2 < 1e-8) return Math.hypot(px - x1, py - y1);
-    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
-    if (t < 0) t = 0;
-    else if (t > 1) t = 1;
-    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-  }
-
-  /** 敌弹相对自机的有效距离（圆弹=圆心；激光=线段） */
-  _bulletDistToPlayer(b, p) {
-    if (b.type === 'laser') {
-      const len = b.laserLen || 200;
-      const ang = b.angle || 0;
-      const x2 = b.x + Math.cos(ang) * len;
-      const y2 = b.y + Math.sin(ang) * len;
-      return this._distPointSeg(p.x, p.y, b.x, b.y, x2, y2);
-    }
-    return Math.hypot(b.x - p.x, b.y - p.y);
-  }
-
-  _collisions() {
-    const p = this.player;
-
-    // player bullets vs enemies（bomb 巨弹可穿透并分摊伤害）
-    for (const b of this.bullets) {
-      if (b.from !== 'player' || b.dead) continue;
-      for (const e of this.enemies) {
-        if (e.dead || e.isSpawning) continue;
-        if (Math.hypot(b.x - e.x, b.y - e.y) < b.r + e.r) {
-          if (b.type === 'bomb') {
-            if (!b._hitIds) b._hitIds = new Set();
-            if (b._hitIds.has(e.id)) continue;
-            b._hitIds.add(e.id);
-          } else {
-            b.dead = true;
-          }
-          const killed = e.hurt(b.damage);
-          if (killed) {
-            this.addScore(e.score);
-            this._burst(e.x, e.y, e.color, 12);
-            const drop = e.drop || this._defaultKillDrop(e);
-            if (drop) this.spawnItem(e.x, e.y, drop);
-            else if (Math.random() < 0.35) this.spawnItem(e.x, e.y, 'score');
-          }
-          if (b.type !== 'bomb') break;
-        }
-      }
-    }
-
-    // enemy bullets vs player
-    for (const b of this.bullets) {
-      if (b.from !== 'enemy' || b.dead || b.delay > 0) continue;
-
-      const dist = this._bulletDistToPlayer(b, p);
-      const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : b.r;
-
-      // graze
-      if (!b.grazed && dist < BALANCE.grazeRadius + hitR && dist > p.r + hitR) {
-        b.grazed = true;
-        p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (this.grazeMul || 1));
-        this.addScore(BALANCE.score.graze);
-        if (Math.random() < 0.2) this.audio.sfx('graze');
-      }
-
-      if (dist < p.r + hitR) {
-        b.dead = true;
-        this._hitPlayer();
-      }
-    }
-
-    // body collision with enemies（入场/现身中不碰伤）
-    for (const e of this.enemies) {
-      if (e.dead || e.isSpawning) continue;
-      if (Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.r * 0.5) {
-        this._hitPlayer();
-      }
-    }
   }
 
   _collectItem(it) {
@@ -1546,95 +1509,9 @@ export class Game {
     ctx.globalAlpha = 1;
   }
 
-  /** 非阻塞章标题 / 结算条（渐显·停留·渐隐，无底框） */
+  /** 非阻塞章标题 / 结算条（实现见 hud.js） */
   _drawChapterBanner(ctx, W, H) {
-    const s = this.chapterBanner || this.settlement;
-    if (!s) return;
-    const dur = s.duration || 2.1;
-    const t = Math.min(s.t, dur);
-    const fadeIn = 0.35;
-    const fadeOut = 0.55;
-    let alpha = 1;
-    if (t < fadeIn) alpha = t / fadeIn;
-    else if (t > dur - fadeOut) alpha = Math.max(0, (dur - t) / fadeOut);
-    // ease
-    alpha = alpha * alpha * (3 - 2 * alpha);
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-
-    const cx = W / 2;
-    const isStart = s.kind === 'start';
-    const cy = isStart ? H * 0.28 : H / 2 - 48;
-
-    // 标题文字轻描边，无底框
-    const drawTitle = (text, y, size = 20, color = '#fbbf24') => {
-      ctx.font = `bold ${size}px "Songti SC","SimSun",serif`;
-      ctx.textAlign = 'center';
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      ctx.strokeText(text, cx, y);
-      ctx.fillStyle = color;
-      ctx.fillText(text, cx, y);
-    };
-
-    drawTitle(s.name || '', cy, 20, '#fbbf24');
-
-    if (isStart) {
-      if (s.letter) {
-        drawTitle(s.letter, cy + 26, 14, '#e9d5ff');
-      }
-      ctx.restore();
-      return;
-    }
-
-    // chapter score
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = '16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    const scoreStr = `${Math.floor(s.score || 0)}`;
-    ctx.strokeText(scoreStr, cx, cy + 26);
-    ctx.fillText(scoreStr, cx, cy + 26);
-
-    let nextY = cy + 48;
-
-    if (s.letterBonus > 0) {
-      ctx.fillStyle = '#f472b6';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillText(`LETTER +${Math.floor(s.letterBonus)}`, cx, nextY);
-      nextY += 18;
-    }
-    if (s.perfect) {
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillText('PERFECT ×1.05', cx, nextY);
-      nextY += 18;
-    }
-    if (s.unstableComp > 1) {
-      ctx.fillStyle = '#c4b5fd';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillText(`UNSTABLE 补偿 ×${s.unstableComp.toFixed(2)}`, cx, nextY);
-      nextY += 16;
-    }
-
-    if (s.tendency != null) {
-      const pct = s.tendency;
-      const col = pct < 0 ? '#38bdf8' : pct > 0 ? '#fb923c' : '#94a3b8';
-      ctx.fillStyle = col;
-      ctx.font = '12px sans-serif';
-      ctx.fillText(`倾向 ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, cx, nextY);
-      nextY += 16;
-    }
-
-    if (s.nextUnstable) {
-      ctx.fillStyle = '#a78bfa';
-      ctx.font = '12px sans-serif';
-      ctx.fillText(`次章: ${s.nextUnstable}`, cx, nextY);
-    }
-
-    ctx.restore();
+    drawChapterBanner(ctx, this.chapterBanner || this.settlement, W, H);
   }
 
   _drawSettlement(ctx, W, H) {
@@ -1754,7 +1631,7 @@ export class Game {
       unlockRoute('B');
       this._jumpToStage('B4');
     } else {
-      this.chapterIndex = this.chapters.findIndex((c) => c.id === 23);
+      this.chapterIndex = this._indexForChapterId(23);
       this._startChapter();
     }
   }
@@ -1776,10 +1653,10 @@ export class Game {
   }
 
   _jumpToStage(stageKey) {
-    this.chapterIndex = this.chapters.findIndex((c) => c.stageKey === stageKey && c.kind === 'mid');
-    if (this.chapterIndex < 0) {
-      this.chapterIndex = this.chapters.findIndex((c) => c.stageKey === stageKey);
-    }
+    const sk = String(stageKey);
+    let idx = this._chapterIndexByStageMid.get(sk);
+    if (idx == null) idx = this._chapterIndexByStageAny.get(sk);
+    this.chapterIndex = idx != null ? idx : 0;
     this._startChapter();
   }
 
@@ -1790,6 +1667,8 @@ export class Game {
       this.el.letterBanner?.classList.add('hidden');
       this.enemies.length = 0;
       this.bullets.length = 0;
+      this.playerBullets.length = 0;
+      this.enemyBullets.length = 0;
       this.items = [];
       this.particles = [];
       this.bossRef = null;
@@ -1850,59 +1729,11 @@ export class Game {
   }
 
   _updateLetterHud() {
-    const banner = this.el.letterBanner;
-    if (!banner || banner.classList.contains('hidden')) return;
-    const ch = this.chapters[this.chapterIndex];
-    const tLeft = Math.max(0, this.letterTimeLeft);
-    if (this.el.letterRemain && ch) {
-      const { idx, total, remain } = this._letterProgressInStage(ch);
-      if (total > 0) {
-        this.el.letterRemain.textContent = `LETTER ${idx}/${total} · 剩余 ${remain}`;
-      } else {
-        this.el.letterRemain.textContent = '';
-      }
-    }
-    if (this.el.letterTimer) {
-      this.el.letterTimer.textContent = `TIME ${tLeft.toFixed(1)}`;
-    }
-    if (this.el.letterBonus && ch && this.letterTimeMax > 0) {
-      const eligible = !this.chapterMiss && !this.chapterBomb && !this.chapterDone;
-      const bonus = eligible
-        ? calcLetterBonus(ch.stageKey, tLeft, this.letterTimeMax)
-        : 0;
-      this.el.letterBonus.textContent = `BONUS ${bonus}`;
-      this.el.letterBonus.style.opacity = eligible ? '1' : '0.45';
-    }
-    // 自机靠近版面右上时降低不透明度，避免挡弹
-    const p = this.player;
-    if (p) {
-      const rx = p.x / LOGICAL_W;
-      const ry = p.y / LOGICAL_H;
-      const near = Math.max(0, (rx - 0.55) / 0.45) * Math.max(0, (0.42 - ry) / 0.42);
-      banner.style.opacity = String(1 - 0.78 * Math.min(1, near));
-    }
+    updateLetterHud(this);
   }
 
   _updateHUD() {
-    const p = this.player;
-    this.el.score.textContent = String(Math.floor(this.score));
-    this.el.hiscore.textContent = String(Math.floor(this.hiscore));
-    this.el.lives.innerHTML = Array.from({ length: Math.max(0, p.lives) }, () =>
-      '<span class="icon-dot life"></span>').join('');
-    this.el.bombs.innerHTML = Array.from({ length: Math.max(0, p.bombs) }, () =>
-      '<span class="icon-dot bomb"></span>').join('');
-    const pct = (p.edit / BALANCE.editMax) * 100;
-    this.el.edit.style.width = `${pct}%`;
-    this.el.edit.classList.toggle('full', p.edit >= BALANCE.editMax);
-    this.el.unstable.textContent = this.unstableFx ? this.unstableFx.label : 'OFF';
-    this.el.tendency.textContent = `${this.totalTendency.toFixed(0)}%`;
-    const ch = this.chapters[this.chapterIndex];
-    this.el.chapter.textContent = ch ? ch.name : '—';
-    if (this.el.difficulty && this.diff) {
-      this.el.difficulty.textContent = `${this.diff.rank} ${this.diff.name}`;
-      this.el.difficulty.style.color = this.diff.color;
-    }
-    this._updateLetterHud();
+    updateGameHud(this);
   }
 
   _draw() {
@@ -1934,19 +1765,16 @@ export class Game {
     // enemies
     for (const e of this.enemies) drawEnemy(ctx, e);
 
-    // enemy bullets
-    for (const b of this.bullets) {
-      if (b.from === 'enemy') drawBullet(ctx, b);
-    }
+    // 优先用本帧分表；purge 后可能为空则回退整表
+    rebuildBulletLists(this);
+    for (const b of this.enemyBullets) drawBullet(ctx, b);
 
     // player
     if (this.player) drawPlayer(ctx, this.player);
 
     // player bullets（可调不透明度）
     const pAlpha = this.playerBulletOpacity ?? 0.3;
-    for (const b of this.bullets) {
-      if (b.from === 'player') drawBullet(ctx, b, pAlpha);
-    }
+    for (const b of this.playerBullets) drawBullet(ctx, b, pAlpha);
 
     // particles
     for (const pt of this.particles) {

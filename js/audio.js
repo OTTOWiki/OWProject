@@ -134,6 +134,30 @@ export class AudioEngine {
     return MUSIC_FILE_MAP[musicId] || MUSIC_FILE_MAP.default;
   }
 
+  /**
+   * 将已解析的 MIDI JSON 写入缓存（供启动预载复用，避免二次 fetch）
+   * @param {string} fileId assets/midi 文件名（无扩展名）
+   * @param {object} data
+   */
+  cacheMidiData(fileId, data) {
+    if (!fileId || !data || this._cache.has(fileId)) {
+      return this._cache.get(fileId) || null;
+    }
+    const notes = data.notes || [];
+    let end = data.duration || 0;
+    if (!end) {
+      for (const n of notes) end = Math.max(end, n.t + n.d);
+    }
+    const pack = {
+      fileId,
+      notes,
+      duration: Math.max(20, end + 0.6),
+      source: data.source || fileId,
+    };
+    this._cache.set(fileId, pack);
+    return pack;
+  }
+
   async loadTrackData(musicId) {
     const fileId = this.fileIdFor(musicId);
     if (this._cache.has(fileId)) return this._cache.get(fileId);
@@ -144,19 +168,8 @@ export class AudioEngine {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`MIDI JSON load fail: ${url}`);
       const data = await res.json();
-      const notes = data.notes || [];
-      let end = data.duration || 0;
-      if (!end) {
-        for (const n of notes) end = Math.max(end, n.t + n.d);
-      }
-      const pack = {
-        fileId,
-        notes,
-        duration: Math.max(20, end + 0.6),
-        source: data.source || fileId,
-      };
-      this._cache.set(fileId, pack);
-      console.info(`[audio] ${fileId}: ${notes.length} notes, ${pack.duration.toFixed(1)}s`);
+      const pack = this.cacheMidiData(fileId, data);
+      console.info(`[audio] ${fileId}: ${pack.notes.length} notes, ${pack.duration.toFixed(1)}s`);
       return pack;
     })();
     this._loading.set(fileId, p);

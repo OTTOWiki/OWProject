@@ -39,16 +39,19 @@ function withTimeout(promise, ms) {
   ]);
 }
 
-async function preloadAll() {
+/**
+ * 预载贴图 + MIDI。MIDI 直接写入 AudioEngine 缓存，开局播歌不再二次 fetch。
+ * @param {import('./audio.js').AudioEngine} [audio]
+ */
+async function preloadAll(audio) {
   const imagePaths = [...new Set([
     ...getAssetPaths(),
     ...getSpritePaths(),
     ...getPlayfieldBgPaths(),
   ])];
   const midiIds = [...new Set(Object.values(MUSIC_FILE_MAP))];
-  const midiPaths = midiIds.map((id) => `assets/midi/${id}.json`);
 
-  const total = Math.max(1, imagePaths.length + midiPaths.length);
+  const total = Math.max(1, imagePaths.length + midiIds.length);
   let loaded = 0;
 
   const step = () => {
@@ -79,7 +82,8 @@ async function preloadAll() {
     }));
   }
 
-  for (const path of midiPaths) {
+  for (const fileId of midiIds) {
+    const path = `assets/midi/${fileId}.json`;
     const ac = new AbortController();
     let midiDone = false;
     const stepMidi = () => {
@@ -92,7 +96,10 @@ async function preloadAll() {
     tasks.push(
       fetch(path, { signal: ac.signal })
         .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then(() => stepMidi(), () => stepMidi())
+        .then((data) => {
+          audio?.cacheMidiData?.(fileId, data);
+          stepMidi();
+        }, () => stepMidi())
     );
   }
 
@@ -111,8 +118,12 @@ function dismissLoadScreen() {
 async function boot() {
   setLoadProgress(0, PRAYING);
 
+  // Audio 先于预载创建，使 MIDI JSON 直接进引擎缓存
+  const audio = new AudioEngine();
+  const input = new Input();
+
   try {
-    await preloadAll();
+    await preloadAll(audio);
   } catch (e) {
     console.warn('Preload error:', e);
   }
@@ -133,8 +144,6 @@ async function boot() {
   applyVersionToDom();
 
   try {
-    const input = new Input();
-    const audio = new AudioEngine();
     let background = null;
 
     try {
