@@ -36,9 +36,8 @@ function shortHash(hash) {
 }
 
 function isSuccess(dep) {
-  const status = dep?.latest_stage?.status;
-  // success | idle | active | canceled | failure 等
-  return status === 'success' || !status;
+  // 仅成功部署；idle/active/failure 等不进 History 列表
+  return dep?.latest_stage?.status === 'success';
 }
 
 function mapDeployment(dep) {

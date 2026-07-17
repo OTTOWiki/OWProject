@@ -28,7 +28,10 @@ js/
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
   entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制
   dialogue.js       # 剧情对话与结局文本
-  ui.js             # 菜单、难度/自机/关卡/练习/设置（含键位）
+  ui.js             # 菜单编排：难度/自机/关卡/练习/设置（含键位）
+  menuNav.js        # 菜单键盘导航：键位判定 + 列表/网格/表单通用处理
+  historyScreen.js  # History 构建列表：加载/渲染/焦点/键盘
+  historyVersions.js # /api/versions 客户端拉取
   input.js          # 键盘 + 触屏相对滑动 + 虚拟键
   audio.js          # Web Audio：MIDI JSON 合成 BGM + SFX
   backgrounds.js    # 左侧 Three.js 关卡印象
