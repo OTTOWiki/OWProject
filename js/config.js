@@ -49,6 +49,14 @@ export const BALANCE = {
   bombDuration: 1.6,
   bombInvuln: 2.2,
   deathBombWindow: 0.18,
+  /** Bomb 释放的巨型追踪弹 */
+  bombOrbCount: 8,
+  bombOrbDamage: 22,
+  bombOrbSpeed: 7.2,
+  bombOrbHoming: 11,
+  bombOrbLife: 3.0,
+  bombOrbRadius: 18,
+  bombOrbDraw: 40,
 
   editMax: 100,
   editPerGraze: 1.15,

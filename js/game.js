@@ -7,7 +7,7 @@ import {
   Player, Bullet, Item, Particle,
   drawBullet, drawPlayer, drawEnemy, drawItem, drawCollectLine,
 } from './entities.js';
-import { spawnPlayerShot, fullScreenClear, clearBulletsToItems } from './patterns.js';
+import { spawnPlayerShot, fullScreenClear, clearBulletsToItems, spawnBombOrbs } from './patterns.js';
 import { buildChapterList, stageIntroFor } from './stages/index.js';
 import { getDialogues, getEndingDialogue } from './dialogue.js';
 import { saveHiscore, loadHiscore, unlockStage, unlockRoute, loadSettings } from './storage.js';
@@ -885,11 +885,13 @@ export class Game {
       }
     }
 
-    // 最近敌机 → 子机追踪目标
+    // 最近敌机 → 子机追踪目标；Bomb 巨弹按 slot 分摊目标
     let homeTarget = null;
     let bestD = Infinity;
+    const homeList = [];
     for (const e of this.enemies) {
-      if (e.dead) continue;
+      if (e.dead || e.isSpawning) continue;
+      homeList.push(e);
       // 优先画面中前方目标
       const d = Math.hypot(e.x - p.x, e.y - p.y) + (e.y > p.y ? 80 : 0);
       if (d < bestD) {
@@ -900,7 +902,15 @@ export class Game {
 
     // bullets
     for (const b of this.bullets) {
-      b.update(dt, p, b.from === 'player' && b.homing ? homeTarget : null);
+      let ht = null;
+      if (b.from === 'player' && b.homing) {
+        if (b.type === 'bomb' && homeList.length) {
+          ht = homeList[(b._homeSlot || 0) % homeList.length];
+        } else {
+          ht = homeTarget;
+        }
+      }
+      b.update(dt, p, ht);
     }
 
     // items（结算中强制吸引）
@@ -997,8 +1007,10 @@ export class Game {
     p.invuln = BALANCE.bombInvuln;
     this.chapterBomb = true;
     fullScreenClear(this);
+    // 清屏后放出 8 发巨型追踪弹（避免被 fullScreenClear 清掉）
+    spawnBombOrbs(this, p);
     this.audio.sfx('bomb');
-    this._burst(p.x, p.y, '#c4b5fd', 40);
+    this._burst(p.x, p.y, p.def?.color || '#c4b5fd', 40);
     return true;
   }
 
@@ -1056,13 +1068,19 @@ export class Game {
   _collisions() {
     const p = this.player;
 
-    // player bullets vs enemies
+    // player bullets vs enemies（bomb 巨弹可穿透并分摊伤害）
     for (const b of this.bullets) {
       if (b.from !== 'player' || b.dead) continue;
       for (const e of this.enemies) {
         if (e.dead || e.isSpawning) continue;
         if (Math.hypot(b.x - e.x, b.y - e.y) < b.r + e.r) {
-          b.dead = true;
+          if (b.type === 'bomb') {
+            if (!b._hitIds) b._hitIds = new Set();
+            if (b._hitIds.has(e.id)) continue;
+            b._hitIds.add(e.id);
+          } else {
+            b.dead = true;
+          }
           const killed = e.hurt(b.damage);
           if (killed) {
             this.addScore(e.score);
@@ -1071,7 +1089,7 @@ export class Game {
             if (drop) this.spawnItem(e.x, e.y, drop);
             else if (Math.random() < 0.35) this.spawnItem(e.x, e.y, 'score');
           }
-          break;
+          if (b.type !== 'bomb') break;
         }
       }
     }

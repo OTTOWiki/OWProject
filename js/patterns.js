@@ -3,7 +3,7 @@
  * 奇数狙 / 偶数狙：奇数路数中心对准自机，偶数路数中心夹在两侧对称
  */
 import { Bullet } from './entities.js';
-import { LOGICAL_W, LOGICAL_H } from './config.js';
+import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
 
 export function aimAngle(from, to) {
   return Math.atan2(to.y - from.y, to.x - from.x);
@@ -248,6 +248,44 @@ export function clearBulletsToItems(game, cx, cy, radius) {
 
 export function fullScreenClear(game) {
   return clearBulletsToItems(game, LOGICAL_W / 2, LOGICAL_H / 2, -1);
+}
+
+/**
+ * Bomb 释放 8 发巨型追踪弹（自动索敌、高伤害）
+ * 需在 fullScreenClear 之后调用，避免被清掉
+ */
+export function spawnBombOrbs(game, player) {
+  const atk = (game.playerAtkMul || 1) * (game.atkMul || 1);
+  const n = BALANCE.bombOrbCount ?? 8;
+  const dmg = (BALANCE.bombOrbDamage ?? 22) * atk;
+  const speed = BALANCE.bombOrbSpeed ?? 7.2;
+  const home = BALANCE.bombOrbHoming ?? 11;
+  const life = BALANCE.bombOrbLife ?? 3.0;
+  const r = BALANCE.bombOrbRadius ?? 18;
+  const draw = BALANCE.bombOrbDraw ?? 40;
+  const color = player.def?.color || '#c4b5fd';
+  const color2 = player.def?.color2 || '#fff';
+
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+    game.bullets.push(new Bullet({
+      x: player.x + Math.cos(ang) * 22,
+      y: player.y + Math.sin(ang) * 22,
+      angle: ang,
+      speed,
+      type: 'bomb',
+      color,
+      color2,
+      from: 'player',
+      damage: dmg,
+      r,
+      w: draw,
+      h: draw,
+      homing: home,
+      life,
+      _homeSlot: i,
+    }));
+  }
 }
 
 /** 横向激光墙 */

@@ -98,7 +98,7 @@ export class Bullet {
 function hitR(type) {
   return {
     dot: 3, rice: 2, talisman: 4, medium: 6, large: 12, laser: 5,
-    player: 5, option: 6,
+    player: 5, option: 6, bomb: 18,
   }[type] || 3;
 }
 function visualSize(type) {
@@ -111,6 +111,7 @@ function visualSize(type) {
     laser: { w: 10, h: 80 },
     player: { w: 10, h: 22 },
     option: { w: 12, h: 12 },
+    bomb: { w: 40, h: 40 },
   }[type] || { w: 8, h: 8 };
 }
 
@@ -228,7 +229,12 @@ export class Enemy {
         this.x = opts.x + (Math.random() - 0.5) * 20;
         this.y = -35 - Math.random() * 40;
       }
-      this.invuln = Math.max(this.invuln, 0.55);
+      // 非线性入场：ease-in 后段猛冲，像一下子跳进场
+      this.enterFromX = this.x;
+      this.enterFromY = this.y;
+      this.enterT = 0;
+      this.enterDur = this.type === 'boss' ? 0.4 : (this.type === 'elite' ? 0.32 : 0.26);
+      this.invuln = Math.max(this.invuln, this.enterDur + 0.08);
     }
   }
 
@@ -237,6 +243,11 @@ export class Enemy {
     if (x > LOGICAL_W * 0.82) return 'right';
     if (y > LOGICAL_H * 0.55) return 'bottom';
     return 'top';
+  }
+
+  /** easeInQuint：前段几乎不动，后段猛冲到位 */
+  static _easeInQuint(t) {
+    return t * t * t * t * t;
   }
 
   /** 是否仍在入场/现身中（不可行动、脚本不跑） */
@@ -258,19 +269,20 @@ export class Enemy {
       return;
     }
 
-    // 屏外飞入至目标点
+    // 屏外非线性跳入目标点
     if (this.entering) {
-      const dx = this.enterX - this.x;
-      const dy = this.enterY - this.y;
-      const dist = Math.hypot(dx, dy);
-      const sp = (this.type === 'boss' ? 95 : 130) * dt;
-      if (dist <= sp + 0.5) {
+      this.enterT = (this.enterT || 0) + dt;
+      const dur = this.enterDur || 0.28;
+      let u = Math.min(1, this.enterT / dur);
+      const e = Enemy._easeInQuint(u);
+      const x0 = this.enterFromX ?? this.x;
+      const y0 = this.enterFromY ?? this.y;
+      this.x = x0 + (this.enterX - x0) * e;
+      this.y = y0 + (this.enterY - y0) * e;
+      if (u >= 1) {
         this.x = this.enterX;
         this.y = this.enterY;
         this.entering = false;
-      } else {
-        this.x += (dx / dist) * sp;
-        this.y += (dy / dist) * sp;
       }
       return; // 入场完成前不跑 script / 自由移动
     }
@@ -427,12 +439,37 @@ export function drawBullet(ctx, b, alphaMul = 1) {
   ctx.save();
   ctx.globalAlpha = a;
   ctx.translate(b.x, b.y);
-  if (b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large' && b.type !== 'option') {
+  if (b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large' && b.type !== 'option' && b.type !== 'bomb') {
     ctx.rotate(b.angle + Math.PI / 2);
   }
 
   if (b.type === 'dot' || b.type === 'medium' || b.type === 'large') {
     softGlow(ctx, b.w / 2, b.color, b.color2 || '#fff');
+  } else if (b.type === 'bomb') {
+    // Bomb 巨型追踪弹：大光球 + 外环
+    const rr = (b.w || 40) / 2;
+    softGlow(ctx, rr * 0.95, b.color, b.color2 || '#fff');
+    ctx.strokeStyle = withAlpha(b.color2 || '#fff', 0.75);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, rr * 1.05, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = withAlpha(b.color, 0.45);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, rr * 1.35, 0, Math.PI * 2);
+    ctx.stroke();
+    // 旋转十字
+    ctx.rotate(performance.now() / 280);
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * rr * 0.35, Math.sin(a) * rr * 0.35);
+      ctx.lineTo(Math.cos(a) * rr * 1.15, Math.sin(a) * rr * 1.15);
+      ctx.stroke();
+    }
   } else if (b.type === 'rice') {
     ctx.shadowColor = b.color;
     ctx.shadowBlur = 12;
