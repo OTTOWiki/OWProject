@@ -126,7 +126,7 @@ function chapter_s3_6(g) {
 function chapter_dazong_1(g) {
   const e = boss({
     x: LOGICAL_W / 2, y: 100, hp: 3500, kind: 'dazong',
-    color: '#fbbf24', color2: '#fb923c', label: '大宗关不是・互然雏', enterY: 100,
+    color: '#fbbf24', color2: '#fb923c', label: '大宗关不是·互然雏', enterY: 100,
   });
   e.script = (en, d, game) => {
     timer(en, 'laser', 0.2, d, () => {
@@ -151,7 +151,7 @@ function chapter_dazong_1(g) {
 function chapter_dazong_2(g) {
   const e = boss({
     x: LOGICAL_W / 2, y: 100, hp: 4000, kind: 'dazong',
-    color: '#fbbf24', color2: '#fb923c', label: '大宗关不是・互然雏', enterY: 100,
+    color: '#fbbf24', color2: '#fb923c', label: '大宗关不是·互然雏', enterY: 100,
   });
   e.script = (en, d, game) => {
     timer(en, 'ring', 0.8, d, () => {

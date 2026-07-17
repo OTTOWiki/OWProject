@@ -9,7 +9,7 @@ import { Bullet } from '../entities.js';
 function chapter_patrol_1(g) {
   const e = boss({
     x: LOGICAL_W / 2, y: 90, hp: 3800, kind: 'patrol',
-    color: '#f87171', color2: '#fca5a5', label: '全域巡查姬・404', enterY: 90,
+    color: '#f87171', color2: '#fca5a5', label: '全域巡查姬·404', enterY: 90,
   });
   e.script = (en, d, game) => {
     timer(en, 'grid', 0.08, d, () => {
@@ -30,7 +30,7 @@ function chapter_patrol_1(g) {
 function chapter_patrol_2(g) {
   const e = boss({
     x: LOGICAL_W / 2, y: 100, hp: 4000, kind: 'patrol',
-    color: '#f87171', color2: '#fca5a5', label: '全域巡查姬・404', enterY: 100,
+    color: '#f87171', color2: '#fca5a5', label: '全域巡查姬·404', enterY: 100,
   });
   e.script = (en, d, game) => {
     timer(en, 'big', 1.3, d, () => {
@@ -67,4 +67,4 @@ export const chapters = [
   },
 ];
 
-export const stageSelectEntry = { id: 'patrol', label: '中立拦截', desc: '全域巡查姬・404', startChapter: 23 };
+export const stageSelectEntry = { id: 'patrol', label: '中立拦截', desc: '全域巡查姬·404', startChapter: 23 };

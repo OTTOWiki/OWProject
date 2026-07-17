@@ -7,9 +7,9 @@ export const PORTRAIT_PATHS = {
   誓约沙玛: 'assets/portraits/shama.jpg',
   爱丽丝: 'assets/portraits/alice.jpg',
   Icebin: 'assets/portraits/icebin.jpg',
-  '大宗关不是・互然雏': 'assets/portraits/dazong.jpg',
+  '大宗关不是·互然雏': 'assets/portraits/dazong.jpg',
   大宗关: 'assets/portraits/dazong.jpg',
-  '全域巡查姬・404': 'assets/portraits/patrol.jpg',
+  '全域巡查姬·404': 'assets/portraits/patrol.jpg',
   巡查姬: 'assets/portraits/patrol.jpg',
 };
 
