@@ -479,17 +479,30 @@ html, body {
 .manual-body {
   text-align: left;
   overflow-y: auto;
-  max-height: 55vh;
-  padding: 0.5rem 0.25rem 1rem;
+  max-height: 60vh;
+  padding: 0.35rem 0.4rem 1rem;
   font-size: 0.88rem;
   line-height: 1.65;
   color: #d8cbb0;
-  white-space: pre-wrap;
+}
+.manual-chapter {
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+}
+.manual-chapter:last-child {
+  border-bottom: none;
+  margin-bottom: 0.25rem;
 }
 .manual-body h3 {
   color: var(--gold);
-  margin: 1rem 0 0.4rem;
-  font-size: 0.95rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.98rem;
+  letter-spacing: 0.04em;
+}
+.manual-body p {
+  margin: 0;
+  white-space: normal;
 }
 
 /* ===== 游戏三栏 ===== */
@@ -498,6 +511,41 @@ html, body {
   align-items: stretch;
   justify-content: stretch;
   padding: 0;
+}
+/* 结局故事：全屏空白 + 对话，无左右栏/版面装饰 */
+#screen-game.ending-cinematic {
+  background: #000;
+}
+#screen-game.ending-cinematic .panel-left,
+#screen-game.ending-cinematic .panel-right {
+  display: none !important;
+}
+#screen-game.ending-cinematic .game-layout {
+  grid-template-columns: 1fr;
+  background: #000;
+}
+#screen-game.ending-cinematic .panel-center {
+  max-width: min(100vw, 560px);
+  margin: 0 auto;
+  width: 100%;
+  background: #000;
+}
+#screen-game.ending-cinematic .playfield-wrap {
+  background: #000;
+  border: none;
+  box-shadow: none;
+}
+#screen-game.ending-cinematic #playfield {
+  background: #000;
+  opacity: 1;
+}
+#screen-game.ending-cinematic .letter-banner,
+#screen-game.ending-cinematic .touch-keys,
+#screen-game.ending-cinematic .stage-label {
+  display: none !important;
+}
+#screen-game.ending-cinematic .dialogue-box {
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.65) 25%, rgba(0, 0, 0, 0.92) 100%);
 }
 .game-layout {
   display: grid;
@@ -634,29 +682,16 @@ html, body {
   letter-spacing: 0.08em;
 }
 
-.pause-overlay, .flash-msg {
+.flash-msg {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,.55);
+  background: transparent;
   z-index: 20;
   pointer-events: none;
-}
-.pause-overlay.hidden, .flash-msg.hidden, .letter-banner.hidden { display: none; }
-.pause-overlay h2 {
-  font-family: var(--serif);
-  font-size: 2.2rem;
-  letter-spacing: 0.35em;
-  color: var(--gold2);
-  text-shadow: 0 0 20px rgba(232,200,120,.5);
-}
-.pause-overlay p { margin-top: 0.75rem; color: var(--muted); font-size: 0.9rem; }
-
-.flash-msg {
-  background: transparent;
   font-family: var(--serif);
   font-size: 1.5rem;
   font-weight: 800;
@@ -665,6 +700,83 @@ html, body {
   letter-spacing: 0.2em;
   animation: flashPulse 0.15s ease infinite alternate;
 }
+.flash-msg.hidden, .letter-banner.hidden, .game-overlay.hidden { display: none; }
+
+/* 暂停 / 结束 共用叠加层 */
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.game-overlay-blur {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(10px) saturate(0.85);
+  -webkit-backdrop-filter: blur(10px) saturate(0.85);
+  background: rgba(6, 5, 12, 0.52);
+}
+.game-overlay-panel {
+  position: relative;
+  z-index: 1;
+  width: min(92%, 280px);
+  text-align: center;
+  padding: 1.1rem 1rem 0.85rem;
+  border: 1px solid rgba(232, 200, 120, 0.35);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(28, 22, 40, 0.92), rgba(12, 10, 18, 0.94));
+  box-shadow: 0 0 28px rgba(0, 0, 0, 0.55), 0 0 18px rgba(232, 200, 120, 0.12);
+}
+.game-overlay-title {
+  font-family: var(--serif);
+  font-size: 1.55rem;
+  letter-spacing: 0.22em;
+  color: var(--gold2);
+  text-shadow: 0 0 18px rgba(232, 200, 120, 0.45);
+  margin: 0 0 0.55rem;
+}
+.game-overlay.mode-result .game-overlay-title {
+  letter-spacing: 0.12em;
+  font-size: 1.35rem;
+}
+.game-overlay-body {
+  margin: 0 0 0.85rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #d8cbb0;
+  white-space: pre-wrap;
+  text-align: left;
+  max-height: 28vh;
+  overflow-y: auto;
+}
+.game-overlay-body:empty { display: none; }
+.game-overlay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.game-overlay-actions .overlay-btn {
+  width: 100%;
+  margin: 0;
+  font-size: 0.88rem;
+  padding: 0.45rem 0.6rem;
+}
+.game-overlay-actions .overlay-btn.hidden { display: none !important; }
+.game-overlay-actions .overlay-btn.selected,
+.game-overlay-actions .overlay-btn:focus-visible {
+  outline: 1px solid var(--gold2);
+  box-shadow: 0 0 12px rgba(232, 200, 120, 0.35);
+}
+.game-overlay-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
 @keyframes flashPulse {
   from { opacity: 0.7; }
   to { opacity: 1; }
@@ -672,27 +784,41 @@ html, body {
 
 .letter-banner {
   position: absolute;
-  top: 6%;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
+  top: 2.5%;
+  right: 2.5%;
+  left: auto;
+  transform: none;
+  text-align: right;
   z-index: 8;
   pointer-events: none;
-  width: 90%;
+  max-width: 58%;
+  opacity: 1;
+  transition: opacity 0.12s linear;
 }
 .letter-name {
   font-family: var(--serif);
-  font-size: 1rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #ffe08a;
-  text-shadow: 0 0 14px rgba(251,191,36,.65);
-  letter-spacing: 0.08em;
+  text-shadow: 0 0 10px rgba(251,191,36,.55), 0 1px 2px rgba(0,0,0,.85);
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.letter-bonus {
+  margin-top: 0.15rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f9a8d4;
+  text-shadow: 0 0 8px rgba(244,114,182,.45), 0 1px 2px rgba(0,0,0,.85);
 }
 .letter-timer {
-  margin-top: 0.25rem;
+  margin-top: 0.1rem;
   font-family: var(--mono);
-  font-size: 0.8rem;
-  color: rgba(255,255,255,.72);
+  font-size: 0.72rem;
+  color: rgba(255,255,255,.78);
+  text-shadow: 0 1px 2px rgba(0,0,0,.85);
 }
 
 /* 右侧分数板 — TH 风格 */

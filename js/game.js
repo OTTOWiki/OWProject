@@ -1,6 +1,7 @@
 import {
-  BALANCE, LOGICAL_W, LOGICAL_H, PLAYER_DEFS, SPEAKER_COLORS, UNSTABLE_POOL,
-  getDifficulty,
+  BALANCE, LOGICAL_W, LOGICAL_H, PLAYER_DEFS, SPEAKER_COLORS,
+  getDifficulty, rollUnstableEffects, unstableStackCount, calcLetterBonus, unstableCompMul,
+  nextExtendThreshold,
 } from './config.js';
 import {
   Player, Bullet, Item, Particle,
@@ -8,7 +9,7 @@ import {
 } from './entities.js';
 import { spawnPlayerShot, fullScreenClear, clearBulletsToItems } from './patterns.js';
 import { buildChapterList, stageIntroFor } from './stages/index.js';
-import { getDialogues, ENDING_A, ENDING_B } from './dialogue.js';
+import { getDialogues, getEndingDialogue } from './dialogue.js';
 import { saveHiscore, loadHiscore, unlockStage, unlockRoute } from './storage.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './backgrounds.js';
@@ -54,9 +55,15 @@ export class Game {
       dialogueName: document.getElementById('dialogue-name'),
       dialogueText: document.getElementById('dialogue-text'),
       dialoguePortrait: document.getElementById('dialogue-portrait'),
-      pause: document.getElementById('pause-overlay'),
+      overlay: document.getElementById('game-overlay'),
+      overlayTitle: document.getElementById('overlay-title'),
+      overlayBody: document.getElementById('overlay-body'),
+      overlayActions: document.getElementById('overlay-actions'),
+      overlayHint: document.getElementById('overlay-hint'),
+
       letterBanner: document.getElementById('letter-banner'),
       letterName: document.getElementById('letter-name'),
+      letterBonus: document.getElementById('letter-bonus'),
       letterTimer: document.getElementById('letter-timer'),
       flash: document.getElementById('flash-msg'),
     };
@@ -92,11 +99,15 @@ export class Game {
     this.bulletSpeedMul = this.diff.bulletSpeed;
     this.fireIntervalMul = this.diff.fireInterval;
     this.spawnMul = this.diff.spawnMul;
+    this.bulletCountMul = this.diff.bulletCount ?? 1;
 
     this.score = 0;
+    this.baseScore = 0;
+    this.extendCount = 0;
     this.hiscore = loadHiscore();
     this.totalTendency = 0;
     this.chapterTendency = 0;
+    this._flashTimer = 0;
 
     this.bullets = [];
     this.enemies = [];
@@ -120,6 +131,7 @@ export class Game {
     this.chapterBomb = false;
     this.chapterDone = false;
     this.letterTimeLeft = 0;
+    this.letterTimeMax = 0;
     this.atkMul = 1;
     this.scoreMul = 1;
     this.unstableFx = null;
@@ -140,7 +152,11 @@ export class Game {
 
     this.running = true;
     this.paused = false;
-    this.el.pause.classList.add('hidden');
+    this.endingCinematic = false;
+    this.overlayMode = null; // pause | result
+    this.overlayActionIndex = 0;
+    this._setEndingCinematic(false);
+    this._hideOverlay();
     this.el.flash.classList.add('hidden');
     this.el.dialogueBox.classList.add('hidden');
     this.el.hiscore.textContent = String(this.hiscore);
@@ -150,6 +166,7 @@ export class Game {
       this.el.difficulty.style.color = this.diff.color;
     }
 
+    this._bindOverlayClicks();
     this.input.bindCanvas(this.canvas, () => ({ x: this.player.x, y: this.player.y }));
     this.audio.ensure();
     this._startChapter();
@@ -199,6 +216,8 @@ export class Game {
 
   stop() {
     this.running = false;
+    this._setEndingCinematic(false);
+    this._hideOverlay();
     cancelAnimationFrame(this.raf);
     this.audio.stopMusic(0.5);
   }
@@ -208,6 +227,13 @@ export class Game {
     if (!ch) {
       this._gameClear();
       return;
+    }
+
+    // 章节切换前吸走残机/Bomb 道具，避免清空丢失
+    if (this.items?.length && this.player) {
+      for (const it of this.items) {
+        if (!it.dead && (it.kind === 'life' || it.kind === 'bomb')) this._collectItem(it);
+      }
     }
 
     if (this.bullets) this.bullets.length = 0;
@@ -240,7 +266,8 @@ export class Game {
     this.scoreMul = 1;
     const useUnstable = ch.unstable && (this.mode === 'practice' ? this.practiceUnstable : true);
     if (useUnstable) {
-      this.unstableFx = this.nextUnstableFx || UNSTABLE_POOL[Math.floor(Math.random() * UNSTABLE_POOL.length)];
+      this.unstableFx = this.nextUnstableFx
+        || rollUnstableEffects(unstableStackCount(ch.stageKey));
       this.nextUnstableFx = null;
       this.atkMul = this.unstableFx.atkMul || 1;
       this.scoreMul = this.unstableFx.scoreMul || 1;
@@ -249,7 +276,8 @@ export class Game {
       this.bombCost = this.unstableFx.bombCost || 1;
     }
 
-    this.letterTimeLeft = ch.letterTime || ch.duration || 0;
+    this.letterTimeMax = ch.letterTime || 0;
+    this.letterTimeLeft = this.letterTimeMax || ch.duration || 0;
     this.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
     // audio & bg
@@ -275,10 +303,13 @@ export class Game {
 
     if (ch.letter) {
       this.el.letterBanner.classList.remove('hidden');
+      this.el.letterBanner.style.opacity = '1';
       this.el.letterName.textContent = ch.letter;
+      this._updateLetterHud();
       this.audio.sfx('letter');
     } else {
       this.el.letterBanner.classList.add('hidden');
+      if (this.el.letterBonus) this.el.letterBonus.textContent = '';
     }
 
     const afterBuild = () => {
@@ -365,6 +396,113 @@ export class Game {
     this.raf = requestAnimationFrame((nt) => this._loop(nt));
   }
 
+  _bindOverlayClicks() {
+    if (this._overlayBound) return;
+    this._overlayBound = true;
+    this.el.overlayActions?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-overlay]');
+      if (!btn || !this.overlayMode) return;
+      this._runOverlayAction(btn.dataset.overlay);
+    });
+  }
+
+  _overlayButtons() {
+    return [...(this.el.overlayActions?.querySelectorAll('[data-overlay]') || [])]
+      .filter((b) => !b.classList.contains('hidden'));
+  }
+
+  _highlightOverlay() {
+    const btns = this._overlayButtons();
+    btns.forEach((b, i) => b.classList.toggle('selected', i === this.overlayActionIndex));
+  }
+
+  _showOverlay({ mode, title, body = '', actions, hint }) {
+    this.overlayMode = mode;
+    this.overlayActionIndex = 0;
+    this.el.overlay?.classList.remove('hidden');
+    this.el.overlay?.classList.toggle('mode-result', mode === 'result');
+    this.el.overlay?.classList.toggle('mode-pause', mode === 'pause');
+    if (this.el.overlayTitle) this.el.overlayTitle.textContent = title;
+    if (this.el.overlayBody) this.el.overlayBody.textContent = body || '';
+    if (this.el.overlayHint) this.el.overlayHint.textContent = hint || '';
+
+    const all = [...(this.el.overlayActions?.querySelectorAll('[data-overlay]') || [])];
+    const want = new Set(actions);
+    for (const btn of all) {
+      const id = btn.dataset.overlay;
+      const show = want.has(id);
+      btn.classList.toggle('hidden', !show);
+      if (id === 'resume') btn.textContent = '继续';
+      if (id === 'retry') btn.textContent = mode === 'pause' ? '重开本章' : '再试一次';
+      if (id === 'menu') btn.textContent = '主菜单';
+    }
+    this._highlightOverlay();
+  }
+
+  _hideOverlay() {
+    this.overlayMode = null;
+    this.paused = false;
+    this.el.overlay?.classList.add('hidden');
+  }
+
+  _openPause() {
+    if (this.state !== 'playing' || this.overlayMode === 'result') return;
+    this.paused = true;
+    this._showOverlay({
+      mode: 'pause',
+      title: 'PAUSED',
+      body: '',
+      actions: ['resume', 'retry', 'menu'],
+      hint: 'Esc 继续 · ↑↓ 选择 · Z 确认',
+    });
+  }
+
+  _openResult({ title, body, retryChapter }) {
+    this.paused = true;
+    this.state = 'gameover';
+    this.resultPayload = {
+      retryChapter: retryChapter ?? this.chapters[this.chapterIndex]?.id ?? 1,
+      difficulty: this.difficultyId,
+    };
+    this._showOverlay({
+      mode: 'result',
+      title,
+      body,
+      actions: ['retry', 'menu'],
+      hint: '↑↓ 选择 · Z 确认',
+    });
+    this.ui?.showGame?.();
+  }
+
+  _runOverlayAction(action) {
+    if (!this.overlayMode) return;
+    if (action === 'resume') {
+      if (this.overlayMode === 'pause') this._hideOverlay();
+      return;
+    }
+    if (action === 'retry') {
+      const chId = this.overlayMode === 'result'
+        ? (this.resultPayload?.retryChapter ?? this.chapters[this.chapterIndex]?.id)
+        : this.chapters[this.chapterIndex]?.id;
+      this._hideOverlay();
+      this.start({
+        playerId: this.playerId,
+        startChapter: chId,
+        mode: this.mode,
+        lives: this.overlayMode === 'pause' ? this.player.lives : undefined,
+        unstable: this.practiceUnstable,
+        singleChapter: this.singleChapter,
+        difficulty: this.difficultyId,
+      });
+      return;
+    }
+    if (action === 'menu') {
+      this._hideOverlay();
+      this.stop();
+      this.ui.showMenu();
+    }
+  }
+
   _handleGlobalInput() {
     if (this.state === 'dialogue') {
       if (this.input.shotPressed() || this.input.justPressed('Enter') || this.input.justPressed('Space')) {
@@ -384,28 +522,45 @@ export class Game {
       return;
     }
 
-    if (this.input.justPressed('Escape')) {
-      if (this.state === 'playing') {
-        this.paused = !this.paused;
-        this.el.pause.classList.toggle('hidden', !this.paused);
+    // 叠加层（暂停 / 结束）
+    if (this.overlayMode) {
+      const btns = this._overlayButtons();
+      if (this.input.justPressed('Escape') && this.overlayMode === 'pause') {
+        this._hideOverlay();
+        return;
       }
+      if (this.input.justPressed('ArrowDown') || this.input.justPressed('KeyS')) {
+        this.overlayActionIndex = (this.overlayActionIndex + 1) % Math.max(1, btns.length);
+        this._highlightOverlay();
+        return;
+      }
+      if (this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW')) {
+        this.overlayActionIndex = (this.overlayActionIndex - 1 + btns.length) % Math.max(1, btns.length);
+        this._highlightOverlay();
+        return;
+      }
+      if (
+        this.input.shotPressed()
+        || this.input.justPressed('Enter')
+        || this.input.justPressed('Space')
+        || this.input.justPressed('KeyZ')
+      ) {
+        const id = btns[this.overlayActionIndex]?.dataset.overlay;
+        if (id) this._runOverlayAction(id);
+        return;
+      }
+      if (this.overlayMode === 'pause' && this.input.justPressed('KeyR')) {
+        this._runOverlayAction('retry');
+        return;
+      }
+      if (this.overlayMode === 'pause' && this.input.justPressed('KeyQ')) {
+        this._runOverlayAction('menu');
+      }
+      return;
     }
-    if (this.paused) {
-      if (this.input.justPressed('KeyR')) {
-        this.start({
-          playerId: this.playerId,
-          startChapter: this.chapters[this.chapterIndex].id,
-          mode: this.mode,
-          lives: this.player.lives,
-          unstable: this.practiceUnstable,
-          singleChapter: this.singleChapter,
-          difficulty: this.difficultyId,
-        });
-      }
-      if (this.input.justPressed('KeyQ')) {
-        this.stop();
-        this.ui.showMenu();
-      }
+
+    if (this.input.justPressed('Escape') && this.state === 'playing') {
+      this._openPause();
     }
   }
 
@@ -418,9 +573,16 @@ export class Game {
     if (p.arbitration > 0) {
       this.el.flash.classList.remove('hidden');
       this.el.flash.textContent = '违规编辑！';
+      this._flashTimer = 0;
       if (this.input.bombPressed() && this._tryBomb(true)) {
         p.arbitration = 0;
         deathSaved = true;
+        this.el.flash.classList.add('hidden');
+      }
+    } else if (this._flashTimer > 0) {
+      this._flashTimer -= dt;
+      if (this._flashTimer <= 0) {
+        this._flashTimer = 0;
         this.el.flash.classList.add('hidden');
       }
     }
@@ -514,7 +676,7 @@ export class Game {
     this.chapterTime += dt;
     if (this.letterTimeLeft > 0) {
       this.letterTimeLeft -= dt;
-      this.el.letterTimer.textContent = `TIME ${Math.max(0, this.letterTimeLeft).toFixed(1)}`;
+      this._updateLetterHud();
       if (this.letterTimeLeft <= 0 && !this.chapterDone) {
         // timeout: for boss, force damage or end card
         if (this.bossRef && !this.bossRef.dead) {
@@ -590,7 +752,8 @@ export class Game {
       this._gameOver();
       return;
     }
-    p.bombs = Math.max(p.bombs, 3);
+    const floor = this.diff.missBombFloor ?? BALANCE.resource.missBombFloor ?? 2;
+    p.bombs = Math.max(p.bombs, floor);
     p.invuln = 3;
     p.resetPos();
   }
@@ -616,9 +779,9 @@ export class Game {
           if (killed) {
             this.addScore(e.score);
             this._burst(e.x, e.y, e.color, 12);
-            if (e.drop) this.spawnItem(e.x, e.y, e.drop);
+            const drop = e.drop || this._defaultKillDrop(e);
+            if (drop) this.spawnItem(e.x, e.y, drop);
             else if (Math.random() < 0.35) this.spawnItem(e.x, e.y, 'score');
-            if (e.type === 'boss') this.addScore(BALANCE.score.letterBonus * 0.3);
           }
           break;
         }
@@ -663,16 +826,89 @@ export class Game {
   _collectItem(it) {
     if (it.kind === 'score') this.addScore(BALANCE.score.itemSmall);
     else if (it.kind === 'scoreL') this.addScore(BALANCE.score.itemLarge);
-    else if (it.kind === 'life') this.player.lives = Math.min(BALANCE.maxLives, this.player.lives + 1);
-    else if (it.kind === 'bomb') this.player.bombs = Math.min(BALANCE.maxBombs, this.player.bombs + 1);
+    else if (it.kind === 'life') {
+      this.player.lives = Math.min(BALANCE.maxLives, this.player.lives + 1);
+      this.audio.sfx('ok');
+    } else if (it.kind === 'bomb') {
+      this.player.bombs = Math.min(BALANCE.maxBombs, this.player.bombs + 1);
+      this.audio.sfx('item');
+    }
   }
 
   addScore(n) {
-    const v = Math.floor(n * this.scoreMul * (this.diffScoreMul || 1));
+    const raw = Math.floor(n * (this.scoreMul || 1));
+    const v = Math.floor(raw * (this.diffScoreMul || 1));
     this.score += v;
     this.chapterScore += v;
+    this.baseScore += raw;
     if (this.score > this.hiscore) {
       this.hiscore = this.score;
+    }
+    this._checkExtend();
+  }
+
+  _checkExtend() {
+    let th = nextExtendThreshold(this.extendCount);
+    while (this.baseScore >= th) {
+      this.extendCount += 1;
+      this.player.lives = Math.min(BALANCE.maxLives, this.player.lives + 1);
+      this.audio.sfx('extend');
+      this._flashMsg('EXTEND', 1.4);
+      th = nextExtendThreshold(this.extendCount);
+    }
+  }
+
+  _flashMsg(text, sec = 1.2) {
+    if (!this.el.flash) return;
+    this.el.flash.textContent = text;
+    this.el.flash.classList.remove('hidden');
+    this._flashTimer = sec;
+  }
+
+  /** 击破默认掉落：道中 midboss 章主敌 → bomb（难度可关） */
+  _defaultKillDrop(e) {
+    if (e.drop) return e.drop;
+    const ch = this.chapters[this.chapterIndex];
+    if (!ch) return null;
+    if (
+      ch.kind === 'midboss'
+      && this.diff.midbossDrop !== false
+      && (e.type === 'boss' || e.type === 'elite')
+    ) {
+      return 'bomb';
+    }
+    return null;
+  }
+
+  /** 是否为本 stage 最后一张 Letter（boss 章） */
+  _isLastLetterOfStage(ch) {
+    if (!ch || ch.kind !== 'boss') return false;
+    const sk = String(ch.stageKey);
+    for (let i = this.chapterIndex + 1; i < this.chapters.length; i++) {
+      const n = this.chapters[i];
+      if (String(n.stageKey) !== sk) break;
+      if (n.kind === 'boss') return false;
+    }
+    return true;
+  }
+
+  /** Letter NMNB 资源掉落（midboss 已在击破时固定掉 B，此处只处理 boss Letter） */
+  _grantLetterResource(ch, perfect, success) {
+    if (!success || !perfect) return;
+    if (ch.kind !== 'boss' || !(this.letterTimeMax > 0)) return;
+
+    const bx = this.bossRef ? this.bossRef.x : LOGICAL_W / 2;
+    const by = this.bossRef ? this.bossRef.y : 120;
+    const res = BALANCE.resource;
+
+    if (this._isLastLetterOfStage(ch)) {
+      this.spawnItem(bx, by + 20, 'life');
+      return;
+    }
+
+    const chance = this.diff.letterNmnbBombChance ?? res.letterNmnbBombChance ?? 0.4;
+    if (Math.random() < chance) {
+      this.spawnItem(bx + (Math.random() - 0.5) * 30, by + 18, 'bomb');
     }
   }
 
@@ -688,15 +924,44 @@ export class Game {
     if (this.chapterDone) return;
     this.chapterDone = true;
     const ch = this.chapters[this.chapterIndex];
+    const perfect = !this.chapterMiss && !this.chapterBomb;
 
-    // perfect bonus
-    let mul = 1;
-    if (!this.chapterMiss && !this.chapterBomb) {
-      mul = BALANCE.chapterPerfectMul;
-      this.addScore(this.chapterScore * (mul - 1));
+    // NMNB 结算：Perfect ×1.05 + 负面 Unstable 补偿倍率（仅负面，乘在章分上）
+    const baseChapter = this.chapterScore;
+    let settleMul = 1;
+    let unstableComp = 1;
+    if (perfect) {
+      settleMul *= BALANCE.chapterPerfectMul;
+      unstableComp = unstableCompMul(this.unstableFx);
+      if (unstableComp > 1) settleMul *= unstableComp;
+      if (settleMul > 1 && baseChapter > 0) {
+        this.addScore(baseChapter * (settleMul - 1));
+      }
     }
-    // apply remaining chapter score already counted; show bonus
-    this.el.bonus.textContent = (!this.chapterMiss && !this.chapterBomb) ? 'Perfect ×1.05' : '—';
+
+    // Letter 符卡红利：无 Miss/Bomb 且限时内击破；随剩余时间线性递减，随关卡进程抬高
+    let letterBonus = 0;
+    if (success && perfect && this.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
+      letterBonus = calcLetterBonus(ch.stageKey, this.letterTimeLeft, this.letterTimeMax);
+      if (letterBonus > 0) this.addScore(letterBonus);
+      this._grantLetterResource(ch, perfect, success);
+    }
+
+    // 负面 Unstable 高补偿 NMNB → 额外 +1 Bomb
+    if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {
+      this.player.bombs = Math.min(BALANCE.maxBombs, this.player.bombs + 1);
+      this.audio.sfx('item');
+    }
+
+    if (letterBonus > 0) {
+      this.el.bonus.textContent = `Letter +${letterBonus}`;
+    } else if (perfect && unstableComp > 1) {
+      this.el.bonus.textContent = `NMNB ×${settleMul.toFixed(2)}`;
+    } else if (perfect) {
+      this.el.bonus.textContent = 'Perfect ×1.05';
+    } else {
+      this.el.bonus.textContent = '—';
+    }
 
     // tendency award: apply per-chapter percentage
     let tendencyContrib = null;
@@ -712,7 +977,10 @@ export class Game {
     this.settlement = {
       name: ch.name,
       score: this.chapterScore,
-      perfect: !this.chapterMiss && !this.chapterBomb,
+      perfect,
+      letterBonus,
+      unstableComp: perfect && unstableComp > 1 ? unstableComp : 0,
+      settleMul: perfect ? settleMul : 1,
       tendency: tendencyContrib,
       t: 0,
     };
@@ -730,7 +998,8 @@ export class Game {
       break;
     }
     if (nextIdx < this.chapters.length && this.chapters[nextIdx].unstable) {
-      this.nextUnstableFx = UNSTABLE_POOL[Math.floor(Math.random() * UNSTABLE_POOL.length)];
+      const nc = this.chapters[nextIdx];
+      this.nextUnstableFx = rollUnstableEffects(unstableStackCount(nc.stageKey));
       this.settlement.nextUnstable = this.nextUnstableFx.label;
     }
 
@@ -743,11 +1012,10 @@ export class Game {
     if (this.singleChapter || this.mode === 'practice') {
       setTimeout(() => {
         if (!this.running) return;
-        this.stop();
-        this.ui.showResult({
+        this._openResult({
           title: '练习结束',
           body: `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n${(!this.chapterMiss && !this.chapterBomb) ? 'Perfect Clear!' : ''}`,
-          difficulty: this.difficultyId,
+          retryChapter: ch.id,
         });
       }, 800);
       return;
@@ -928,12 +1196,24 @@ export class Game {
 
     let nextY = cy + 24;
 
-    // perfect
+    // letter / perfect / unstable NMNB 补偿
+    if (s.letterBonus > 0) {
+      ctx.fillStyle = '#f472b6';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText(`LETTER +${Math.floor(s.letterBonus)}`, cx, nextY);
+      nextY += 20;
+    }
     if (s.perfect) {
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 14px sans-serif';
       ctx.fillText('PERFECT ×1.05', cx, nextY);
       nextY += 20;
+    }
+    if (s.unstableComp > 1) {
+      ctx.fillStyle = '#c4b5fd';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(`UNSTABLE 补偿 ×${s.unstableComp.toFixed(2)}`, cx, nextY);
+      nextY += 18;
     }
 
     // tendency
@@ -1047,14 +1327,36 @@ export class Game {
     this._startChapter();
   }
 
+  _setEndingCinematic(on) {
+    this.endingCinematic = !!on;
+    document.getElementById('screen-game')?.classList.toggle('ending-cinematic', !!on);
+    if (on) {
+      this.el.letterBanner?.classList.add('hidden');
+      this.enemies.length = 0;
+      this.bullets.length = 0;
+      this.items = [];
+      this.particles = [];
+      this.bossRef = null;
+      this.waveFn = null;
+      this.chapterDone = true;
+      this.settlement = null;
+      this.stageIntro = null;
+    }
+  }
+
   _showEnding(which) {
     saveHiscore(this.score);
-    const text = which === 'A' ? ENDING_A : ENDING_B;
-    this.stop();
-    this.ui.showResult({
-      title: which === 'A' ? '结局A · 不倒闭的真理' : '结局B · 散去的幻影',
-      body: `${text}\n\n难度：${this.diff.rank} ${this.diff.name}\n最终得分：${this.score}`,
-      difficulty: this.difficultyId,
+    this.audio.stopMusic(0.8);
+    const title = which === 'A' ? '结局A · 不倒闭的真理' : '结局B · 散去的幻影';
+    const lines = getEndingDialogue(which, this.playerId);
+    this._setEndingCinematic(true);
+    this._openDialogue(lines, () => {
+      this._setEndingCinematic(false);
+      this._openResult({
+        title,
+        body: `难度：${this.diff.rank} ${this.diff.name}\n最终得分：${this.score}`,
+        retryChapter: 1,
+      });
     });
   }
 
@@ -1062,35 +1364,55 @@ export class Game {
     const ch = this.chapters[this.chapterIndex];
     saveHiscore(this.score);
     const body = `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n倾向：${this.totalTendency.toFixed(0)}%`;
-    if (ch.loseDialogue && this.dialogues[ch.loseDialogue]) {
-      this._openDialogue(this.dialogues[ch.loseDialogue], () => {
-        this.stop();
-        this.ui.showResult({
-          title: 'Game Over',
-          body,
-          retryChapter: ch.id,
-          difficulty: this.difficultyId,
-        });
-      });
-    } else {
-      this.stop();
-      this.ui.showResult({
+    const show = () => {
+      this.audio.stopMusic(0.6);
+      this._openResult({
         title: 'Game Over',
         body,
         retryChapter: ch.id,
-        difficulty: this.difficultyId,
       });
+    };
+    if (ch.loseDialogue && this.dialogues[ch.loseDialogue]) {
+      this._openDialogue(this.dialogues[ch.loseDialogue], show);
+    } else {
+      show();
     }
   }
 
   _gameClear() {
     saveHiscore(this.score);
-    this.stop();
-    this.ui.showResult({
+    this.audio.stopMusic(0.8);
+    this._openResult({
       title: 'All Clear',
       body: `全关卡完成！\n难度：${this.diff.rank} ${this.diff.name}\n得分：${this.score}`,
-      difficulty: this.difficultyId,
+      retryChapter: 1,
     });
+  }
+
+  _updateLetterHud() {
+    const banner = this.el.letterBanner;
+    if (!banner || banner.classList.contains('hidden')) return;
+    const ch = this.chapters[this.chapterIndex];
+    const tLeft = Math.max(0, this.letterTimeLeft);
+    if (this.el.letterTimer) {
+      this.el.letterTimer.textContent = `TIME ${tLeft.toFixed(1)}`;
+    }
+    if (this.el.letterBonus && ch && this.letterTimeMax > 0) {
+      const eligible = !this.chapterMiss && !this.chapterBomb && !this.chapterDone;
+      const bonus = eligible
+        ? calcLetterBonus(ch.stageKey, tLeft, this.letterTimeMax)
+        : 0;
+      this.el.letterBonus.textContent = `BONUS ${bonus}`;
+      this.el.letterBonus.style.opacity = eligible ? '1' : '0.45';
+    }
+    // 自机靠近版面右上时降低不透明度，避免挡弹
+    const p = this.player;
+    if (p) {
+      const rx = p.x / LOGICAL_W;
+      const ry = p.y / LOGICAL_H;
+      const near = Math.max(0, (rx - 0.55) / 0.45) * Math.max(0, (0.42 - ry) / 0.42);
+      banner.style.opacity = String(1 - 0.78 * Math.min(1, near));
+    }
   }
 
   _updateHUD() {
@@ -1112,12 +1434,20 @@ export class Game {
       this.el.difficulty.textContent = `${this.diff.rank} ${this.diff.name}`;
       this.el.difficulty.style.color = this.diff.color;
     }
+    this._updateLetterHud();
   }
 
   _draw() {
     const ctx = this.ctx;
     const W = LOGICAL_W;
     const H = LOGICAL_H;
+
+    // 结局故事：纯黑空白，不画版面/实体
+    if (this.endingCinematic) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, W, H);
+      return;
+    }
 
     // 伪 3D 前推战斗背景
     if (this.playBg) {

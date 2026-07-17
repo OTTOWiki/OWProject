@@ -177,12 +177,22 @@
                 </div>
               </div>
             </div>
-            <div id="pause-overlay" class="pause-overlay hidden">
-              <h2>PAUSED</h2>
-              <p>Esc 继续 · R 重开 · Q 退出</p>
+            <div id="game-overlay" class="game-overlay hidden">
+              <div class="game-overlay-blur" aria-hidden="true"></div>
+              <div class="game-overlay-panel">
+                <h2 class="game-overlay-title" id="overlay-title">PAUSED</h2>
+                <pre class="game-overlay-body" id="overlay-body"></pre>
+                <div class="game-overlay-actions" id="overlay-actions">
+                  <button type="button" class="menu-btn overlay-btn" data-overlay="resume">继续</button>
+                  <button type="button" class="menu-btn overlay-btn" data-overlay="retry">再试一次</button>
+                  <button type="button" class="menu-btn ghost overlay-btn" data-overlay="menu">主菜单</button>
+                </div>
+                <p class="game-overlay-hint" id="overlay-hint">Esc 继续 · ↑↓ 选择 · Z 确认</p>
+              </div>
             </div>
             <div id="letter-banner" class="letter-banner hidden">
               <div class="letter-name" id="letter-name"></div>
+              <div class="letter-bonus" id="letter-bonus">BONUS 0</div>
               <div class="letter-timer" id="letter-timer"></div>
             </div>
             <div id="flash-msg" class="flash-msg hidden"></div>

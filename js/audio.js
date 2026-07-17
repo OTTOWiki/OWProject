@@ -306,6 +306,20 @@ export class AudioEngine {
     } else if (type === 'ok') {
       blip(523, 0.08, 0.05);
       blip(784, 0.1, 0.05);
+    } else if (type === 'extend') {
+      [523, 659, 784, 1046].forEach((f, i) => {
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = f;
+        const tt = t + i * 0.06;
+        g.gain.setValueAtTime(0.06, tt);
+        g.gain.exponentialRampToValueAtTime(1e-4, tt + 0.18);
+        o.connect(g);
+        g.connect(this.sfxGain);
+        o.start(tt);
+        o.stop(tt + 0.2);
+      });
     } else if (type === 'cancel') blip(300, 0.1, 0.04);
     else if (type === 'letter') {
       [523, 659, 784, 1046].forEach((f, i) => {

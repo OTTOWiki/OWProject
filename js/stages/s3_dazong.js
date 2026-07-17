@@ -1,4 +1,4 @@
-import { mob, elite, boss, timer } from './_shared.js';
+import { mob, elite, boss, timer, scaleN } from './_shared.js';
 import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser,
@@ -131,8 +131,9 @@ function chapter_dazong_1(g) {
   e.script = (en, d, game) => {
     timer(en, 'laser', 0.2, d, () => {
       en.data.la = (en.data.la || 0) + 0.4;
-      for (let i = 0; i < 4; i++) {
-        const ang = en.data.la + (i / 4) * Math.PI * 2;
+      const n = Math.max(3, scaleN(game, 4));
+      for (let i = 0; i < n; i++) {
+        const ang = en.data.la + (i / n) * Math.PI * 2;
         game.bullets.push(new Bullet({
           x: en.x, y: en.y, angle: ang, speed: 3.5, type: 'laser',
           color: '#fbbf24', laserLen: 160, w: 10, r: 5, life: 1.0, from: 'enemy',
@@ -154,23 +155,25 @@ function chapter_dazong_2(g) {
   });
   e.script = (en, d, game) => {
     timer(en, 'ring', 0.8, d, () => {
+      const n = Math.max(8, scaleN(game, 24));
       const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
-      for (let i = 0; i < 24; i++) {
-        const a = (i / 24) * Math.PI * 2 + ang;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + ang;
         game.bullets.push(new Bullet({
           x: en.x, y: en.y, angle: a, speed: 2.0, type: 'dot', color: '#f59e0b', from: 'enemy', delay: 0.3,
         }));
       }
     });
     timer(en, 'side', 0.5, d, () => {
-      for (let i = 0; i < 10; i++) {
-        const x = 20 + i * 22;
+      const n = Math.max(4, scaleN(game, 10));
+      for (let i = 0; i < n; i++) {
+        const x = 20 + i * (220 / n);
         game.bullets.push(new Bullet({
           x, y: -10, vx: 0.15 * (i % 2 === 0 ? 1 : -1), vy: 2.0,
           type: 'rice', color: '#fb923c', from: 'enemy', angle: Math.PI / 2,
         }));
         game.bullets.push(new Bullet({
-          x: LOGICAL_W - 20 - i * 18, y: -15, vx: 0, vy: 1.8,
+          x: LOGICAL_W - 20 - i * (180 / n), y: -15, vx: 0, vy: 1.8,
           type: 'rice', color: '#fbbf24', from: 'enemy',
         }));
       }
@@ -183,7 +186,7 @@ function chapter_dazong_2(g) {
 export const chapters = [
   {
     id: 15, name: '3-1 激光与大玉', stage: 3, stageKey: 3, kind: 'mid',
-    music: 's3_mid', bg: 's3_mid', duration: 26,
+    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
     build: (g) => chapter_s3_1(g),
   },
   {
@@ -193,7 +196,7 @@ export const chapters = [
   },
   {
     id: 17, name: '3-3 高分反击', stage: 3, stageKey: 3, kind: 'mid',
-    music: 's3_mid', bg: 's3_mid', duration: 24,
+    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 24,
     build: (g) => chapter_s3_3(g),
   },
   {
@@ -203,12 +206,12 @@ export const chapters = [
   },
   {
     id: 19, name: '3-5 横向激光墙', stage: 3, stageKey: 3, kind: 'mid',
-    music: 's3_mid', bg: 's3_mid', duration: 26,
+    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
     build: (g) => chapter_s3_5(g),
   },
   {
     id: 20, name: '3-6 重力倾泻', stage: 3, stageKey: 3, kind: 'mid',
-    music: 's3_mid', bg: 's3_mid', duration: 26,
+    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
     build: (g) => chapter_s3_6(g),
   },
   {

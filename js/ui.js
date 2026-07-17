@@ -1,5 +1,5 @@
 import {
-  MANUAL_TEXT, displayKey, DEFAULT_KEYS,
+  MANUAL_CHAPTERS, displayKey, DEFAULT_KEYS,
   DIFFICULTIES, DIFFICULTY_ORDER, getDifficulty,
 } from './config.js';
 import { loadKeys, saveKeys, loadUnlocked } from './storage.js';
@@ -39,7 +39,15 @@ export class UI {
   }
 
   _initManual() {
-    document.getElementById('manual-body').textContent = MANUAL_TEXT;
+    const el = document.getElementById('manual-body');
+    el.innerHTML = MANUAL_CHAPTERS.map((ch) => {
+      const body = ch.body
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+      return `<section class="manual-chapter"><h3>${ch.title}</h3><p>${body}</p></section>`;
+    }).join('');
   }
 
   _initDifficulty() {

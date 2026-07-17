@@ -111,29 +111,46 @@ export function getDialogues(playerId) {
   };
 }
 
-export const ENDING_A = `结局A：不倒闭的真理
+/** 结局故事（对话行；name 用 旁白/系统/角色） */
+export function getEndingDialogue(which, playerId) {
+  const me = playerId === 'shama' ? '誓约沙玛' : '饮泉思源';
+  const partner = playerId === 'shama' ? '饮泉思源' : '誓约沙玛';
 
-在一阵剧烈的弹幕爆炸中，「一美个」的「哈机密乐园」彻底崩溃。他被「铬」自动运行的系统清理大师判定为「垃圾」，直接拖入回收站。
+  if (which === 'A') {
+    return [
+      { name: '旁白', text: '结局A · 不倒闭的真理' },
+      { name: '旁白', text: '在一阵剧烈的弹幕爆炸中，「一美个」的「哈机密乐园」彻底崩溃。' },
+      { name: '旁白', text: '他被「铬」自动运行的系统清理大师判定为「垃圾」，直接拖入回收站。' },
+      { name: me, text: '……结束了。去主控制台看看吧。' },
+      { name: partner, text: '嗯。真相应该就在那里。' },
+      { name: '旁白', text: '两人来到数据主控制台前，试图寻找拯救维基的终极奥秘。' },
+      { name: '系统', text: '您的服务器由于欠费 5 美元已暂停解析，请及时续费。' },
+      { name: me, text: '……就这？' },
+      { name: '旁白', text: '门构皮蒂娅靠算法广告永不倒闭；而 OTTOWikiProject 急转直下，只是因为创始人忘了给服务器续费——所有人看到的都是 502 Gateway Error。' },
+      { name: me, text: '一美个掉的零钱包里……正好五张一美元。' },
+      { name: '旁白', text: '叮。OTTOWikiProject 重新上线。' },
+      { name: '旁白', text: '爱丽丝、Icebin、大宗关收到恢复邮件，编辑者陆续回归。' },
+      { name: partner, text: '维基的危机，原来只是五美元的距离。' },
+      { name: me, text: '……下次记得续费。' },
+    ];
+  }
 
-饮泉思源与誓约沙玛来到数据主控制台前，试图寻找拯救维基的终极奥秘。
+  return [
+    { name: '旁白', text: '结局B · 散去的幻影' },
+    { name: '旁白', text: '「拉斯特神炫」的结界在弹幕冲击下瓦解。' },
+    { name: '拉斯特神炫', text: '炫妈……我的炫妈……' },
+    { name: '旁白', text: '他跌落防空洞，宝瓶摔得粉碎。' },
+    { name: me, text: '这味道是……？' },
+    { name: '旁白', text: '传说中让神炫黑化的「炫妈味道」弥漫开来——其实只是福州特产虾油混杂大量清凉薄荷风油精的刺激气味。' },
+    { name: partner, text: '……这要是倒灌进主机房……' },
+    { name: '旁白', text: '高浓度气味顺着散热风扇倒灌进 OTTOWikiProject 主机房，化作物理级防盗防火墙。' },
+    { name: '旁白', text: '任何恶意破坏者打开网页都会被熏得泪流满面，不得不关闭页面。' },
+    { name: me, text: '恶意破坏……就这样停了？' },
+    { name: partner, text: '虽然以后编辑大概都得戴防毒面具……' },
+    { name: '旁白', text: '但大家都赞美着这来之不易的和平。' },
+  ];
+}
 
-屏幕上却只有一个弹窗：
-「您的服务器由于欠费5美元已暂停解析，请及时续费。」
-
-原来门构皮蒂娅靠算法广告永不倒闭；而 OTTOWikiProject 急转直下，只是因为创始人忘了给服务器续费——所有人看到的都是 502 Gateway Error。
-
-饮泉思源从一美个掉落的零钱包里摸出五张一美元投了进去。
-
-叮。OTTOWikiProject 重新上线。爱丽丝、Icebin、大宗关收到恢复邮件，编辑者陆续回归。
-
-维基的危机，原来只是五美元的距离。`;
-
-export const ENDING_B = `结局B：散去的幻影
-
-「拉斯特神炫」的结界在弹幕冲击下瓦解。他哭喊着「炫妈……我的炫妈……」跌落防空洞，宝瓶摔得粉碎。
-
-传说中让神炫黑化的「炫妈味道」弥漫开来——其实只是福州特产虾油（鱼露）混杂大量清凉薄荷风油精的刺激气味。
-
-高浓度气味顺着散热风扇倒灌进 OTTOWikiProject 主机房，化作物理级防盗防火墙。任何恶意破坏者打开网页都会被熏得泪流满面，不得不关闭页面。
-
-恶意破坏就此停止。虽然此后每位编辑者都必须戴上防毒面具，但大家都赞美着这来之不易的和平。`;
+/** 兼容旧引用：纯文本拼接 */
+export const ENDING_A = getEndingDialogue('A', 'yinquan').map((l) => l.text).join('\n');
+export const ENDING_B = getEndingDialogue('B', 'yinquan').map((l) => l.text).join('\n');

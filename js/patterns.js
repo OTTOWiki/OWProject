@@ -9,6 +9,24 @@ export function aimAngle(from, to) {
   return Math.atan2(to.y - from.y, to.x - from.x);
 }
 
+/**
+ * 按难度 bulletCount 缩放发数；可选保持奇/偶性（odd/even 狙）。
+ * Normal≈1 时原样返回。
+ */
+export function scaleBulletCount(game, n, parity = null) {
+  const mul = game?.bulletCountMul ?? 1;
+  const base = Math.max(1, Math.round(n));
+  if (!(mul > 0) || mul === 1) return base;
+  let c = Math.max(1, Math.round(base * mul));
+  if (parity === 'odd') {
+    if (c % 2 === 0) c = mul < 1 ? Math.max(1, c - 1) : c + 1;
+  } else if (parity === 'even') {
+    if (c % 2 === 1) c = mul < 1 ? Math.max(2, c - 1) : c + 1;
+    if (c < 2) c = 2;
+  }
+  return c;
+}
+
 export function oddAim(from, player, n, spread = 0.18) {
   // n 路奇数狙：中心路对准自机
   const base = aimAngle(from, player);
@@ -65,15 +83,18 @@ export function spawnAimed(game, from, player, opts) {
     laserLen = 220,
   } = opts;
 
+  const parityKey = (parity === 'odd' || parity === 'even') ? parity : null;
+  const nn = scaleBulletCount(game, n, parityKey);
+
   let angles;
   if (parity === 'ring') {
-    angles = ring(n, baseAngle ?? 0);
+    angles = ring(nn, baseAngle ?? 0);
   } else if (parity === 'fixed') {
-    angles = fan(baseAngle ?? Math.PI / 2, n, spread);
+    angles = fan(baseAngle ?? Math.PI / 2, nn, spread);
   } else if (parity === 'even') {
-    angles = evenAim(from, player, n, spread);
+    angles = evenAim(from, player, nn, spread);
   } else {
-    angles = oddAim(from, player, n, spread);
+    angles = oddAim(from, player, nn, spread);
   }
 
   for (const ang of angles) {
@@ -96,7 +117,8 @@ export function spawnAimed(game, from, player, opts) {
 }
 
 export function spawnRingAt(game, x, y, n, speed, type, color, base = 0) {
-  for (const ang of ring(n, base)) {
+  const nn = Math.max(3, scaleBulletCount(game, n));
+  for (const ang of ring(nn, base)) {
     game.bullets.push(new Bullet({
       x, y, angle: ang, speed, type, color, color2: '#fff', from: 'enemy',
     }));
@@ -112,8 +134,9 @@ export function spawnCrossFall(game, opts = {}) {
     lanes = 6,
     evenOffset = true,
   } = opts;
-  const step = LOGICAL_W / (lanes + 1);
-  for (let i = 1; i <= lanes; i++) {
+  const nn = Math.max(3, scaleBulletCount(game, lanes));
+  const step = LOGICAL_W / (nn + 1);
+  for (let i = 1; i <= nn; i++) {
     const x = step * i + (evenOffset && i % 2 === 0 ? step * 0.25 : 0);
     game.bullets.push(new Bullet({
       x, y,
@@ -126,7 +149,8 @@ export function spawnCrossFall(game, opts = {}) {
 }
 
 export function spawnGravityRain(game, count, type = 'medium', color = '#38bdf8', speed = 1.2) {
-  for (let i = 0; i < count; i++) {
+  const nn = Math.max(1, scaleBulletCount(game, count));
+  for (let i = 0; i < nn; i++) {
     game.bullets.push(new Bullet({
       x: Math.random() * LOGICAL_W,
       y: -20 - Math.random() * 40,

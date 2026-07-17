@@ -1,5 +1,8 @@
 import { Enemy } from '../entities.js';
 import { BALANCE } from '../config.js';
+import { scaleBulletCount } from '../patterns.js';
+
+export { scaleBulletCount };
 
 export function mob(x, y, hp, color = '#86efac') {
   return new Enemy({
@@ -26,4 +29,9 @@ export function timer(e, key, interval, dt, fn) {
     e.timers[key] = interval * (e._fireMul ?? 1);
     fn();
   }
+}
+
+/** 关卡内手写环/扇发数：scaleN(game, n) / scaleN(game, n, 'odd'|'even') */
+export function scaleN(game, n, parity = null) {
+  return scaleBulletCount(game, n, parity);
 }

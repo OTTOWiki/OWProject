@@ -1,4 +1,4 @@
-import { mob, elite, boss, timer } from './_shared.js';
+import { mob, elite, boss, timer, scaleN } from './_shared.js';
 import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser,
@@ -144,7 +144,7 @@ function chapter_ice_2(g) {
   });
   e.script = (en, d, game) => {
     timer(en, 'ring', 1.1, d, () => {
-      const n = 18;
+      const n = Math.max(6, scaleN(game, 18));
       const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + ang;
@@ -179,7 +179,7 @@ function chapter_ice_3(g) {
 export const chapters = [
   {
     id: 7, name: '2-1 扇形奇数狙', stage: 2, stageKey: 2, kind: 'mid',
-    music: 's2_mid', bg: 's2_mid', duration: 24,
+    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 24,
     build: (g) => chapter_s2_1(g),
   },
   {
@@ -194,12 +194,12 @@ export const chapters = [
   },
   {
     id: 10, name: '2-4 重装倾泻', stage: 2, stageKey: 2, kind: 'mid',
-    music: 's2_mid', bg: 's2_mid', duration: 24,
+    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 24,
     build: (g) => chapter_s2_4(g),
   },
   {
     id: 11, name: '2-5 激光横移', stage: 2, stageKey: 2, kind: 'mid',
-    music: 's2_mid', bg: 's2_mid', duration: 26,
+    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 26,
     build: (g) => chapter_s2_5(g),
   },
   {

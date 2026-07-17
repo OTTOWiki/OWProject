@@ -20,31 +20,38 @@ const elFill = document.getElementById('load-fill');
 const elPct = document.getElementById('load-text');
 const elHint = document.getElementById('load-hint');
 
+function setLoadProgress(pct, hint) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  if (elFill) elFill.style.width = `${p}%`;
+  if (elPct) elPct.textContent = `${p}%`;
+  if (elHint && hint != null) elHint.textContent = hint;
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((r) => setTimeout(r, ms)),
+  ]);
+}
+
 async function preloadAll() {
-  // 图片资源
-  const imagePaths = [
+  const imagePaths = [...new Set([
     ...getAssetPaths(),
     ...getSpritePaths(),
     ...getPlayfieldBgPaths(),
-  ];
-
-  // MIDI JSON
+  ])];
   const midiIds = [...new Set(Object.values(MUSIC_FILE_MAP))];
   const midiPaths = midiIds.map((id) => `assets/midi/${id}.json`);
 
-  const total = imagePaths.length + midiPaths.length;
+  const total = Math.max(1, imagePaths.length + midiPaths.length);
   let loaded = 0;
 
   const step = (hint) => {
-    loaded++;
-    const pct = Math.round((loaded / total) * 100);
-    if (elFill) elFill.style.width = `${pct}%`;
-    if (elPct) elPct.textContent = `${pct}%`;
-    if (elHint) elHint.textContent = hint || '';
+    loaded = Math.min(total, loaded + 1);
+    setLoadProgress((loaded / total) * 100, hint || '');
   };
 
-  step('');
-  elFill.style.width = '0%';
+  setLoadProgress(0, 'Loading…');
 
   const tasks = [];
 
@@ -52,18 +59,30 @@ async function preloadAll() {
     tasks.push(new Promise((resolve) => {
       const img = new Image();
       let done = false;
-      const finish = () => { if (done) return; done = true; step(src.split('/').pop()); resolve(); };
+      const finish = () => {
+        if (done) return;
+        done = true;
+        step(src.split('/').pop());
+        resolve();
+      };
       img.onload = finish;
       img.onerror = finish;
       img.src = src;
-      setTimeout(() => { if (!img.complete) finish(); }, 8000);
+      // 缓存命中时可能已 complete 且 onload 不再触发
+      if (img.complete) finish();
+      else setTimeout(finish, 8000);
     }));
   }
 
   for (const path of midiPaths) {
     const ac = new AbortController();
     let midiDone = false;
-    const stepMidi = () => { if (midiDone) return; midiDone = true; clearTimeout(timer); step(path.split('/').pop()); };
+    const stepMidi = () => {
+      if (midiDone) return;
+      midiDone = true;
+      clearTimeout(timer);
+      step(path.split('/').pop());
+    };
     const timer = setTimeout(() => { ac.abort(); stepMidi(); }, 8000);
     tasks.push(
       fetch(path, { signal: ac.signal })
@@ -72,26 +91,40 @@ async function preloadAll() {
     );
   }
 
-  await Promise.race([
-    Promise.all(tasks),
-    new Promise((r) => setTimeout(r, 15000)),
-  ]);
-  elPct.textContent = '100%';
-  elHint.textContent = 'Complete';
+  await withTimeout(Promise.all(tasks), 15000);
+  setLoadProgress(100, 'Complete');
+}
+
+function dismissLoadScreen() {
+  if (!elLoad || elLoad.dataset.dismissed) return;
+  elLoad.dataset.dismissed = '1';
+  setLoadProgress(100, 'Complete');
+  elLoad.classList.add('done');
+  setTimeout(() => elLoad.remove(), 700);
 }
 
 async function boot() {
+  setLoadProgress(0, '初始化…');
+
   try {
     await preloadAll();
   } catch (e) {
     console.warn('Preload error:', e);
   }
 
-  // Populate module-level caches (images already cached by browser)
-  await Promise.all([preloadArtAssets(), preloadSprites(), preloadPlayfieldBg()]);
+  setLoadProgress(100, '缓存写入…');
 
-  if (elLoad) elLoad.classList.add('done');
-  setTimeout(() => elLoad?.remove(), 700);
+  try {
+    // 写入模块缓存；带超时避免某图永远不 complete 卡住加载屏
+    await withTimeout(
+      Promise.all([preloadArtAssets(), preloadSprites(), preloadPlayfieldBg()]),
+      10000,
+    );
+  } catch (e) {
+    console.warn('Cache warm error:', e);
+  }
+
+  dismissLoadScreen();
 
   try {
     const input = new Input();
@@ -102,7 +135,7 @@ async function boot() {
       background = new StageBackground(bgCanvas);
       background.setMode('s1_mid');
       const idle = () => {
-        if (!document.getElementById('screen-game').classList.contains('active')) {
+        if (!document.getElementById('screen-game')?.classList.contains('active')) {
           background.update();
         }
         requestAnimationFrame(idle);
@@ -133,7 +166,7 @@ async function boot() {
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
 
-    document.getElementById('dialogue-box').addEventListener('click', () => {
+    document.getElementById('dialogue-box')?.addEventListener('click', () => {
       if (game.state === 'dialogue') game._advanceDialogue();
     });
 
@@ -145,7 +178,6 @@ async function boot() {
       else game._chooseRoute('B');
     });
 
-    // 首次交互预热第一面 MIDI
     const unlockAudio = () => {
       audio.ensure()
         .then(() => audio.loadTrackData('s1_mid'))
@@ -163,10 +195,16 @@ async function boot() {
   } catch (e) {
     console.error('Boot failed:', e);
     if (elLoad) {
-      elLoad.innerHTML = '<div style="color:#f87171;font-size:16px;text-align:center;padding:40px">启动失败<br><small>' + e.message + '</small></div>';
+      elLoad.dataset.dismissed = '';
       elLoad.classList.remove('done');
+      elLoad.innerHTML = '<div style="color:#f87171;font-size:16px;text-align:center;padding:40px">启动失败<br><small>' + e.message + '</small></div>';
     }
   }
 }
 
-boot();
+boot().catch((e) => {
+  console.error('Boot crashed:', e);
+  if (elLoad) {
+    elLoad.innerHTML = '<div style="color:#f87171;font-size:16px;text-align:center;padding:40px">启动失败<br><small>' + (e?.message || e) + '</small></div>';
+  }
+});

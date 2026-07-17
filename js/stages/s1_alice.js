@@ -138,7 +138,7 @@ function chapter_alice_2(g) {
 export const chapters = [
   {
     id: 1, name: '1-1 零散草稿', stage: 1, stageKey: 1, kind: 'mid',
-    music: 's1_mid', bg: 's1_mid', duration: 22,
+    unstable: true, music: 's1_mid', bg: 's1_mid', duration: 22,
     build: (g) => chapter_s1_1(g),
   },
   {
@@ -153,7 +153,7 @@ export const chapters = [
   },
   {
     id: 4, name: '1-4 两侧封锁', stage: 1, stageKey: 1, kind: 'mid',
-    music: 's1_mid', bg: 's1_mid', duration: 22,
+    unstable: true, music: 's1_mid', bg: 's1_mid', duration: 22,
     build: (g) => chapter_s1_4(g),
   },
   {
