@@ -6,12 +6,17 @@ import {
   LOGICAL_W, LOGICAL_H, BALANCE, DIFFICULTIES, DIFFICULTY_ORDER,
   getDifficulty, calcLetterBonus, letterStageMul, nextExtendThreshold,
   PLAYER_DEFS, DEFAULT_SETTINGS, PLAYER_BULLET_OPACITY_MIN,
+  FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
 } from '../js/config.js';
 import {
   scaleBulletCount, aimAngle, oddAim, evenAim, ring, fan,
 } from '../js/patterns.js';
 import { distPointSeg, bulletDistToPlayer } from '../js/collision.js';
 import { buildChapterList, stageIntroFor, stageSelectEntries } from '../js/stages/index.js';
+import { getDialogues } from '../js/dialogue.js';
+import {
+  normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
+} from '../js/storage.js';
 import { VERSION, VERSION_LABEL } from '../js/version.js';
 import { test, assert, assertEqual, assertClose } from './assert.js';
 
@@ -188,6 +193,63 @@ test('stageSelectEntries 与 stageIntroFor 可用', () => {
   assert(stageIntroFor('1')?.label);
   assert(stageIntroFor('A4')?.label);
   assertEqual(stageIntroFor('nope'), null);
+});
+
+test('stageSelect startChapter 对齐各 stageKey 首章', () => {
+  const list = buildChapterList();
+  const firstByKey = new Map();
+  for (const c of list) {
+    const sk = String(c.stageKey);
+    if (!firstByKey.has(sk)) firstByKey.set(sk, c.id);
+  }
+  for (const e of stageSelectEntries()) {
+    const expected = firstByKey.get(String(e.id));
+    assert(expected != null, `stageSelect id ${e.id} 无对应章节`);
+    assertEqual(e.startChapter, expected, `startChapter for ${e.id}`);
+  }
+});
+
+test('章节 dialogue / winDialogue / loseDialogue 键均存在于 getDialogues', () => {
+  const dialogues = getDialogues('yinquan');
+  const list = buildChapterList();
+  for (const c of list) {
+    for (const field of ['dialogue', 'winDialogue', 'loseDialogue']) {
+      const key = c[field];
+      if (!key) continue;
+      assert(
+        Array.isArray(dialogues[key]) && dialogues[key].length > 0,
+        `chapter ${c.id} ${field}='${key}' missing or empty`,
+      );
+    }
+  }
+});
+
+test('有 letter 的章节必须 letterTime > 0', () => {
+  for (const c of buildChapterList()) {
+    if (!c.letter) continue;
+    assert(
+      typeof c.letterTime === 'number' && c.letterTime > 0,
+      `chapter ${c.id} has letter but letterTime=${c.letterTime}`,
+    );
+  }
+});
+
+/* ========== storage (pure clamps) ========== */
+
+test('normalizeFpsLimit / 滑条 round-trip', () => {
+  assertEqual(normalizeFpsLimit(0), 0);
+  assertEqual(normalizeFpsLimit('unlimited'), 0);
+  assertEqual(normalizeFpsLimit(60), 60);
+  assertEqual(normalizeFpsLimit(10), FPS_LIMIT_MIN);
+  assertEqual(normalizeFpsLimit(999), FPS_LIMIT_CAP);
+  assertEqual(sliderToFpsLimit(FPS_SLIDER_UNLIMITED), 0);
+  assertEqual(sliderToFpsLimit(60), 60);
+  assertEqual(fpsLimitToSlider(0), FPS_SLIDER_UNLIMITED);
+  assertEqual(fpsLimitToSlider(120), 120);
+  // 有限值：slider → limit → slider
+  for (const v of [24, 30, 60, 144, 240]) {
+    assertEqual(fpsLimitToSlider(sliderToFpsLimit(v)), v);
+  }
 });
 
 /* ========== version ========== */

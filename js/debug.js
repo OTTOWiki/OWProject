@@ -84,13 +84,7 @@ export function installDebug(game) {
   ensurePanel();
   bindHotkeys();
   exposeConsoleApi();
-  console.info(
-    '%c[OW Debug]%c 控制台输入 %cowDebug()%c 开启调试面板（F8 开关 · F9 加速）',
-    'color:#fbbf24;font-weight:bold',
-    'color:inherit',
-    'color:#5eead4;font-weight:bold',
-    'color:inherit',
-  );
+  // 不在启动时打 console 提示；需要说明时用 owDebug.help()
 }
 
 function g() {
@@ -177,7 +171,6 @@ export function debugJumpChapter(id) {
   const cid = Number(id);
   if (!Number.isFinite(cid)) return false;
   if (game.chapterIndexById.get(cid) == null) {
-    console.warn('[OW Debug] 未知章节 id:', cid);
     return false;
   }
   const route = game.routeChoice;
@@ -192,7 +185,6 @@ export function debugJumpChapter(id) {
   game.ui?.showGame?.();
   game.start(opts);
   if (route) game.routeChoice = route;
-  console.info('[OW Debug] hard jump → chapter', cid, game.chapters[game.chapterIndex]?.name);
   return true;
 }
 
@@ -204,7 +196,6 @@ export function debugSoftJumpChapter(id) {
   }
   const cid = Number(id);
   if (game.chapterIndexById.get(cid) == null) {
-    console.warn('[OW Debug] 未知章节 id:', cid);
     return false;
   }
   if (game._pendingAdvance) {
@@ -214,7 +205,6 @@ export function debugSoftJumpChapter(id) {
   game.chapterDone = false;
   game.chapterIndex = game._indexForChapterId(cid);
   game._startChapter();
-  console.info('[OW Debug] soft jump → chapter', cid, game.chapters[game.chapterIndex]?.name);
   return true;
 }
 
@@ -251,7 +241,6 @@ export function debugChooseRoute(route) {
     return true;
   }
   game.routeChoice = route === 'B' ? 'B' : 'A';
-  console.info('[OW Debug] routeChoice =', game.routeChoice);
   return true;
 }
 
@@ -508,7 +497,6 @@ export function setDebugEnabled(on, { openPanel = true } = {}) {
     state.timeScale = 1;
   }
   syncPanel();
-  console.info('[OW Debug]', state.enabled ? 'ON' : 'OFF', state.enabled ? state : '');
   return state;
 }
 
@@ -517,7 +505,6 @@ function cycleSpeed() {
   const i = (speedIndex() + 1) % TIME_STEPS.length;
   state.timeScale = TIME_STEPS[i];
   syncPanel();
-  console.info('[OW Debug] speed', state.timeScale + '×');
 }
 
 function bindHotkeys() {
