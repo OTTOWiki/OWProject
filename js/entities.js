@@ -167,8 +167,6 @@ export class Player {
 export class Enemy {
   constructor(opts) {
     this.id = nid();
-    this.x = opts.x;
-    this.y = opts.y;
     this.hp = opts.hp;
     this.maxHp = opts.hp;
     this.r = opts.r || 18;
@@ -190,20 +188,95 @@ export class Enemy {
     this.score = opts.score || BALANCE.score.killSmall;
     this.spin = 0;
     this.data = opts.data || {};
-    this.enterY = opts.enterY ?? null;
+
+    // 入场目标（脚本/移动生效前的落位）
+    this.enterX = opts.x;
+    // 负 Y / 过顶的目标点默认收到场内，避免屏外就结束入场
+    let holdY = opts.enterY != null && Number.isFinite(opts.enterY) ? opts.enterY : opts.y;
+    if (!(holdY > 8)) holdY = 40;
+    this.enterY = holdY;
+    this.spawnFxT = 0; // >0 时播出现特效，结束后才可行动
+    this.spawnFxDur = 0;
+    this.entering = false;
+
+    if (opts.skipEnter) {
+      this.x = opts.x;
+      this.y = opts.y;
+      this.enterY = opts.y;
+    } else if (opts.spawnFx) {
+      // 特效入场：原地法阵/涟漪后现身（落在 hold 点）
+      this.x = opts.x;
+      this.y = this.enterY;
+      this.spawnFxDur = opts.spawnFxDur ?? (this.type === 'boss' ? 0.7 : 0.45);
+      this.spawnFxT = this.spawnFxDur;
+      this.invuln = Math.max(this.invuln, this.spawnFxT + 0.15);
+    } else {
+      // 屏外飞入 → enterX/enterY
+      this.entering = true;
+      const from = opts.enterFrom || this._autoEnterFrom(opts.x, this.enterY);
+      if (from === 'left') {
+        this.x = -40 - Math.random() * 30;
+        this.y = this.enterY;
+      } else if (from === 'right') {
+        this.x = LOGICAL_W + 40 + Math.random() * 30;
+        this.y = this.enterY;
+      } else if (from === 'bottom') {
+        this.x = opts.x;
+        this.y = LOGICAL_H + 40;
+      } else {
+        // top
+        this.x = opts.x + (Math.random() - 0.5) * 20;
+        this.y = -35 - Math.random() * 40;
+      }
+      this.invuln = Math.max(this.invuln, 0.55);
+    }
+  }
+
+  _autoEnterFrom(x, y) {
+    if (x < LOGICAL_W * 0.18) return 'left';
+    if (x > LOGICAL_W * 0.82) return 'right';
+    if (y > LOGICAL_H * 0.55) return 'bottom';
+    return 'top';
+  }
+
+  /** 是否仍在入场/现身中（不可行动、脚本不跑） */
+  get isSpawning() {
+    return this.entering || this.spawnFxT > 0;
   }
 
   update(dt, game) {
     this.age += dt;
     if (this.invuln > 0) this.invuln -= dt;
-    if (this.enterY != null && this.y < this.enterY) {
-      this.y += 80 * dt;
-      if (this.y >= this.enterY) this.y = this.enterY;
-    } else {
-      this.x += this.vx * dt * 60;
-      this.y += this.vy * dt * 60;
-    }
     this.spin += dt;
+
+    // 特效现身
+    if (this.spawnFxT > 0) {
+      this.spawnFxT -= dt;
+      if (this.spawnFxT < 0) this.spawnFxT = 0;
+      this.x = this.enterX;
+      this.y = this.enterY;
+      return;
+    }
+
+    // 屏外飞入至目标点
+    if (this.entering) {
+      const dx = this.enterX - this.x;
+      const dy = this.enterY - this.y;
+      const dist = Math.hypot(dx, dy);
+      const sp = (this.type === 'boss' ? 95 : 130) * dt;
+      if (dist <= sp + 0.5) {
+        this.x = this.enterX;
+        this.y = this.enterY;
+        this.entering = false;
+      } else {
+        this.x += (dx / dist) * sp;
+        this.y += (dy / dist) * sp;
+      }
+      return; // 入场完成前不跑 script / 自由移动
+    }
+
+    this.x += this.vx * dt * 60;
+    this.y += this.vy * dt * 60;
     if (this.script) this.script(this, dt, game);
     if (this.y > LOGICAL_H + 60 || this.x < -80 || this.x > LOGICAL_W + 80) {
       if (this.type !== 'boss') this.dead = true;
@@ -211,7 +284,7 @@ export class Enemy {
   }
 
   hurt(dmg) {
-    if (this.invuln > 0) return false;
+    if (this.invuln > 0 || this.isSpawning) return false;
     this.hp -= dmg;
     if (this.hp <= 0) {
       this.dead = true;
@@ -534,6 +607,29 @@ export function drawEnemy(ctx, e) {
   const isElite = e.type === 'elite' || e.kind === 'mid' || e.kind === 'mid1' || e.kind === 'mid2' || e.kind === 'mid3';
   const size = isBoss ? 78 : isElite ? 48 : 32;
 
+  // 特效现身：只画法阵/涟漪，本体渐显
+  const fxT = e.spawnFxT || 0;
+  const fxDur = e.spawnFxDur || (isBoss ? 0.7 : 0.45);
+  let bodyAlpha = 1;
+  if (fxT > 0) {
+    const p = 1 - Math.max(0, fxT) / Math.max(1e-4, fxDur); // 0→1
+    bodyAlpha = Math.max(0, (p - 0.35) / 0.65);
+    drawSpawnFx(ctx, e, p, size);
+    if (bodyAlpha <= 0.02) {
+      // 仍画环形血条占位（Boss）
+      if (isBoss && e.maxHp > 0) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        drawBossRingHp(ctx, e, size);
+        ctx.restore();
+      }
+      return;
+    }
+  }
+
+  ctx.save();
+  ctx.globalAlpha = bodyAlpha;
+
   // 底层光环
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -580,27 +676,117 @@ export function drawEnemy(ctx, e) {
   ctx.save();
   ctx.translate(e.x, e.y);
 
-  // hp bar for elite/boss
+  // Boss：围绕自身的环形血条；精英：头顶短条
   if (e.type !== 'mob' && e.maxHp > 0) {
-    const bw = isBoss ? 90 : 44;
-    const barY = -size / 2 - 10;
-    const t = Math.max(0, e.hp / e.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,.55)';
-    ctx.fillRect(-bw / 2, barY, bw, 5);
-    ctx.fillStyle = e.color;
-    ctx.fillRect(-bw / 2, barY, bw * t, 5);
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.strokeRect(-bw / 2, barY, bw, 5);
+    if (isBoss) {
+      drawBossRingHp(ctx, e, size);
+    } else {
+      const bw = 44;
+      const barY = -size / 2 - 10;
+      const t = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(-bw / 2, barY, bw, 5);
+      ctx.fillStyle = e.color;
+      ctx.fillRect(-bw / 2, barY, bw * t, 5);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.strokeRect(-bw / 2, barY, bw, 5);
+    }
   }
 
   if (e.label) {
     ctx.fillStyle = e.color;
     ctx.font = 'bold 11px "Songti SC", serif';
     ctx.textAlign = 'center';
-    ctx.globalAlpha = 0.7 + Math.sin(e.spin * 4) * 0.3;
+    ctx.globalAlpha = bodyAlpha * (0.7 + Math.sin(e.spin * 4) * 0.3);
     ctx.fillText(e.label, 0, size / 2 + 14);
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = bodyAlpha;
   }
+  ctx.restore();
+  ctx.restore();
+}
+
+/** Boss 环形血条（绕本体） */
+function drawBossRingHp(ctx, e, size) {
+  const t = Math.max(0, Math.min(1, e.hp / e.maxHp));
+  const radius = size * 0.58;
+  const start = -Math.PI / 2;
+
+  // 底环
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 血量弧
+  if (t > 0.001) {
+    const grad = ctx.createLinearGradient(-radius, 0, radius, 0);
+    grad.addColorStop(0, e.color2 || '#fff');
+    grad.addColorStop(1, e.color);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = e.color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, start, start + Math.PI * 2 * t);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.lineCap = 'butt';
+  }
+}
+
+/** 入场法阵 / 涟漪特效 p: 0→1 */
+function drawSpawnFx(ctx, e, p, size) {
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  const baseR = size * (0.35 + p * 0.55);
+  const a = Math.min(1, p * 1.4) * (1 - Math.max(0, p - 0.75) / 0.25);
+
+  ctx.globalAlpha = 0.55 * a;
+  ctx.strokeStyle = e.color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, baseR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.35 * a;
+  ctx.strokeStyle = e.color2 || '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, baseR * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 旋转符文刻度
+  ctx.globalAlpha = 0.7 * a;
+  ctx.rotate(e.spin * 3 + p * Math.PI);
+  ctx.strokeStyle = e.color;
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 6; i++) {
+    const ang = (i / 6) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(ang) * baseR * 0.55, Math.sin(ang) * baseR * 0.55);
+    ctx.lineTo(Math.cos(ang) * baseR * 1.05, Math.sin(ang) * baseR * 1.05);
+    ctx.stroke();
+  }
+
+  // 中心光
+  ctx.rotate(-(e.spin * 3 + p * Math.PI));
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, baseR * 0.5);
+  g.addColorStop(0, withAlpha('#ffffff', 0.55 * a));
+  g.addColorStop(0.5, withAlpha(e.color, 0.25 * a));
+  g.addColorStop(1, 'transparent');
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, baseR * 0.5, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 

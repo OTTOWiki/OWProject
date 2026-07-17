@@ -155,11 +155,17 @@ export class Game {
     this.pendingAfterDialogue = null;
     this.routeChoice = null;
     this.resultPayload = null;
-    this.settlement = null;
+    this.settlement = null; // 兼容旧引用
+    this.chapterBanner = null; // 非阻塞章标题/结算条
+    this._queuedStartTitle = null; // 结束条播完后显示的新章标题
     this.nextUnstableFx = null;
     this.stageIntro = null; // 旧版兼容；现用 stageTransit
     this.stageTransit = null; // 关卡（面）间过渡页
     this._pendingChapterBegin = null;
+    if (this._pendingAdvance) {
+      clearTimeout(this._pendingAdvance);
+      this._pendingAdvance = null;
+    }
     this.lastStageKey = null;
 
     this.running = true;
@@ -197,6 +203,7 @@ export class Game {
 
     const ePush = Array.prototype.push;
     enemies.push = function pushEnemy(...items) {
+      let spawned = 0;
       for (const e of items) {
         if (!e._diffScaled) {
           e.hp = Math.max(1, Math.floor(e.hp * self.enemyHpMul));
@@ -204,6 +211,14 @@ export class Game {
           e._fireMul = self.fireIntervalMul;
           e._diffScaled = true;
         }
+        spawned++;
+      }
+      // 真实出怪：刷新「刷怪未耗尽」；勿用 waveCount 空转当活动
+      if (spawned > 0 && self.state === 'playing') {
+        self._hadWaveEnemySpawn = true;
+        self._lastEnemySpawnChapterTime = self.chapterTime;
+        self.wavesExhausted = false;
+        self._dryWaveTicks = 0;
       }
       return ePush.apply(this, items);
     };
@@ -222,6 +237,32 @@ export class Game {
     };
   }
 
+  /**
+   * 包装 waveFn：区分「波次计数空转」与「真实出怪」
+   * 常见写法 waveCount++ 后 if (waveCount > N) return —— 计数仍增但不出怪 → 判刷怪耗尽
+   */
+  _wrapWaveFn(raw) {
+    return (dt) => {
+      const beforeLen = this.enemies.length;
+      const beforeWc = this.waveCount || 0;
+      raw.call(this, dt);
+      const afterLen = this.enemies.length;
+      const afterWc = this.waveCount || 0;
+      if (afterLen > beforeLen) {
+        this._hadWaveEnemySpawn = true;
+        this._lastEnemySpawnChapterTime = this.chapterTime;
+        this.wavesExhausted = false;
+        this._dryWaveTicks = 0;
+      } else if (afterWc > beforeWc) {
+        // waveCount 增加但没有新敌机（刷怪上限后的空转，或纯激光波）
+        this._dryWaveTicks = (this._dryWaveTicks || 0) + 1;
+        if (this._hadWaveEnemySpawn && this._dryWaveTicks >= 1) {
+          this.wavesExhausted = true;
+        }
+      }
+    };
+  }
+
   _purgeDead(arr) {
     for (let i = arr.length - 1; i >= 0; i--) {
       if (arr[i].dead) arr.splice(i, 1);
@@ -231,6 +272,10 @@ export class Game {
   stop() {
     this.running = false;
     this.input.resetShotLatch();
+    if (this._pendingAdvance) {
+      clearTimeout(this._pendingAdvance);
+      this._pendingAdvance = null;
+    }
     this._setEndingCinematic(false);
     this._hideOverlay();
     cancelAnimationFrame(this.raf);
@@ -250,16 +295,23 @@ export class Game {
     }
   }
 
-  /** 软过渡进下一章：清敌机、敌弹变点；保留自机/自机弹/道具 */
-  _softClearForNextChapter() {
-    // 敌弹变点 + 全收
-    this._bulletsToPointsAndAttract();
-    // 移除仍存活的敌机（不重置自机）
+  /**
+   * 软过渡进下一章：清敌机；可选敌弹变点。
+   * convert=true：章末结算（变点收取）；false：仅开章清理，不再二次变点计分。
+   */
+  _softClearForNextChapter({ convert = true } = {}) {
+    if (convert) {
+      this._bulletsToPointsAndAttract();
+    } else if (this.bullets?.length) {
+      for (let i = this.bullets.length - 1; i >= 0; i--) {
+        const b = this.bullets[i];
+        if (b.from !== 'player' || b.dead) this.bullets.splice(i, 1);
+      }
+    }
     if (this.enemies) this.enemies.length = 0;
     else this.enemies = [];
     this.bossRef = null;
-    // 只剔敌弹残留（fullScreenClear 已标 dead，再清一遍保险）
-    if (this.bullets?.length) {
+    if (convert && this.bullets?.length) {
       for (let i = this.bullets.length - 1; i >= 0; i--) {
         const b = this.bullets[i];
         if (b.from !== 'player' || b.dead) this.bullets.splice(i, 1);
@@ -275,12 +327,18 @@ export class Game {
       return;
     }
 
-    // 章间软过渡：弹幕变点自动收取，不瞬清版面、不重置自机坐标
-    this._softClearForNextChapter();
+    // 开章清理：不二次变点计分（章末已 convert）；保留自机位置/自机弹/道具
+    this._softClearForNextChapter({ convert: false });
 
     this.waveFn = null;
     this.waveTimer = 0;
     this.waveCount = 0;
+    this._lastWaveCount = 0;
+    this._waveStall = 0;
+    this.wavesExhausted = false;
+    this._hadWaveEnemySpawn = false;
+    this._dryWaveTicks = 0;
+    this._lastEnemySpawnChapterTime = -999;
     this.rainT = 0;
     this.laserT = 0;
     this.chapterTime = 0;
@@ -291,6 +349,7 @@ export class Game {
     this.chapterClearTimer = 0;
     this.chapterTendency = 0;
     this.settlement = null;
+    // chapterBanner 跨章保留（结束条可多显示一会，不挡下一章）
     this.stageTransit = null;
     this.stageIntro = null;
     this._pendingChapterBegin = null;
@@ -347,10 +406,10 @@ export class Game {
         console.error('[chapter build]', ch?.id, ch?.name, err);
         this.waveFn = null;
       }
-      // 刷怪节奏：Easy 更慢，Lunatic 更快
+      // 刷怪节奏：Easy 更慢，Lunatic 更快；并检测刷怪耗尽
       if (this.waveFn) {
         const raw = this.waveFn;
-        this.waveFn = (dt) => {
+        const scaled = (dt) => {
           try {
             raw.call(this, dt / this.spawnMul);
           } catch (err) {
@@ -358,6 +417,15 @@ export class Game {
             this.waveFn = null;
           }
         };
+        this.waveFn = this._wrapWaveFn(scaled);
+      } else {
+        // 无 waveFn：开场已放完怪，清完即本章敌人打完
+        this.wavesExhausted = true;
+      }
+      // build 里同步 push 的敌机也算本章出怪
+      if (this.enemies.length > 0) {
+        this._hadWaveEnemySpawn = true;
+        this._lastEnemySpawnChapterTime = this.chapterTime;
       }
       // 已在场敌机补 fireMul（build 内同步 push 已缩放）
       for (const e of this.enemies) {
@@ -365,9 +433,27 @@ export class Game {
       }
     };
 
+    const showStartTitle = () => {
+      const title = {
+        kind: 'start',
+        name: ch.name,
+        letter: ch.letter || '',
+        t: 0,
+        duration: 2.0,
+      };
+      // 结束条还在播：排队，不打断渐隐
+      if (this.chapterBanner && this.chapterBanner.kind === 'end') {
+        this._queuedStartTitle = title;
+        return;
+      }
+      this._queuedStartTitle = null;
+      this.chapterBanner = title;
+    };
+
     const beginChapterContent = () => {
       this._pendingChapterBegin = null;
       this.stageTransit = null;
+      showStartTitle();
       if (ch.dialogue && this.dialogues[ch.dialogue]) {
         this._openDialogue(this.dialogues[ch.dialogue], afterBuild);
       } else {
@@ -500,6 +586,8 @@ export class Game {
       this.items = this.items.filter((i) => !i.dead);
       this.particles = this.particles.filter((pt) => !pt.dead);
     }
+
+    this._tickChapterBanner(dt);
 
     if (this.stageTransit) {
       this.stageTransit.t += dt;
@@ -830,14 +918,18 @@ export class Game {
     // collisions
     if (!settling) this._collisions();
 
-    // chapter timer
+    // chapter 结束判定
+    // 本章所有怪打完 → 强制 _finishChapter（残弹变点）→ 0.8s 后进下一章
+    // 波间暂时无怪不结束（必须 wavesExhausted：刷怪脚本确认不再出怪）
     if (!settling) {
       this.chapterTime += dt;
+
+      const living = this.enemies.some((e) => !e.dead);
+
       if (this.letterTimeLeft > 0) {
         this.letterTimeLeft -= dt;
         this._updateLetterHud();
         if (this.letterTimeLeft <= 0 && !this.chapterDone) {
-          // timeout: for boss, force damage or end card
           if (this.bossRef && !this.bossRef.dead) {
             this.bossRef.hp = 0;
             this.bossRef.dead = true;
@@ -845,26 +937,25 @@ export class Game {
           this._finishChapter(false);
         }
       } else if (ch.duration && this.chapterTime >= ch.duration && !this.chapterDone) {
-        // mid chapter time end — clear remaining mobs
+        // 时长保底（无限刷怪/纯弹幕章等）
         this._finishChapter(true);
       }
 
-      // boss/elite dead
+      // Boss / Letter：击破即本章结束（以 dead 为准，避免阶段切血误伤）
       if (!this.chapterDone && this.bossRef && this.bossRef.dead) {
         this._finishChapter(true);
       }
 
-      // mid chapters: all waves done + no enemies
-      if (!this.chapterDone && ch.kind === 'mid' && ch.duration && this.chapterTime > 3) {
-        const expected = 8;
-        if ((this.waveCount || 0) >= expected && this.enemies.length === 0 && this.chapterTime > 8) {
-          // allow natural duration end
+      // 道中：刷怪已耗尽 + 场上无存活敌机 = 本章敌人全部打完
+      if (!this.chapterDone && !this.bossRef && (ch.kind === 'mid' || ch.kind === 'midboss')) {
+        if (this.wavesExhausted && !living && this.chapterTime > 0.4) {
+          this._finishChapter(true);
         }
       }
     }
 
-    // settlement timer
-    if (this.settlement) this.settlement.t += dt;
+    // 非阻塞章标题/结算条
+    this._tickChapterBanner(dt);
 
     // cleanup（原地删除，避免重建数组丢失难度 push 钩子）
     this._purgeDead(this.bullets);
@@ -873,6 +964,25 @@ export class Game {
     this.particles = this.particles.filter((pt) => !pt.dead);
 
     this._updateHUD();
+  }
+
+  _tickChapterBanner(dt) {
+    const b = this.chapterBanner;
+    if (!b) {
+      if (this._queuedStartTitle) {
+        this.chapterBanner = this._queuedStartTitle;
+        this._queuedStartTitle = null;
+      }
+      return;
+    }
+    b.t += dt;
+    if (b.t >= b.duration) {
+      this.chapterBanner = null;
+      if (this._queuedStartTitle) {
+        this.chapterBanner = this._queuedStartTitle;
+        this._queuedStartTitle = null;
+      }
+    }
   }
 
   _tryBomb(isDeath) {
@@ -950,7 +1060,7 @@ export class Game {
     for (const b of this.bullets) {
       if (b.from !== 'player' || b.dead) continue;
       for (const e of this.enemies) {
-        if (e.dead) continue;
+        if (e.dead || e.isSpawning) continue;
         if (Math.hypot(b.x - e.x, b.y - e.y) < b.r + e.r) {
           b.dead = true;
           const killed = e.hurt(b.damage);
@@ -987,9 +1097,9 @@ export class Game {
       }
     }
 
-    // body collision with enemies
+    // body collision with enemies（入场/现身中不碰伤）
     for (const e of this.enemies) {
-      if (e.dead) continue;
+      if (e.dead || e.isSpawning) continue;
       if (Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.r * 0.5) {
         this._hitPlayer();
       }
@@ -1167,8 +1277,9 @@ export class Game {
       this.chapterTendency = 0;
     }
 
-    // settlement overlay
-    this.settlement = {
+    // 非阻塞结算/标题条（渐显渐隐，不拖住下一章）
+    this.chapterBanner = {
+      kind: 'end',
       name: ch.name,
       score: this.chapterScore,
       perfect,
@@ -1177,7 +1288,9 @@ export class Game {
       settleMul: perfect ? settleMul : 1,
       tendency: tendencyContrib,
       t: 0,
+      duration: 2.1,
     };
+    this.settlement = this.chapterBanner; // 兼容旧引用
 
     // preview next chapter's unstable effect
     this.nextUnstableFx = null;
@@ -1194,21 +1307,23 @@ export class Game {
     if (nextIdx < this.chapters.length && this.chapters[nextIdx].unstable) {
       const nc = this.chapters[nextIdx];
       this.nextUnstableFx = rollUnstableEffects(unstableStackCount(nc.stageKey));
-      this.settlement.nextUnstable = this.nextUnstableFx.label;
+      this.chapterBanner.nextUnstable = this.nextUnstableFx.label;
     }
 
-    // 章末：敌弹变点数并自动吸引收取，不清空自机位置/自机弹
-    this._softClearForNextChapter();
+    // 本章结束：敌弹变点并吸引（唯一变点入口）
+    this._softClearForNextChapter({ convert: true });
+
+    /** 清场后固定 0.8s 再进下一流程 */
+    const NEXT_DELAY = 800;
 
     if (this.singleChapter || this.mode === 'practice') {
-      setTimeout(() => {
-        if (!this.running) return;
+      this._scheduleAdvance(NEXT_DELAY, () => {
         this._openResult({
           title: '练习结束',
           body: `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n${(!this.chapterMiss && !this.chapterBomb) ? 'Perfect Clear!' : ''}`,
           retryChapter: ch.id,
         });
-      }, 800);
+      });
       return;
     }
 
@@ -1217,40 +1332,50 @@ export class Game {
 
     // after stage 3 chapter 22 → route check
     if (ch.id === 22) {
-      setTimeout(() => this._afterStage3(), 1000);
+      this._scheduleAdvance(NEXT_DELAY, () => this._afterStage3());
       return;
     }
 
     // after patrol 24 → route select
     if (ch.id === 24) {
-      setTimeout(() => {
-        if (!this.running) return;
+      this._scheduleAdvance(NEXT_DELAY, () => {
         this._openDialogue(this.dialogues.patrol_win || [], () => this._enterRouteSelect());
-      }, 800);
+      });
       return;
     }
 
     // win dialogue on route bosses
     if (ch.winDialogue && this.dialogues[ch.winDialogue]) {
-      setTimeout(() => {
-        if (!this.running) return;
+      this._scheduleAdvance(NEXT_DELAY, () => {
         this._openDialogue(this.dialogues[ch.winDialogue], () => this._nextChapterOrEnd(ch));
-      }, 600);
+      });
       return;
     }
 
     if (ch.ending) {
-      setTimeout(() => this._showEnding(ch.ending), 1000);
+      this._scheduleAdvance(NEXT_DELAY, () => this._showEnding(ch.ending));
       return;
     }
 
-    setTimeout(() => {
-      if (!this.running) return;
+    // 所有怪打完 → 强制结束本章 → 0.8s → 下一章
+    this._scheduleAdvance(NEXT_DELAY, () => {
       this.chapterIndex++;
-      // skip wrong route chapters
       this._skipToValidChapter();
       this._startChapter();
-    }, 900);
+    });
+  }
+
+  /** 短延迟推进；可被 stop/新调度取消。不阻塞标题条动画。 */
+  _scheduleAdvance(ms, fn) {
+    if (this._pendingAdvance) {
+      clearTimeout(this._pendingAdvance);
+      this._pendingAdvance = null;
+    }
+    this._pendingAdvance = setTimeout(() => {
+      this._pendingAdvance = null;
+      if (!this.running) return;
+      fn();
+    }, ms);
   }
 
   _nextChapterOrEnd(ch) {
@@ -1362,69 +1487,99 @@ export class Game {
     ctx.globalAlpha = 1;
   }
 
-  _drawSettlement(ctx, W, H) {
-    const s = this.settlement;
-    const dur = 1.3;
+  /** 非阻塞章标题 / 结算条（渐显·停留·渐隐，无底框） */
+  _drawChapterBanner(ctx, W, H) {
+    const s = this.chapterBanner || this.settlement;
+    if (!s) return;
+    const dur = s.duration || 2.1;
     const t = Math.min(s.t, dur);
+    const fadeIn = 0.35;
+    const fadeOut = 0.55;
     let alpha = 1;
-    if (t < 0.2) alpha = t / 0.2;
-    else if (t > dur - 0.4) alpha = Math.max(0, (dur - t) / 0.4);
+    if (t < fadeIn) alpha = t / fadeIn;
+    else if (t > dur - fadeOut) alpha = Math.max(0, (dur - t) / fadeOut);
+    // ease
+    alpha = alpha * alpha * (3 - 2 * alpha);
+
+    ctx.save();
     ctx.globalAlpha = alpha;
 
     const cx = W / 2;
-    const cy = H / 2 - 40;
+    const isStart = s.kind === 'start';
+    const cy = isStart ? H * 0.28 : H / 2 - 48;
 
-    // chapter name
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(s.name, cx, cy - 30);
+    // 标题文字轻描边，无底框
+    const drawTitle = (text, y, size = 20, color = '#fbbf24') => {
+      ctx.font = `bold ${size}px "Songti SC","SimSun",serif`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.strokeText(text, cx, y);
+      ctx.fillStyle = color;
+      ctx.fillText(text, cx, y);
+    };
+
+    drawTitle(s.name || '', cy, 20, '#fbbf24');
+
+    if (isStart) {
+      if (s.letter) {
+        drawTitle(s.letter, cy + 26, 14, '#e9d5ff');
+      }
+      ctx.restore();
+      return;
+    }
 
     // chapter score
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '16px sans-serif';
-    ctx.fillText(`${Math.floor(s.score)}`, cx, cy + 2);
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    const scoreStr = `${Math.floor(s.score || 0)}`;
+    ctx.strokeText(scoreStr, cx, cy + 26);
+    ctx.fillText(scoreStr, cx, cy + 26);
 
-    let nextY = cy + 24;
+    let nextY = cy + 48;
 
-    // letter / perfect / unstable NMNB 补偿
     if (s.letterBonus > 0) {
       ctx.fillStyle = '#f472b6';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 13px sans-serif';
       ctx.fillText(`LETTER +${Math.floor(s.letterBonus)}`, cx, nextY);
-      nextY += 20;
+      nextY += 18;
     }
     if (s.perfect) {
       ctx.fillStyle = '#fbbf24';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 13px sans-serif';
       ctx.fillText('PERFECT ×1.05', cx, nextY);
-      nextY += 20;
+      nextY += 18;
     }
     if (s.unstableComp > 1) {
       ctx.fillStyle = '#c4b5fd';
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 12px sans-serif';
       ctx.fillText(`UNSTABLE 补偿 ×${s.unstableComp.toFixed(2)}`, cx, nextY);
-      nextY += 18;
+      nextY += 16;
     }
 
-    // tendency
     if (s.tendency != null) {
       const pct = s.tendency;
       const col = pct < 0 ? '#38bdf8' : pct > 0 ? '#fb923c' : '#94a3b8';
       ctx.fillStyle = col;
-      ctx.font = '13px sans-serif';
+      ctx.font = '12px sans-serif';
       ctx.fillText(`倾向 ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, cx, nextY);
-      nextY += 18;
+      nextY += 16;
     }
 
-    // next chapter unstable
     if (s.nextUnstable) {
       ctx.fillStyle = '#a78bfa';
       ctx.font = '12px sans-serif';
       ctx.fillText(`次章: ${s.nextUnstable}`, cx, nextY);
     }
 
-    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  _drawSettlement(ctx, W, H) {
+    this._drawChapterBanner(ctx, W, H);
   }
 
   /** 关卡（面）过渡页：诗意文案 + 右下角「少女祈祷中...」 */
@@ -1795,9 +1950,9 @@ export class Game {
       this._drawStageIntro(ctx, W, H);
     }
 
-    // chapter settlement overlay（过渡页期间不叠字，避免抢戏）
-    if (this.settlement && !this.stageTransit) {
-      this._drawSettlement(ctx, W, H);
+    // 章标题/结算条（非阻塞；关卡过渡页期间仍可淡出显示）
+    if (this.chapterBanner || this.settlement) {
+      if (!this.stageTransit) this._drawChapterBanner(ctx, W, H);
     }
   }
 }
