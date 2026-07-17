@@ -259,7 +259,17 @@ html, body {
   text-align: center;
   border: 1px solid rgba(154,139,110,.3);
 }
-.menu-btn.ghost:hover { color: var(--gold); border-color: var(--border-lite); }
+/* ghost 写在 selected 之后，必须单独覆盖，否则键盘 .selected 几乎看不见 */
+.menu-btn.ghost:hover,
+.menu-btn.ghost:focus,
+.menu-btn.ghost.selected {
+  color: var(--gold);
+  border-color: rgba(212, 181, 106, 0.55);
+  background: linear-gradient(90deg, rgba(212, 181, 106, 0.14), transparent 70%);
+}
+.row-btns .menu-btn.ghost {
+  margin-top: 0;
+}
 .menu-hint {
   margin-top: 1.1rem;
   font-size: 0.72rem;
@@ -421,11 +431,21 @@ html, body {
   gap: 0.35rem;
   font-size: 0.9rem;
   color: var(--muted);
+  padding: 0.45rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .practice-form label.check {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
+  color: var(--text);
+}
+.practice-form label.selected {
+  border-color: var(--gold, #d4af37);
+  background: rgba(40, 32, 16, 0.55);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.22);
   color: var(--text);
 }
 .practice-form select,
@@ -436,6 +456,10 @@ html, body {
   padding: 0.5rem;
   font-size: 1rem;
   font-family: var(--mono);
+}
+.practice-form label.selected select,
+.practice-form label.selected input[type="number"] {
+  border-color: rgba(212, 181, 106, 0.55);
 }
 .row-btns {
   display: flex;
@@ -458,6 +482,12 @@ html, body {
   cursor: pointer;
   font-size: 1rem;
   font-family: var(--serif);
+}
+.key-row:hover,
+.key-row.selected {
+  border-color: var(--gold, #d4af37);
+  background: rgba(40, 32, 16, 0.75);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25);
 }
 .key-row.listening {
   border-color: var(--warn);
@@ -501,6 +531,7 @@ html, body {
   color: var(--text);
   font-family: var(--serif);
   cursor: default;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .settings-row.check {
   flex-direction: row;
@@ -508,6 +539,11 @@ html, body {
   justify-content: space-between;
   gap: 1rem;
   cursor: pointer;
+}
+.settings-row.selected {
+  border-color: var(--gold, #d4af37);
+  background: rgba(40, 32, 16, 0.75);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25);
 }
 .settings-label {
   font-size: 0.95rem;
@@ -644,6 +680,13 @@ html, body {
   font-size: 0.88rem;
   line-height: 1.65;
   color: #d8cbb0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.manual-body.kb-focus {
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.18);
 }
 .manual-chapter {
   margin-bottom: 1.1rem;

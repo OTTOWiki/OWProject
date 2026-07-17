@@ -819,12 +819,18 @@ export class Game {
         this._hideOverlay();
         return;
       }
-      if (this.input.justPressed('ArrowDown') || this.input.justPressed('KeyS')) {
+      if (
+        this.input.justPressed('ArrowDown') || this.input.justPressed('KeyS')
+        || this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')
+      ) {
         this.overlayActionIndex = (this.overlayActionIndex + 1) % Math.max(1, btns.length);
         this._highlightOverlay();
         return;
       }
-      if (this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW')) {
+      if (
+        this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW')
+        || this.input.justPressed('ArrowLeft') || this.input.justPressed('KeyA')
+      ) {
         this.overlayActionIndex = (this.overlayActionIndex - 1 + btns.length) % Math.max(1, btns.length);
         this._highlightOverlay();
         return;
