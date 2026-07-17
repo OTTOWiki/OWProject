@@ -34,6 +34,75 @@ html, body {
 
 #app { width: 100%; height: 100%; position: relative; }
 
+/* ===== 加载界面 ===== */
+#load-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: #0b0a12;
+  transition: opacity 0.6s ease;
+}
+#load-screen.done {
+  opacity: 0; pointer-events: none;
+}
+.load-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, #2a1840 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 100%, #1a1028 0%, #0b0a12 60%);
+}
+.load-frame {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 48px 64px;
+  border: 2px solid var(--border);
+  background: linear-gradient(180deg, rgba(18,16,28,.92), rgba(11,10,18,.94));
+  box-shadow: 0 0 60px rgba(212,181,106,.12), inset 0 0 40px rgba(0,0,0,.3);
+  min-width: 340px;
+}
+.load-title {
+  font-family: var(--serif);
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--gold);
+  letter-spacing: 6px;
+  text-shadow: 0 0 24px rgba(212,181,106,.35);
+}
+.load-title span { font-size: 28px; color: var(--muted); }
+.load-sub {
+  font-family: var(--serif);
+  color: var(--muted);
+  font-size: 14px;
+  margin: 14px 0 28px;
+  letter-spacing: 4px;
+}
+.load-bar-wrap {
+  width: 280px; height: 6px;
+  margin: 0 auto 14px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  position: relative;
+}
+.load-bar { width: 100%; height: 100%; overflow: hidden; }
+.load-fill {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, #c45c8a, var(--gold));
+  box-shadow: 0 0 10px rgba(212,181,106,.5);
+  transition: width 0.15s linear;
+}
+.load-text {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+.load-hint {
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 16px;
+  letter-spacing: 1px;
+}
+
 .screen {
   position: absolute; inset: 0;
   display: none;

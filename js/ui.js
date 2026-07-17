@@ -3,7 +3,7 @@ import {
   DIFFICULTIES, DIFFICULTY_ORDER, getDifficulty,
 } from './config.js';
 import { loadKeys, saveKeys, loadUnlocked } from './storage.js';
-import { stageSelectEntries, buildChapterList } from './stages.js';
+import { stageSelectEntries, buildChapterList } from './stages/index.js';
 
 export class UI {
   constructor({ onStartGame, audio }) {

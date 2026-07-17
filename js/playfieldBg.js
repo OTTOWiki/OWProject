@@ -267,3 +267,7 @@ export class PlayfieldBackground {
     ctx.fillRect(0, 0, W, H);
   }
 }
+
+export function getPlayfieldBgPaths() {
+  return [...new Set(Object.values(BG_TEX))];
+}

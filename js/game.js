@@ -7,7 +7,7 @@ import {
   drawBullet, drawPlayer, drawEnemy, drawItem, drawCollectLine,
 } from './entities.js';
 import { spawnPlayerShot, fullScreenClear, clearBulletsToItems } from './patterns.js';
-import { buildChapterList } from './stages.js';
+import { buildChapterList, stageIntroFor } from './stages/index.js';
 import { getDialogues, ENDING_A, ENDING_B } from './dialogue.js';
 import { saveHiscore, loadHiscore, unlockStage, unlockRoute } from './storage.js';
 import { trackForStage } from './audio.js';
@@ -95,10 +95,8 @@ export class Game {
 
     this.score = 0;
     this.hiscore = loadHiscore();
-    this.tendencyA = 0;
-    this.tendencyB = 0;
-    this.tendencyProgressA = 0;
-    this.tendencyProgressB = 0;
+    this.totalTendency = 0;
+    this.chapterTendency = 0;
 
     this.bullets = [];
     this.enemies = [];
@@ -135,6 +133,10 @@ export class Game {
     this.pendingAfterDialogue = null;
     this.routeChoice = null;
     this.resultPayload = null;
+    this.settlement = null;
+    this.nextUnstableFx = null;
+    this.stageIntro = null;
+    this.lastStageKey = null;
 
     this.running = true;
     this.paused = false;
@@ -226,6 +228,8 @@ export class Game {
     this.chapterBomb = false;
     this.chapterDone = false;
     this.chapterClearTimer = 0;
+    this.chapterTendency = 0;
+    this.settlement = null;
 
     // unstable
     this.unstableFx = null;
@@ -236,7 +240,8 @@ export class Game {
     this.scoreMul = 1;
     const useUnstable = ch.unstable && (this.mode === 'practice' ? this.practiceUnstable : true);
     if (useUnstable) {
-      this.unstableFx = UNSTABLE_POOL[Math.floor(Math.random() * UNSTABLE_POOL.length)];
+      this.unstableFx = this.nextUnstableFx || UNSTABLE_POOL[Math.floor(Math.random() * UNSTABLE_POOL.length)];
+      this.nextUnstableFx = null;
       this.atkMul = this.unstableFx.atkMul || 1;
       this.scoreMul = this.unstableFx.scoreMul || 1;
       this.fog = !!this.unstableFx.fog;
@@ -257,6 +262,16 @@ export class Game {
     this.playBg.setMode(bgMode, { transition: doTrans });
     this._lastBgMode = bgMode;
     this.el.stageLabel.textContent = typeof ch.stage === 'number' ? `Stage ${ch.stage}` : String(ch.stage);
+
+    // stage intro on new stage
+    const sk = String(ch.stageKey);
+    if (sk !== this.lastStageKey) {
+      this.lastStageKey = sk;
+      const info = stageIntroFor(sk);
+      if (info) {
+        this.stageIntro = { ...info, t: 0, duration: 3.5 };
+      }
+    }
 
     if (ch.letter) {
       this.el.letterBanner.classList.remove('hidden');
@@ -344,7 +359,7 @@ export class Game {
     // 背景始终滚动（对话时也缓慢前推）
     this.playBg?.update(this.paused ? 0 : dt * (this.state === 'dialogue' ? 0.35 : 1));
     this._draw();
-    this.background?.setTendency(this.tendencyA, this.tendencyB);
+    this.background?.setTendency(this.totalTendency);
     this.background?.update();
     this.input.endFrame();
     this.raf = requestAnimationFrame((nt) => this._loop(nt));
@@ -420,13 +435,17 @@ export class Game {
       if (!this.running || this.player.lives < 0) return;
     }
 
-    // tendency (stage 1-3 only)
-    if (typeof ch.stage === 'number' && ch.stage <= 3 && ch.tendencyPoints) {
-      if (p.x < BALANCE.tendencyLeftBound) {
-        this.tendencyProgressA += BALANCE.tendencyPerSec * dt;
-      } else if (p.x > BALANCE.tendencyRightBound) {
-        this.tendencyProgressB += BALANCE.tendencyPerSec * dt;
+    // tendency (stage 1-3 only): pointer drifts toward side based on player position
+    if (typeof ch.stage === 'number' && ch.stage <= 3) {
+      const cx = LOGICAL_W / 2;
+      const offset = p.x - cx;
+      if (Math.abs(offset) > 2) {
+        const dir = offset > 0 ? 1 : -1;
+        const speed = (Math.abs(offset) / cx) * BALANCE.tendencySpeed * dt;
+        this.chapterTendency += dir * speed;
       }
+      this.chapterTendency = Math.max(-BALANCE.tendencyMaxPerChapter,
+        Math.min(BALANCE.tendencyMaxPerChapter, this.chapterTendency));
     }
 
     // shot
@@ -520,6 +539,15 @@ export class Game {
       if ((this.waveCount || 0) >= expected && this.enemies.length === 0 && this.chapterTime > 8) {
         // allow natural duration end
       }
+    }
+
+    // settlement timer
+    if (this.settlement) this.settlement.t += dt;
+
+    // stage intro timer
+    if (this.stageIntro) {
+      this.stageIntro.t += dt;
+      if (this.stageIntro.t >= this.stageIntro.duration) this.stageIntro = null;
     }
 
     // cleanup（原地删除，避免重建数组丢失难度 push 钩子）
@@ -670,20 +698,40 @@ export class Game {
     // apply remaining chapter score already counted; show bonus
     this.el.bonus.textContent = (!this.chapterMiss && !this.chapterBomb) ? 'Perfect ×1.05' : '—';
 
-    // tendency award
-    if (ch.tendencyPoints && typeof ch.stage === 'number' && ch.stage <= 3) {
-      const total = this.tendencyProgressA + this.tendencyProgressB + 0.001;
-      const aShare = this.tendencyProgressA / total;
-      // award whole points toward A or B based on dominance; split if close
-      if (aShare > 0.55) this.tendencyA += ch.tendencyPoints;
-      else if (aShare < 0.45) this.tendencyB += ch.tendencyPoints;
-      else {
-        // split
-        this.tendencyA += Math.floor(ch.tendencyPoints / 2);
-        this.tendencyB += Math.ceil(ch.tendencyPoints / 2);
-      }
-      this.tendencyProgressA = 0;
-      this.tendencyProgressB = 0;
+    // tendency award: apply per-chapter percentage
+    let tendencyContrib = null;
+    if (typeof ch.stage === 'number' && ch.stage <= 3) {
+      tendencyContrib = Math.abs(this.chapterTendency) < BALANCE.tendencyMinPerChapter
+        ? (this.chapterTendency >= 0 ? BALANCE.tendencyMinPerChapter : -BALANCE.tendencyMinPerChapter)
+        : this.chapterTendency;
+      this.totalTendency += tendencyContrib;
+      this.chapterTendency = 0;
+    }
+
+    // settlement overlay
+    this.settlement = {
+      name: ch.name,
+      score: this.chapterScore,
+      perfect: !this.chapterMiss && !this.chapterBomb,
+      tendency: tendencyContrib,
+      t: 0,
+    };
+
+    // preview next chapter's unstable effect
+    this.nextUnstableFx = null;
+    let nextIdx = this.chapterIndex + 1;
+    while (nextIdx < this.chapters.length) {
+      const nc = this.chapters[nextIdx];
+      if (!this.routeChoice) break;
+      const sk = String(nc.stageKey);
+      if ((sk.startsWith('A') && this.routeChoice !== 'A') ||
+          (sk.startsWith('B') && this.routeChoice !== 'B') ||
+          sk === 'patrol') { nextIdx++; continue; }
+      break;
+    }
+    if (nextIdx < this.chapters.length && this.chapters[nextIdx].unstable) {
+      this.nextUnstableFx = UNSTABLE_POOL[Math.floor(Math.random() * UNSTABLE_POOL.length)];
+      this.settlement.nextUnstable = this.nextUnstableFx.label;
     }
 
     // clear field briefly（保留 hooks）
@@ -778,18 +826,197 @@ export class Game {
     }
   }
 
+  _drawTendencyGauge(ctx) {
+    const H = LOGICAL_H;
+    const W = LOGICAL_W;
+    const barW = 280;
+    const barH = 8;
+    const barX = (W - barW) / 2;
+    const barY = H - 18;
+    const centerX = W / 2;
+
+    const val = this.chapterTendency;
+    const clamped = Math.max(-BALANCE.tendencyMaxPerChapter, Math.min(BALANCE.tendencyMaxPerChapter, val));
+    const pointerX = centerX + (clamped / BALANCE.tendencyMaxPerChapter) * (barW / 2);
+
+    ctx.globalAlpha = 0.85;
+
+    // bar background
+    const bgGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+    bgGrad.addColorStop(0, 'rgba(56,189,248,0.5)');
+    bgGrad.addColorStop(0.5, 'rgba(148,163,184,0.3)');
+    bgGrad.addColorStop(1, 'rgba(251,146,60,0.5)');
+    ctx.fillStyle = bgGrad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(barX, barY, barW, barH, 4);
+    else ctx.rect(barX, barY, barW, barH);
+    ctx.fill();
+
+    // center line
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(centerX, barY - 2);
+    ctx.lineTo(centerX, barY + barH + 2);
+    ctx.stroke();
+
+    // tick marks
+    for (const pct of [-10, -5, 5, 10]) {
+      const tx = centerX + (pct / BALANCE.tendencyMaxPerChapter) * (barW / 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${pct}%`, tx, barY - 8);
+    }
+
+    // labels
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('A', barX - 8, barY + barH / 2 + 4);
+
+    ctx.fillStyle = '#fb923c';
+    ctx.textAlign = 'left';
+    ctx.fillText('B', barX + barW + 8, barY + barH / 2 + 4);
+
+    // pointer diamond
+    const pd = 5;
+    ctx.fillStyle = val < 0 ? '#38bdf8' : val > 0 ? '#fb923c' : '#e2e8f0';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pointerX, barY + barH + 3);
+    ctx.lineTo(pointerX + pd, barY + barH + 3 + pd);
+    ctx.lineTo(pointerX, barY + barH + 3 + pd * 2);
+    ctx.lineTo(pointerX - pd, barY + barH + 3 + pd);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // percentage number next to pointer
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    const numY = barY + barH + pd * 2 + 12;
+    ctx.fillText(`${val.toFixed(1)}%`, pointerX, numY);
+
+    ctx.globalAlpha = 1;
+  }
+
+  _drawSettlement(ctx, W, H) {
+    const s = this.settlement;
+    const dur = 1.3;
+    const t = Math.min(s.t, dur);
+    let alpha = 1;
+    if (t < 0.2) alpha = t / 0.2;
+    else if (t > dur - 0.4) alpha = Math.max(0, (dur - t) / 0.4);
+    ctx.globalAlpha = alpha;
+
+    const cx = W / 2;
+    const cy = H / 2 - 40;
+
+    // chapter name
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.name, cx, cy - 30);
+
+    // chapter score
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '16px sans-serif';
+    ctx.fillText(`${Math.floor(s.score)}`, cx, cy + 2);
+
+    let nextY = cy + 24;
+
+    // perfect
+    if (s.perfect) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('PERFECT ×1.05', cx, nextY);
+      nextY += 20;
+    }
+
+    // tendency
+    if (s.tendency != null) {
+      const pct = s.tendency;
+      const col = pct < 0 ? '#38bdf8' : pct > 0 ? '#fb923c' : '#94a3b8';
+      ctx.fillStyle = col;
+      ctx.font = '13px sans-serif';
+      ctx.fillText(`倾向 ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, cx, nextY);
+      nextY += 18;
+    }
+
+    // next chapter unstable
+    if (s.nextUnstable) {
+      ctx.fillStyle = '#a78bfa';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(`次章: ${s.nextUnstable}`, cx, nextY);
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  _drawStageIntro(ctx, W, H) {
+    const si = this.stageIntro;
+    const dur = si.duration;
+    const t = si.t;
+    let alpha = 1;
+    const fadeIn = 0.4, fadeOut = 0.6;
+    if (t < fadeIn) alpha = t / fadeIn;
+    else if (t > dur - fadeOut) alpha = Math.max(0, (dur - t) / fadeOut);
+    ctx.globalAlpha = alpha;
+
+    const cx = W / 2;
+    const cy = H / 2 - 40;
+
+    // arc name
+    ctx.fillStyle = '#d4b56a';
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(si.arc, cx, cy - 24);
+
+    // rule
+    ctx.strokeStyle = '#d4b56a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 100, cy - 8);
+    ctx.lineTo(cx + 100, cy - 8);
+    ctx.stroke();
+
+    // stage label
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(si.label, cx, cy + 16);
+
+    // desc with word wrap (max ~22 chars per line at 14px)
+    ctx.fillStyle = '#9a8b6e';
+    ctx.font = '13px sans-serif';
+    const maxW = 340;
+    const charsPerLine = 22;
+    let lineY = cy + 40;
+    let remain = si.desc;
+    while (remain.length > 0) {
+      const chunk = remain.slice(0, charsPerLine);
+      remain = remain.slice(charsPerLine);
+      ctx.fillText(chunk, cx, lineY);
+      lineY += 20;
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
   _afterStage3() {
-    const need = 14;
-    if (this.tendencyA >= need && this.tendencyA >= this.tendencyB) {
+    const t = this.totalTendency;
+    const need = BALANCE.tendencyThreshold;
+    if (t <= -need) {
       this.routeChoice = 'A';
       unlockRoute('A');
       this._jumpToStage('A4');
-    } else if (this.tendencyB >= need && this.tendencyB > this.tendencyA) {
+    } else if (t >= need) {
       this.routeChoice = 'B';
       unlockRoute('B');
       this._jumpToStage('B4');
     } else {
-      // neutral intercept
       this.chapterIndex = this.chapters.findIndex((c) => c.id === 23);
       this._startChapter();
     }
@@ -834,7 +1061,7 @@ export class Game {
   _gameOver() {
     const ch = this.chapters[this.chapterIndex];
     saveHiscore(this.score);
-    const body = `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n倾向 A/B：${this.tendencyA} / ${this.tendencyB}`;
+    const body = `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n倾向：${this.totalTendency.toFixed(0)}%`;
     if (ch.loseDialogue && this.dialogues[ch.loseDialogue]) {
       this._openDialogue(this.dialogues[ch.loseDialogue], () => {
         this.stop();
@@ -878,7 +1105,7 @@ export class Game {
     this.el.edit.style.width = `${pct}%`;
     this.el.edit.classList.toggle('full', p.edit >= BALANCE.editMax);
     this.el.unstable.textContent = this.unstableFx ? this.unstableFx.label : 'OFF';
-    this.el.tendency.textContent = `${this.tendencyA.toFixed(0)} / ${this.tendencyB.toFixed(0)}`;
+    this.el.tendency.textContent = `${this.totalTendency.toFixed(0)}%`;
     const ch = this.chapters[this.chapterIndex];
     this.el.chapter.textContent = ch ? ch.name : '—';
     if (this.el.difficulty && this.diff) {
@@ -950,6 +1177,14 @@ export class Game {
       ctx.fillRect(0, 0, W, H);
     }
 
+    // tendency gauge (stages 1-3, during gameplay)
+    if (this.state === 'playing' && !this.chapterDone) {
+      const ch = this.chapters[this.chapterIndex];
+      if (ch && typeof ch.stage === 'number' && ch.stage <= 3) {
+        this._drawTendencyGauge(ctx);
+      }
+    }
+
     // route select portals
     if (this.state === 'routeSelect') {
       ctx.fillStyle = 'rgba(125,211,252,0.25)';
@@ -966,6 +1201,16 @@ export class Game {
       ctx.fillText('A 门构皮蒂娅', W * 0.25, H * 0.45 + 5);
       ctx.fillStyle = '#fb923c';
       ctx.fillText('B 善雅乡', W * 0.75, H * 0.45 + 5);
+    }
+
+    // stage intro overlay
+    if (this.stageIntro) {
+      this._drawStageIntro(ctx, W, H);
+    }
+
+    // chapter settlement overlay
+    if (this.settlement) {
+      this._drawSettlement(ctx, W, H);
     }
   }
 }

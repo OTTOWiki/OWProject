@@ -120,3 +120,7 @@ export function drawSprite(ctx, img, x, y, w, h, opts = {}) {
   ctx.restore();
   return true;
 }
+
+export function getSpritePaths() {
+  return [...new Set(Object.values(SPRITE_PATHS))];
+}

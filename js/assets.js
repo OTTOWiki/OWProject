@@ -46,3 +46,10 @@ export function portraitFor(name) {
 export function getTitleBanner() {
   return loadImage('assets/ui/title_banner.jpg');
 }
+
+export function getAssetPaths() {
+  return [
+    ...new Set(Object.values(PORTRAIT_PATHS)),
+    'assets/ui/title_banner.jpg',
+  ];
+}

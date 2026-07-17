@@ -35,9 +35,8 @@ export class StageBackground {
     this._rebuild();
   }
 
-  setTendency(a, b) {
-    this.tendency.a = a;
-    this.tendency.b = b;
+  setTendency(pct) {
+    this.tendency.pct = pct;
   }
 
   _clear() {
@@ -399,8 +398,9 @@ export class StageBackground {
 
     // stage 3 tendency bias
     if (this.mode === 's3_mid' && this.extras?.length >= 2) {
-      const boostA = Math.min(1, this.tendency.a / 14);
-      const boostB = Math.min(1, this.tendency.b / 14);
+      const pct = this.tendency.pct || 0;
+      const boostA = Math.min(1, Math.abs(Math.min(0, pct)) / 70);
+      const boostB = Math.min(1, Math.max(0, pct) / 70);
       this.extras[0].position.x = -4 - boostA;
       this.extras[1].position.x = boostB * 0.5;
     }

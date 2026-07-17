@@ -26,7 +26,7 @@ export const BALANCE = {
   // 非低速明显加快；低速保持精细走位
   playerSpeed: 6.8,
   playerSlowSpeed: 2.15,
-  playerRadius: 3,
+  playerRadius: 0,
   playerDrawRadius: 11,
   playerShotCooldown: 0.05,
   playerShotDamage: 2.8,
@@ -48,9 +48,10 @@ export const BALANCE = {
   letterCardTime: 42,
   midBossTime: 28,
 
-  tendencyLeftBound: 215,
-  tendencyRightBound: 235,
-  tendencyPerSec: 0.35,
+  tendencyMaxPerChapter: 10,
+  tendencyThreshold: 70,
+  tendencyMinPerChapter: 1,
+  tendencySpeed: 2,
 
   /** 收点线 Y（逻辑坐标，越小越靠上）；越过此线后道具永久吸引 */
   itemCollectLine: 168, // ≈ 600 * 0.28
