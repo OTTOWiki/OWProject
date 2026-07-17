@@ -1,4 +1,4 @@
-import { DEFAULT_KEYS, STORAGE_KEYS } from './config.js';
+import { DEFAULT_KEYS, DEFAULT_SETTINGS, STORAGE_KEYS } from './config.js';
 
 export function loadKeys() {
   try {
@@ -13,6 +13,37 @@ export function loadKeys() {
 
 export function saveKeys(keys) {
   localStorage.setItem(STORAGE_KEYS.keys, JSON.stringify(keys));
+}
+
+function clamp01(v, fallback) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(1, n));
+}
+
+export function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.settings);
+    if (!raw) return { ...DEFAULT_SETTINGS };
+    const parsed = JSON.parse(raw);
+    return {
+      musicVolume: clamp01(parsed.musicVolume, DEFAULT_SETTINGS.musicVolume),
+      playerBulletOpacity: clamp01(parsed.playerBulletOpacity, DEFAULT_SETTINGS.playerBulletOpacity),
+      shotToggle: !!parsed.shotToggle,
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export function saveSettings(settings) {
+  const next = {
+    musicVolume: clamp01(settings.musicVolume, DEFAULT_SETTINGS.musicVolume),
+    playerBulletOpacity: clamp01(settings.playerBulletOpacity, DEFAULT_SETTINGS.playerBulletOpacity),
+    shotToggle: !!settings.shotToggle,
+  };
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
+  return next;
 }
 
 export function loadHiscore() {

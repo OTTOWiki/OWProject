@@ -147,15 +147,25 @@ async function boot() {
       background = { setMode() {}, setTendency() {}, update() {} };
     }
 
+    let game = null;
     const ui = new UI({
       audio,
       onStartGame(opts) {
         input.reloadKeys();
         game.start(opts);
       },
+      onSettingsChange(s) {
+        if (game) game.applySettings(s);
+        else {
+          input.applySettings(s);
+          audio.setMusicVolume(s.musicVolume ?? 1);
+        }
+      },
     });
 
-    const game = new Game({ canvas, input, audio, background, ui });
+    game = new Game({ canvas, input, audio, background, ui });
+    // 启动时套用本地设置
+    game.applySettings();
 
     // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
     // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）

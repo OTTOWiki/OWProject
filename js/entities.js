@@ -332,11 +332,17 @@ function softGlow(ctx, r, color, color2) {
   ctx.fill();
 }
 
-export function drawBullet(ctx, b) {
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {*} b
+ * @param {number} [alphaMul=1] 整体不透明度倍率（自机弹用）
+ */
+export function drawBullet(ctx, b, alphaMul = 1) {
+  const a = Math.max(0, Math.min(1, alphaMul));
   if (b.delay > 0) {
     // 预显环
     ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.35 * a;
     ctx.strokeStyle = b.color;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -346,6 +352,7 @@ export function drawBullet(ctx, b) {
     return;
   }
   ctx.save();
+  ctx.globalAlpha = a;
   ctx.translate(b.x, b.y);
   if (b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large' && b.type !== 'option') {
     ctx.rotate(b.angle + Math.PI / 2);
@@ -426,11 +433,11 @@ export function drawBullet(ctx, b) {
     ctx.ellipse(0, 0, hw * 0.65, hh * 1.05, 0, 0, Math.PI * 2);
     ctx.fill();
     // 拖尾光
-    ctx.globalAlpha = 0.45;
+    ctx.globalAlpha = 0.45 * a;
     ctx.beginPath();
     ctx.ellipse(0, hh * 0.6, hw * 0.35, hh * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = a;
     ctx.shadowBlur = 0;
   } else if (b.type === 'option') {
     const r = (b.w || 12) / 2;
@@ -440,9 +447,9 @@ export function drawBullet(ctx, b) {
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2 + performance.now() / 400;
+      const ang = (i / 4) * Math.PI * 2 + performance.now() / 400;
       ctx.moveTo(0, 0);
-      ctx.lineTo(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1);
+      ctx.lineTo(Math.cos(ang) * r * 1.1, Math.sin(ang) * r * 1.1);
     }
     ctx.stroke();
   }

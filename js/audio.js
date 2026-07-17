@@ -37,6 +37,10 @@ export class AudioEngine {
     this.musicGain = null;
     this.sfxGain = null;
     this.enabled = true;
+    /** 用户音乐音量 0–1（默认 1 = 100%） */
+    this.musicVolume = 1;
+    /** BGM bus 基准增益（再乘 musicVolume） */
+    this._musicBaseGain = 0.48;
     this.currentId = null;
     this._timer = null;
     this._notes = null;
@@ -47,6 +51,23 @@ export class AudioEngine {
     this._ahead = 0.28;
     this._cache = new Map();
     this._loading = new Map();
+  }
+
+  /** 当前应输出的 BGM 增益 */
+  _musicTargetGain() {
+    return Math.max(1e-4, this._musicBaseGain * Math.max(0, Math.min(1, this.musicVolume)));
+  }
+
+  /**
+   * 设置音乐音量（0–1）。可在播放中即时生效。
+   * @param {number} v
+   */
+  setMusicVolume(v) {
+    this.musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
+    if (!this.ctx || !this.musicGain || !this.currentId) return;
+    const t = this.ctx.currentTime;
+    this.musicGain.gain.cancelScheduledValues(t);
+    this.musicGain.gain.setValueAtTime(this._musicTargetGain(), t);
   }
 
   async ensure() {
@@ -77,7 +98,7 @@ export class AudioEngine {
 
   _wireMusicBus() {
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.48;
+    this.musicGain.gain.value = this._musicTargetGain();
     this.musicGain.connect(this.comp);
 
     // 轻延迟（电子空间感）
@@ -189,7 +210,7 @@ export class AudioEngine {
     } catch {}
     this._wireMusicBus();
     this.musicGain.gain.setValueAtTime(1e-4, now);
-    this.musicGain.gain.linearRampToValueAtTime(0.48, now + 0.6);
+    this.musicGain.gain.linearRampToValueAtTime(this._musicTargetGain(), now + 0.6);
 
     this._origin = now + 0.12;
     this._timer = setInterval(() => this._scheduler(), 18);

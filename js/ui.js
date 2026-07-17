@@ -1,13 +1,14 @@
 import {
-  MANUAL_CHAPTERS, displayKey, DEFAULT_KEYS,
+  MANUAL_CHAPTERS, displayKey, DEFAULT_KEYS, DEFAULT_SETTINGS,
   DIFFICULTIES, DIFFICULTY_ORDER, getDifficulty,
 } from './config.js';
-import { loadKeys, saveKeys, loadUnlocked } from './storage.js';
+import { loadKeys, saveKeys, loadUnlocked, loadSettings, saveSettings } from './storage.js';
 import { stageSelectEntries, buildChapterList } from './stages/index.js';
 
 export class UI {
-  constructor({ onStartGame, audio }) {
+  constructor({ onStartGame, onSettingsChange, audio }) {
     this.onStartGame = onStartGame;
+    this.onSettingsChange = onSettingsChange || null;
     this.audio = audio;
     this.menuIndex = 0;
     this.pendingStart = null;
@@ -15,6 +16,8 @@ export class UI {
     this.lastResult = null;
     this.binding = null;
     this.diffIndex = 1;
+    /** 从暂停菜单进入设置时的返回回调 */
+    this.settingsReturn = null;
 
     this.screens = {
       menu: document.getElementById('screen-menu'),
@@ -23,6 +26,7 @@ export class UI {
       stage: document.getElementById('screen-stage-select'),
       practice: document.getElementById('screen-practice'),
       keys: document.getElementById('screen-keys'),
+      settings: document.getElementById('screen-settings'),
       manual: document.getElementById('screen-manual'),
       game: document.getElementById('screen-game'),
       result: document.getElementById('screen-result'),
@@ -33,6 +37,7 @@ export class UI {
     this._initPractice();
     this._initDifficulty();
     this._initKeys();
+    this._initSettings();
     this._bindClicks();
     this._bindKeyboardNav();
     this.refreshKeyLabels();
@@ -140,6 +145,55 @@ export class UI {
     document.getElementById('key-item').textContent = displayKey(keys.item);
   }
 
+  _initSettings() {
+    const vol = document.getElementById('set-music-volume');
+    const op = document.getElementById('set-bullet-opacity');
+    const toggle = document.getElementById('set-shot-toggle');
+    if (!vol || !op || !toggle) return;
+
+    const syncLabels = (s) => {
+      const volPct = Math.round((s.musicVolume ?? 1) * 100);
+      const opPct = Math.round((s.playerBulletOpacity ?? 0.3) * 100);
+      vol.value = String(volPct);
+      op.value = String(opPct);
+      toggle.checked = !!s.shotToggle;
+      const volLab = document.getElementById('set-music-volume-val');
+      const opLab = document.getElementById('set-bullet-opacity-val');
+      const togLab = document.getElementById('set-shot-toggle-val');
+      if (volLab) volLab.textContent = `${volPct}%`;
+      if (opLab) opLab.textContent = `${opPct}%`;
+      if (togLab) togLab.textContent = s.shotToggle ? '开启' : '关闭';
+    };
+
+    this._refreshSettingsForm = () => syncLabels(loadSettings());
+    this._refreshSettingsForm();
+
+    const commit = () => {
+      const next = saveSettings({
+        musicVolume: Number(vol.value) / 100,
+        playerBulletOpacity: Number(op.value) / 100,
+        shotToggle: toggle.checked,
+      });
+      syncLabels(next);
+      this.onSettingsChange?.(next);
+    };
+
+    vol.addEventListener('input', commit);
+    op.addEventListener('input', commit);
+    toggle.addEventListener('change', commit);
+  }
+
+  refreshSettingsForm() {
+    this._refreshSettingsForm?.();
+  }
+
+  /** 暂停菜单进入设置；onBack 在点「完成/返回」时调用 */
+  openSettingsFromPause(onBack) {
+    this.settingsReturn = typeof onBack === 'function' ? onBack : null;
+    this.refreshSettingsForm();
+    this.show('settings');
+  }
+
   _bindClicks() {
     document.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => this._action(btn.dataset.action));
@@ -176,6 +230,10 @@ export class UI {
     } else if (action === 'key-config') {
       this.refreshKeyLabels();
       this.show('keys');
+    } else if (action === 'settings') {
+      this.settingsReturn = null;
+      this.refreshSettingsForm();
+      this.show('settings');
     } else if (action === 'practice') {
       this.show('practice');
     } else if (action === 'practice-start') {
@@ -193,6 +251,10 @@ export class UI {
     } else if (action === 'keys-reset') {
       saveKeys({ ...DEFAULT_KEYS });
       this.refreshKeyLabels();
+    } else if (action === 'settings-reset') {
+      const next = saveSettings({ ...DEFAULT_SETTINGS });
+      this.refreshSettingsForm();
+      this.onSettingsChange?.(next);
     } else if (action === 'exit') {
       if (confirm('确定退出棍维Project？')) {
         window.close();
@@ -200,7 +262,13 @@ export class UI {
       }
     } else if (action === 'back') {
       this.audio.sfx('cancel');
-      this.show('menu');
+      if (this.settingsReturn) {
+        const cb = this.settingsReturn;
+        this.settingsReturn = null;
+        cb();
+      } else {
+        this.show('menu');
+      }
     } else if (action === 'back-diff') {
       this.audio.sfx('cancel');
       this.show('difficulty');
@@ -260,6 +328,15 @@ export class UI {
         } else if (e.code === 'Escape') {
           e.preventDefault();
           this.show('menu');
+        }
+        return;
+      }
+
+      // 设置页 Esc 返回（主菜单或暂停）
+      if (this.screens.settings?.classList.contains('active')) {
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          this._action('back');
         }
       }
     });
