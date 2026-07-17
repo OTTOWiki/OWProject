@@ -20,3 +20,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Local reference sources (MIDI / design refs; not shipped at runtime)
+参考/
