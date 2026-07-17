@@ -21,11 +21,14 @@ const elFill = document.getElementById('load-fill');
 const elPct = document.getElementById('load-text');
 const elHint = document.getElementById('load-hint');
 
+const PRAYING = '少女祈祷中...';
+
 function setLoadProgress(pct, hint) {
   const p = Math.max(0, Math.min(100, Math.round(pct)));
   if (elFill) elFill.style.width = `${p}%`;
   if (elPct) elPct.textContent = `${p}%`;
-  if (elHint && hint != null) elHint.textContent = hint;
+  // 所有加载类提示统一为「少女祈祷中...」
+  if (elHint) elHint.textContent = PRAYING;
 }
 
 function withTimeout(promise, ms) {
@@ -47,12 +50,12 @@ async function preloadAll() {
   const total = Math.max(1, imagePaths.length + midiPaths.length);
   let loaded = 0;
 
-  const step = (hint) => {
+  const step = () => {
     loaded = Math.min(total, loaded + 1);
-    setLoadProgress((loaded / total) * 100, hint || '');
+    setLoadProgress((loaded / total) * 100, PRAYING);
   };
 
-  setLoadProgress(0, 'Loading…');
+  setLoadProgress(0, PRAYING);
 
   const tasks = [];
 
@@ -63,7 +66,7 @@ async function preloadAll() {
       const finish = () => {
         if (done) return;
         done = true;
-        step(src.split('/').pop());
+        step();
         resolve();
       };
       img.onload = finish;
@@ -82,7 +85,7 @@ async function preloadAll() {
       if (midiDone) return;
       midiDone = true;
       clearTimeout(timer);
-      step(path.split('/').pop());
+      step();
     };
     const timer = setTimeout(() => { ac.abort(); stepMidi(); }, 8000);
     tasks.push(
@@ -93,19 +96,19 @@ async function preloadAll() {
   }
 
   await withTimeout(Promise.all(tasks), 15000);
-  setLoadProgress(100, 'Complete');
+  setLoadProgress(100, PRAYING);
 }
 
 function dismissLoadScreen() {
   if (!elLoad || elLoad.dataset.dismissed) return;
   elLoad.dataset.dismissed = '1';
-  setLoadProgress(100, 'Complete');
+  setLoadProgress(100, PRAYING);
   elLoad.classList.add('done');
   setTimeout(() => elLoad.remove(), 700);
 }
 
 async function boot() {
-  setLoadProgress(0, '初始化…');
+  setLoadProgress(0, PRAYING);
 
   try {
     await preloadAll();
@@ -113,7 +116,7 @@ async function boot() {
     console.warn('Preload error:', e);
   }
 
-  setLoadProgress(100, '缓存写入…');
+  setLoadProgress(100, PRAYING);
 
   try {
     // 写入模块缓存；带超时避免某图永远不 complete 卡住加载屏
