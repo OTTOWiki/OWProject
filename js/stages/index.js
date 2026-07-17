@@ -8,6 +8,7 @@ import { chapters as a6 } from './a6_yimeige.js';
 import { chapters as b4 } from './b4_duren.js';
 import { chapters as b5 } from './b5_gundian.js';
 import { chapters as b6 } from './b6_lastgod.js';
+import { chapters as ex } from './ex_van.js';
 
 import { stageSelectEntry as se_s1 } from './s1_alice.js';
 import { stageSelectEntry as se_s2 } from './s2_icebin.js';
@@ -19,12 +20,14 @@ import { stageSelectEntry as se_a6 } from './a6_yimeige.js';
 import { stageSelectEntry as se_b4 } from './b4_duren.js';
 import { stageSelectEntry as se_b5 } from './b5_gundian.js';
 import { stageSelectEntry as se_b6 } from './b6_lastgod.js';
+import { stageSelectEntry as se_ex } from './ex_van.js';
 
 export function buildChapterList() {
   return [
     ...s1, ...s2, ...s3, ...patrol,
     ...a4, ...a5, ...a6,
     ...b4, ...b5, ...b6,
+    ...ex,
   ];
 }
 
@@ -41,6 +44,7 @@ export function stageIntroFor(stageKey) {
     'B4':   { label: 'B线 第4面', desc: '踏入善雅乡——独轮沿螺旋轨迹碾压，狂妄哲学臆想与"创"字诀如潮水般涌来。', arc: '善雅乡' },
     'B5':   { label: 'B线 第5面', desc: '街角暗巷霓虹闪烁，破皮鞋敲击地面。推退反问与嘴硬甩锅谱成一曲傲娇戏谑。', arc: '善雅乡' },
     'B6':   { label: 'B线 第6面', desc: '虾油黄绿迷雾弥漫，宝瓶碎裂。防御塔黑影从雾中浮现，炫妈的温度与味道遮蔽了一切。', arc: '善雅乡' },
+    'EX':   { label: 'Extra', desc: 'van♂键政灌输。单关：道中 → 道中Boss → van♂。强度 0.8 · 章时减半。', arc: '键政覆写' },
   };
   return map[key] || null;
 }
@@ -50,5 +54,6 @@ export function stageSelectEntries() {
     se_s1, se_s2, se_s3, se_patrol,
     se_a4, se_a5, se_a6,
     se_b4, se_b5, se_b6,
+    se_ex,
   ];
 }

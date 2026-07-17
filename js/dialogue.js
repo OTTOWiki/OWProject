@@ -108,6 +108,43 @@ export function getDialogues(playerId) {
       { name: '拉斯特神炫', text: 'OTTOWiki 将改造成只有炫狗和防御塔的绝对帝国！' },
       { name: me, text: '……最后的 Letter Card。结束这一切。' },
     ],
+    ex_open: [
+      { name: '系统', text: '警告：检测到 OTTOWiki 词条被批量键政覆写。来源锁定——van♂。' },
+      { name: me, text: '键政……灌进百科？这比欠费还离谱。' },
+      { name: 'van♂分身', text: '先从外围草稿污染起。表态、站队、转发——编辑者会自己完成剩下的。' },
+      { name: me, text: '立刻停止对词条的污染。' },
+      { name: 'van♂分身', text: 'Letter Card 展开——先证明你们不是又一批水军。' },
+    ],
+    ex_p2: [
+      { name: 'van♂代理', text: '议程已置顶。热搜位、标签、自我引用——闭环完成。' },
+      { name: me, text: '百科不是你的发言台。' },
+      { name: 'van♂代理', text: '不，百科就是最好的发言台。开战。' },
+    ],
+    ex_p3: [
+      { name: 'van♂使徒', text: '非友即敌。左右撕裂后，中间人最好管。' },
+      { name: me, text: '维基需要事实，不是动员令。' },
+      { name: 'van♂使徒', text: '事实由多数定义——而多数由我们定义。' },
+    ],
+    ex_p4: [
+      { name: 'van♂工厂', text: '欢迎参观话术产线：模板、情绪、伪信源，一键量产。' },
+      { name: me, text: '……你们把讨论当成流水线了。' },
+      { name: 'van♂工厂', text: '产能即正义。下一张 Letter。' },
+    ],
+    ex_p5: [
+      { name: 'van♂审判', text: '共识法庭开庭。举报即证据，站队即判决。' },
+      { name: me, text: '这不是审判，是围猎。' },
+      { name: 'van♂审判', text: '围猎效率更高。请入座——被告席。' },
+    ],
+    ex_van: [
+      { name: 'van♂', text: '终于到终局了。OTTOWiki 将被改写成键政圣经的注释本。' },
+      { name: me, text: 'van♂……收手。词条不属于任何政见。' },
+      { name: 'van♂', text: '不。词条属于会喊得最响的人。开战吧。' },
+    ],
+    ex_last: [
+      { name: 'van♂', text: '最终覆写协议启动——全站重定向至「正确立场」。' },
+      { name: me, text: '最后的 Letter。把键政赶出维基。' },
+      { name: 'van♂', text: '那就让弹幕投票决定谁留下！' },
+    ],
   };
 }
 
@@ -132,6 +169,19 @@ export function getEndingDialogue(which, playerId) {
       { name: '旁白', text: '爱丽丝、Icebin、大宗关收到恢复邮件，编辑者陆续回归。' },
       { name: partner, text: '维基的危机，原来只是五美元的距离。' },
       { name: me, text: '……下次记得续费。' },
+    ];
+  }
+
+  if (which === 'EX') {
+    return [
+      { name: '旁白', text: 'Extra 结局 · 清出键政' },
+      { name: '旁白', text: 'van♂ 的最终覆写协议在弹幕中崩溃，键政模板被逐条回滚。' },
+      { name: 'van♂', text: '……站队……表态……怎么会失败……' },
+      { name: me, text: '因为百科要的是可核对的事实，不是嗓门。' },
+      { name: partner, text: '把「政见」从词条里拆出去吧。讨论区有讨论区的地方。' },
+      { name: '系统', text: '已执行：批量撤销键政覆写 · 恢复中性表述 · 锁定敏感重定向。' },
+      { name: '旁白', text: 'OTTOWiki 的页面重新变得无聊、克制、可引用——这正是维基该有的样子。' },
+      { name: me, text: '下次再灌，就再打回去。' },
     ];
   }
 

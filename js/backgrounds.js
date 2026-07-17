@@ -104,8 +104,8 @@ export class StageBackground {
     else if (m === 's3_boss') this._s3boss();
     else if (m === 'patrol') this._patrol();
     else if (m === 'a4_mid' || m === 'a4_boss') this._a4(m.endsWith('boss'));
-    else if (m === 'a5_mid' || m === 'a5_boss') this._a5(m.endsWith('boss'));
-    else if (m === 'a6_mid' || m === 'a6_boss') this._a6(m.endsWith('boss'));
+    else if (m === 'a5_mid' || m === 'a5_boss' || m === 'ex_mid') this._a5(m.endsWith('boss'));
+    else if (m === 'a6_mid' || m === 'a6_boss' || m === 'ex_boss') this._a6(m === 'a6_boss' || m === 'ex_boss');
     else if (m === 'b4_mid' || m === 'b4_boss') this._b4(m.endsWith('boss'));
     else if (m === 'b5_mid' || m === 'b5_boss') this._b5(m.endsWith('boss'));
     else if (m === 'b6_mid' || m === 'b6_boss') this._b6(m.endsWith('boss'));
@@ -1100,6 +1100,7 @@ export function bgModeFor(stageKey, isBoss) {
     B4: ['b4_mid', 'b4_boss'],
     B5: ['b5_mid', 'b5_boss'],
     B6: ['b6_mid', 'b6_boss'],
+    EX: ['a5_mid', 'a6_boss'],
   };
   const p = map[stageKey] || map[1];
   return isBoss ? p[1] : p[0];

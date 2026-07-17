@@ -168,6 +168,9 @@ export class UI {
     if (action === 'start') {
       this.pendingStart = { startChapter: 1, mode: 'story' };
       this.show('difficulty');
+    } else if (action === 'extra-start') {
+      this.pendingStart = { startChapter: 129, mode: 'extra' };
+      this.show('difficulty');
     } else if (action === 'stage-select') {
       this._refreshStageLocks();
       this.show('stage');

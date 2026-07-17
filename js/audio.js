@@ -26,6 +26,8 @@ export const MUSIC_FILE_MAP = {
   b5_boss: 'th10_13',
   b6_mid: 'th08_18',
   b6_boss: 'th11_15',
+  ex_mid: 'th08_18',
+  ex_boss: 'th11_15',
   default: 'th08_05',
 };
 
@@ -351,6 +353,7 @@ export function trackForStage(stageId, isBoss) {
     B4: ['b4_mid', 'b4_boss'],
     B5: ['b5_mid', 'b5_boss'],
     B6: ['b6_mid', 'b6_boss'],
+    EX: ['ex_mid', 'ex_boss'],
   };
   const pair = map[stageId] || map[1];
   return isBoss ? pair[1] : pair[0];

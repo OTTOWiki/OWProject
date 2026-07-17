@@ -102,6 +102,7 @@ export function letterStageMul(stageKey) {
     A4: 1.55, B4: 1.55,
     A5: 1.75, B5: 1.75,
     A6: 2.1, B6: 2.1,
+    EX: 2.0,
   };
   return map[sk] ?? 1;
 }
@@ -286,7 +287,7 @@ export const UNSTABLE_POOL = [
 /** 后三面（A/B 线 4–6 面）叠加 2–3 个；前三面 1 个 */
 export function unstableStackCount(stageKey) {
   const sk = String(stageKey);
-  if (/^[AB][456]$/.test(sk)) return 2 + Math.floor(Math.random() * 2);
+  if (/^[AB][456]$/.test(sk) || sk === 'EX') return 2 + Math.floor(Math.random() * 2);
   return 1;
 }
 

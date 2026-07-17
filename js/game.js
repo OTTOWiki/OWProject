@@ -63,6 +63,7 @@ export class Game {
 
       letterBanner: document.getElementById('letter-banner'),
       letterName: document.getElementById('letter-name'),
+      letterRemain: document.getElementById('letter-remain'),
       letterBonus: document.getElementById('letter-bonus'),
       letterTimer: document.getElementById('letter-timer'),
       flash: document.getElementById('flash-msg'),
@@ -313,11 +314,23 @@ export class Game {
     }
 
     const afterBuild = () => {
-      ch.build(this);
+      try {
+        ch.build(this);
+      } catch (err) {
+        console.error('[chapter build]', ch?.id, ch?.name, err);
+        this.waveFn = null;
+      }
       // 刷怪节奏：Easy 更慢，Lunatic 更快
       if (this.waveFn) {
         const raw = this.waveFn;
-        this.waveFn = (dt) => raw.call(this, dt / this.spawnMul);
+        this.waveFn = (dt) => {
+          try {
+            raw.call(this, dt / this.spawnMul);
+          } catch (err) {
+            console.error('[waveFn]', ch?.id, err);
+            this.waveFn = null;
+          }
+        };
       }
       // 已在场敌机补 fireMul（build 内同步 push 已缩放）
       for (const e of this.enemies) {
@@ -383,16 +396,28 @@ export class Game {
     const dt = Math.min(0.05, (t - this.lastT) / 1000);
     this.lastT = t;
 
-    this._handleGlobalInput();
-    if (this.state === 'playing' && !this.paused) {
-      this._update(dt);
+    try {
+      this._handleGlobalInput();
+      if (this.state === 'playing' && !this.paused) {
+        this._update(dt);
+      }
+      // 背景始终滚动（对话时也缓慢前推）
+      this.playBg?.update(this.paused ? 0 : dt * (this.state === 'dialogue' ? 0.35 : 1));
+      this._draw();
+      this.background?.setTendency(this.totalTendency);
+      this.background?.update();
+      this.input.endFrame();
+    } catch (err) {
+      console.error('[game loop]', err);
+      // 保底：避免异常后 rAF 断链导致版面永久黑屏
+      try {
+        if (this.ctx) {
+          this.ctx.fillStyle = '#0c1018';
+          this.ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+          if (this.player) drawPlayer(this.ctx, this.player);
+        }
+      } catch (_) { /* ignore */ }
     }
-    // 背景始终滚动（对话时也缓慢前推）
-    this.playBg?.update(this.paused ? 0 : dt * (this.state === 'dialogue' ? 0.35 : 1));
-    this._draw();
-    this.background?.setTendency(this.totalTendency);
-    this.background?.update();
-    this.input.endFrame();
     this.raf = requestAnimationFrame((nt) => this._loop(nt));
   }
 
@@ -640,8 +665,19 @@ export class Game {
 
     // enemies
     for (const e of this.enemies) {
-      e.update(dt, this);
-      if (e.dead && e.onDeath) e.onDeath(e, this);
+      try {
+        e.update(dt, this);
+      } catch (err) {
+        console.error('[enemy script]', e?.label || e?.kind, err);
+        e.script = null;
+      }
+      if (e.dead && e.onDeath) {
+        try {
+          e.onDeath(e, this);
+        } catch (err) {
+          console.error('[enemy onDeath]', err);
+        }
+      }
     }
 
     // 最近敌机 → 子机追踪目标
@@ -907,13 +943,34 @@ export class Game {
   /** 是否为本 stage 最后一张 Letter（boss 章） */
   _isLastLetterOfStage(ch) {
     if (!ch || ch.kind !== 'boss') return false;
+    return this._letterProgressInStage(ch).remain <= 1;
+  }
+
+  /**
+   * 当前 stage 内 Letter（boss 章）进度
+   * @returns {{ idx: number, total: number, remain: number }}
+   * idx 从 1 起；remain 含当前这张
+   */
+  _letterProgressInStage(ch = this.chapters[this.chapterIndex]) {
+    if (!ch || ch.kind !== 'boss') return { idx: 0, total: 0, remain: 0 };
     const sk = String(ch.stageKey);
-    for (let i = this.chapterIndex + 1; i < this.chapters.length; i++) {
+    let start = this.chapterIndex;
+    while (start > 0 && String(this.chapters[start - 1].stageKey) === sk) start--;
+    let end = this.chapterIndex;
+    while (end + 1 < this.chapters.length && String(this.chapters[end + 1].stageKey) === sk) end++;
+    let total = 0;
+    let idx = 0;
+    let seen = 0;
+    for (let i = start; i <= end; i++) {
       const n = this.chapters[i];
-      if (String(n.stageKey) !== sk) break;
-      if (n.kind === 'boss') return false;
+      if (n.kind !== 'boss') continue;
+      total++;
+      if (i <= this.chapterIndex) {
+        seen++;
+        if (i === this.chapterIndex) idx = seen;
+      }
     }
-    return true;
+    return { idx, total, remain: Math.max(0, total - idx + 1) };
   }
 
   /** Letter NMNB 资源掉落（midboss 已在击破时固定掉 B，此处只处理 boss Letter） */
@@ -1370,7 +1427,11 @@ export class Game {
   _showEnding(which) {
     saveHiscore(this.score);
     this.audio.stopMusic(0.8);
-    const title = which === 'A' ? '结局A · 不倒闭的真理' : '结局B · 散去的幻影';
+    const title = which === 'A'
+      ? '结局A · 不倒闭的真理'
+      : which === 'EX'
+        ? 'Extra 结局 · 清出键政'
+        : '结局B · 散去的幻影';
     const lines = getEndingDialogue(which, this.playerId);
     this._setEndingCinematic(true);
     this._openDialogue(lines, () => {
@@ -1378,7 +1439,7 @@ export class Game {
       this._openResult({
         title,
         body: `难度：${this.diff.rank} ${this.diff.name}\n最终得分：${this.score}`,
-        retryChapter: 1,
+        retryChapter: which === 'EX' ? 129 : 1,
       });
     });
   }
@@ -1417,6 +1478,14 @@ export class Game {
     if (!banner || banner.classList.contains('hidden')) return;
     const ch = this.chapters[this.chapterIndex];
     const tLeft = Math.max(0, this.letterTimeLeft);
+    if (this.el.letterRemain && ch) {
+      const { idx, total, remain } = this._letterProgressInStage(ch);
+      if (total > 0) {
+        this.el.letterRemain.textContent = `LETTER ${idx}/${total} · 剩余 ${remain}`;
+      } else {
+        this.el.letterRemain.textContent = '';
+      }
+    }
     if (this.el.letterTimer) {
       this.el.letterTimer.textContent = `TIME ${tLeft.toFixed(1)}`;
     }

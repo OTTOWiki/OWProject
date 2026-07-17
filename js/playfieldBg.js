@@ -24,6 +24,8 @@ const BG_TEX = {
   b5_boss: 'assets/bg/tex_b5_boss.jpg',
   b6_mid: 'assets/bg/tex_b6_mid.jpg',
   b6_boss: 'assets/bg/tex_b6_boss.jpg',
+  ex_mid: 'assets/bg/tex_a5_mid.jpg',
+  ex_boss: 'assets/bg/tex_a6_boss.jpg',
 };
 
 const SKY = {
@@ -46,6 +48,8 @@ const SKY = {
   b5_boss: ['#120810', '#402018'],
   b6_mid: ['#081208', '#1c3014'],
   b6_boss: ['#0e1c00', '#2c4810'],
+  ex_mid: ['#080a16', '#182050'],
+  ex_boss: ['#1e0014', '#500830'],
 };
 
 const ACCENT = {
@@ -68,6 +72,8 @@ const ACCENT = {
   b5_boss: 'rgba(255,130,60,0.22)',
   b6_mid: 'rgba(160,230,80,0.16)',
   b6_boss: 'rgba(140,220,40,0.26)',
+  ex_mid: 'rgba(160,180,255,0.16)',
+  ex_boss: 'rgba(255,80,140,0.24)',
 };
 
 /** 各关侧景/符号主题 */
@@ -123,6 +129,14 @@ const THEME = {
   a6_boss: {
     pillar: '#a03060', pillar2: '#501028', float: '#fda4af',
     kind: 'candy', sil: 'rings', scan: true, symbols: ['欠费', '回收', '⚠'],
+  },
+  ex_mid: {
+    pillar: '#5a8acc', pillar2: '#c06090', float: '#ddaaff',
+    kind: 'dual', sil: 'orbs', scan: false, symbols: ['键政', 'van', '覆写'],
+  },
+  ex_boss: {
+    pillar: '#a03060', pillar2: '#501028', float: '#fda4af',
+    kind: 'candy', sil: 'rings', scan: true, symbols: ['键政', '站队', '⚠'],
   },
   b4_mid: {
     pillar: '#a04050', pillar2: '#501820', float: '#ff6688',
