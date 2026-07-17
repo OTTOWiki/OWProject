@@ -1,4 +1,4 @@
-制作一个基于html的弹幕游戏，名为棍维Project
+制作一个基于html的弹幕游戏，名为OTTOWiki Project（简称 OWProject）
 
 [MAIN MENU & CONFIGURATION] (主菜单与键位配置)
 

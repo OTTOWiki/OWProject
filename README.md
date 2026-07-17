@@ -1,4 +1,4 @@
-# 棍维Project
+# OTTOWiki Project
 
 基于 HTML5 Canvas 的东方风格弹幕 H5 小游戏（纯前端）。
 

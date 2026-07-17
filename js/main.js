@@ -1,5 +1,5 @@
 /**
- * 棍维Project — 入口
+ * OWProject — 入口
  */
 import { Input } from './input.js';
 import { AudioEngine, MUSIC_FILE_MAP } from './audio.js';
@@ -266,7 +266,7 @@ async function boot() {
     if (art) art.classList.add('ready');
 
     console.info(
-      '%c棍维Project',
+      '%cOTTOWiki Project',
       'color:#5eead4;font-size:16px;font-weight:bold',
       VERSION_LABEL,
       'loaded.',

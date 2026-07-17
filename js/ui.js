@@ -483,7 +483,7 @@ export class UI {
       saveKeys({ ...DEFAULT_KEYS });
       this.refreshKeyLabels();
     } else if (action === 'exit') {
-      if (confirm('确定退出棍维Project？')) {
+      if (confirm('确定退出 OTTOWiki Project？')) {
         window.close();
         document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c10;color:#c9b896;font-family:serif">已退出 · 可关闭标签页</div>';
       }

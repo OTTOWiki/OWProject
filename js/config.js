@@ -1,4 +1,4 @@
-/** 棍维Project — 全局配置与平衡数值 */
+/** OWProject — 全局配置与平衡数值 */
 
 export const LOGICAL_W = 450;
 export const LOGICAL_H = 600;

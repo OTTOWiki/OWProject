@@ -1,4 +1,4 @@
-# AGENTS.md — 棍维Project
+# AGENTS.md — OWProject
 
 东方风弹幕 STG（纯前端 H5）。OTTOWiki / 维基梗二次创作；逻辑坐标系固定 **450×600**。
 
@@ -154,7 +154,7 @@ tools/
    ```
 4. **打 tag**（annotated，推荐）：
    ```bash
-   git tag -a v0.1.1 -m "棍维Project v0.1.1"
+   git tag -a v0.1.1 -m "OWProject v0.1.1"
    ```
    - tag 名必须等于 `v` + `VERSION`
    - 勿在脏工作区乱打 tag；应指向上述 release commit
