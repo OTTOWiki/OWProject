@@ -157,7 +157,9 @@ export class Game {
     this.resultPayload = null;
     this.settlement = null;
     this.nextUnstableFx = null;
-    this.stageIntro = null;
+    this.stageIntro = null; // 旧版兼容；现用 stageTransit
+    this.stageTransit = null; // 关卡（面）间过渡页
+    this._pendingChapterBegin = null;
     this.lastStageKey = null;
 
     this.running = true;
@@ -235,6 +237,37 @@ export class Game {
     this.audio.stopMusic(0.5);
   }
 
+  /**
+   * 场上敌弹 → 得分道具，并锁定吸引（章间/Bomb 同款手感）
+   * 不重置自机位置，不抹掉自机弹与已有道具。
+   */
+  _bulletsToPointsAndAttract() {
+    fullScreenClear(this);
+    if (this.items?.length) {
+      for (const it of this.items) {
+        if (!it.dead) it.attract = true;
+      }
+    }
+  }
+
+  /** 软过渡进下一章：清敌机、敌弹变点；保留自机/自机弹/道具 */
+  _softClearForNextChapter() {
+    // 敌弹变点 + 全收
+    this._bulletsToPointsAndAttract();
+    // 移除仍存活的敌机（不重置自机）
+    if (this.enemies) this.enemies.length = 0;
+    else this.enemies = [];
+    this.bossRef = null;
+    // 只剔敌弹残留（fullScreenClear 已标 dead，再清一遍保险）
+    if (this.bullets?.length) {
+      for (let i = this.bullets.length - 1; i >= 0; i--) {
+        const b = this.bullets[i];
+        if (b.from !== 'player' || b.dead) this.bullets.splice(i, 1);
+      }
+    }
+    this._installEntityHooks();
+  }
+
   _startChapter() {
     const ch = this.chapters[this.chapterIndex];
     if (!ch) {
@@ -242,20 +275,9 @@ export class Game {
       return;
     }
 
-    // 章节切换前吸走残机/Bomb 道具，避免清空丢失
-    if (this.items?.length && this.player) {
-      for (const it of this.items) {
-        if (!it.dead && (it.kind === 'life' || it.kind === 'bomb')) this._collectItem(it);
-      }
-    }
+    // 章间软过渡：弹幕变点自动收取，不瞬清版面、不重置自机坐标
+    this._softClearForNextChapter();
 
-    if (this.bullets) this.bullets.length = 0;
-    else this.bullets = [];
-    if (this.enemies) this.enemies.length = 0;
-    else this.enemies = [];
-    this._installEntityHooks();
-    this.items = [];
-    this.bossRef = null;
     this.waveFn = null;
     this.waveTimer = 0;
     this.waveCount = 0;
@@ -269,6 +291,9 @@ export class Game {
     this.chapterClearTimer = 0;
     this.chapterTendency = 0;
     this.settlement = null;
+    this.stageTransit = null;
+    this.stageIntro = null;
+    this._pendingChapterBegin = null;
 
     // unstable
     this.unstableFx = null;
@@ -303,16 +328,6 @@ export class Game {
     this.playBg.setMode(bgMode, { transition: doTrans });
     this._lastBgMode = bgMode;
     this.el.stageLabel.textContent = typeof ch.stage === 'number' ? `Stage ${ch.stage}` : String(ch.stage);
-
-    // stage intro on new stage
-    const sk = String(ch.stageKey);
-    if (sk !== this.lastStageKey) {
-      this.lastStageKey = sk;
-      const info = stageIntroFor(sk);
-      if (info) {
-        this.stageIntro = { ...info, t: 0, duration: 3.5 };
-      }
-    }
 
     if (ch.letter) {
       this.el.letterBanner.classList.remove('hidden');
@@ -350,12 +365,38 @@ export class Game {
       }
     };
 
-    if (ch.dialogue && this.dialogues[ch.dialogue]) {
-      this._openDialogue(this.dialogues[ch.dialogue], afterBuild);
-    } else {
-      afterBuild();
+    const beginChapterContent = () => {
+      this._pendingChapterBegin = null;
+      this.stageTransit = null;
+      if (ch.dialogue && this.dialogues[ch.dialogue]) {
+        this._openDialogue(this.dialogues[ch.dialogue], afterBuild);
+      } else {
+        this.state = 'playing';
+        afterBuild();
+      }
+    };
+
+    // 换「面」时先播过渡页，再进入对话/刷怪
+    const sk = String(ch.stageKey);
+    if (sk !== this.lastStageKey) {
+      this.lastStageKey = sk;
+      const info = stageIntroFor(sk);
+      if (info) {
+        this.stageTransit = {
+          arc: info.arc || '',
+          label: info.label || '',
+          poem: info.poem || info.desc || '',
+          t: 0,
+          duration: 3.6,
+        };
+        this.state = 'stageTransit';
+        this._pendingChapterBegin = beginChapterContent;
+        this._updateHUD();
+        return;
+      }
     }
 
+    beginChapterContent();
     this._updateHUD();
   }
 
@@ -410,11 +451,16 @@ export class Game {
 
     try {
       this._handleGlobalInput();
-      if (this.state === 'playing' && !this.paused) {
+      if (this.state === 'stageTransit' && !this.paused) {
+        this._updateStageTransit(dt);
+      } else if (this.state === 'playing' && !this.paused) {
         this._update(dt);
       }
-      // 背景始终滚动（对话时也缓慢前推）
-      this.playBg?.update(this.paused ? 0 : dt * (this.state === 'dialogue' ? 0.35 : 1));
+      // 背景始终滚动（对话/过渡时也缓慢前推）
+      const bgMul = this.paused ? 0
+        : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
+          : 1;
+      this.playBg?.update(dt * bgMul);
       this._draw();
       this.background?.setTendency(this.totalTendency);
       this.background?.update();
@@ -431,6 +477,40 @@ export class Game {
       } catch (_) { /* ignore */ }
     }
     this.raf = requestAnimationFrame((nt) => this._loop(nt));
+  }
+
+  /** 关卡过渡页计时；期间继续吸点，不刷怪 */
+  _updateStageTransit(dt) {
+    const p = this.player;
+    if (p) {
+      p.update(dt, this.input);
+      // 过渡中仍可移动，但不射击/不碰伤
+      for (const it of this.items) {
+        it.update(dt, p, true);
+        if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
+          it.dead = true;
+          this._collectItem(it);
+        }
+      }
+      for (const b of this.bullets) {
+        if (b.from === 'player') b.update(dt, p, null);
+      }
+      for (const pt of this.particles) pt.update(dt);
+      this._purgeDead(this.bullets);
+      this.items = this.items.filter((i) => !i.dead);
+      this.particles = this.particles.filter((pt) => !pt.dead);
+    }
+
+    if (this.stageTransit) {
+      this.stageTransit.t += dt;
+      if (this.stageTransit.t >= this.stageTransit.duration) {
+        const begin = this._pendingChapterBegin;
+        this.stageTransit = null;
+        this._pendingChapterBegin = null;
+        begin?.();
+      }
+    }
+    this._updateHUD();
   }
 
   _bindOverlayClicks() {
@@ -485,7 +565,7 @@ export class Game {
 
   _openPause() {
     if (this.overlayMode === 'result' || this.overlayMode === 'pause') return;
-    if (this.state !== 'playing' && this.state !== 'dialogue') return;
+    if (this.state !== 'playing' && this.state !== 'dialogue' && this.state !== 'stageTransit') return;
     this.paused = true;
     this._showOverlay({
       mode: 'pause',
@@ -601,8 +681,8 @@ export class Game {
       return;
     }
 
-    // 暂停：playing / dialogue 均可
-    if (wantPause && (this.state === 'playing' || this.state === 'dialogue')) {
+    // 暂停：playing / dialogue / 关卡过渡 均可
+    if (wantPause && (this.state === 'playing' || this.state === 'dialogue' || this.state === 'stageTransit')) {
       this._openPause();
       return;
     }
@@ -629,10 +709,11 @@ export class Game {
   _update(dt) {
     const p = this.player;
     const ch = this.chapters[this.chapterIndex];
+    const settling = !!this.chapterDone;
 
     // 决死 Bomb：在审核窗口内优先处理
     let deathSaved = false;
-    if (p.arbitration > 0) {
+    if (!settling && p.arbitration > 0) {
       this.el.flash.classList.remove('hidden');
       this.el.flash.textContent = '违规编辑！';
       this._flashTimer = 0;
@@ -653,14 +734,14 @@ export class Game {
     p.update(dt, this.input);
 
     // 审核窗口结束且未决死成功 → Miss
-    if (arbBefore > 0 && p.arbitration <= 0 && !deathSaved) {
+    if (!settling && arbBefore > 0 && p.arbitration <= 0 && !deathSaved) {
       this.el.flash.classList.add('hidden');
       this._miss();
       if (!this.running || this.player.lives < 0) return;
     }
 
     // tendency (stage 1-3 only): pointer drifts toward side based on player position
-    if (typeof ch.stage === 'number' && ch.stage <= 3) {
+    if (!settling && typeof ch.stage === 'number' && ch.stage <= 3) {
       const cx = LOGICAL_W / 2;
       const offset = p.x - cx;
       if (Math.abs(offset) > 2) {
@@ -672,43 +753,46 @@ export class Game {
         Math.min(BALANCE.tendencyMaxPerChapter, this.chapterTendency));
     }
 
-    // shot（toggle 模式在此帧更新锁存）
-    this.input.updateShotToggle();
-    if (this.input.shotHeld() && p.shotCd <= 0 && p.arbitration <= 0) {
-      spawnPlayerShot(this, p);
-      p.shotCd = BALANCE.playerShotCooldown;
-      if (Math.random() < 0.15) this.audio.sfx('shot');
-    }
-
-    // bomb（非决死）
-    if (this.input.bombPressed() && p.arbitration <= 0) {
-      this._tryBomb(false);
-    }
-
-    // item / edit war
-    if (this.input.itemPressed() && p.edit >= BALANCE.editMax && p.arbitration <= 0) {
-      p.edit = 0;
-      clearBulletsToItems(this, p.x, p.y, BALANCE.editClearRadius);
-      this.audio.sfx('item');
-      this._burst(p.x, p.y, p.def.color, 24);
-    }
-
-    // waves
-    this.waveFn?.(dt);
-
-    // enemies
-    for (const e of this.enemies) {
-      try {
-        e.update(dt, this);
-      } catch (err) {
-        console.error('[enemy script]', e?.label || e?.kind, err);
-        e.script = null;
+    // 章结算期间：可移动、吸点；不射击、不刷怪、不受伤
+    if (!settling) {
+      // shot（toggle 模式在此帧更新锁存）
+      this.input.updateShotToggle();
+      if (this.input.shotHeld() && p.shotCd <= 0 && p.arbitration <= 0) {
+        spawnPlayerShot(this, p);
+        p.shotCd = BALANCE.playerShotCooldown;
+        if (Math.random() < 0.15) this.audio.sfx('shot');
       }
-      if (e.dead && e.onDeath) {
+
+      // bomb（非决死）
+      if (this.input.bombPressed() && p.arbitration <= 0) {
+        this._tryBomb(false);
+      }
+
+      // item / edit war
+      if (this.input.itemPressed() && p.edit >= BALANCE.editMax && p.arbitration <= 0) {
+        p.edit = 0;
+        clearBulletsToItems(this, p.x, p.y, BALANCE.editClearRadius);
+        this.audio.sfx('item');
+        this._burst(p.x, p.y, p.def.color, 24);
+      }
+
+      // waves
+      this.waveFn?.(dt);
+
+      // enemies
+      for (const e of this.enemies) {
         try {
-          e.onDeath(e, this);
+          e.update(dt, this);
         } catch (err) {
-          console.error('[enemy onDeath]', err);
+          console.error('[enemy script]', e?.label || e?.kind, err);
+          e.script = null;
+        }
+        if (e.dead && e.onDeath) {
+          try {
+            e.onDeath(e, this);
+          } catch (err) {
+            console.error('[enemy onDeath]', err);
+          }
         }
       }
     }
@@ -731,9 +815,9 @@ export class Game {
       b.update(dt, p, b.from === 'player' && b.homing ? homeTarget : null);
     }
 
-    // items
+    // items（结算中强制吸引）
     for (const it of this.items) {
-      it.update(dt, p, p.bombTimer > 0);
+      it.update(dt, p, settling || p.bombTimer > 0);
       if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
         it.dead = true;
         this._collectItem(it);
@@ -744,47 +828,43 @@ export class Game {
     for (const pt of this.particles) pt.update(dt);
 
     // collisions
-    this._collisions();
+    if (!settling) this._collisions();
 
     // chapter timer
-    this.chapterTime += dt;
-    if (this.letterTimeLeft > 0) {
-      this.letterTimeLeft -= dt;
-      this._updateLetterHud();
-      if (this.letterTimeLeft <= 0 && !this.chapterDone) {
-        // timeout: for boss, force damage or end card
-        if (this.bossRef && !this.bossRef.dead) {
-          this.bossRef.hp = 0;
-          this.bossRef.dead = true;
+    if (!settling) {
+      this.chapterTime += dt;
+      if (this.letterTimeLeft > 0) {
+        this.letterTimeLeft -= dt;
+        this._updateLetterHud();
+        if (this.letterTimeLeft <= 0 && !this.chapterDone) {
+          // timeout: for boss, force damage or end card
+          if (this.bossRef && !this.bossRef.dead) {
+            this.bossRef.hp = 0;
+            this.bossRef.dead = true;
+          }
+          this._finishChapter(false);
         }
-        this._finishChapter(false);
+      } else if (ch.duration && this.chapterTime >= ch.duration && !this.chapterDone) {
+        // mid chapter time end — clear remaining mobs
+        this._finishChapter(true);
       }
-    } else if (ch.duration && this.chapterTime >= ch.duration && !this.chapterDone) {
-      // mid chapter time end — clear remaining mobs
-      this._finishChapter(true);
-    }
 
-    // boss/elite dead
-    if (!this.chapterDone && this.bossRef && this.bossRef.dead) {
-      this._finishChapter(true);
-    }
+      // boss/elite dead
+      if (!this.chapterDone && this.bossRef && this.bossRef.dead) {
+        this._finishChapter(true);
+      }
 
-    // mid chapters: all waves done + no enemies
-    if (!this.chapterDone && ch.kind === 'mid' && ch.duration && this.chapterTime > 3) {
-      const expected = 8;
-      if ((this.waveCount || 0) >= expected && this.enemies.length === 0 && this.chapterTime > 8) {
-        // allow natural duration end
+      // mid chapters: all waves done + no enemies
+      if (!this.chapterDone && ch.kind === 'mid' && ch.duration && this.chapterTime > 3) {
+        const expected = 8;
+        if ((this.waveCount || 0) >= expected && this.enemies.length === 0 && this.chapterTime > 8) {
+          // allow natural duration end
+        }
       }
     }
 
     // settlement timer
     if (this.settlement) this.settlement.t += dt;
-
-    // stage intro timer
-    if (this.stageIntro) {
-      this.stageIntro.t += dt;
-      if (this.stageIntro.t >= this.stageIntro.duration) this.stageIntro = null;
-    }
 
     // cleanup（原地删除，避免重建数组丢失难度 push 钩子）
     this._purgeDead(this.bullets);
@@ -1117,11 +1197,8 @@ export class Game {
       this.settlement.nextUnstable = this.nextUnstableFx.label;
     }
 
-    // clear field briefly（保留 hooks）
-    this.enemies.length = 0;
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      if (this.bullets[i].from !== 'player') this.bullets.splice(i, 1);
-    }
+    // 章末：敌弹变点数并自动吸引收取，不清空自机位置/自机弹
+    this._softClearForNextChapter();
 
     if (this.singleChapter || this.mode === 'practice') {
       setTimeout(() => {
@@ -1350,53 +1427,105 @@ export class Game {
     ctx.globalAlpha = 1;
   }
 
-  _drawStageIntro(ctx, W, H) {
-    const si = this.stageIntro;
-    const dur = si.duration;
-    const t = si.t;
+  /** 关卡（面）过渡页：诗意文案 + 右下角「少女祈祷中...」 */
+  _drawStageTransit(ctx, W, H) {
+    const st = this.stageTransit;
+    if (!st) return;
+    const dur = st.duration;
+    const t = st.t;
     let alpha = 1;
-    const fadeIn = 0.4, fadeOut = 0.6;
+    const fadeIn = 0.45;
+    const fadeOut = 0.7;
     if (t < fadeIn) alpha = t / fadeIn;
     else if (t > dur - fadeOut) alpha = Math.max(0, (dur - t) / fadeOut);
+
+    // 全版压暗
+    ctx.save();
+    ctx.globalAlpha = 0.72 * alpha;
+    ctx.fillStyle = '#06050c';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+
+    ctx.save();
     ctx.globalAlpha = alpha;
 
     const cx = W / 2;
-    const cy = H / 2 - 40;
+    const cy = H * 0.38;
 
-    // arc name
-    ctx.fillStyle = '#d4b56a';
-    ctx.font = '20px serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(si.arc, cx, cy - 24);
-
-    // rule
-    ctx.strokeStyle = '#d4b56a';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx - 100, cy - 8);
-    ctx.lineTo(cx + 100, cy - 8);
-    ctx.stroke();
-
-    // stage label
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(si.label, cx, cy + 16);
-
-    // desc with word wrap (max ~22 chars per line at 14px)
-    ctx.fillStyle = '#9a8b6e';
-    ctx.font = '13px sans-serif';
-    const maxW = 340;
-    const charsPerLine = 22;
-    let lineY = cy + 40;
-    let remain = si.desc;
-    while (remain.length > 0) {
-      const chunk = remain.slice(0, charsPerLine);
-      remain = remain.slice(charsPerLine);
-      ctx.fillText(chunk, cx, lineY);
-      lineY += 20;
+    // 篇章名
+    if (st.arc) {
+      ctx.fillStyle = '#d4b56a';
+      ctx.font = '18px "Songti SC","SimSun",serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(st.arc, cx, cy - 36);
     }
 
-    ctx.globalAlpha = 1;
+    // 饰线
+    ctx.strokeStyle = 'rgba(212,181,106,0.75)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 90, cy - 18);
+    ctx.lineTo(cx + 90, cy - 18);
+    ctx.stroke();
+
+    // 关卡名
+    ctx.fillStyle = '#f1e6c8';
+    ctx.font = 'bold 24px "Songti SC","SimSun",serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(st.label || '', cx, cy + 14);
+
+    // 诗意过场（按 \n 分行，过长再折）
+    ctx.fillStyle = '#b8a888';
+    ctx.font = '15px "Songti SC","SimSun",serif';
+    const poem = String(st.poem || '');
+    const lines = [];
+    for (const raw of poem.split('\n')) {
+      let remain = raw.trim();
+      if (!remain) {
+        lines.push('');
+        continue;
+      }
+      const maxChars = 18;
+      while (remain.length > maxChars) {
+        lines.push(remain.slice(0, maxChars));
+        remain = remain.slice(maxChars);
+      }
+      if (remain) lines.push(remain);
+    }
+    let lineY = cy + 48;
+    for (const line of lines) {
+      ctx.fillText(line, cx, lineY);
+      lineY += 24;
+    }
+
+    // 右下角：少女祈祷中...
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 700));
+    ctx.globalAlpha = alpha * pulse;
+    ctx.fillStyle = '#c9b896';
+    ctx.font = '13px "Songti SC","SimSun",serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('少女祈祷中...', W - 18, H - 22);
+
+    ctx.restore();
+  }
+
+  _drawStageIntro(ctx, W, H) {
+    // 兼容旧 stageIntro 字段；正式路径走 stageTransit
+    if (this.stageTransit) {
+      this._drawStageTransit(ctx, W, H);
+      return;
+    }
+    const si = this.stageIntro;
+    if (!si) return;
+    this.stageTransit = {
+      arc: si.arc,
+      label: si.label,
+      poem: si.poem || si.desc || '',
+      t: si.t,
+      duration: si.duration,
+    };
+    this._drawStageTransit(ctx, W, H);
+    this.stageTransit = null;
   }
 
   _afterStage3() {
@@ -1659,13 +1788,15 @@ export class Game {
       ctx.fillText('B 善雅乡', W * 0.75, H * 0.45 + 5);
     }
 
-    // stage intro overlay
-    if (this.stageIntro) {
+    // 关卡过渡页（压在结算之上）
+    if (this.stageTransit) {
+      this._drawStageTransit(ctx, W, H);
+    } else if (this.stageIntro) {
       this._drawStageIntro(ctx, W, H);
     }
 
-    // chapter settlement overlay
-    if (this.settlement) {
+    // chapter settlement overlay（过渡页期间不叠字，避免抢戏）
+    if (this.settlement && !this.stageTransit) {
       this._drawSettlement(ctx, W, H);
     }
   }
