@@ -40,6 +40,7 @@
             <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
             <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
             <button class="menu-btn" data-action="key-config"><span class="star">★</span> Key Config</button>
+            <button class="menu-btn" data-action="settings"><span class="star">★</span> Settings</button>
             <button class="menu-btn" data-action="practice"><span class="star">★</span> Practice</button>
             <button class="menu-btn" data-action="exit"><span class="star">★</span> Exit</button>
           </nav>
@@ -142,6 +143,44 @@
       </div>
     </div>
 
+    <!-- 设置 -->
+    <div id="screen-settings" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Settings · 设置</h2>
+          <p class="keys-hint">调整后即时保存，对局中也会生效</p>
+          <div class="settings-form" id="settings-form">
+            <label class="settings-row">
+              <span class="settings-label">音乐音量</span>
+              <div class="settings-control">
+                <input type="range" id="set-music-volume" min="0" max="100" step="1" value="100" />
+                <span class="settings-value" id="set-music-volume-val">100%</span>
+              </div>
+            </label>
+            <label class="settings-row">
+              <span class="settings-label">自机子弹不透明度</span>
+              <div class="settings-control">
+                <input type="range" id="set-bullet-opacity" min="0" max="100" step="1" value="30" />
+                <span class="settings-value" id="set-bullet-opacity-val">30%</span>
+              </div>
+            </label>
+            <label class="settings-row check">
+              <span class="settings-label">单击 Z 发射 / 停止发射</span>
+              <div class="settings-control">
+                <input type="checkbox" id="set-shot-toggle" />
+                <span class="settings-value" id="set-shot-toggle-val">关闭</span>
+              </div>
+            </label>
+          </div>
+          <div class="row-btns">
+            <button class="menu-btn ghost" data-action="settings-reset">恢复默认</button>
+            <button class="menu-btn" data-action="back">完成</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Manual -->
     <div id="screen-manual" class="screen">
       <div class="menu-bg"></div>
@@ -185,6 +224,7 @@
                 <pre class="game-overlay-body" id="overlay-body"></pre>
                 <div class="game-overlay-actions" id="overlay-actions">
                   <button type="button" class="menu-btn overlay-btn" data-overlay="resume">继续</button>
+                  <button type="button" class="menu-btn overlay-btn" data-overlay="settings">设置</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="retry">再试一次</button>
                   <button type="button" class="menu-btn ghost overlay-btn" data-overlay="menu">主菜单</button>
                 </div>

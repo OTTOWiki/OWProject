@@ -10,6 +10,10 @@ export class Input {
 
     this.touchActive = false;
     this.autoShot = false;
+    /** 单击 Shot 切换发射（设置项）；false = 按住发射 */
+    this.shotToggleMode = false;
+    /** toggle 模式下是否处于发射中 */
+    this.shotLatched = false;
     this._touchStart = null;
     this._touchLast = null;
     this._playerStart = null;
@@ -36,6 +40,18 @@ export class Input {
 
   reloadKeys() {
     this.keys = loadKeys();
+  }
+
+  /** 应用设置：单击发射切换等 */
+  applySettings(settings) {
+    const next = !!settings?.shotToggle;
+    if (this.shotToggleMode && !next) this.shotLatched = false;
+    this.shotToggleMode = next;
+  }
+
+  /** 重置单击发射锁存（退出对局 / 重新开始时调用） */
+  resetShotLatch() {
+    this.shotLatched = false;
   }
 
   bindCanvas(canvas, getPlayerPos) {
@@ -145,7 +161,21 @@ export class Input {
   isDown(code) { return this.down.has(code); }
   justPressed(code) { return this.pressed.has(code); }
 
+  /**
+   * 单击发射模式：每帧在对局逻辑里调用一次，翻转发射锁存。
+   * 勿在 shotHeld 内处理，避免同帧多次查询导致连翻。
+   */
+  updateShotToggle() {
+    if (!this.shotToggleMode) return;
+    if (this.justPressed(this.keys.shot)) {
+      this.shotLatched = !this.shotLatched;
+    }
+  }
+
   shotHeld() {
+    if (this.shotToggleMode) {
+      return this.autoShot || this.shotLatched;
+    }
     return this.autoShot || this.isDown(this.keys.shot);
   }
   shotPressed() {

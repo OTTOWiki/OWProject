@@ -469,6 +469,61 @@ html, body {
   color: var(--gold2);
 }
 
+/* Settings */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem;
+  background: rgba(16,12,24,.9);
+  border: 1px solid rgba(92,74,46,.7);
+  color: var(--text);
+  font-family: var(--serif);
+  cursor: default;
+}
+.settings-row.check {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+}
+.settings-label {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.settings-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.settings-control input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--gold2, #d4a574);
+  cursor: pointer;
+}
+.settings-control input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--gold2, #d4a574);
+  cursor: pointer;
+}
+.settings-value {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--gold2, #d4a574);
+  min-width: 3.2rem;
+  text-align: right;
+}
+
 /* Manual */
 .manual-panel { max-height: 90vh; overflow: hidden; }
 .manual-panel .th-panel-frame {

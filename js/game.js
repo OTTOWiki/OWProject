@@ -10,7 +10,7 @@ import {
 import { spawnPlayerShot, fullScreenClear, clearBulletsToItems } from './patterns.js';
 import { buildChapterList, stageIntroFor } from './stages/index.js';
 import { getDialogues, getEndingDialogue } from './dialogue.js';
-import { saveHiscore, loadHiscore, unlockStage, unlockRoute } from './storage.js';
+import { saveHiscore, loadHiscore, unlockStage, unlockRoute, loadSettings } from './storage.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './backgrounds.js';
 import { portraitFor } from './assets.js';
@@ -33,8 +33,17 @@ export class Game {
     this.lastT = 0;
     this.playBg = new PlayfieldBackground();
     this._lastBgMode = null;
+    this.playerBulletOpacity = loadSettings().playerBulletOpacity;
 
     this._bindUI();
+  }
+
+  /** 从设置同步运行时参数（菜单改设置后 / 开局） */
+  applySettings(settings) {
+    const s = settings || loadSettings();
+    this.playerBulletOpacity = s.playerBulletOpacity ?? 0.3;
+    this.input.applySettings(s);
+    this.audio.setMusicVolume(s.musicVolume ?? 1);
   }
 
   _bindUI() {
@@ -156,6 +165,8 @@ export class Game {
     this.endingCinematic = false;
     this.overlayMode = null; // pause | result
     this.overlayActionIndex = 0;
+    this.applySettings();
+    this.input.resetShotLatch();
     this._setEndingCinematic(false);
     this._hideOverlay();
     this.el.flash.classList.add('hidden');
@@ -217,6 +228,7 @@ export class Game {
 
   stop() {
     this.running = false;
+    this.input.resetShotLatch();
     this._setEndingCinematic(false);
     this._hideOverlay();
     cancelAnimationFrame(this.raf);
@@ -458,6 +470,7 @@ export class Game {
       const show = want.has(id);
       btn.classList.toggle('hidden', !show);
       if (id === 'resume') btn.textContent = '继续';
+      if (id === 'settings') btn.textContent = '设置';
       if (id === 'retry') btn.textContent = mode === 'pause' ? '重开本章' : '再试一次';
       if (id === 'menu') btn.textContent = '主菜单';
     }
@@ -478,7 +491,7 @@ export class Game {
       mode: 'pause',
       title: 'PAUSED',
       body: '',
-      actions: ['resume', 'retry', 'menu'],
+      actions: ['resume', 'settings', 'retry', 'menu'],
       hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
     });
   }
@@ -506,16 +519,29 @@ export class Game {
       if (this.overlayMode === 'pause') this._hideOverlay();
       return;
     }
+    if (action === 'settings') {
+      if (this.overlayMode !== 'pause') return;
+      // 保持暂停，切到设置页；返回后回到暂停菜单
+      this.overlayMode = null;
+      this.el.overlay?.classList.add('hidden');
+      this.paused = true;
+      this.ui?.openSettingsFromPause?.(() => {
+        this.ui.showGame();
+        this._openPause();
+      });
+      return;
+    }
     if (action === 'retry') {
       const chId = this.overlayMode === 'result'
         ? (this.resultPayload?.retryChapter ?? this.chapters[this.chapterIndex]?.id)
         : this.chapters[this.chapterIndex]?.id;
+      const keepLives = this.overlayMode === 'pause' ? this.player.lives : undefined;
       this._hideOverlay();
       this.start({
         playerId: this.playerId,
         startChapter: chId,
         mode: this.mode,
-        lives: this.overlayMode === 'pause' ? this.player.lives : undefined,
+        lives: keepLives,
         unstable: this.practiceUnstable,
         singleChapter: this.singleChapter,
         difficulty: this.difficultyId,
@@ -530,6 +556,12 @@ export class Game {
   }
 
   _handleGlobalInput() {
+    // 设置页等非游戏屏时不吃输入（避免 Esc 误开暂停）
+    if (!document.getElementById('screen-game')?.classList.contains('active')) {
+      this.input.consumePause();
+      return;
+    }
+
     const wantPause = this.input.consumePause();
 
     // 叠加层（暂停 / 结束）优先
@@ -640,7 +672,8 @@ export class Game {
         Math.min(BALANCE.tendencyMaxPerChapter, this.chapterTendency));
     }
 
-    // shot
+    // shot（toggle 模式在此帧更新锁存）
+    this.input.updateShotToggle();
     if (this.input.shotHeld() && p.shotCd <= 0 && p.arbitration <= 0) {
       spawnPlayerShot(this, p);
       p.shotCd = BALANCE.playerShotCooldown;
@@ -701,7 +734,7 @@ export class Game {
     // items
     for (const it of this.items) {
       it.update(dt, p, p.bombTimer > 0);
-      if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + 10) {
+      if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
         it.dead = true;
         this._collectItem(it);
       }
@@ -1566,9 +1599,10 @@ export class Game {
     // player
     if (this.player) drawPlayer(ctx, this.player);
 
-    // player bullets
+    // player bullets（可调不透明度）
+    const pAlpha = this.playerBulletOpacity ?? 0.3;
     for (const b of this.bullets) {
-      if (b.from === 'player') drawBullet(ctx, b);
+      if (b.from === 'player') drawBullet(ctx, b, pAlpha);
     }
 
     // particles

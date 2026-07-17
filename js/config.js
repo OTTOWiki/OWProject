@@ -14,6 +14,17 @@ export const STORAGE_KEYS = {
   hiscore: 'gunwei_hiscore',
   unlocked: 'gunwei_unlocked',
   difficulty: 'gunwei_difficulty',
+  settings: 'gunwei_settings',
+};
+
+/** 玩家设置默认值 */
+export const DEFAULT_SETTINGS = {
+  /** 音乐音量 0–1（默认 100%） */
+  musicVolume: 1,
+  /** 自机子弹不透明度 0–1（默认 30%） */
+  playerBulletOpacity: 0.3,
+  /** 单击 Shot 键切换发射/停止（默认关闭，按住发射） */
+  shotToggle: false,
 };
 
 /** 基础平衡（以 Normal 为基准） */
@@ -59,6 +70,8 @@ export const BALANCE = {
   itemFallMaxVy: 1.35,
   itemPopVy: -0.55,
   itemAttractSpeed: 9.5,
+  /** 自机吸取掉落物的拾取半径（叠道具自身 r） */
+  itemPickupRadius: 20,
 
   score: {
     graze: 20,
@@ -380,7 +393,8 @@ export const MANUAL_CHAPTERS = [
 · Item：触发「编辑战」（消耗 100% 编辑度，半径内消弹变分）。
 · Esc：暂停。
 
-默认键位 Shot / Bomb / Item 为 Z / X / C，可在 Key Config 中自定义。`,
+默认键位 Shot / Bomb / Item 为 Z / X / C，可在 Key Config 中自定义。
+· Settings：可调音乐音量、自机子弹不透明度；可选「单击 Shot 切换发射」。`,
   },
   {
     title: '二、移动端操作',
