@@ -346,10 +346,14 @@ html, body {
   cursor: pointer;
   transition: border-color .15s, transform .1s, box-shadow .15s;
 }
-.player-card:hover {
+.player-card:hover,
+.player-card.selected {
   border-color: var(--gold);
   transform: translateY(-2px);
   box-shadow: 0 0 18px rgba(212,181,106,.15);
+}
+.player-card.selected {
+  outline: 1px solid rgba(212,181,106,.55);
 }
 .player-orb {
   width: 48px; height: 48px;
@@ -400,7 +404,14 @@ html, body {
   text-align: left;
   font-family: var(--serif);
 }
-.stage-btn:hover { border-color: var(--gold); }
+.stage-btn:hover,
+.stage-btn.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(212,181,106,.18);
+}
+.stage-btn.selected {
+  outline: 1px solid rgba(212,181,106,.45);
+}
 .stage-btn small { display: block; color: var(--muted); margin-top: 0.25rem; font-size: 0.7rem; font-family: var(--font); }
 .stage-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 

@@ -16,6 +16,12 @@ export class UI {
     this.lastResult = null;
     this.binding = null;
     this.diffIndex = 1;
+    this.playerIndex = 0; // 自机选择：0 饮泉 / 1 沙玛
+    this.stageIndex = 0;
+    this.practiceBtnIndex = 0; // 0 开始练习 / 1 返回
+    this.resultIndex = 0; // 0 再试 / 1 主菜单
+    this.keysBtnIndex = 0; // 0 恢复默认 / 1 完成
+    this.settingsBtnIndex = 0; // 0 恢复默认 / 1 完成
     /** 从暂停菜单进入设置时的返回回调 */
     this.settingsReturn = null;
 
@@ -312,20 +318,32 @@ export class UI {
     });
   }
 
+  _isConfirm(e) {
+    return e.code === 'Enter' || e.code === 'KeyZ' || e.code === 'Space';
+  }
+
+  _isBack(e) {
+    return e.code === 'Escape';
+  }
+
   _bindKeyboardNav() {
     window.addEventListener('keydown', (e) => {
+      // 游戏中由 Game 处理；键位绑定中由 _initKeys 独占
+      if (this.screens.game?.classList.contains('active')) return;
+      if (this.binding && this.screens.keys?.classList.contains('active')) return;
+
       // 主菜单
-      if (this.screens.menu.classList.contains('active')) {
+      if (this.screens.menu?.classList.contains('active')) {
         const list = [...document.querySelectorAll('#main-menu-nav .menu-btn')];
-        if (e.code === 'ArrowDown') {
+        if (e.code === 'ArrowDown' || e.code === 'ArrowRight') {
           e.preventDefault();
           this.menuIndex = (this.menuIndex + 1) % list.length;
           this._highlightMenu(list);
-        } else if (e.code === 'ArrowUp') {
+        } else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') {
           e.preventDefault();
           this.menuIndex = (this.menuIndex - 1 + list.length) % list.length;
           this._highlightMenu(list);
-        } else if (e.code === 'Enter' || e.code === 'KeyZ') {
+        } else if (this._isConfirm(e)) {
           e.preventDefault();
           list[this.menuIndex]?.click();
         }
@@ -335,37 +353,218 @@ export class UI {
       // 难度选择
       if (this.screens.difficulty?.classList.contains('active')) {
         const diffLen = this._availableDifficulties().length;
-        if (e.code === 'ArrowDown') {
+        if (e.code === 'ArrowDown' || e.code === 'ArrowRight') {
           e.preventDefault();
-          this.diffIndex = (this.diffIndex + 1) % diffLen;
+          this.diffIndex = (this.diffIndex + 1) % Math.max(1, diffLen);
           this._highlightDiff();
-        } else if (e.code === 'ArrowUp') {
+        } else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') {
           e.preventDefault();
-          this.diffIndex = (this.diffIndex - 1 + diffLen) % diffLen;
+          this.diffIndex = (this.diffIndex - 1 + diffLen) % Math.max(1, diffLen);
           this._highlightDiff();
-        } else if (e.code === 'Enter' || e.code === 'KeyZ') {
+        } else if (this._isConfirm(e)) {
           e.preventDefault();
           document.querySelectorAll('.diff-btn')[this.diffIndex]?.click();
-        } else if (e.code === 'Escape') {
+        } else if (this._isBack(e)) {
           e.preventDefault();
-          this.show('menu');
+          this._action('back');
         }
         return;
       }
 
-      // 设置页 Esc 返回（主菜单或暂停）
-      if (this.screens.settings?.classList.contains('active')) {
-        if (e.code === 'Escape') {
+      // 自机选择：默认高亮 + 方向键切换 + Z/Enter 确认 + Esc 返回难度
+      if (this.screens.player?.classList.contains('active')) {
+        const cards = [...document.querySelectorAll('.player-card')];
+        if (!cards.length) return;
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
+          e.preventDefault();
+          if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+            this.playerIndex = (this.playerIndex - 1 + cards.length) % cards.length;
+          } else {
+            this.playerIndex = (this.playerIndex + 1) % cards.length;
+          }
+          this._highlightPlayer();
+        } else if (this._isConfirm(e)) {
+          e.preventDefault();
+          cards[this.playerIndex]?.click();
+        } else if (this._isBack(e)) {
+          e.preventDefault();
+          this._action('back-diff');
+        }
+        return;
+      }
+
+      // 关卡选择
+      if (this.screens.stage?.classList.contains('active')) {
+        const btns = [...document.querySelectorAll('#stage-grid .stage-btn:not(:disabled)')];
+        if (!btns.length) {
+          if (this._isBack(e)) {
+            e.preventDefault();
+            this._action('back');
+          }
+          return;
+        }
+        const cols = Math.max(1, Math.min(btns.length, Math.floor(
+          (document.getElementById('stage-grid')?.clientWidth || 400) / 150,
+        ) || 2));
+        if (e.code === 'ArrowRight') {
+          e.preventDefault();
+          this.stageIndex = (this.stageIndex + 1) % btns.length;
+          this._highlightStage(btns);
+        } else if (e.code === 'ArrowLeft') {
+          e.preventDefault();
+          this.stageIndex = (this.stageIndex - 1 + btns.length) % btns.length;
+          this._highlightStage(btns);
+        } else if (e.code === 'ArrowDown') {
+          e.preventDefault();
+          this.stageIndex = Math.min(btns.length - 1, this.stageIndex + cols);
+          this._highlightStage(btns);
+        } else if (e.code === 'ArrowUp') {
+          e.preventDefault();
+          this.stageIndex = Math.max(0, this.stageIndex - cols);
+          this._highlightStage(btns);
+        } else if (this._isConfirm(e)) {
+          e.preventDefault();
+          btns[this.stageIndex]?.click();
+        } else if (this._isBack(e)) {
           e.preventDefault();
           this._action('back');
+        }
+        return;
+      }
+
+      // 练习模式
+      if (this.screens.practice?.classList.contains('active')) {
+        const rowBtns = [
+          document.querySelector('#screen-practice [data-action="practice-start"]'),
+          document.querySelector('#screen-practice [data-action="back"]'),
+        ].filter(Boolean);
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          this.practiceBtnIndex = (this.practiceBtnIndex - 1 + rowBtns.length) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.practiceBtnIndex);
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+          e.preventDefault();
+          this.practiceBtnIndex = (this.practiceBtnIndex + 1) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.practiceBtnIndex);
+        } else if (this._isConfirm(e)) {
+          // 表单控件内 Enter 交给原生；Z 仍确认当前按钮
+          if (e.code === 'Enter' && this._isFormField(e.target)) return;
+          e.preventDefault();
+          rowBtns[this.practiceBtnIndex]?.click();
+        } else if (this._isBack(e)) {
+          e.preventDefault();
+          this._action('back');
+        }
+        return;
+      }
+
+      // 键位配置（非绑定中）
+      if (this.screens.keys?.classList.contains('active')) {
+        const rowBtns = [
+          document.querySelector('#screen-keys [data-action="keys-reset"]'),
+          document.querySelector('#screen-keys [data-action="back"]'),
+        ].filter(Boolean);
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          this.keysBtnIndex = (this.keysBtnIndex - 1 + rowBtns.length) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.keysBtnIndex);
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+          e.preventDefault();
+          this.keysBtnIndex = (this.keysBtnIndex + 1) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.keysBtnIndex);
+        } else if (this._isConfirm(e)) {
+          e.preventDefault();
+          rowBtns[this.keysBtnIndex]?.click();
+        } else if (this._isBack(e)) {
+          e.preventDefault();
+          this._action('back');
+        }
+        return;
+      }
+
+      // 设置
+      if (this.screens.settings?.classList.contains('active')) {
+        const rowBtns = [
+          document.querySelector('#screen-settings [data-action="settings-reset"]'),
+          document.querySelector('#screen-settings [data-action="back"]'),
+        ].filter(Boolean);
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          this.settingsBtnIndex = (this.settingsBtnIndex - 1 + rowBtns.length) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.settingsBtnIndex);
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+          e.preventDefault();
+          this.settingsBtnIndex = (this.settingsBtnIndex + 1) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.settingsBtnIndex);
+        } else if (this._isConfirm(e)) {
+          if (e.code === 'Enter' && this._isFormField(e.target)) return;
+          e.preventDefault();
+          rowBtns[this.settingsBtnIndex]?.click();
+        } else if (this._isBack(e)) {
+          e.preventDefault();
+          this._action('back');
+        }
+        return;
+      }
+
+      // Manual
+      if (this.screens.manual?.classList.contains('active')) {
+        if (this._isBack(e) || this._isConfirm(e)) {
+          e.preventDefault();
+          this._action('back');
+        }
+        return;
+      }
+
+      // 结果页
+      if (this.screens.result?.classList.contains('active')) {
+        const rowBtns = [
+          document.querySelector('#screen-result [data-action="result-retry"]'),
+          document.querySelector('#screen-result [data-action="result-menu"]'),
+        ].filter(Boolean);
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          this.resultIndex = (this.resultIndex - 1 + rowBtns.length) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.resultIndex);
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+          e.preventDefault();
+          this.resultIndex = (this.resultIndex + 1) % rowBtns.length;
+          this._highlightButtons(rowBtns, this.resultIndex);
+        } else if (this._isConfirm(e)) {
+          e.preventDefault();
+          rowBtns[this.resultIndex]?.click();
+        } else if (this._isBack(e)) {
+          e.preventDefault();
+          this._action('result-menu');
         }
       }
     });
     this._highlightMenu([...document.querySelectorAll('#main-menu-nav .menu-btn')]);
   }
 
+  _isFormField(el) {
+    if (!el || el === document.body) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable;
+  }
+
   _highlightMenu(list) {
     list.forEach((b, i) => b.classList.toggle('selected', i === this.menuIndex));
+  }
+
+  _highlightPlayer() {
+    document.querySelectorAll('.player-card').forEach((c, i) => {
+      c.classList.toggle('selected', i === this.playerIndex);
+    });
+  }
+
+  _highlightStage(btns) {
+    const list = btns || [...document.querySelectorAll('#stage-grid .stage-btn')];
+    list.forEach((b, i) => b.classList.toggle('selected', i === this.stageIndex));
+  }
+
+  _highlightButtons(btns, index) {
+    btns.forEach((b, i) => b?.classList.toggle('selected', i === index));
   }
 
   show(name) {
@@ -373,6 +572,43 @@ export class UI {
     Object.values(this.screens).forEach((s) => s?.classList.remove('active'));
     this.screens[name]?.classList.add('active');
     if (name === 'difficulty') this._highlightDiff();
+    if (name === 'player') this._highlightPlayer();
+    if (name === 'stage') {
+      this.stageIndex = 0;
+      this._highlightStage();
+    }
+    if (name === 'practice') {
+      this.practiceBtnIndex = 0;
+      const rowBtns = [
+        document.querySelector('#screen-practice [data-action="practice-start"]'),
+        document.querySelector('#screen-practice [data-action="back"]'),
+      ].filter(Boolean);
+      this._highlightButtons(rowBtns, this.practiceBtnIndex);
+    }
+    if (name === 'keys') {
+      this.keysBtnIndex = 1; // 默认「完成」
+      const rowBtns = [
+        document.querySelector('#screen-keys [data-action="keys-reset"]'),
+        document.querySelector('#screen-keys [data-action="back"]'),
+      ].filter(Boolean);
+      this._highlightButtons(rowBtns, this.keysBtnIndex);
+    }
+    if (name === 'settings') {
+      this.settingsBtnIndex = 1; // 默认「完成」
+      const rowBtns = [
+        document.querySelector('#screen-settings [data-action="settings-reset"]'),
+        document.querySelector('#screen-settings [data-action="back"]'),
+      ].filter(Boolean);
+      this._highlightButtons(rowBtns, this.settingsBtnIndex);
+    }
+    if (name === 'result') {
+      this.resultIndex = 0;
+      const rowBtns = [
+        document.querySelector('#screen-result [data-action="result-retry"]'),
+        document.querySelector('#screen-result [data-action="result-menu"]'),
+      ].filter(Boolean);
+      this._highlightButtons(rowBtns, this.resultIndex);
+    }
   }
 
   showMenu() {
