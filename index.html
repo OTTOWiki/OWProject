@@ -39,7 +39,6 @@
             <button class="menu-btn" data-action="extra-start"><span class="star">★</span> Extra Start</button>
             <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
             <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
-            <button class="menu-btn" data-action="key-config"><span class="star">★</span> Key Config</button>
             <button class="menu-btn" data-action="settings"><span class="star">★</span> Settings</button>
             <button class="menu-btn" data-action="practice"><span class="star">★</span> Practice</button>
             <button class="menu-btn" data-action="exit"><span class="star">★</span> Exit</button>
@@ -124,33 +123,13 @@
       </div>
     </div>
 
-    <!-- 键位配置 -->
-    <div id="screen-keys" class="screen">
-      <div class="menu-bg"></div>
-      <div class="menu-panel th-panel">
-        <div class="th-panel-frame">
-          <h2 class="panel-title">Key Config</h2>
-          <p class="keys-hint">点击项目后按下任意键绑定</p>
-          <div class="key-list" id="key-list">
-            <button class="key-row" data-bind="shot"><span>Shot</span><kbd id="key-shot">Z</kbd></button>
-            <button class="key-row" data-bind="bomb"><span>Bomb</span><kbd id="key-bomb">X</kbd></button>
-            <button class="key-row" data-bind="item"><span>Item</span><kbd id="key-item">C</kbd></button>
-          </div>
-          <div class="row-btns">
-            <button class="menu-btn ghost" data-action="keys-reset">恢复默认</button>
-            <button class="menu-btn" data-action="back">完成</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 设置 -->
+    <!-- 设置（含键位） -->
     <div id="screen-settings" class="screen">
       <div class="menu-bg"></div>
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">Settings · 设置</h2>
-          <p class="keys-hint">调整后即时保存，对局中也会生效</p>
+          <p class="keys-hint">调整后即时保存 · Esc 返回 · 键位：点击后按下新键</p>
           <div class="settings-form" id="settings-form">
             <label class="settings-row">
               <span class="settings-label">音乐音量</span>
@@ -173,6 +152,12 @@
                 <span class="settings-value" id="set-shot-toggle-val">关闭</span>
               </div>
             </label>
+          </div>
+          <h3 class="settings-section-title">键位配置 · Key Config</h3>
+          <div class="key-list" id="key-list">
+            <button type="button" class="key-row" data-bind="shot"><span>Shot</span><kbd id="key-shot">Z</kbd></button>
+            <button type="button" class="key-row" data-bind="bomb"><span>Bomb</span><kbd id="key-bomb">X</kbd></button>
+            <button type="button" class="key-row" data-bind="item"><span>Item</span><kbd id="key-item">C</kbd></button>
           </div>
           <div class="row-btns">
             <button class="menu-btn ghost" data-action="settings-reset">恢复默认</button>

@@ -393,8 +393,8 @@ export const MANUAL_CHAPTERS = [
 · Item：触发「编辑战」（消耗 100% 编辑度，半径内消弹变分）。
 · Esc：暂停。
 
-默认键位 Shot / Bomb / Item 为 Z / X / C，可在 Key Config 中自定义。
-· Settings：可调音乐音量、自机子弹不透明度；可选「单击 Shot 切换发射」。`,
+默认键位 Shot / Bomb / Item 为 Z / X / C，可在 Settings 中自定义。
+· Settings：音乐音量、自机子弹不透明度、单击 Shot 切换发射、键位绑定。`,
   },
   {
     title: '二、移动端操作',

@@ -20,7 +20,6 @@ export class UI {
     this.stageIndex = 0;
     this.practiceBtnIndex = 0; // 0 开始练习 / 1 返回
     this.resultIndex = 0; // 0 再试 / 1 主菜单
-    this.keysBtnIndex = 0; // 0 恢复默认 / 1 完成
     this.settingsBtnIndex = 0; // 0 恢复默认 / 1 完成
     /** 从暂停菜单进入设置时的返回回调 */
     this.settingsReturn = null;
@@ -31,7 +30,6 @@ export class UI {
       player: document.getElementById('screen-player-select'),
       stage: document.getElementById('screen-stage-select'),
       practice: document.getElementById('screen-practice'),
-      keys: document.getElementById('screen-keys'),
       settings: document.getElementById('screen-settings'),
       manual: document.getElementById('screen-manual'),
       game: document.getElementById('screen-game'),
@@ -143,14 +141,23 @@ export class UI {
   _initKeys() {
     document.querySelectorAll('.key-row').forEach((row) => {
       row.addEventListener('click', () => {
+        if (!this.screens.settings?.classList.contains('active')) return;
         this.binding = row.dataset.bind;
         document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
         row.classList.add('listening');
       });
     });
     window.addEventListener('keydown', (e) => {
-      if (!this.binding || !this.screens.keys.classList.contains('active')) return;
+      // 仅在设置页等待绑定时捕获；Esc 取消绑定
+      if (!this.binding || !this.screens.settings?.classList.contains('active')) return;
       e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'Escape') {
+        document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
+        this.binding = null;
+        this.audio.sfx('cancel');
+        return;
+      }
       const keys = loadKeys();
       keys[this.binding] = e.code;
       saveKeys(keys);
@@ -158,7 +165,7 @@ export class UI {
       document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
       this.binding = null;
       this.audio.sfx('ok');
-    });
+    }, true);
   }
 
   refreshKeyLabels() {
@@ -214,6 +221,7 @@ export class UI {
   openSettingsFromPause(onBack) {
     this.settingsReturn = typeof onBack === 'function' ? onBack : null;
     this.refreshSettingsForm();
+    this.refreshKeyLabels();
     this.show('settings');
   }
 
@@ -253,12 +261,13 @@ export class UI {
       this.show('stage');
     } else if (action === 'manual') {
       this.show('manual');
-    } else if (action === 'key-config') {
-      this.refreshKeyLabels();
-      this.show('keys');
-    } else if (action === 'settings') {
+    } else if (action === 'settings' || action === 'key-config') {
+      // key-config 兼容旧入口 → 设置页
       this.settingsReturn = null;
+      this.binding = null;
+      document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
       this.refreshSettingsForm();
+      this.refreshKeyLabels();
       this.show('settings');
     } else if (action === 'practice') {
       this.show('practice');
@@ -274,13 +283,12 @@ export class UI {
         singleChapter: true,
       };
       this.show('difficulty');
-    } else if (action === 'keys-reset') {
-      saveKeys({ ...DEFAULT_KEYS });
-      this.refreshKeyLabels();
     } else if (action === 'settings-reset') {
       const next = saveSettings({ ...DEFAULT_SETTINGS });
       this.refreshSettingsForm();
       this.onSettingsChange?.(next);
+      saveKeys({ ...DEFAULT_KEYS });
+      this.refreshKeyLabels();
     } else if (action === 'exit') {
       if (confirm('确定退出棍维Project？')) {
         window.close();
@@ -328,9 +336,9 @@ export class UI {
 
   _bindKeyboardNav() {
     window.addEventListener('keydown', (e) => {
-      // 游戏中由 Game 处理；键位绑定中由 _initKeys 独占
+      // 游戏中由 Game 处理；设置页键位绑定中由 _initKeys 独占
       if (this.screens.game?.classList.contains('active')) return;
-      if (this.binding && this.screens.keys?.classList.contains('active')) return;
+      if (this.binding && this.screens.settings?.classList.contains('active')) return;
 
       // 主菜单
       if (this.screens.menu?.classList.contains('active')) {
@@ -458,31 +466,7 @@ export class UI {
         return;
       }
 
-      // 键位配置（非绑定中）
-      if (this.screens.keys?.classList.contains('active')) {
-        const rowBtns = [
-          document.querySelector('#screen-keys [data-action="keys-reset"]'),
-          document.querySelector('#screen-keys [data-action="back"]'),
-        ].filter(Boolean);
-        if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
-          e.preventDefault();
-          this.keysBtnIndex = (this.keysBtnIndex - 1 + rowBtns.length) % rowBtns.length;
-          this._highlightButtons(rowBtns, this.keysBtnIndex);
-        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
-          e.preventDefault();
-          this.keysBtnIndex = (this.keysBtnIndex + 1) % rowBtns.length;
-          this._highlightButtons(rowBtns, this.keysBtnIndex);
-        } else if (this._isConfirm(e)) {
-          e.preventDefault();
-          rowBtns[this.keysBtnIndex]?.click();
-        } else if (this._isBack(e)) {
-          e.preventDefault();
-          this._action('back');
-        }
-        return;
-      }
-
-      // 设置
+      // 设置（含键位；绑定中已提前 return）
       if (this.screens.settings?.classList.contains('active')) {
         const rowBtns = [
           document.querySelector('#screen-settings [data-action="settings-reset"]'),
@@ -502,6 +486,8 @@ export class UI {
           rowBtns[this.settingsBtnIndex]?.click();
         } else if (this._isBack(e)) {
           e.preventDefault();
+          this.binding = null;
+          document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
           this._action('back');
         }
         return;
@@ -585,15 +571,10 @@ export class UI {
       ].filter(Boolean);
       this._highlightButtons(rowBtns, this.practiceBtnIndex);
     }
-    if (name === 'keys') {
-      this.keysBtnIndex = 1; // 默认「完成」
-      const rowBtns = [
-        document.querySelector('#screen-keys [data-action="keys-reset"]'),
-        document.querySelector('#screen-keys [data-action="back"]'),
-      ].filter(Boolean);
-      this._highlightButtons(rowBtns, this.keysBtnIndex);
-    }
     if (name === 'settings') {
+      this.binding = null;
+      document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
+      this.refreshKeyLabels();
       this.settingsBtnIndex = 1; // 默认「完成」
       const rowBtns = [
         document.querySelector('#screen-settings [data-action="settings-reset"]'),
