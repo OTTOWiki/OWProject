@@ -14,6 +14,7 @@ const canvas = document.getElementById('playfield');
 const bgCanvas = document.getElementById('bg3d');
 const itemBtn = document.getElementById('btn-item');
 const bombBtn = document.getElementById('btn-bomb');
+const pauseBtn = document.getElementById('btn-pause');
 
 const elLoad = document.getElementById('load-screen');
 const elFill = document.getElementById('load-fill');
@@ -146,8 +147,6 @@ async function boot() {
       background = { setMode() {}, setTendency() {}, update() {} };
     }
 
-    input.bindTouchButtons(itemBtn, bombBtn);
-
     const ui = new UI({
       audio,
       onStartGame(opts) {
@@ -157,6 +156,44 @@ async function boot() {
     });
 
     const game = new Game({ canvas, input, audio, background, ui });
+
+    // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
+    // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）
+    input.bindTouchButtons(itemBtn, bombBtn, null);
+    if (pauseBtn) {
+      let pauseLock = false;
+      const togglePause = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pauseLock || !game.running) return;
+        pauseLock = true;
+        setTimeout(() => { pauseLock = false; }, 320);
+        if (game.overlayMode === 'pause') game._hideOverlay();
+        else if (!game.overlayMode) game._openPause();
+      };
+      const pressVis = () => pauseBtn.classList.add('active');
+      const releaseVis = () => pauseBtn.classList.remove('active');
+      if (window.PointerEvent) {
+        pauseBtn.addEventListener('pointerdown', (e) => {
+          pressVis();
+          togglePause(e);
+        }, { passive: false });
+        pauseBtn.addEventListener('pointerup', releaseVis);
+        pauseBtn.addEventListener('pointercancel', releaseVis);
+        pauseBtn.addEventListener('pointerleave', releaseVis);
+      } else {
+        pauseBtn.addEventListener('touchstart', (e) => {
+          pressVis();
+          togglePause(e);
+        }, { passive: false });
+        pauseBtn.addEventListener('touchend', releaseVis, { passive: true });
+        pauseBtn.addEventListener('mousedown', (e) => {
+          pressVis();
+          togglePause(e);
+        });
+        pauseBtn.addEventListener('mouseup', releaseVis);
+      }
+    }
 
     const unlock = () => {
       audio.ensure();

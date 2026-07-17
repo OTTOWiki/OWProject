@@ -446,14 +446,15 @@ export class Game {
   }
 
   _openPause() {
-    if (this.state !== 'playing' || this.overlayMode === 'result') return;
+    if (this.overlayMode === 'result' || this.overlayMode === 'pause') return;
+    if (this.state !== 'playing' && this.state !== 'dialogue') return;
     this.paused = true;
     this._showOverlay({
       mode: 'pause',
       title: 'PAUSED',
       body: '',
       actions: ['resume', 'retry', 'menu'],
-      hint: 'Esc 继续 · ↑↓ 选择 · Z 确认',
+      hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
     });
   }
 
@@ -504,31 +505,12 @@ export class Game {
   }
 
   _handleGlobalInput() {
-    if (this.state === 'dialogue') {
-      if (this.input.shotPressed() || this.input.justPressed('Enter') || this.input.justPressed('Space')) {
-        this._advanceDialogue();
-      }
-      // touch on dialogue
-      if (this.input.justPressed('KeyZ')) this._advanceDialogue();
-      return;
-    }
+    const wantPause = this.input.consumePause();
 
-    if (this.state === 'routeSelect') {
-      if (this.input.justPressed('ArrowLeft') || this.input.justPressed('KeyA')) {
-        this._chooseRoute('A');
-      } else if (this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')) {
-        this._chooseRoute('B');
-      } else if (this.input.tap) {
-        // 触屏轻点版面：左半 A / 右半 B
-        this._chooseRoute(this.input.tap.x < LOGICAL_W * 0.5 ? 'A' : 'B');
-      }
-      return;
-    }
-
-    // 叠加层（暂停 / 结束）
+    // 叠加层（暂停 / 结束）优先
     if (this.overlayMode) {
       const btns = this._overlayButtons();
-      if (this.input.justPressed('Escape') && this.overlayMode === 'pause') {
+      if (wantPause && this.overlayMode === 'pause') {
         this._hideOverlay();
         return;
       }
@@ -562,8 +544,28 @@ export class Game {
       return;
     }
 
-    if (this.input.justPressed('Escape') && this.state === 'playing') {
+    // 暂停：playing / dialogue 均可
+    if (wantPause && (this.state === 'playing' || this.state === 'dialogue')) {
       this._openPause();
+      return;
+    }
+
+    if (this.state === 'dialogue') {
+      if (this.input.shotPressed() || this.input.justPressed('Enter') || this.input.justPressed('Space')) {
+        this._advanceDialogue();
+      }
+      if (this.input.justPressed('KeyZ')) this._advanceDialogue();
+      return;
+    }
+
+    if (this.state === 'routeSelect') {
+      if (this.input.justPressed('ArrowLeft') || this.input.justPressed('KeyA')) {
+        this._chooseRoute('A');
+      } else if (this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')) {
+        this._chooseRoute('B');
+      } else if (this.input.tap) {
+        this._chooseRoute(this.input.tap.x < LOGICAL_W * 0.5 ? 'A' : 'B');
+      }
     }
   }
 

@@ -924,25 +924,33 @@ html, body {
 
 .touch-keys {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.45rem;
   padding-top: 0.75rem;
   border-top: 1px solid rgba(92,74,46,.55);
   margin-top: auto;
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
 }
 .touch-btn {
   appearance: none;
   border: 1px solid var(--border);
   background: linear-gradient(180deg, #221a30, #14101c);
   color: var(--gold2);
-  padding: 1rem 0.5rem;
-  font-size: 0.95rem;
+  padding: 1rem 0.35rem;
+  font-size: 0.9rem;
   font-weight: 700;
   font-family: var(--serif);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   cursor: pointer;
   min-height: 52px;
   touch-action: manipulation;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+  position: relative;
+  z-index: 31;
 }
 .touch-btn:active, .touch-btn.active {
   background: #2a2040;
@@ -952,6 +960,10 @@ html, body {
 .touch-btn.bomb:active, .touch-btn.bomb.active {
   border-color: #c4b5fd;
   background: #241848;
+}
+.touch-btn.pause:active, .touch-btn.pause.active {
+  border-color: #7dd3fc;
+  background: #142838;
 }
 
 /* Result */
