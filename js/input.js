@@ -11,10 +11,13 @@ export class Input {
     this.touchActive = false;
     this.autoShot = false;
     this._touchStart = null;
+    this._touchLast = null;
     this._playerStart = null;
     this.virtualMove = null; // {x,y} absolute target from relative drag
     this.bombTap = false;
     this.itemTap = false;
+    /** 版面轻触一次（逻辑坐标），仅当帧有效 */
+    this.tap = null;
 
     this._onKeyDown = (e) => {
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
@@ -56,6 +59,7 @@ export class Input {
       this.touchActive = true;
       this.autoShot = true;
       this._touchStart = p;
+      this._touchLast = p;
       this._playerStart = { x: pl.x, y: pl.y };
       this.virtualMove = { x: pl.x, y: pl.y };
     }, { passive: false });
@@ -64,6 +68,7 @@ export class Input {
       e.preventDefault();
       if (!e.touches.length || !this._touchStart || !this._playerStart) return;
       const cur = logical(e.touches[0]);
+      this._touchLast = cur;
       const dx = cur.x - this._touchStart.x;
       const dy = cur.y - this._touchStart.y;
       this.virtualMove = {
@@ -74,11 +79,17 @@ export class Input {
 
     const end = (e) => {
       e.preventDefault();
+      // 轻触（位移小）→ 记一次 tap，供路线选择等 UI 用
+      if (this._touchStart) {
+        const last = this._touchLast || this._touchStart;
+        const d = Math.hypot(last.x - this._touchStart.x, last.y - this._touchStart.y);
+        if (d < 22) this.tap = { x: this._touchStart.x, y: this._touchStart.y };
+      }
       this.touchActive = false;
       this.autoShot = false;
       this._touchStart = null;
+      this._touchLast = null;
       this._playerStart = null;
-      // keep virtualMove null so keyboard works
       this.virtualMove = null;
     };
     canvas.addEventListener('touchend', end, { passive: false });
@@ -112,6 +123,7 @@ export class Input {
     this.released.clear();
     this.bombTap = false;
     this.itemTap = false;
+    this.tap = null;
   }
 
   isDown(code) { return this.down.has(code); }

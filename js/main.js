@@ -166,16 +166,29 @@ async function boot() {
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
 
-    document.getElementById('dialogue-box')?.addEventListener('click', () => {
+    const dialogueBox = document.getElementById('dialogue-box');
+    dialogueBox?.addEventListener('click', () => {
       if (game.state === 'dialogue') game._advanceDialogue();
     });
-
-    canvas.addEventListener('click', (e) => {
+    // 路线选择：对话层遮挡时也可点左右半区（触屏 pointer 兼容）
+    const routePickFromClientX = (clientX, el) => {
       if (game.state !== 'routeSelect') return;
+      const rect = el.getBoundingClientRect();
+      const x = clientX - rect.left;
+      game._chooseRoute(x < rect.width * 0.5 ? 'A' : 'B');
+    };
+    dialogueBox?.addEventListener('pointerup', (e) => {
+      if (game.state !== 'routeSelect') return;
+      e.preventDefault();
+      routePickFromClientX(e.clientX, dialogueBox);
+    });
+    // 鼠标 / 部分触屏：版面左右点选（touch 主路径走 input.tap）
+    canvas.addEventListener('pointerup', (e) => {
+      if (game.state !== 'routeSelect') return;
+      if (e.pointerType === 'touch') return; // 由 input.tap 处理，避免双触发
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-      if (x < 225) game._chooseRoute('A');
-      else game._chooseRoute('B');
+      game._chooseRoute(x < canvas.width * 0.5 ? 'A' : 'B');
     });
 
     const unlockAudio = () => {

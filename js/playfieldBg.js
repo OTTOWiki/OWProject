@@ -27,25 +27,54 @@ const BG_TEX = {
 };
 
 const SKY = {
-  s1_mid: ['#0a1a14', '#143528'],
-  s1_boss: ['#1a0a14', '#3a1830'],
-  s2_mid: ['#060e1a', '#0c2848'],
-  s2_boss: ['#040a14', '#0a3050'],
-  s3_mid: ['#100a08', '#3a2818'],
-  s3_boss: ['#1a1008', '#4a3010'],
-  patrol: ['#140000', '#400810'],
-  a4_mid: ['#1a1408', '#4a3810'],
-  a4_boss: ['#2a0808', '#501818'],
-  a5_mid: ['#0a0a14', '#201840'],
-  a5_boss: ['#14081a', '#401848'],
-  a6_mid: ['#140818', '#401030'],
-  a6_boss: ['#1a0010', '#480828'],
-  b4_mid: ['#140808', '#401018'],
-  b4_boss: ['#180606', '#501020'],
-  b5_mid: ['#0a0810', '#281820'],
-  b5_boss: ['#100810', '#382018'],
-  b6_mid: ['#0a1208', '#203018'],
-  b6_boss: ['#102000', '#284010'],
+  // 1面 维基外围·草稿 / 爱丽丝齿轮
+  s1_mid: ['#06140e', '#0f2e20'],
+  s1_boss: ['#1c0814', '#4a1a38'],
+  // 2面 编辑日常 / Icebin 冰晶
+  s2_mid: ['#040c18', '#0a2440'],
+  s2_boss: ['#020814', '#0c3858'],
+  // 3面 分歧十字路口 / 大宗关防火墙
+  s3_mid: ['#0e0a08', '#2a2018'],
+  s3_boss: ['#1c1206', '#5a3810'],
+  // 巡查姬 404
+  patrol: ['#120004', '#480810'],
+  // A 门构皮蒂娅线：推销 → 署名冲突 → 哈机密崩坏
+  a4_mid: ['#1c1608', '#4a3a0c'],
+  a4_boss: ['#2e0606', '#5c1414'],
+  a5_mid: ['#080a16', '#182050'],
+  a5_boss: ['#16081c', '#481850'],
+  a6_mid: ['#16081c', '#481438'],
+  a6_boss: ['#1e0014', '#500830'],
+  // B 善雅乡线：创车 → 推退 → 炫妈迷雾
+  b4_mid: ['#160808', '#481018'],
+  b4_boss: ['#1c0404', '#581018'],
+  b5_mid: ['#0a0812', '#2a1824'],
+  b5_boss: ['#120810', '#402018'],
+  b6_mid: ['#081208', '#1c3014'],
+  b6_boss: ['#0e1c00', '#2c4810'],
+};
+
+/** 各模式主题雾/地平线强调色 */
+const ACCENT = {
+  s1_mid: 'rgba(100,220,150,0.18)',
+  s1_boss: 'rgba(255,140,200,0.22)',
+  s2_mid: 'rgba(70,140,255,0.16)',
+  s2_boss: 'rgba(140,220,255,0.22)',
+  s3_mid: 'rgba(255,200,120,0.16)',
+  s3_boss: 'rgba(255,180,60,0.24)',
+  patrol: 'rgba(255,40,70,0.28)',
+  a4_mid: 'rgba(255,210,60,0.18)',
+  a4_boss: 'rgba(255,90,70,0.22)',
+  a5_mid: 'rgba(160,180,255,0.16)',
+  a5_boss: 'rgba(220,140,255,0.22)',
+  a6_mid: 'rgba(255,140,200,0.18)',
+  a6_boss: 'rgba(255,80,140,0.24)',
+  b4_mid: 'rgba(255,90,120,0.18)',
+  b4_boss: 'rgba(255,50,80,0.24)',
+  b5_mid: 'rgba(255,150,80,0.16)',
+  b5_boss: 'rgba(255,130,60,0.22)',
+  b6_mid: 'rgba(160,230,80,0.16)',
+  b6_boss: 'rgba(140,220,40,0.26)',
 };
 
 const imgCache = new Map();
@@ -152,13 +181,21 @@ export class PlayfieldBackground {
     }
     ctx.globalAlpha = alpha;
 
-    // 地平线光带
+    // 地平线光带（按关卡主题色）
+    const accent = ACCENT[mode] || 'rgba(255,240,200,0.22)';
     const hg = ctx.createLinearGradient(0, H * this.horizon - 8, 0, H * this.horizon + 12);
     hg.addColorStop(0, 'transparent');
-    hg.addColorStop(0.5, 'rgba(255,240,200,0.22)');
+    hg.addColorStop(0.5, accent);
     hg.addColorStop(1, 'transparent');
     ctx.fillStyle = hg;
     ctx.fillRect(0, H * this.horizon - 10, W, 24);
+
+    // 顶部主题薄雾
+    const topFog = ctx.createLinearGradient(0, 0, 0, H * this.horizon * 0.55);
+    topFog.addColorStop(0, accent.replace(/[\d.]+\)$/, '0.12)'));
+    topFog.addColorStop(1, 'transparent');
+    ctx.fillStyle = topFog;
+    ctx.fillRect(0, 0, W, H * this.horizon * 0.55);
 
     // 伪 3D 地面：扫描线透视
     const horizonY = H * this.horizon;

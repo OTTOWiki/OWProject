@@ -518,6 +518,9 @@ export class Game {
         this._chooseRoute('A');
       } else if (this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')) {
         this._chooseRoute('B');
+      } else if (this.input.tap) {
+        // 触屏轻点版面：左半 A / 右半 B
+        this._chooseRoute(this.input.tap.x < LOGICAL_W * 0.5 ? 'A' : 'B');
       }
       return;
     }
@@ -765,6 +768,30 @@ export class Game {
     this.audio.sfx('hit');
   }
 
+  /** 点到线段最短距离（激光判定用） */
+  _distPointSeg(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1e-8) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+  }
+
+  /** 敌弹相对自机的有效距离（圆弹=圆心；激光=线段） */
+  _bulletDistToPlayer(b, p) {
+    if (b.type === 'laser') {
+      const len = b.laserLen || 200;
+      const ang = b.angle || 0;
+      const x2 = b.x + Math.cos(ang) * len;
+      const y2 = b.y + Math.sin(ang) * len;
+      return this._distPointSeg(p.x, p.y, b.x, b.y, x2, y2);
+    }
+    return Math.hypot(b.x - p.x, b.y - p.y);
+  }
+
   _collisions() {
     const p = this.player;
 
@@ -792,23 +819,18 @@ export class Game {
     for (const b of this.bullets) {
       if (b.from !== 'enemy' || b.dead || b.delay > 0) continue;
 
-      const dist = Math.hypot(b.x - p.x, b.y - p.y);
+      const dist = this._bulletDistToPlayer(b, p);
+      const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : b.r;
 
       // graze
-      if (!b.grazed && dist < BALANCE.grazeRadius + b.r && dist > p.r + b.r) {
+      if (!b.grazed && dist < BALANCE.grazeRadius + hitR && dist > p.r + hitR) {
         b.grazed = true;
         p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (this.grazeMul || 1));
         this.addScore(BALANCE.score.graze);
         if (Math.random() < 0.2) this.audio.sfx('graze');
       }
 
-      // hit
-      let hit = dist < p.r + b.r;
-      if (b.type === 'laser') {
-        // approximate laser as moving orb with length (simplified)
-        hit = dist < p.r + b.r;
-      }
-      if (hit) {
+      if (dist < p.r + hitR) {
         b.dead = true;
         this._hitPlayer();
       }
@@ -1307,8 +1329,7 @@ export class Game {
     this.el.dialogueBox.classList.remove('hidden');
     this.el.dialogueName.textContent = '系统';
     this.el.dialogueName.style.color = SPEAKER_COLORS['系统'];
-    this.el.dialogueText.textContent = '← A线 门构皮蒂娅　　B线 善雅乡 →\n（方向键选择）';
-    // also draw portals in game via state
+    this.el.dialogueText.textContent = '← A线 门构皮蒂娅　　B线 善雅乡 →\n（点左侧 A / 右侧 B，或方向键）';
   }
 
   _chooseRoute(route) {
