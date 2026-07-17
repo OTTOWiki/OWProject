@@ -55,10 +55,25 @@ export class UI {
     }).join('');
   }
 
+  _availableDifficulties() {
+    if (this.pendingStart?.mode === 'extra' || this.pendingStart?.startChapter === 129) {
+      return DIFFICULTY_ORDER.filter(id => id === 'hard' || id === 'lunatic');
+    }
+    return DIFFICULTY_ORDER;
+  }
+
   _initDifficulty() {
+    this._rebuildDifficulty();
+  }
+
+  _rebuildDifficulty() {
     const list = document.getElementById('diff-list');
     list.innerHTML = '';
-    DIFFICULTY_ORDER.forEach((id, i) => {
+    const avail = this._availableDifficulties();
+    if ((this.pendingStart?.mode === 'extra' || this.pendingStart?.startChapter === 129) && this.pendingDifficulty !== 'hard' && this.pendingDifficulty !== 'lunatic') {
+      this.pendingDifficulty = 'hard';
+    }
+    avail.forEach((id, i) => {
       const d = DIFFICULTIES[id];
       const btn = document.createElement('button');
       btn.className = 'diff-btn';
@@ -79,6 +94,8 @@ export class UI {
       });
       list.appendChild(btn);
     });
+    const di = avail.indexOf(this.pendingDifficulty);
+    if (di >= 0) this.diffIndex = di;
     this._highlightDiff();
   }
 
@@ -317,13 +334,14 @@ export class UI {
 
       // 难度选择
       if (this.screens.difficulty?.classList.contains('active')) {
+        const diffLen = this._availableDifficulties().length;
         if (e.code === 'ArrowDown') {
           e.preventDefault();
-          this.diffIndex = (this.diffIndex + 1) % DIFFICULTY_ORDER.length;
+          this.diffIndex = (this.diffIndex + 1) % diffLen;
           this._highlightDiff();
         } else if (e.code === 'ArrowUp') {
           e.preventDefault();
-          this.diffIndex = (this.diffIndex - 1 + DIFFICULTY_ORDER.length) % DIFFICULTY_ORDER.length;
+          this.diffIndex = (this.diffIndex - 1 + diffLen) % diffLen;
           this._highlightDiff();
         } else if (e.code === 'Enter' || e.code === 'KeyZ') {
           e.preventDefault();
@@ -351,6 +369,7 @@ export class UI {
   }
 
   show(name) {
+    if (name === 'difficulty') this._rebuildDifficulty();
     Object.values(this.screens).forEach((s) => s?.classList.remove('active'));
     this.screens[name]?.classList.add('active');
     if (name === 'difficulty') this._highlightDiff();
