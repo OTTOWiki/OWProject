@@ -190,14 +190,6 @@ html, body {
 .th-panel-frame::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
 .th-panel-frame::after { bottom: 6px; right: 6px; border-left: none; border-top: none; }
 
-.game-brand {
-  font-family: var(--serif);
-  font-size: 0.75rem;
-  letter-spacing: 0.35em;
-  color: var(--gold);
-  margin-bottom: 0.35rem;
-  opacity: 0.85;
-}
 .game-title {
   font-family: var(--serif);
   font-size: clamp(2rem, 5.5vw, 2.8rem);
@@ -853,6 +845,31 @@ html, body {
   font-size: 0.68rem;
   color: var(--muted);
   letter-spacing: 0.04em;
+}
+
+/* 版本号（主菜单 / 暂停右下角） */
+#screen-menu {
+  position: relative;
+}
+.version-badge {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: rgba(201, 184, 150, 0.72);
+  pointer-events: none;
+  user-select: none;
+}
+.version-badge-overlay {
+  right: 12px;
+  bottom: 10px;
+  color: rgba(201, 184, 150, 0.78);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
 }
 @keyframes flashPulse {
   from { opacity: 0.7; }

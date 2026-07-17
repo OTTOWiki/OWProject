@@ -9,6 +9,7 @@ import { UI } from './ui.js';
 import { getAssetPaths, preloadArtAssets } from './assets.js';
 import { getSpritePaths, preloadSprites } from './sprites.js';
 import { getPlayfieldBgPaths, preloadPlayfieldBg } from './playfieldBg.js';
+import { VERSION_LABEL, applyVersionToDom } from './version.js';
 
 const canvas = document.getElementById('playfield');
 const bgCanvas = document.getElementById('bg3d');
@@ -129,6 +130,7 @@ async function boot() {
   }
 
   dismissLoadScreen();
+  applyVersionToDom();
 
   try {
     const input = new Input();
@@ -254,7 +256,12 @@ async function boot() {
     const art = document.getElementById('menu-title-art');
     if (art) art.classList.add('ready');
 
-    console.info('%c棍维Project', 'color:#5eead4;font-size:16px;font-weight:bold', 'loaded.');
+    console.info(
+      '%c棍维Project',
+      'color:#5eead4;font-size:16px;font-weight:bold',
+      VERSION_LABEL,
+      'loaded.',
+    );
   } catch (e) {
     console.error('Boot failed:', e);
     if (elLoad) {

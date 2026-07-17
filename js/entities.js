@@ -1016,7 +1016,7 @@ export function drawItem(ctx, it) {
   ctx.restore();
 }
 
-/** 浅色虚线收点线 */
+/** 浅色虚线收点线（仅线，无文字） */
 export function drawCollectLine(ctx, w) {
   const y = BALANCE.itemCollectLine ?? 168;
   ctx.save();
@@ -1028,9 +1028,5 @@ export function drawCollectLine(ctx, w) {
   ctx.lineTo(w - 8, y);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(210, 230, 255, 0.38)';
-  ctx.font = '10px "Segoe UI", sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('— 收点线 —', 12, y - 5);
   ctx.restore();
 }
