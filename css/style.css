@@ -665,7 +665,8 @@ html, body {
   justify-content: center;
   background:
     radial-gradient(ellipse at 50% 50%, #14101c 0%, #08060e 80%);
-  padding: 0.5rem;
+  padding: 0.5rem 0.5rem 1.15rem;
+  overflow: visible;
 }
 .playfield-wrap {
   position: relative;
@@ -677,6 +678,7 @@ html, body {
   align-items: center;
   justify-content: center;
   aspect-ratio: 450 / 600;
+  overflow: visible;
 }
 #playfield {
   width: 100%;
@@ -693,6 +695,43 @@ html, body {
   image-rendering: auto;
   max-width: 100%;
   max-height: 100%;
+}
+
+/* Boss 水平位置：东方风 ENEMY 白字深红描边（版面底边外） */
+.boss-enemy-marker {
+  position: absolute;
+  z-index: 6;
+  top: 100%;
+  left: 50%;
+  margin-top: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+.boss-enemy-marker > span {
+  display: inline-block;
+  padding: 0 0.12em;
+  font-family: "Georgia", "Palatino Linotype", "Book Antiqua", "Times New Roman", serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.05;
+  color: #fff;
+  /* 白字 + 厚深红描边（无底框） */
+  -webkit-text-stroke: 3.5px #8b1a3c;
+  paint-order: stroke fill;
+  filter:
+    drop-shadow(0 0 0.4px #5a0e26)
+    drop-shadow(0 1px 0 #5a0e26)
+    drop-shadow(0 1px 1.2px rgba(0, 0, 0, 0.4));
+}
+.boss-enemy-marker.hidden {
+  display: none;
+}
+#screen-game.ending-cinematic .boss-enemy-marker {
+  display: none !important;
 }
 
 /* Dialogue — 东方对话框 + 立绘 */

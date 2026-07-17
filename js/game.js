@@ -76,6 +76,7 @@ export class Game {
       letterBonus: document.getElementById('letter-bonus'),
       letterTimer: document.getElementById('letter-timer'),
       flash: document.getElementById('flash-msg'),
+      bossEnemyMarker: document.getElementById('boss-enemy-marker'),
     };
   }
 
@@ -278,6 +279,7 @@ export class Game {
     }
     this._setEndingCinematic(false);
     this._hideOverlay();
+    this.el.bossEnemyMarker?.classList.add('hidden');
     cancelAnimationFrame(this.raf);
     this.audio.stopMusic(0.5);
   }
@@ -1428,6 +1430,27 @@ export class Game {
     }
   }
 
+  /** Boss / 道中精英：版面外黑色区域、与 boss 同 x 的 Enemy 标记 */
+  _updateBossEnemyMarker() {
+    const el = this.el.bossEnemyMarker;
+    if (!el) return;
+
+    const boss = this.bossRef;
+    const show = !this.endingCinematic
+      && boss
+      && !boss.dead
+      && (this.state === 'playing' || this.state === 'dialogue');
+
+    if (!show) {
+      el.classList.add('hidden');
+      return;
+    }
+
+    const pct = (Math.max(0, Math.min(LOGICAL_W, boss.x)) / LOGICAL_W) * 100;
+    el.style.left = `${pct}%`;
+    el.classList.remove('hidden');
+  }
+
   _drawTendencyGauge(ctx) {
     const H = LOGICAL_H;
     const W = LOGICAL_W;
@@ -1942,6 +1965,9 @@ export class Game {
         this._drawTendencyGauge(ctx);
       }
     }
+
+    // Boss 水平位置标记（版面外 DOM）
+    this._updateBossEnemyMarker();
 
     // route select portals
     if (this.state === 'routeSelect') {
