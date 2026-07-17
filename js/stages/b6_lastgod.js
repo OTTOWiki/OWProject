@@ -165,56 +165,65 @@ function chapter_b6_mid_5(g) {
 function chapter_b6_mid_6(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    // 侧路敌机：勿 early-return 卡掉弹雨（dt 必须在 waveFn 内）
     g.waveTimer += dt;
-    if (g.waveTimer < 0.55) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    const sz = g.waveCount % 2 ? 40 : LOGICAL_W - 40;
-    const e = mob(sz, 50 + (g.waveCount % 3) * 60, 36, '#84cc16');
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.4, d, () => {
-        spawnAimed(game, en, game.player, { n: 4, parity: 'even', type: 'rice', speed: 2.8, spread: 0.1, color: '#a3e635' });
-      });
-    };
-    g.enemies.push(e);
+    if (g.waveTimer >= 0.55) {
+      g.waveTimer = 0;
+      g.waveCount = (g.waveCount || 0) + 1;
+      if (g.waveCount <= 14) {
+        const sz = g.waveCount % 2 ? 40 : LOGICAL_W - 40;
+        const e = mob(sz, 50 + (g.waveCount % 3) * 60, 36, '#84cc16');
+        e.script = (en, d, game) => {
+          timer(en, 's', 0.4, d, () => {
+            spawnAimed(game, en, game.player, {
+              n: 4, parity: 'even', type: 'rice', speed: 2.8, spread: 0.1, color: '#a3e635',
+            });
+          });
+        };
+        g.enemies.push(e);
+      }
+    }
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.1) {
+      g.rainT = 0;
+      g.bullets.push(new Bullet({
+        x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8,
+        vy: 2.2 + Math.random(), type: 'dot', color: '#65a30d', from: 'enemy', gravity: 0.008,
+      }));
+    }
   };
-  g.rainT = (g.rainT || 0) + dt;
-  if (g.rainT > 0.1) {
-    g.rainT = 0;
-    g.bullets.push(new Bullet({
-      x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8,
-      vy: 2.2 + Math.random(), type: 'dot', color: '#65a30d', from: 'enemy', gravity: 0.008,
-    }));
-  }
 }
 
 function chapter_b6_mid_7(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
     g.waveTimer += dt;
-    if (g.waveTimer < 0.8) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    const e = elite({
-      x: 45 + Math.random() * (LOGICAL_W - 90), y: 80, hp: 280, color: '#65a30d', kind: 'generic',
-    });
-    e.vy = 0.2;
-    e.script = (en, d, game) => {
-      timer(en, 'aim', 0.55, d, () => {
-        spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.8, spread: 0.15, color: '#84cc16' });
-      });
-      timer(en, 'ring', 1.8, d, () => spawnRingAt(game, en.x, en.y, 10, 1.6, 'medium', '#a3e635', en.age));
-    };
-    g.enemies.push(e);
+    if (g.waveTimer >= 0.8) {
+      g.waveTimer = 0;
+      g.waveCount = (g.waveCount || 0) + 1;
+      if (g.waveCount <= 14) {
+        const e = elite({
+          x: 45 + Math.random() * (LOGICAL_W - 90), y: 80, hp: 280, color: '#65a30d', kind: 'generic',
+        });
+        e.vy = 0.2;
+        e.script = (en, d, game) => {
+          timer(en, 'aim', 0.55, d, () => {
+            spawnAimed(game, en, game.player, {
+              n: 3, parity: 'odd', type: 'talisman', speed: 2.8, spread: 0.15, color: '#84cc16',
+            });
+          });
+          timer(en, 'ring', 1.8, d, () => spawnRingAt(game, en.x, en.y, 10, 1.6, 'medium', '#a3e635', en.age));
+        };
+        g.enemies.push(e);
+      }
+    }
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.22) {
       g.rainT = 0;
       g.bullets.push(new Bullet({
         x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 1.5,
         type: 'large', color: '#4d7c0f', from: 'enemy', gravity: 0.004, life: 7,
-        onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.4, 'dot', '#a3e635'),
+        onSplit: (self) => spawnRingAt(g, self.x, self.y, 8, 1.4, 'dot', '#a3e635'),
       }));
     }
   };
