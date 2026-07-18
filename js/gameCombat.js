@@ -13,6 +13,35 @@ import {
 } from './debug.js';
 
 /**
+ * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
+ * 须在 runCollisions 之后、purge 敌机之前调用（onDeath 依赖实体仍在场上）
+ * @param {import('./game.js').Game} game
+ * @param {import('./collision.js').CollisionEvent[]} events
+ */
+export function applyCollisionEvents(game, events) {
+  if (!events || !events.length) return;
+  const p = game.player;
+  for (const ev of events) {
+    if (ev.type === 'kill') {
+      const e = ev.enemy;
+      game.addScore(e.score);
+      game._burst(e.x, e.y, e.color, 12);
+      const drop = e.drop || game._defaultKillDrop(e);
+      if (drop) game.spawnItem(e.x, e.y, drop);
+      else if (Math.random() < 0.35) game.spawnItem(e.x, e.y, 'score');
+      e.fireOnDeath?.(game);
+    } else if (ev.type === 'graze') {
+      if (!p) continue;
+      p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
+      game.addScore(BALANCE.score.graze);
+      if (Math.random() < 0.2) game.audio.sfx('graze');
+    } else if (ev.type === 'playerHit') {
+      game._hitPlayer();
+    }
+  }
+}
+
+/**
  * 场上敌弹 → 得分道具，并锁定吸引（章间/Bomb 同款手感）
  * 不重置自机位置，不抹掉自机弹与已有道具。
  */
@@ -135,7 +164,7 @@ export function updateCombat(game, dt) {
     // waves
     game.waveFn?.(dt);
 
-    // enemies（击杀 onDeath 在 collision 击破路径触发；此处不跑，避免屏外消失误触发）
+    // enemies（击杀 onDeath 在 applyCollisionEvents 触发；此处不跑，避免屏外消失误触发）
     for (const e of game.enemies) {
       try {
         e.update(dt, game);
@@ -191,8 +220,11 @@ export function updateCombat(game, dt) {
   // particles
   for (const pt of game.particles) pt.update(dt);
 
-  // collisions（网格粗筛 + 分弹表，见 collision.js）
-  if (!settling) runCollisions(game);
+  // collisions：几何命中 → 事件 → 得分/掉落/onDeath（purge 前）
+  if (!settling) {
+    const colEvents = runCollisions(game);
+    applyCollisionEvents(game, colEvents);
+  }
 
   // chapter 结束判定
   // 本章所有怪打完 → 强制 _finishChapter（残弹变点）→ 0.8s 后进下一章

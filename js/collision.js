@@ -1,10 +1,18 @@
 /**
  * 碰撞与距离工具（从 game.js 拆出）
  * 自机弹×敌机使用网格粗筛，降低密弹时 O(n·m) 开销
+ *
+ * runCollisions 只做几何命中与实体状态（dead / grazed / hurt）；
+ * 得分、掉落、SFX、onDeath 由 apply 侧（gameCombat）消费事件。
  */
 import { BALANCE } from './config.js';
 
 const GRID_CELL = 56;
+
+/** @typedef {{ type: 'kill', enemy: object }} KillEvent */
+/** @typedef {{ type: 'graze', bullet: object }} GrazeEvent */
+/** @typedef {{ type: 'playerHit', source: 'bullet'|'body', bullet?: object, enemy?: object }} PlayerHitEvent */
+/** @typedef {KillEvent|GrazeEvent|PlayerHitEvent} CollisionEvent */
 
 /** 点到线段最短距离 */
 export function distPointSeg(px, py, x1, y1, x2, y2) {
@@ -93,12 +101,15 @@ export function rebuildBulletLists(game) {
 }
 
 /**
- * 运行一帧碰撞
+ * 运行一帧碰撞：几何 + 命中状态，返回事件列表（不写分/SFX/掉落）
  * @param {import('./game.js').Game} game
+ * @returns {CollisionEvent[]}
  */
 export function runCollisions(game) {
+  /** @type {CollisionEvent[]} */
+  const events = [];
   const p = game.player;
-  if (!p) return;
+  if (!p) return events;
 
   rebuildBulletLists(game);
   const playerBullets = game.playerBullets;
@@ -137,13 +148,8 @@ export function runCollisions(game) {
       }
       const killed = e.hurt(b.damage);
       if (killed) {
-        game.addScore(e.score);
-        game._burst(e.x, e.y, e.color, 12);
-        const drop = e.drop || game._defaultKillDrop(e);
-        if (drop) game.spawnItem(e.x, e.y, drop);
-        else if (Math.random() < 0.35) game.spawnItem(e.x, e.y, 'score');
-        // 击杀在碰撞阶段发生，须在此触发 onDeath（update 已跑过，且 purge 会立刻移除）
-        e.fireOnDeath?.(game);
+        // 击杀在碰撞阶段发生；onDeath 须由消费方在 purge 前触发
+        events.push({ type: 'kill', enemy: e });
       }
       return true;
     };
@@ -171,14 +177,12 @@ export function runCollisions(game) {
 
     if (!b.grazed && dist < BALANCE.grazeRadius + hitR && dist > p.r + hitR) {
       b.grazed = true;
-      p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
-      game.addScore(BALANCE.score.graze);
-      if (Math.random() < 0.2) game.audio.sfx('graze');
+      events.push({ type: 'graze', bullet: b });
     }
 
     if (dist < p.r + hitR) {
       b.dead = true;
-      game._hitPlayer();
+      events.push({ type: 'playerHit', source: 'bullet', bullet: b });
     }
   }
 
@@ -186,7 +190,9 @@ export function runCollisions(game) {
   for (const e of living) {
     if (e.dead || e.isSpawning) continue;
     if (Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.r * 0.5) {
-      game._hitPlayer();
+      events.push({ type: 'playerHit', source: 'body', enemy: e });
     }
   }
+
+  return events;
 }

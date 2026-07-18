@@ -112,7 +112,8 @@ tools/
 |------|--------|------------|
 | `config.js` | 数值、难度倍率、文案常量 | 游戏逻辑 |
 | `game.js` | 状态、更新/渲染循环、章节切换 | 具体弹幕公式（应放 patterns/stages） |
-| `collision.js` | 自机弹/敌弹碰撞 | 章节编排 |
+| `collision.js` | 碰撞几何 + 命中状态；`runCollisions` 返回事件 | 得分/SFX/掉落/`onDeath`（由 `gameCombat.applyCollisionEvents` 消费） |
+| `gameCombat.js` | 战斗帧、Bomb/Miss、消费 collision 事件 | 章节对话/路线 |
 | `stages/*` | 章节定义 + 刷怪时间轴（`stages/index.js` 聚合） | 全局状态机 |
 | `patterns.js` | 弹幕生成工具函数 | UI / 存档 |
 | `entities.js` | 实体数据与 Canvas 绘制 | 章节编排 |

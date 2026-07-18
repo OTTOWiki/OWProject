@@ -256,7 +256,7 @@ T12（拆 game，可分步提交）
 
 | | |
 |--|--|
-| **状态** | 待手测 |
+| **状态** | 完成 |
 | **目标** | `bgModes` / playfield 贴图 / Three 侧共用一份 mode 登记；Three builder 表 |
 | **范围** | `bgModes.js`（`PLAYFIELD_BG_TEX` / `resolveBgMode`）；`playfieldBg` 去重本地 `BG_TEX`；`backgrounds` `STAGE_BG_BUILDERS` |
 | **不做** | 不重做 3D 场景美术；版面 SKY/THEME/ACCENT 仍留 playfield（纯绘制调色板） |
@@ -270,11 +270,11 @@ T12（拆 game，可分步提交）
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 待手测 |
 | **目标** | `runCollisions` 只做几何与命中检测；score/drop/SFX/`onDeath` 由 Game/combat 消费 |
-| **范围** | `collision.js` + `game`/`combat` 接线 |
+| **范围** | `collision.js` 返回 `kill`/`graze`/`playerHit`；`gameCombat.applyCollisionEvents` 消费 |
 | **不做** | 不改判定公式与网格策略（除非测试证明等价） |
-| **验收（自动）** | 现有 collision 几何测；可加「事件形状」单测 |
+| **验收（自动）** | 几何测 + 事件形状测（collision 不调 score/SFX） |
 | **验收（手测）** | 击破掉落、擦弹 Edit、自机中弹/决死与改前一致 |
 | **风险** | 中高——击杀时序（onDeath 必须在 purge 前） |
 
@@ -310,11 +310,11 @@ T12（拆 game，可分步提交）
 ## 执行顺序（全队列）
 
 ```
-[已完成] T01…T11 · T12a–d · T13 · T14
-  → T15（待手测）→ T16 → T17 → T18
+[已完成] T01…T11 · T12a–d · T13 · T14 · T15
+  → T16（待手测）→ T17 → T18
 ```
 
-当前应执行：**T15 手测**（换面左栏+版面主题）→ 通过后 **T16 collision 事件化**。
+当前应执行：**T16 手测**（击破掉落 / 擦弹 / 中弹决死）→ 通过后 **T17 CSS 焦点**。
 
 ---
 
@@ -326,7 +326,8 @@ T12（拆 game，可分步提交）
 | 2026-07-18 | T13 | 语法+32 | 完成 | `71e8a99` `js/draw/*` |
 | 2026-07-18 | T14 试点 | 35/35 | 完成 | s1 + shared 工厂；`442a83c` |
 | 2026-07-18 | T14 全主线表 | 35/35 | 完成 | s2–s3/patrol/A/B 章节表迁 midChapter/letterChapter |
-| 2026-07-19 | T15 | 待跑 | 待确认 | bgModes 单一登记；playfield 去重；Three builder 表 |
+| 2026-07-19 | T15 | 36/36 | 完成 | `4497417` bgModes 单一登记；playfield 去重；Three builder 表 |
+| 2026-07-19 | T16 | 待跑 | 待确认 | runCollisions 事件化 + applyCollisionEvents |
 
 ---
 
