@@ -10,7 +10,7 @@ import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
 import { saveHiscore, unlockStage, unlockRoute } from './storage.js';
 import { trackForStage } from './audio.js';
-import { bgModeFor } from './backgrounds.js';
+import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
 import { unstableHintFor } from './hud.js';
 import { debugSkipDialogue } from './debug.js';

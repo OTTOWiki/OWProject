@@ -47,12 +47,13 @@ npx --yes serve .
 
 - 入口：`test/check-syntax.mjs` + `test/run-node.mjs`（CLI）/ `test/index.html` → `run.js` + `cases.js`
 - 分文件：`cases-config|patterns|collision|stages|storage-spawn|smoke.js` + `mockGame.js`
-- **语法**：`node --check` 扫描 `js/**`、`test/**`（含 `game.js` 等主路径，不执行 import）
+- **语法（CLI/CI）**：`node --check` 扫描 `js/**`、`test/**`（含 `game.js`，不执行）
+- **加载（浏览器 /test/）**：`cases-load.js` 动态 `import` 主路径模块（含 `game.js`），抓语法与坏依赖
 - 覆盖：配置/难度、章节表与 onClear、对话键、bg mode、`scaleBulletCount`、碰撞、spawnScale、startMode
 - **冒烟（mock Game）**：全章 `build` 不抛错；boss 有 bossRef；mid `waveFn` 固定步长 tick
-- **不**启动真实 Game 主循环 / Canvas / Three / WebAudio（单元测仍不 import `game.js` 整类）
+- **不**启动真实 Game 主循环（`main.js` 不自动 boot）；CLI 单元测不 import Three
 - 浏览器结果：`window.__TEST_RESULT__`
-- **CI**：GitHub Actions 跑 `npm test`（语法 + 用例）
+- **CI**：GitHub Actions 跑 `npm test`（语法 + 用例；浏览器加载用例仅在 /test/ 页）
 
 ## 目录结构
 

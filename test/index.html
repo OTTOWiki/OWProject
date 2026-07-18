@@ -111,9 +111,17 @@
       须通过本地 HTTP 打开（与游戏相同），例如项目根目录执行
       <code>npx --yes serve .</code>
       后访问 <code>/test/</code>。
+      浏览器会多跑「主路径模块可加载」；CLI 用 <code>npm test</code> 含 <code>node --check</code> 语法门。
       结果也会写到 <code>window.__TEST_RESULT__</code> 与控制台。
     </p>
   </main>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
   <script type="module" src="./run.js"></script>
 </body>
 </html>
