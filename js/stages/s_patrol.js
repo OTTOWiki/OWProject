@@ -1,4 +1,4 @@
-import { boss, timer } from './_shared.js';
+import { boss, timer, faceDefaults, midChapter, letterChapter } from './_shared.js';
 import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt,
@@ -52,21 +52,25 @@ function chapter_patrol_2(g) {
   g.bossRef = e;
 }
 
+const FACE = faceDefaults('patrol', { musicMid: 'patrol', musicBoss: 'patrol', bgMid: 'patrol', bgBoss: 'patrol' });
+
 export const chapters = [
-  {
-    id: 23, name: '巡查姬「全站锁定」', stage: 'patrol', stageKey: 'patrol', kind: 'boss',
-    music: 'patrol', bg: 'patrol',
-    dialogue: 'patrol', letter: '全站锁定 · 无差别IP封禁', letterTime: 50,
-    build: (g) => chapter_patrol_1(g),
-  },
-  {
-    id: 24, name: '巡查姬「404」', stage: 'patrol', stageKey: 'patrol', kind: 'boss',
-    music: 'patrol', bg: 'patrol',
-    letter: '404 Not Found · 存在抹消', letterTime: 50,
-    /** 通关后进入 A/B 手选（勿用魔法 id 硬编码） */
+  letterChapter(FACE, {
+    id: 23,
+    name: '巡查姬「全站锁定」',
+    dialogue: 'patrol',
+    letter: '全站锁定 · 无差别IP封禁',
+    letterTime: 50,
+    build: chapter_patrol_1,
+  }),
+  letterChapter(FACE, {
+    id: 24,
+    name: '巡查姬「404」',
+    letter: '404 Not Found · 存在抹消',
+    letterTime: 50,
     onClear: 'routeSelect',
-    build: (g) => chapter_patrol_2(g),
-  },
-];
+    build: chapter_patrol_2,
+  }),
+]
 
 export const stageSelectEntry = { id: 'patrol', label: '中立拦截', desc: '全域巡查姬·404', startChapter: 23 };

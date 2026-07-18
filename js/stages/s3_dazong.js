@@ -1,4 +1,4 @@
-import { mob, elite, boss, timer, scaleN } from './_shared.js';
+import { mob, elite, boss, timer, scaleN, faceDefaults, midChapter, letterChapter } from './_shared.js';
 import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser,
@@ -183,51 +183,72 @@ function chapter_dazong_2(g) {
   g.bossRef = e;
 }
 
+const FACE = faceDefaults(3);
+
 export const chapters = [
-  {
-    id: 15, name: '3-1 激光与大玉', stage: 3, stageKey: 3, kind: 'mid',
-    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
-    build: (g) => chapter_s3_1(g),
-  },
-  {
-    id: 16, name: '3-2 Unstable 交叉网', stage: 3, stageKey: 3, kind: 'mid',
-    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
-    build: (g) => chapter_s3_2(g),
-  },
-  {
-    id: 17, name: '3-3 高分反击', stage: 3, stageKey: 3, kind: 'mid',
-    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 24,
-    build: (g) => chapter_s3_3(g),
-  },
-  {
-    id: 18, name: '3-4 三角精英', stage: 3, stageKey: 3, kind: 'midboss',
-    music: 's3_mid', bg: 's3_mid', duration: 32,
-    build: (g) => chapter_s3_4(g),
-  },
-  {
-    id: 19, name: '3-5 横向激光墙', stage: 3, stageKey: 3, kind: 'mid',
-    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
-    build: (g) => chapter_s3_5(g),
-  },
-  {
-    id: 20, name: '3-6 重力倾泻', stage: 3, stageKey: 3, kind: 'mid',
-    unstable: true, music: 's3_mid', bg: 's3_mid', duration: 26,
-    build: (g) => chapter_s3_6(g),
-  },
-  {
-    id: 21, name: '大宗关「代码冲突」', stage: 3, stageKey: 3, kind: 'boss',
-    music: 's3_boss', bg: 's3_boss',
-    dialogue: 's3_boss', letter: '代码冲突 · 无法合并的分支', letterTime: 45,
-    build: (g) => chapter_dazong_1(g),
-  },
-  {
-    id: 22, name: '大宗关「最终合并」', stage: 3, stageKey: 3, kind: 'boss',
-    music: 's3_boss', bg: 's3_boss',
-    letter: '编辑战 · 最终合并请求', letterTime: 48,
-    /** 通关后倾向判定进 A/B 或巡查（勿用魔法 id 硬编码） */
+  midChapter(FACE, {
+    id: 15,
+    name: '3-1 激光与大玉',
+    kind: 'mid',
+    unstable: true,
+    duration: 26,
+    build: chapter_s3_1,
+  }),
+  midChapter(FACE, {
+    id: 16,
+    name: '3-2 Unstable 交叉网',
+    kind: 'mid',
+    unstable: true,
+    duration: 26,
+    build: chapter_s3_2,
+  }),
+  midChapter(FACE, {
+    id: 17,
+    name: '3-3 高分反击',
+    kind: 'mid',
+    unstable: true,
+    duration: 24,
+    build: chapter_s3_3,
+  }),
+  midChapter(FACE, {
+    id: 18,
+    name: '3-4 三角精英',
+    kind: 'midboss',
+    duration: 32,
+    build: chapter_s3_4,
+  }),
+  midChapter(FACE, {
+    id: 19,
+    name: '3-5 横向激光墙',
+    kind: 'mid',
+    unstable: true,
+    duration: 26,
+    build: chapter_s3_5,
+  }),
+  midChapter(FACE, {
+    id: 20,
+    name: '3-6 重力倾泻',
+    kind: 'mid',
+    unstable: true,
+    duration: 26,
+    build: chapter_s3_6,
+  }),
+  letterChapter(FACE, {
+    id: 21,
+    name: '大宗关「代码冲突」',
+    dialogue: 's3_boss',
+    letter: '代码冲突 · 无法合并的分支',
+    letterTime: 45,
+    build: chapter_dazong_1,
+  }),
+  letterChapter(FACE, {
+    id: 22,
+    name: '大宗关「最终合并」',
+    letter: '编辑战 · 最终合并请求',
+    letterTime: 48,
     onClear: 'routeCheck',
-    build: (g) => chapter_dazong_2(g),
-  },
-];
+    build: chapter_dazong_2,
+  }),
+]
 
 export const stageSelectEntry = { id: '3', label: '第3面', desc: '分歧的十字路口', startChapter: 15 };

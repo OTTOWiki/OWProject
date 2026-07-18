@@ -1,4 +1,4 @@
-import { mob, elite, boss, timer, scaleN } from './_shared.js';
+import { mob, elite, boss, timer, scaleN, faceDefaults, midChapter, letterChapter } from './_shared.js';
 import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser,
@@ -176,50 +176,70 @@ function chapter_ice_3(g) {
   g.bossRef = e;
 }
 
+const FACE = faceDefaults(2);
+
 export const chapters = [
-  {
-    id: 7, name: '2-1 扇形奇数狙', stage: 2, stageKey: 2, kind: 'mid',
-    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 24,
-    build: (g) => chapter_s2_1(g),
-  },
-  {
-    id: 8, name: '2-2 Unstable 飘落', stage: 2, stageKey: 2, kind: 'mid',
-    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 26,
-    build: (g) => chapter_s2_2(g),
-  },
-  {
-    id: 9, name: '2-3 菱形精英', stage: 2, stageKey: 2, kind: 'midboss',
-    music: 's2_mid', bg: 's2_mid', duration: 30,
-    build: (g) => chapter_s2_3(g),
-  },
-  {
-    id: 10, name: '2-4 重装倾泻', stage: 2, stageKey: 2, kind: 'mid',
-    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 24,
-    build: (g) => chapter_s2_4(g),
-  },
-  {
-    id: 11, name: '2-5 激光横移', stage: 2, stageKey: 2, kind: 'mid',
-    unstable: true, music: 's2_mid', bg: 's2_mid', duration: 26,
-    build: (g) => chapter_s2_5(g),
-  },
-  {
-    id: 12, name: 'Icebin「权限交割」', stage: 2, stageKey: 2, kind: 'boss',
-    music: 's2_boss', bg: 's2_boss',
-    dialogue: 's2_boss', letter: '权限交割 · 越权警告', letterTime: 42,
-    build: (g) => chapter_ice_1(g),
-  },
-  {
-    id: 13, name: 'Icebin「页面重定向」', stage: 2, stageKey: 2, kind: 'boss',
-    music: 's2_boss', bg: 's2_boss',
-    letter: '页面重定向 · 环形跳转', letterTime: 42,
-    build: (g) => chapter_ice_2(g),
-  },
-  {
-    id: 14, name: 'Icebin「标签混乱」', stage: 2, stageKey: 2, kind: 'boss',
-    music: 's2_boss', bg: 's2_boss',
-    letter: '标签混乱 · 分类溢出', letterTime: 42,
-    build: (g) => chapter_ice_3(g),
-  },
-];
+  midChapter(FACE, {
+    id: 7,
+    name: '2-1 扇形奇数狙',
+    kind: 'mid',
+    unstable: true,
+    duration: 24,
+    build: chapter_s2_1,
+  }),
+  midChapter(FACE, {
+    id: 8,
+    name: '2-2 Unstable 飘落',
+    kind: 'mid',
+    unstable: true,
+    duration: 26,
+    build: chapter_s2_2,
+  }),
+  midChapter(FACE, {
+    id: 9,
+    name: '2-3 菱形精英',
+    kind: 'midboss',
+    duration: 30,
+    build: chapter_s2_3,
+  }),
+  midChapter(FACE, {
+    id: 10,
+    name: '2-4 重装倾泻',
+    kind: 'mid',
+    unstable: true,
+    duration: 24,
+    build: chapter_s2_4,
+  }),
+  midChapter(FACE, {
+    id: 11,
+    name: '2-5 激光横移',
+    kind: 'mid',
+    unstable: true,
+    duration: 26,
+    build: chapter_s2_5,
+  }),
+  letterChapter(FACE, {
+    id: 12,
+    name: 'Icebin「权限交割」',
+    dialogue: 's2_boss',
+    letter: '权限交割 · 越权警告',
+    letterTime: 42,
+    build: chapter_ice_1,
+  }),
+  letterChapter(FACE, {
+    id: 13,
+    name: 'Icebin「页面重定向」',
+    letter: '页面重定向 · 环形跳转',
+    letterTime: 42,
+    build: chapter_ice_2,
+  }),
+  letterChapter(FACE, {
+    id: 14,
+    name: 'Icebin「标签混乱」',
+    letter: '标签混乱 · 分类溢出',
+    letterTime: 42,
+    build: chapter_ice_3,
+  }),
+]
 
 export const stageSelectEntry = { id: '2', label: '第2面', desc: '编辑日常 · 审核冲突', startChapter: 7 };
