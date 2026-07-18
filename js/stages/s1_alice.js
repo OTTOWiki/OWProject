@@ -22,7 +22,7 @@ function chapter_s1_1(g) {
         spawnAimed(game, en, game.player, { n: 1, parity: 'odd', type: 'dot', speed: 2.4, color: '#4ade80' });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -41,7 +41,7 @@ function chapter_s1_2(g) {
         spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'rice', speed: 2.0, spread: 0.22, color: '#a3e635' });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -52,7 +52,7 @@ function chapter_s1_3(g) {
   });
   e.script = (en, d, game) => {
     timer(en, 'big', 2.2, d, () => {
-      game.bullets.push(new Bullet({
+      game.spawnBullet(new Bullet({
         x: en.x, y: en.y, vx: 0, vy: 1.6, type: 'large', color: '#f472b6', from: 'enemy', gravity: 0.015,
       }));
     });
@@ -60,7 +60,7 @@ function chapter_s1_3(g) {
       spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.3, spread: 0.14, color: '#c084fc' });
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -80,7 +80,7 @@ function chapter_s1_4(g) {
           spawnAimed(game, en, game.player, { n: 4, parity: 'even', type: 'rice', speed: 2.1, spread: 0.12, color: '#22d3ee' });
         });
       };
-      g.enemies.push(e);
+      g.spawnEnemy(e);
     }
   };
 }
@@ -99,7 +99,7 @@ function chapter_alice_1(g) {
       spawnCrossFall(game, { type: 'rice', color: '#c084fc', speed: 1.7, lanes: 5 });
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -110,7 +110,7 @@ function chapter_alice_2(g) {
   });
   e.script = (en, d, game) => {
     timer(en, 'big', 2.5, d, () => {
-      game.bullets.push(new Bullet({
+      game.spawnBullet(new Bullet({
         x: en.x, y: en.y, vx: 0, vy: 1.1, type: 'large', color: '#f472b6', from: 'enemy',
       }));
     });
@@ -124,14 +124,14 @@ function chapter_alice_2(g) {
       });
       const a = Math.atan2(game.player.y - en.y, game.player.x - en.x);
       for (const off of [-0.35, 0.35]) {
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x, y: en.y, angle: a + off, speed: 3.0, type: 'talisman',
           color: '#e879f9', from: 'enemy',
         }));
       }
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 

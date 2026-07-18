@@ -13,7 +13,7 @@ function chapter_patrol_1(g) {
   });
   e.script = (en, d, game) => {
     timer(en, 'grid', 0.08, d, () => {
-      game.bullets.push(new Bullet({
+      game.spawnBullet(new Bullet({
         x: (en.data.gx || 0) % LOGICAL_W, y: -10,
         vx: 0, vy: 1.1, type: 'dot', color: '#fca5a5', from: 'enemy',
       }));
@@ -23,7 +23,7 @@ function chapter_patrol_1(g) {
       spawnAimed(game, en, game.player, { n: 1, parity: 'odd', type: 'rice', speed: 4.2, color: '#ef4444' });
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -36,7 +36,7 @@ function chapter_patrol_2(g) {
     timer(en, 'big', 1.3, d, () => {
       const bx = 40 + Math.random() * (LOGICAL_W - 80);
       const by = 80 + Math.random() * 200;
-      game.bullets.push(new Bullet({
+      game.spawnBullet(new Bullet({
         x: bx, y: by, vx: 0, vy: 0, type: 'large', color: '#f87171', from: 'enemy',
         life: 0.9, r: 14,
         onSplit: (self) => {
@@ -48,7 +48,7 @@ function chapter_patrol_2(g) {
       spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'laser', speed: 5, spread: 0.25, color: '#ef4444', laserLen: 200 });
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 

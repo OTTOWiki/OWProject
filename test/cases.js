@@ -18,6 +18,7 @@ import {
   normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
 } from '../js/storage.js';
 import { VERSION, VERSION_LABEL } from '../js/version.js';
+import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from '../js/spawnScale.js';
 import { test, assert, assertEqual, assertClose } from './assert.js';
 
 /* ========== config ========== */
@@ -254,6 +255,33 @@ test('有 letter 的章节必须 letterTime > 0', () => {
       `chapter ${c.id} has letter but letterTime=${c.letterTime}`,
     );
   }
+});
+
+/* ========== spawn / difficulty scale ========== */
+
+test('applyEnemyDifficulty：HP 倍率且只缩放一次', () => {
+  const e = { hp: 100, maxHp: 100 };
+  applyEnemyDifficulty(e, 2, 0.5);
+  assertEqual(e.hp, 200);
+  assertEqual(e.maxHp, 200);
+  assertEqual(e._fireMul, 0.5);
+  assert(e._diffScaled);
+  applyEnemyDifficulty(e, 3, 0.1);
+  assertEqual(e.hp, 200); // 不二次缩放
+});
+
+test('applyEnemyBulletDifficulty：仅敌弹乘速', () => {
+  const enemy = { from: 'enemy', vx: 1, vy: 2, speed: 3 };
+  applyEnemyBulletDifficulty(enemy, 2);
+  assertEqual(enemy.vx, 2);
+  assertEqual(enemy.vy, 4);
+  assertEqual(enemy.speed, 6);
+  applyEnemyBulletDifficulty(enemy, 2);
+  assertEqual(enemy.speed, 6);
+
+  const player = { from: 'player', vx: 1, vy: 0, speed: 15 };
+  applyEnemyBulletDifficulty(player, 2);
+  assertEqual(player.speed, 15);
 });
 
 /* ========== storage (pure clamps) ========== */

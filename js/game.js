@@ -24,6 +24,7 @@ import {
   getDebugTimeScale, debugBlocksHit, debugLocksLives, debugLocksBombs,
   debugSkipDialogue, debugTick, debugAutoEdit,
 } from './debug.js';
+import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from './spawnScale.js';
 
 export class Game {
   constructor({ canvas, input, audio, background, ui }) {
@@ -176,7 +177,6 @@ export class Game {
     this.enemies = [];
     this.items = [];
     this.particles = [];
-    this._installEntityHooks();
 
     this.bossRef = null;
     this.waveFn = null;
@@ -256,46 +256,32 @@ export class Game {
     this.raf = requestAnimationFrame((t) => this._loop(t));
   }
 
-  /** 难度缩放：敌机血量 / 弹速 / 开火间隔；刷怪节奏通过 waveFn 时间缩放 */
-  _installEntityHooks() {
-    const enemies = this.enemies;
-    const bullets = this.bullets;
-    const self = this;
+  /**
+   * 敌机入场（难度 HP / 开火间隔 + 刷怪记账）。
+   * 关卡与 patterns 应走此 API，勿直接 enemies.push。
+   */
+  spawnEnemy(e) {
+    if (!e) return e;
+    applyEnemyDifficulty(e, this.enemyHpMul ?? 1, this.fireIntervalMul ?? 1);
+    if (this.state === 'playing') {
+      this._hadWaveEnemySpawn = true;
+      this._lastEnemySpawnChapterTime = this.chapterTime;
+      this.wavesExhausted = false;
+      this._dryWaveTicks = 0;
+    }
+    this.enemies.push(e);
+    return e;
+  }
 
-    const ePush = Array.prototype.push;
-    enemies.push = function pushEnemy(...items) {
-      let spawned = 0;
-      for (const e of items) {
-        if (!e._diffScaled) {
-          e.hp = Math.max(1, Math.floor(e.hp * self.enemyHpMul));
-          e.maxHp = Math.max(1, Math.floor(e.maxHp * self.enemyHpMul));
-          e._fireMul = self.fireIntervalMul;
-          e._diffScaled = true;
-        }
-        spawned++;
-      }
-      // 真实出怪：刷新「刷怪未耗尽」；勿用 waveCount 空转当活动
-      if (spawned > 0 && self.state === 'playing') {
-        self._hadWaveEnemySpawn = true;
-        self._lastEnemySpawnChapterTime = self.chapterTime;
-        self.wavesExhausted = false;
-        self._dryWaveTicks = 0;
-      }
-      return ePush.apply(this, items);
-    };
-
-    bullets.push = function pushBullet(...items) {
-      for (const b of items) {
-        if (b.from === 'enemy' && !b._diffScaled) {
-          const m = self.bulletSpeedMul;
-          b.vx *= m;
-          b.vy *= m;
-          if (b.speed) b.speed *= m;
-          b._diffScaled = true;
-        }
-      }
-      return ePush.apply(this, items);
-    };
+  /**
+   * 子弹入场：敌弹乘 bulletSpeedMul；自机弹原样。
+   * 关卡与 patterns 应走此 API，勿直接 bullets.push。
+   */
+  spawnBullet(b) {
+    if (!b) return b;
+    applyEnemyBulletDifficulty(b, this.bulletSpeedMul ?? 1);
+    this.bullets.push(b);
+    return b;
   }
 
   /**
@@ -379,7 +365,6 @@ export class Game {
         if (b.from !== 'player' || b.dead) this.bullets.splice(i, 1);
       }
     }
-    this._installEntityHooks();
   }
 
   _startChapter() {
@@ -1140,7 +1125,7 @@ export class Game {
     // 非阻塞章标题/结算条
     this._tickChapterBanner(dt);
 
-    // cleanup（原地删除，避免重建数组丢失难度 push 钩子）
+    // cleanup（原地 splice，避免每帧重建大数组）
     this._purgeDead(this.bullets);
     this._purgeDead(this.enemies);
     this.items = this.items.filter((i) => !i.dead);

@@ -99,6 +99,9 @@ tools/
 | `stages/*` | 章节定义 + 刷怪时间轴（`stages/index.js` 聚合） | 全局状态机 |
 | `patterns.js` | 弹幕生成工具函数 | UI / 存档 |
 | `entities.js` | 实体数据与 Canvas 绘制 | 章节编排 |
+| `spawnScale.js` | 敌机/敌弹难度缩放纯函数 | 关卡编排 |
+
+关卡与 `patterns` 出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**（难度缩放与刷怪记账），勿直接 `enemies.push` / `bullets.push`。
 | `ui.js` | 菜单与屏幕切换 | 碰撞/得分 |
 | `audio.js` | BGM/SFX | 关卡内容 |
 

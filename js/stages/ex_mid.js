@@ -32,7 +32,7 @@ export function mid_altSides(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -56,7 +56,7 @@ export function mid_randomEven(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -81,7 +81,7 @@ export function mid_dualFlank(g) {
           });
         });
       };
-      g.enemies.push(e);
+      g.spawnEnemy(e);
     }
   };
 }
@@ -105,7 +105,7 @@ export function mid_hoverRing(g) {
         spawnRingAt(game, en.x, en.y, exN(12), exSp(1.85), 'talisman', C.gold, en.age);
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -134,7 +134,7 @@ export function mid_rainSparse(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -180,7 +180,7 @@ export function mid_hoverElite(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -205,7 +205,7 @@ export function mid_laserSniper(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -225,7 +225,7 @@ export function mid_hLaserRain(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > exFire(0.35)) {
       g.rainT = 0;
-      g.bullets.push(new Bullet({
+      g.spawnBullet(new Bullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.35, vy: exSp(1.55 + Math.random() * 0.4),
         type: 'rice', color: C.orange, from: 'enemy', gravity: 0.012,
@@ -255,7 +255,7 @@ export function mid_vForm(g) {
           });
         });
       };
-      g.enemies.push(e);
+      g.spawnEnemy(e);
     }
   };
 }
@@ -281,7 +281,7 @@ export function mid_sideStream(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -302,7 +302,7 @@ export function mid_splitLarge(g) {
     e.vy = 0.2;
     e.script = (en, d, game) => {
       timer(en, 'big', exFire(1.9), d, () => {
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x, y: en.y, vx: 0, vy: exSp(1.2),
           type: 'large', color: C.orange, from: 'enemy', gravity: 0.01, life: 5,
           onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(8), exSp(1.5), 'dot', C.gold),
@@ -314,7 +314,7 @@ export function mid_splitLarge(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -335,13 +335,13 @@ export function mid_diagCross(g) {
     e.script = (en, d, game) => {
       timer(en, 's', exFire(0.8), d, () => {
         const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x, y: en.y, angle: ang, speed: exSp(2.35),
           type: 'dot', color: C.cyan, from: 'enemy',
         }));
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -371,7 +371,7 @@ export function mid_ringEven(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -397,7 +397,7 @@ export function mid_zigzag(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -415,7 +415,7 @@ export function mid_centerSides(g) {
       });
     });
   };
-  g.enemies.push(core);
+  g.spawnEnemy(core);
   g.waveTimer = 0;
   g.waveCount = 0;
   g.waveFn = (dt) => {
@@ -434,7 +434,7 @@ export function mid_centerSides(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -456,14 +456,14 @@ export function mid_fixedFan(g) {
         en.data.a = (en.data.a || Math.PI * 0.55) + 0.12;
         const base = en.data.a;
         for (let i = -1; i <= 1; i++) {
-          game.bullets.push(new Bullet({
+          game.spawnBullet(new Bullet({
             x: en.x, y: en.y, angle: base + i * 0.2, speed: exSp(2.1),
             type: 'rice', color: C.blue, from: 'enemy',
           }));
         }
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -480,7 +480,7 @@ export function mid_gapWall(g) {
     const gapX = 70 + Math.random() * (LOGICAL_W - 140);
     for (let x = 16; x < LOGICAL_W - 16; x += 20) {
       if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.bullets.push(new Bullet({
+      g.spawnBullet(new Bullet({
         x, y: -12, vx: 0, vy: exSp(1.9),
         type: 'rice', color: C.dark, from: 'enemy',
       }));
@@ -505,7 +505,7 @@ export function mid_sideBarrage(g) {
         timer(en, 's', exFire(0.65), d, () => {
           const dir = en.x < LOGICAL_W / 2 ? 1 : -1;
           for (let i = -1; i <= 1; i++) {
-            game.bullets.push(new Bullet({
+            game.spawnBullet(new Bullet({
               x: en.x, y: en.y,
               vx: dir * exSp(2.3), vy: i * exSp(0.55),
               type: 'dot', color: C.orange, from: 'enemy',
@@ -513,7 +513,7 @@ export function mid_sideBarrage(g) {
           }
         });
       };
-      g.enemies.push(e);
+      g.spawnEnemy(e);
     }
   };
 }
@@ -536,7 +536,7 @@ export function mid_spiralLite(g) {
     e.script = (en, d, game) => {
       timer(en, 'sp', exFire(0.22), d, () => {
         en.data.a = (en.data.a || 0) + 0.45;
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x, y: en.y, angle: en.data.a, speed: exSp(2.0),
           type: 'dot', color: C.pink, from: 'enemy',
         }));
@@ -547,7 +547,7 @@ export function mid_spiralLite(g) {
         });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 

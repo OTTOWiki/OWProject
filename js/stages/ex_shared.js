@@ -86,7 +86,7 @@ export function pushMidboss(g, opts = {}) {
       });
     }
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -182,7 +182,7 @@ export function pushBossLetter(g, opts = {}) {
         const gapX = 80 + Math.random() * (LOGICAL_W - 160);
         for (let x = 20; x < LOGICAL_W - 20; x += 18) {
           if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-          game.bullets.push(new Bullet({
+          game.spawnBullet(new Bullet({
             x, y: -10, vx: 0, vy: exSp(2.0 + Math.random() * 0.4),
             type: 'rice', color, from: 'enemy',
           }));
@@ -201,7 +201,7 @@ export function pushBossLetter(g, opts = {}) {
         const a = en.data.a;
         for (let i = 0; i < exN(3); i++) {
           const ang = a + (i / 3) * Math.PI * 2;
-          game.bullets.push(new Bullet({
+          game.spawnBullet(new Bullet({
             x: en.x, y: en.y, angle: ang, speed: exSp(2.4),
             type: 'dot', color: i % 2 ? color : color2, from: 'enemy',
           }));
@@ -227,7 +227,7 @@ export function pushBossLetter(g, opts = {}) {
       }
     }
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 

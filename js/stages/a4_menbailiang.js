@@ -22,7 +22,7 @@ function chapter_a4_mid_1(g) {
         spawnAimed(game, en, game.player, { n: 2, parity: 'odd', type: 'dot', speed: 2.3, color: '#fbbf24' });
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -44,7 +44,7 @@ function chapter_a4_mid_2(g) {
         spawnRingAt(game, en.x, en.y, 8, 1.5, 'talisman', '#fbbf24');
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -65,7 +65,7 @@ function chapter_a4_mid_3(g) {
           spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'dot', speed: 2.6, spread: 0.26, color: en.color });
         });
       };
-      g.enemies.push(e);
+      g.spawnEnemy(e);
     }
   };
 }
@@ -83,14 +83,14 @@ function chapter_a4_midboss(g) {
       spawnRingAt(game, en.x, en.y, 12, 1.8, 'medium', '#fcd34d', en.age);
     });
     timer(en, 'big', 1.8, d, () => {
-      game.bullets.push(new Bullet({
+      game.spawnBullet(new Bullet({
         x: en.x + (Math.random() - 0.5) * 60, y: en.y, vx: 0, vy: 1.3,
         type: 'large', color: '#f59e0b', from: 'enemy', gravity: 0.008, life: 6,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.6, 'dot', '#fde68a'),
       }));
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -106,7 +106,7 @@ function chapter_a4_mid_4(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.18) {
       g.rainT = 0;
-      g.bullets.push(new Bullet({
+      g.spawnBullet(new Bullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.3, vy: 1.6 + Math.random(),
         type: 'rice', color: '#fde68a', from: 'enemy', gravity: 0.012,
@@ -141,7 +141,7 @@ function chapter_a4_mid_5(g) {
         spawnRingAt(game, en.x, en.y, 10, 1.6, 'talisman', '#fbbf24', en.age);
       });
     };
-    g.enemies.push(e);
+    g.spawnEnemy(e);
   };
 }
 
@@ -152,7 +152,7 @@ function chapter_a4_mid_6(g) {
       g.rainT = 0;
       g.waveCount = (g.waveCount || 0) + 1;
       for (let i = 0; i < 2; i++) {
-        g.bullets.push(new Bullet({
+        g.spawnBullet(new Bullet({
           x: Math.random() * LOGICAL_W, y: -5,
           vx: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random() * 0.5,
           type: 'talisman', color: '#fde68a', from: 'enemy', gravity: 0.01,
@@ -185,7 +185,7 @@ function chapter_menbailiang_1(g) {
     });
     timer(en, 'ring', 2.0, d, () => spawnRingAt(game, en.x, en.y, 12, 2.0, 'medium', '#fcd34d'));
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -203,14 +203,14 @@ function chapter_menbailiang_2(g) {
     timer(en, 'spin', 0.12, d, () => {
       en.data.a = (en.data.a || 0) + 0.4;
       for (const side of [-1, 1]) {
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x, y: en.y, angle: en.data.a * side, speed: 1.8, type: 'dot', color: '#f59e0b', from: 'enemy',
         }));
       }
     });
     timer(en, 'ring', 1.8, d, () => spawnRingAt(game, en.x, en.y, 14, 1.8, 'talisman', '#fde68a', en.age * 0.7));
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -227,13 +227,13 @@ function chapter_menbailiang_3(g) {
     timer(en, 'ring', 1.3, d, () => spawnRingAt(game, en.x, en.y, 16, 2.0, 'talisman', '#fde68a', en.age * 0.5));
     timer(en, 'drop', 1.6, d, () => {
       const bx = 30 + Math.random() * (LOGICAL_W - 60);
-      game.bullets.push(new Bullet({
+      game.spawnBullet(new Bullet({
         x: bx, y: -10, vx: 0, vy: 1.4, type: 'large', color: '#f59e0b', from: 'enemy', gravity: 0.01, life: 10,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 10, 1.8, 'dot', '#fde68a'),
       }));
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -255,7 +255,7 @@ function chapter_menbailiang_4(g) {
       spawnRingAt(game, en.x, en.y, 16, 2.0, 'rice', '#fde68a', en.age * 0.8);
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -277,7 +277,7 @@ function chapter_menbailiang_5(g) {
       spawnGravityRain(game, 2, 'rice', '#fcd34d', 1.6);
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -296,7 +296,7 @@ function chapter_menbailiang_6(g) {
     timer(en, 'spin', 0.1, d, () => {
       en.data.a = (en.data.a || 0) + 0.45;
       for (const s of [-1, 1]) {
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x + s * 20, y: en.y, angle: en.data.a * s, speed: 2.2, type: 'talisman', color: '#f59e0b', from: 'enemy',
         }));
       }
@@ -306,7 +306,7 @@ function chapter_menbailiang_6(g) {
       timer(en, 'laser', 0.5, d, () => spawnAimedLaser(game, en, game.player, '#fde68a'));
     }
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -328,7 +328,7 @@ function chapter_menbailiang_7(g) {
       spawnRingAt(game, en.x, en.y, 20, hpRatio < 0.3 ? 2.8 : 2.0, 'dot', '#fcd34d', en.age);
     });
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
@@ -348,7 +348,7 @@ function chapter_menbailiang_last(g) {
     timer(en, 'spin', frenzy ? 0.06 : 0.12, d, () => {
       en.data.a = (en.data.a || 0) + (frenzy ? 0.7 : 0.4);
       for (let i = 0; i < (frenzy ? 3 : 2); i++) {
-        game.bullets.push(new Bullet({
+        game.spawnBullet(new Bullet({
           x: en.x, y: en.y, angle: en.data.a + (i * Math.PI * 2) / (frenzy ? 3 : 2), speed: frenzy ? 3.0 : 2.2, type: 'talisman', color: '#fbbf24', from: 'enemy',
         }));
       }
@@ -362,7 +362,7 @@ function chapter_menbailiang_last(g) {
       timer(en, 'rain', 0.15, d, () => spawnGravityRain(game, 3, 'rice', '#fde68a', 2.4));
     }
   };
-  g.enemies.push(e);
+  g.spawnEnemy(e);
   g.bossRef = e;
 }
 
