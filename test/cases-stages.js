@@ -5,6 +5,9 @@ import { buildChapterList, stageIntroFor, stageSelectEntries } from '../js/stage
 import { getDialogues } from '../js/dialogue.js';
 import { bgModeFor } from '../js/bgModes.js';
 import { getPlayfieldBgModes } from '../js/playfieldBg.js';
+import {
+  faceDefaults, midChapter, letterChapter, installMidWave,
+} from '../js/stages/_shared.js';
 import { test, assert, assertEqual } from './assert.js';
 
 const REQUIRED_STAGE_KEYS = ['1', '2', '3', 'patrol', 'A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'EX'];
@@ -112,4 +115,54 @@ test('故事图：routeCheck 后存在 A4/B4/patrol；patrol 后有 A/B 可选�
   const iRc = list.indexOf(rc);
   const iRs = list.indexOf(rs);
   assert(iRc >= 0 && iRs > iRc, 'routeSelect should appear after routeCheck in chapter list');
+});
+
+test('faceDefaults / midChapter / letterChapter 元数据工厂', () => {
+  const face = faceDefaults(1);
+  assertEqual(face.musicMid, 's1_mid');
+  assertEqual(face.musicBoss, 's1_boss');
+  assertEqual(face.bgMid, 's1_mid');
+  const mid = midChapter(face, {
+    id: 1, name: 't', kind: 'mid', duration: 22, unstable: true, build: () => {},
+  });
+  assertEqual(mid.stageKey, 1);
+  assertEqual(mid.music, 's1_mid');
+  assertEqual(mid.kind, 'mid');
+  assert(mid.unstable === true);
+  assertEqual(mid.duration, 22);
+  const letter = letterChapter(face, {
+    id: 5, name: 'boss', letter: 'L', letterTime: 40, build: () => {}, dialogue: 's1_boss',
+  });
+  assertEqual(letter.kind, 'boss');
+  assertEqual(letter.music, 's1_boss');
+  assertEqual(letter.letterTime, 40);
+  assertEqual(letter.dialogue, 's1_boss');
+});
+
+test('installMidWave：continuous 先于 spawn 门控', () => {
+  const g = { waveTimer: 0, waveCount: 0, enemies: [] };
+  const order = [];
+  installMidWave(g, {
+    interval: 1,
+    maxWaves: 2,
+    continuous: () => { order.push('c'); },
+    onWave: () => { order.push('w'); },
+  });
+  g.waveFn(0.5);
+  assertEqual(order.join(''), 'c'); // 未到 interval，只有 continuous
+  g.waveFn(0.6);
+  assertEqual(order.join(''), 'ccw'); // continuous + wave
+});
+
+test('第1面章节表经工厂后字段完整（T14 试点）', () => {
+  const s1 = buildChapterList().filter((c) => String(c.stageKey) === '1');
+  assertEqual(s1.length, 6);
+  assertEqual(s1[0].id, 1);
+  assertEqual(s1[0].music, 's1_mid');
+  assertEqual(s1[4].kind, 'boss');
+  assertEqual(s1[4].letterTime, 40);
+  assertEqual(s1[5].id, 6);
+  for (const c of s1) {
+    assert(typeof c.build === 'function', `s1 #${c.id} build`);
+  }
 });
