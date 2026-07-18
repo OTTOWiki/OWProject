@@ -41,15 +41,22 @@ function tryGitHead() {
 
 const arg = process.argv[2];
 let raw = '';
+let source = 'empty';
 if (arg === '--clear' || arg === '-c') {
   raw = '';
+  source = 'clear';
 } else if (arg) {
   raw = arg;
+  source = 'cli';
+} else if (process.env.CF_PAGES_COMMIT_SHA) {
+  raw = process.env.CF_PAGES_COMMIT_SHA;
+  source = 'CF_PAGES_COMMIT_SHA';
+} else if (process.env.GITHUB_SHA) {
+  raw = process.env.GITHUB_SHA;
+  source = 'GITHUB_SHA';
 } else {
-  raw = process.env.CF_PAGES_COMMIT_SHA
-    || process.env.GITHUB_SHA
-    || tryGitHead()
-    || '';
+  raw = tryGitHead();
+  source = raw ? 'git-rev-parse' : 'empty';
 }
 
 const hash = shortHash(raw);
@@ -57,9 +64,15 @@ const hash = shortHash(raw);
 const body = `/**
  * 部署短哈希（由 tools/inject-deploy-hash.mjs 生成；仓库源文件应为空串）
  * 请勿把含真实 hash 的本文件提交进仓库（若本地注入了，提交前恢复为空或勿 git add）。
+ * source=${source}
  */
 export const DEPLOY_GIT_HASH = '${hash}';
 `;
 
 fs.writeFileSync(outPath, body, 'utf8');
-console.log(hash ? `inject-deploy-hash: DEPLOY_GIT_HASH=${hash}` : 'inject-deploy-hash: DEPLOY_GIT_HASH= (empty)');
+// 便于在 Cloudflare 构建日志里确认是否执行成功
+console.log(`[inject-deploy-hash] source=${source} raw=${raw ? `${String(raw).slice(0, 12)}…` : '(none)'} short=${hash || '(empty)'}`);
+console.log(`[inject-deploy-hash] wrote ${outPath}`);
+if (!hash && source !== 'clear') {
+  console.warn('[inject-deploy-hash] WARN: no commit sha — version label will omit hash. On CF Pages ensure Build command runs this script.');
+}

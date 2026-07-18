@@ -217,9 +217,11 @@ tools/
 - **仓库**：**不**硬编码 commit 哈希；`js/git-hash.js` 中 `DEPLOY_GIT_HASH` 恒为 `''`
 - **显示**：有合法 hash → `v{NAME}.{hash}`；**空则只显示 `v{NAME}`**（本地默认如此）
 - **Cloudflare Pages 部署注入**（推荐）：
+  - Framework preset：**None**
   - **Build command**：`npm run pages:build`（= `node tools/inject-deploy-hash.mjs`）
-  - **Build output directory**：`/` 或项目根（与现网静态托管一致，无打包产物目录）
-  - 脚本读取 **`CF_PAGES_COMMIT_SHA`**（Pages 自动注入）→ 覆盖构建目录里的 `js/git-hash.js`
+  - **Build output directory**：**留空** 或 **`.`**（项目根）。**不要填 `/`**（会指错目录，注入无效）
+  - 脚本读取 **`CF_PAGES_COMMIT_SHA`** → 覆盖构建产物中的 `js/git-hash.js`
+  - 构建日志应出现：`[inject-deploy-hash] source=CF_PAGES_COMMIT_SHA short=xxxxxxx`
   - **不会**把 hash commit 回 GitHub
 - **GitHub Actions**：仅 `test.yml` 跑 `npm test`；**无** stamp 回写
 - **每次人工提交前**：`VERSION` **+1**
