@@ -1,34 +1,29 @@
 import {
-  BALANCE, LOGICAL_W, LOGICAL_H, PLAYER_DEFS, SPEAKER_COLORS,
-  getDifficulty, rollUnstableEffects, unstableStackCount, calcLetterBonus, unstableCompMul,
-  nextExtendThreshold,
+  BALANCE, LOGICAL_W, LOGICAL_H, PLAYER_DEFS,
+  getDifficulty, nextExtendThreshold,
 } from './config.js';
 import {
-  Player, Bullet, Item, Particle,
+  Player, Item, Particle,
   drawPlayer,
 } from './entities.js';
 import { drawGameFrame, drawFps } from './gameDraw.js';
 import {
-  bindOverlayClicks, showOverlay, hideOverlay, openPause, openResult,
+  bindOverlayClicks, hideOverlay, openPause, openResult,
   runOverlayAction, handleOverlayInput, highlightOverlay, overlayButtons,
 } from './gameOverlay.js';
+import * as chapterFlow from './chapterFlow.js';
 import { spawnPlayerShot, fullScreenClear, clearBulletsToItems, spawnBombOrbs } from './patterns.js';
-import { buildChapterList, stageIntroFor } from './stages/index.js';
-import { getDialogues, getEndingDialogue } from './dialogue.js';
-import { saveHiscore, loadHiscore, unlockStage, unlockRoute, loadSettings } from './storage.js';
-// saveHiscore 仍用于结局/gameover 等；overlay 菜单回标题在 gameOverlay 内 save
-import { trackForStage } from './audio.js';
-import { bgModeFor } from './backgrounds.js';
-import { portraitFor } from './assets.js';
+import { buildChapterList } from './stages/index.js';
+import { getDialogues } from './dialogue.js';
+import { loadHiscore, loadSettings } from './storage.js';
 import { PlayfieldBackground } from './playfieldBg.js';
 import { runCollisions, rebuildBulletLists } from './collision.js';
 import {
   createHudCache, updateGameHud, updateLetterHud,
-  unstableHintFor,
 } from './hud.js';
 import {
   getDebugTimeScale, debugBlocksHit, debugLocksLives, debugLocksBombs,
-  debugSkipDialogue, debugTick, debugAutoEdit,
+  debugTick, debugAutoEdit,
 } from './debug.js';
 import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from './spawnScale.js';
 
@@ -287,30 +282,8 @@ export class Game {
     return b;
   }
 
-  /**
-   * 包装 waveFn：区分「波次计数空转」与「真实出怪」
-   * 常见写法 waveCount++ 后 if (waveCount > N) return —— 计数仍增但不出怪 → 判刷怪耗尽
-   */
   _wrapWaveFn(raw) {
-    return (dt) => {
-      const beforeLen = this.enemies.length;
-      const beforeWc = this.waveCount || 0;
-      raw.call(this, dt);
-      const afterLen = this.enemies.length;
-      const afterWc = this.waveCount || 0;
-      if (afterLen > beforeLen) {
-        this._hadWaveEnemySpawn = true;
-        this._lastEnemySpawnChapterTime = this.chapterTime;
-        this.wavesExhausted = false;
-        this._dryWaveTicks = 0;
-      } else if (afterWc > beforeWc) {
-        // waveCount 增加但没有新敌机（刷怪上限后的空转，或纯激光波）
-        this._dryWaveTicks = (this._dryWaveTicks || 0) + 1;
-        if (this._hadWaveEnemySpawn && this._dryWaveTicks >= 1) {
-          this.wavesExhausted = true;
-        }
-      }
-    };
+    return chapterFlow.wrapWaveFn(this, raw);
   }
 
   _purgeDead(arr) {
@@ -343,259 +316,26 @@ export class Game {
     }
   }
 
-  /**
-   * 软过渡进下一章：清敌机；可选敌弹变点。
-   * convert=true：章末结算（变点收取）；false：仅开章清理，不再二次变点计分。
-   */
-  _softClearForNextChapter({ convert = true } = {}) {
-    if (convert) {
-      this._bulletsToPointsAndAttract();
-    } else if (this.bullets?.length) {
-      for (let i = this.bullets.length - 1; i >= 0; i--) {
-        const b = this.bullets[i];
-        if (b.from !== 'player' || b.dead) this.bullets.splice(i, 1);
-      }
-    }
-    if (this.enemies) this.enemies.length = 0;
-    else this.enemies = [];
-    this.bossRef = null;
-    if (convert && this.bullets?.length) {
-      for (let i = this.bullets.length - 1; i >= 0; i--) {
-        const b = this.bullets[i];
-        if (b.from !== 'player' || b.dead) this.bullets.splice(i, 1);
-      }
-    }
+  _softClearForNextChapter(opts) {
+    chapterFlow.softClearForNextChapter(this, opts);
   }
 
   _startChapter() {
-    const ch = this.chapters[this.chapterIndex];
-    if (!ch) {
-      this._gameClear();
-      return;
-    }
-
-    // 开章清理：不二次变点计分（章末已 convert）；保留自机位置/自机弹/道具
-    this._softClearForNextChapter({ convert: false });
-
-    this.waveFn = null;
-    this.waveTimer = 0;
-    this.waveCount = 0;
-    this._lastWaveCount = 0;
-    this._waveStall = 0;
-    this.wavesExhausted = false;
-    this._hadWaveEnemySpawn = false;
-    this._dryWaveTicks = 0;
-    this._lastEnemySpawnChapterTime = -999;
-    this.rainT = 0;
-    this.laserT = 0;
-    this.chapterTime = 0;
-    this.chapterScore = 0;
-    this.chapterMiss = false;
-    this.chapterBomb = false;
-    this.chapterDone = false;
-    this.chapterClearTimer = 0;
-    this.chapterTendency = 0;
-    this.settlement = null;
-    // chapterBanner 跨章保留（结束条可多显示一会，不挡下一章）
-    this.stageTransit = null;
-    this.stageIntro = null;
-    this._pendingChapterBegin = null;
-
-    // unstable
-    this.unstableFx = null;
-    this.fog = false;
-    this.noBomb = false;
-    this.bombCost = 1;
-    this.atkMul = 1;
-    this.scoreMul = 1;
-    const useUnstable = ch.unstable && (this.mode === 'practice' ? this.practiceUnstable : true);
-    if (useUnstable) {
-      this.unstableFx = this.nextUnstableFx
-        || rollUnstableEffects(unstableStackCount(ch.stageKey));
-      this.nextUnstableFx = null;
-      this.atkMul = this.unstableFx.atkMul || 1;
-      this.scoreMul = this.unstableFx.scoreMul || 1;
-      this.fog = !!this.unstableFx.fog;
-      this.noBomb = !!this.unstableFx.noBomb;
-      this.bombCost = this.unstableFx.bombCost || 1;
-    }
-
-    // Letter 限时与道中 duration 分离：仅 letterTime 走失败超时；duration 见 _update 保底成功
-    this.letterTimeMax = ch.letterTime || 0;
-    this.letterTimeLeft = this.letterTimeMax;
-    this.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
-
-    // audio & bg
-    const isBoss = ch.kind === 'boss';
-    this.audio.playTrack(ch.music || trackForStage(ch.stageKey, isBoss), isBoss);
-    const bgMode = ch.bg || bgModeFor(ch.stageKey, isBoss);
-    this.background?.setMode(bgMode);
-    // 战斗区伪3D背景：进入新阶段时转场
-    const doTrans = this._lastBgMode != null && this._lastBgMode !== bgMode;
-    this.playBg.setMode(bgMode, { transition: doTrans });
-    this._lastBgMode = bgMode;
-    this.el.stageLabel.textContent = typeof ch.stage === 'number' ? `Stage ${ch.stage}` : String(ch.stage);
-
-    if (ch.letter) {
-      this.el.letterBanner.classList.remove('hidden');
-      this.el.letterBanner.style.opacity = '1';
-      this.el.letterName.textContent = ch.letter;
-      this._updateLetterHud();
-      this.audio.sfx('letter');
-    } else {
-      this.el.letterBanner.classList.add('hidden');
-      if (this.el.letterBonus) this.el.letterBonus.textContent = '';
-    }
-
-    const afterBuild = () => {
-      try {
-        ch.build(this);
-      } catch (err) {
-        console.error('[chapter build]', ch?.id, ch?.name, err);
-        this.waveFn = null;
-      }
-      // 刷怪节奏：Easy 更慢，Lunatic 更快；并检测刷怪耗尽
-      if (this.waveFn) {
-        const raw = this.waveFn;
-        const scaled = (dt) => {
-          try {
-            raw.call(this, dt / this.spawnMul);
-          } catch (err) {
-            console.error('[waveFn]', ch?.id, err);
-            this.waveFn = null;
-          }
-        };
-        this.waveFn = this._wrapWaveFn(scaled);
-      } else {
-        // 无 waveFn：开场已放完怪，清完即本章敌人打完
-        this.wavesExhausted = true;
-      }
-      // build 里同步 push 的敌机也算本章出怪
-      if (this.enemies.length > 0) {
-        this._hadWaveEnemySpawn = true;
-        this._lastEnemySpawnChapterTime = this.chapterTime;
-      }
-      // 已在场敌机补 fireMul（build 内同步 push 已缩放）
-      for (const e of this.enemies) {
-        e._fireMul = this.fireIntervalMul;
-      }
-    };
-
-    const showStartTitle = () => {
-      const fx = this.unstableFx;
-      const title = {
-        kind: 'start',
-        name: ch.name,
-        letter: ch.letter || '',
-        // 当前章 Unstable 说明（有则显示）
-        unstable: fx ? fx.label : '',
-        unstableHint: fx ? unstableHintFor(fx) : '',
-        unstableNegative: !!(fx && fx.negative),
-        t: 0,
-        duration: fx ? 2.4 : 2.0,
-      };
-      // 结束条还在播：排队，不打断渐隐
-      if (this.chapterBanner && this.chapterBanner.kind === 'end') {
-        this._queuedStartTitle = title;
-        return;
-      }
-      this._queuedStartTitle = null;
-      this.chapterBanner = title;
-    };
-
-    const beginChapterContent = () => {
-      this._pendingChapterBegin = null;
-      this.stageTransit = null;
-      showStartTitle();
-      if (ch.dialogue && this.dialogues[ch.dialogue]) {
-        this._openDialogue(this.dialogues[ch.dialogue], afterBuild);
-      } else {
-        this.state = 'playing';
-        afterBuild();
-      }
-    };
-
-    // 换「面」时先播过渡页，再进入对话/刷怪
-    const sk = String(ch.stageKey);
-    if (sk !== this.lastStageKey) {
-      this.lastStageKey = sk;
-      const info = stageIntroFor(sk);
-      if (info) {
-        this.stageTransit = {
-          arc: info.arc || '',
-          label: info.label || '',
-          poem: info.poem || info.desc || '',
-          t: 0,
-          duration: 3.6,
-        };
-        this.state = 'stageTransit';
-        this._pendingChapterBegin = beginChapterContent;
-        this._updateHUD();
-        return;
-      }
-    }
-
-    beginChapterContent();
-    this._updateHUD();
+    chapterFlow.startChapter(this);
   }
 
   _openDialogue(lines, after) {
-    if (debugSkipDialogue()) {
-      this.el.dialogueBox?.classList.add('hidden');
-      this.state = 'playing';
-      after?.();
-      return;
-    }
-    this.state = 'dialogue';
-    this.dialogueQueue = lines;
-    this.dialogueIdx = 0;
-    this.pendingAfterDialogue = after;
-    this._showDialogueLine();
+    chapterFlow.openDialogue(this, lines, after);
   }
 
   _showDialogueLine() {
-    const line = this.dialogueQueue[this.dialogueIdx];
-    if (!line) {
-      this.el.dialogueBox.classList.add('hidden');
-      this.state = 'playing';
-      const cb = this.pendingAfterDialogue;
-      this.pendingAfterDialogue = null;
-      cb?.();
-      return;
-    }
-    this.el.dialogueBox.classList.remove('hidden');
-    const name = line.name;
-    this.el.dialogueName.textContent = name;
-    this.el.dialogueName.style.color = SPEAKER_COLORS[name] || '#e2e8f0';
-    this.el.dialogueText.textContent = line.text;
-
-    // 东方风立绘（原创资源）
-    const img = this.el.dialoguePortrait;
-    if (img) {
-      const path = portraitFor(name);
-      if (path) {
-        img.src = path;
-        img.classList.remove('hidden');
-        img.alt = name;
-      } else {
-        img.classList.add('hidden');
-        img.removeAttribute('src');
-      }
-    }
+    chapterFlow.showDialogueLine(this);
   }
 
   _advanceDialogue() {
-    this.dialogueIdx++;
-    this._showDialogueLine();
+    chapterFlow.advanceDialogue(this);
   }
 
-  /**
-   * 主循环。限帧用「时间银行」：
-   * - rAF 仍跟显示器刷新，把间隔存入 bank
-   * - 攒够 1000/cap ms 才扣款推进逻辑/绘制（固定步长 1/cap）
-   * - 比简单 skip 帧更稳：50/90 等非整除刷新率也能贴近目标
-   * 注意：显示器 60Hz 时 cap>60 实际只能到 ~60，属硬件上限
-   */
   _loop(t) {
     if (!this.running) return;
     // 先挂下一帧，避免中途 return 断链
@@ -1177,334 +917,59 @@ export class Game {
   }
 
   _finishChapter(success) {
-    if (this.chapterDone) return;
-    this.chapterDone = true;
-    const ch = this.chapters[this.chapterIndex];
-    // 无 Miss/Bomb；奖励须成功通关（Letter/midboss 超时失败不发 Perfect/NMNB）
-    const clean = !this.chapterMiss && !this.chapterBomb;
-    const perfect = success && clean;
-
-    // NMNB 结算：Perfect ×1.05 + 负面 Unstable 补偿倍率（仅负面，乘在章分上）
-    // chapterScore 已含 scoreMul / diffScoreMul，加成直接加算，禁止再走 addScore 二次乘倍率
-    const baseChapter = this.chapterScore;
-    let settleMul = 1;
-    let unstableComp = 1;
-    if (perfect) {
-      settleMul *= BALANCE.chapterPerfectMul;
-      unstableComp = unstableCompMul(this.unstableFx);
-      if (unstableComp > 1) settleMul *= unstableComp;
-      if (settleMul > 1 && baseChapter > 0) {
-        const bonus = Math.floor(baseChapter * (settleMul - 1));
-        if (bonus > 0) {
-          this.score += bonus;
-          this.chapterScore += bonus;
-          const dm = this.diffScoreMul || 1;
-          this.baseScore += Math.floor(bonus / dm);
-          if (this.score > this.hiscore) this.hiscore = this.score;
-          this._checkExtend();
-        }
-      }
-    }
-
-    // Letter 符卡红利：无 Miss/Bomb 且限时内击破；随剩余时间线性递减，随关卡进程抬高
-    let letterBonus = 0;
-    if (perfect && this.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
-      letterBonus = calcLetterBonus(ch.stageKey, this.letterTimeLeft, this.letterTimeMax);
-      if (letterBonus > 0) this.addScore(letterBonus);
-      this._grantLetterResource(ch, true, true);
-    }
-
-    // 负面 Unstable 高补偿 NMNB → 额外 +1 Bomb
-    if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {
-      this.player.bombs = Math.min(BALANCE.maxBombs, this.player.bombs + 1);
-      this.audio.sfx('item');
-    }
-
-    if (letterBonus > 0) {
-      this.el.bonus.textContent = `Letter +${letterBonus}`;
-    } else if (perfect && unstableComp > 1) {
-      this.el.bonus.textContent = `NMNB ×${settleMul.toFixed(2)}`;
-    } else if (perfect) {
-      this.el.bonus.textContent = 'Perfect ×1.05';
-    } else {
-      this.el.bonus.textContent = '—';
-    }
-
-    // tendency award：|偏移| 过小视为中立（贡献 0），不强制偏向 B
-    let tendencyContrib = null;
-    if (typeof ch.stage === 'number' && ch.stage <= 3) {
-      if (Math.abs(this.chapterTendency) < BALANCE.tendencyMinPerChapter) {
-        tendencyContrib = 0;
-      } else {
-        tendencyContrib = this.chapterTendency;
-      }
-      this.totalTendency += tendencyContrib;
-      this.chapterTendency = 0;
-    }
-
-    // 非阻塞结算/标题条（渐显渐隐，不拖住下一章）
-    this.chapterBanner = {
-      kind: 'end',
-      name: ch.name,
-      score: this.chapterScore,
-      perfect,
-      letterBonus,
-      unstableComp: perfect && unstableComp > 1 ? unstableComp : 0,
-      settleMul: perfect ? settleMul : 1,
-      tendency: tendencyContrib,
-      t: 0,
-      duration: 2.1,
-    };
-    this.settlement = this.chapterBanner; // 兼容旧引用
-
-    // preview next chapter's unstable effect
-    this.nextUnstableFx = null;
-    let nextIdx = this.chapterIndex + 1;
-    while (nextIdx < this.chapters.length) {
-      const nc = this.chapters[nextIdx];
-      if (!this.routeChoice) break;
-      const sk = String(nc.stageKey);
-      if ((sk.startsWith('A') && this.routeChoice !== 'A') ||
-          (sk.startsWith('B') && this.routeChoice !== 'B') ||
-          sk === 'patrol') { nextIdx++; continue; }
-      break;
-    }
-    if (nextIdx < this.chapters.length && this.chapters[nextIdx].unstable) {
-      const nc = this.chapters[nextIdx];
-      this.nextUnstableFx = rollUnstableEffects(unstableStackCount(nc.stageKey));
-      this.chapterBanner.nextUnstable = this.nextUnstableFx.label;
-    }
-
-    // 本章结束：敌弹变点并吸引（唯一变点入口）
-    this._softClearForNextChapter({ convert: true });
-
-    /** 清场后固定 0.8s 游戏时间再进下一流程（暂停不计时） */
-    const NEXT_DELAY_SEC = 0.8;
-
-    if (this.singleChapter || this.mode === 'practice') {
-      this._scheduleAdvance(NEXT_DELAY_SEC, () => {
-        this._openResult({
-          title: '练习结束',
-          body: `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n${perfect ? 'Perfect Clear!' : ''}`,
-          retryChapter: ch.id,
-        });
-      });
-      return;
-    }
-
-    // stage unlocks
-    if (typeof ch.stage === 'number') unlockStage(ch.stage + 1);
-
-    // 故事节点：章节元数据 onClear（勿硬编码章节 id）
-    if (ch.onClear === 'routeCheck') {
-      this._scheduleAdvance(NEXT_DELAY_SEC, () => this._afterStage3());
-      return;
-    }
-    if (ch.onClear === 'routeSelect') {
-      this._scheduleAdvance(NEXT_DELAY_SEC, () => {
-        this._openDialogue(this.dialogues.patrol_win || [], () => this._enterRouteSelect());
-      });
-      return;
-    }
-
-    // win dialogue on route bosses
-    if (ch.winDialogue && this.dialogues[ch.winDialogue]) {
-      this._scheduleAdvance(NEXT_DELAY_SEC, () => {
-        this._openDialogue(this.dialogues[ch.winDialogue], () => this._nextChapterOrEnd(ch));
-      });
-      return;
-    }
-
-    if (ch.ending) {
-      this._scheduleAdvance(NEXT_DELAY_SEC, () => this._showEnding(ch.ending));
-      return;
-    }
-
-    // 所有怪打完 → 强制结束本章 → 0.8s → 下一章
-    this._scheduleAdvance(NEXT_DELAY_SEC, () => {
-      this.chapterIndex++;
-      this._skipToValidChapter();
-      this._startChapter();
-    });
+    chapterFlow.finishChapter(this, success);
   }
 
-  /**
-   * 章间短延迟推进（游戏时间秒，受暂停冻结与 Debug 加速影响）。
-   * 可被 stop / 新调度 / 开局取消。不阻塞标题条动画。
-   * @param {number} sec
-   * @param {() => void} fn
-   */
   _scheduleAdvance(sec, fn) {
-    this._advanceWait = {
-      left: Math.max(0, Number(sec) || 0),
-      fn,
-    };
+    chapterFlow.scheduleAdvance(this, sec, fn);
   }
 
   _cancelAdvance() {
-    this._advanceWait = null;
+    chapterFlow.cancelAdvance(this);
   }
 
   _tickAdvance(dt) {
-    const w = this._advanceWait;
-    if (!w) return;
-    w.left -= dt;
-    if (w.left > 0) return;
-    this._advanceWait = null;
-    if (!this.running) return;
-    w.fn?.();
+    chapterFlow.tickAdvance(this, dt);
   }
 
   _nextChapterOrEnd(ch) {
-    if (ch.ending) {
-      this._showEnding(ch.ending);
-      return;
-    }
-    this.chapterIndex++;
-    this._skipToValidChapter();
-    this._startChapter();
+    chapterFlow.nextChapterOrEnd(this, ch);
   }
 
   _skipToValidChapter() {
-    // if we have routeChoice, only play matching route
-    while (this.chapterIndex < this.chapters.length) {
-      const c = this.chapters[this.chapterIndex];
-      if (!this.routeChoice) break;
-      const sk = String(c.stageKey);
-      if (sk.startsWith('A') && this.routeChoice !== 'A') {
-        this.chapterIndex++;
-        continue;
-      }
-      if (sk.startsWith('B') && this.routeChoice !== 'B') {
-        this.chapterIndex++;
-        continue;
-      }
-      if (sk === 'patrol') {
-        this.chapterIndex++;
-        continue;
-      }
-      break;
-    }
+    chapterFlow.skipToValidChapter(this);
   }
 
   _afterStage3() {
-    const t = this.totalTendency;
-    const need = BALANCE.tendencyThreshold;
-    if (t <= -need) {
-      this.routeChoice = 'A';
-      unlockRoute('A');
-      this._jumpToStage('A4');
-    } else if (t >= need) {
-      this.routeChoice = 'B';
-      unlockRoute('B');
-      this._jumpToStage('B4');
-    } else {
-      // 倾向不足：跳到巡查面首章（由 stageKey 索引，非魔法 id）
-      const patrolIdx = this._chapterIndexByStageAny.get('patrol');
-      if (patrolIdx != null) {
-        this.chapterIndex = patrolIdx;
-        this._startChapter();
-      } else {
-        this._enterRouteSelect();
-      }
-    }
+    chapterFlow.afterStage3(this);
   }
 
   _enterRouteSelect() {
-    this.state = 'routeSelect';
-    this.el.dialogueBox.classList.remove('hidden');
-    this.el.dialogueName.textContent = '系统';
-    this.el.dialogueName.style.color = SPEAKER_COLORS['系统'];
-    this.el.dialogueText.textContent = '← A线 门构皮蒂娅　　B线 善雅乡 →\n（点左侧 A / 右侧 B，或方向键）';
+    chapterFlow.enterRouteSelect(this);
   }
 
   _chooseRoute(route) {
-    this.routeChoice = route;
-    unlockRoute(route);
-    this.el.dialogueBox.classList.add('hidden');
-    this.state = 'playing';
-    this._jumpToStage(route === 'A' ? 'A4' : 'B4');
+    chapterFlow.chooseRoute(this, route);
   }
 
   _jumpToStage(stageKey) {
-    const sk = String(stageKey);
-    let idx = this._chapterIndexByStageMid.get(sk);
-    if (idx == null) idx = this._chapterIndexByStageAny.get(sk);
-    this.chapterIndex = idx != null ? idx : 0;
-    this._startChapter();
+    chapterFlow.jumpToStage(this, stageKey);
   }
 
   _setEndingCinematic(on) {
-    this.endingCinematic = !!on;
-    document.getElementById('screen-game')?.classList.toggle('ending-cinematic', !!on);
-    if (on) {
-      this.el.letterBanner?.classList.add('hidden');
-      this.enemies.length = 0;
-      this.bullets.length = 0;
-      this.playerBullets.length = 0;
-      this.enemyBullets.length = 0;
-      this.items = [];
-      this.particles = [];
-      this.bossRef = null;
-      this.waveFn = null;
-      this.chapterDone = true;
-      this.settlement = null;
-      this.stageIntro = null;
-    }
+    chapterFlow.setEndingCinematic(this, on);
   }
 
   _showEnding(which) {
-    saveHiscore(this.score);
-    this.audio.stopMusic(0.8);
-    const title = which === 'A'
-      ? '结局A · 不倒闭的真理'
-      : which === 'EX'
-        ? 'Extra 结局 · 清出键政'
-        : '结局B · 散去的幻影';
-    const lines = getEndingDialogue(which, this.playerId);
-    this._setEndingCinematic(true);
-    this._openDialogue(lines, () => {
-      this._setEndingCinematic(false);
-      let retryChapter = 1;
-      if (which === 'EX') {
-        const exIdx = this._chapterIndexByStageAny.get('EX');
-        retryChapter = exIdx != null ? this.chapters[exIdx]?.id : 1;
-      }
-      this._openResult({
-        title,
-        body: `难度：${this.diff.rank} ${this.diff.name}\n最终得分：${this.score}`,
-        retryChapter,
-      });
-    });
+    chapterFlow.showEnding(this, which);
   }
 
   _gameOver() {
-    const ch = this.chapters[this.chapterIndex];
-    saveHiscore(this.score);
-    const body = `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n倾向：${this.totalTendency.toFixed(0)}%`;
-    const show = () => {
-      this.audio.stopMusic(0.6);
-      this._openResult({
-        title: 'Game Over',
-        body,
-        retryChapter: ch.id,
-      });
-    };
-    if (ch.loseDialogue && this.dialogues[ch.loseDialogue]) {
-      this._openDialogue(this.dialogues[ch.loseDialogue], show);
-    } else {
-      show();
-    }
+    chapterFlow.gameOver(this);
   }
 
   _gameClear() {
-    saveHiscore(this.score);
-    this.audio.stopMusic(0.8);
-    this._openResult({
-      title: 'All Clear',
-      body: `全关卡完成！\n难度：${this.diff.rank} ${this.diff.name}\n得分：${this.score}`,
-      retryChapter: 1,
-    });
+    chapterFlow.gameClear(this);
   }
 
   _updateLetterHud() {

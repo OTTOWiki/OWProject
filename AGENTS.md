@@ -34,23 +34,25 @@ owDebug.kill()            // 清敌+清弹+本章成功
 ### 自动化测试（零依赖）
 
 ```bash
-# 推荐（Node CLI）
+# 推荐（Node CLI）= 语法检查 + 单元/冒烟
 npm test
-# 或
-node test/run-node.mjs
+# 仅用例 / 仅语法
+npm run test:unit
+npm run test:syntax
 
 # 浏览器结果页
 npx --yes serve .
 # 打开 http://localhost:3000/test/  （端口以 serve 输出为准）
 ```
 
-- 入口：`test/run-node.mjs`（CLI）/ `test/index.html` → `run.js` + `cases.js`（聚合）
+- 入口：`test/check-syntax.mjs` + `test/run-node.mjs`（CLI）/ `test/index.html` → `run.js` + `cases.js`
 - 分文件：`cases-config|patterns|collision|stages|storage-spawn|smoke.js` + `mockGame.js`
+- **语法**：`node --check` 扫描 `js/**`、`test/**`（含 `game.js` 等主路径，不执行 import）
 - 覆盖：配置/难度、章节表与 onClear、对话键、bg mode、`scaleBulletCount`、碰撞、spawnScale、startMode
 - **冒烟（mock Game）**：全章 `build` 不抛错；boss 有 bossRef；mid `waveFn` 固定步长 tick
-- **不**启动真实 Game 主循环 / Canvas / Three / WebAudio
+- **不**启动真实 Game 主循环 / Canvas / Three / WebAudio（单元测仍不 import `game.js` 整类）
 - 浏览器结果：`window.__TEST_RESULT__`
-- **CI**：GitHub Actions `.github/workflows/test.yml` — `push`/`pull_request` 到 `main` 时跑 `npm test`
+- **CI**：GitHub Actions 跑 `npm test`（语法 + 用例）
 
 ## 目录结构
 
@@ -65,6 +67,7 @@ js/
   game.js           # 主循环、状态机、章节推进、得分、A/B 线
   gameDraw.js       # 版面绘制（从 game 抽出；FPS/倾向条/过渡页/主 draw）
   gameOverlay.js    # 暂停/结果叠加层（从 game 抽出）
+  chapterFlow.js    # 章节开/结、对话、路线与结局（从 game 抽出）
   collision.js      # 碰撞与网格粗筛
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
   entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制
