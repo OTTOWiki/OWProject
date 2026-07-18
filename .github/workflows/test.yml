@@ -1,0 +1,31 @@
+# 纯逻辑 + mock 冒烟（node test/run-node.mjs）
+# 无 npm 依赖安装；与本地 `npm test` 一致
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: npm test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 项目零运行时依赖，无需 npm install；直接跑测试入口
+      - name: Run tests
+        run: npm test

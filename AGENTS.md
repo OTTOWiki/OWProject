@@ -50,6 +50,7 @@ npx --yes serve .
 - **冒烟（mock Game）**：全章 `build` 不抛错；boss 有 bossRef；mid `waveFn` 固定步长 tick
 - **不**启动真实 Game 主循环 / Canvas / Three / WebAudio
 - 浏览器结果：`window.__TEST_RESULT__`
+- **CI**：GitHub Actions `.github/workflows/test.yml` — `push`/`pull_request` 到 `main` 时跑 `npm test`
 
 ## 目录结构
 
