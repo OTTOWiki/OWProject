@@ -12,7 +12,7 @@
 3. **每完成一次代码修改后立刻跑自动化测试**：
 
    ```bash
-   node --input-type=module -e "import './test/cases.js'; import { runAll } from './test/assert.js'; const r=await runAll(); console.log(r); if(r.failed) process.exit(1)"
+   npm test
    ```
 
 4. **测试失败** → 本任务内继续修，直到通过。  
@@ -176,32 +176,146 @@
 
 ---
 
-## 阶段 D — 大块重构（低性价比窗口，后置）
+## 阶段 D — 大块重构（A–C 已完成，现开启）
 
-> 等 A–C 完成且稳定后再拆。**不要**在未完成 T09–T11 前大拆 `game.js`。
+> 前提：T01–T11 + 测试 A+B+C + CI 已落地。  
+> 红线不变：一次一个 `Txx`、不改手感、`npm test` 绿再等手测。  
+> `game.js` ~1800 行、`entities.js` ~1000 行——优先**按现有方法边界抽出模块**，不做行为重写。
 
-| ID | 主题 | 说明 |
-|----|------|------|
-| T12 | 拆 `game.js` | chapterFlow / combat / overlay / draw |
-| T13 | 拆 `entities` 绘制 | sim vs `js/draw/*` |
-| T14 | 主线关卡表驱动 | 对齐 Extra：`mid()`/`letter()` + wave helper |
-| T15 | 统一 BG mode + 调色板 | `backgrounds` + `playfieldBg` 单表 |
-| T16 | collision 只吐事件 | 击杀结算回 Game |
-| T17 | CSS 焦点样式收敛 | `.menu-focusable` + token |
-| T18 | 立绘/Boss 贴图策略 | 占位显式化，非本队列优先 |
+### 推荐顺序（锁定）
+
+```
+T12（拆 game，可分步提交）
+  → T13（entities 绘制拆分，与 T12 弱耦合，可紧随）
+  → T16（collision 事件化，依赖战斗边界更清晰）
+  → T14（主线表驱动 stages）
+  → T15（BG 统一）
+  → T17（CSS 焦点）
+  → T18（贴图策略，可随时插队或最后）
+```
+
+说明：T12 先做收益最大；T14 改面广但独立；T16 宜在 combat 边界清楚后做。
 
 ---
 
-## 执行顺序（锁定）
+### T12 拆 `game.js`（多步，仍算一个大任务，按子步交付）
+
+| | |
+|--|--|
+| **状态** | 进行中（T12a 等手测） |
+| **目标** | `Game` 保留构造 / `start` / `stop` / `_loop` 与对外 API；逻辑按域迁到模块，**行为零变化** |
+| **现状** | ~1800 行、单类 ~60+ 方法 |
+| **目标结构（建议）** | |
+| | `js/game/chapterFlow.js` — `_startChapter` / `_finishChapter` / advance / route / ending / skip |
+| | `js/game/combat.js` — `_update` 战斗段、bomb/miss/hit/score/item |
+| | `js/game/overlay.js` — pause/result overlay 与键盘 |
+| | `js/game/draw.js` — `_draw*` 版面装饰与结算条绘制 |
+| | `js/game.js` — 门面 + 主循环调度（目标 &lt; ~500 行） |
+| **子步（推荐提交粒度）** | |
+| | **T12a** 抽出 `draw`（`_drawTendencyGauge` / transit / banner / FPS 等） |
+| | **T12b** 抽出 `overlay` |
+| | **T12c** 抽出 `chapterFlow` |
+| | **T12d** 抽出 `combat` / 收束 `game.js` |
+| **做法** | 方法迁出为 `export function xxx(game, ...)` 或 `attachXxx(Game.prototype)`；优先 **函数 + 传入 game**，避免过深类继承 |
+| **不做** | 不改状态机语义、不改数值、不顺便改 collision 事件模型（留给 T16） |
+| **验收（自动）** | `npm test` 全绿 |
+| **验收（手测）** | 开局→一章→暂停→结果；Story 换章与 route 触发；Debug 加速下无异常 |
+| **风险** | 中高——绑定 `this` / 闭包易漏；每子步可单独手测 |
+
+---
+
+### T13 拆 `entities` 绘制
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **目标** | `entities.js` 只保留实体数据与 `update`；绘制进 `js/draw/`（或 `drawBullets.js` / `drawActors.js`） |
+| **范围** | `drawBullet` / `drawPlayer` / `drawEnemy` / `drawItem` / boss 形状表 |
+| **不做** | 不改判定半径与弹种逻辑 |
+| **验收（自动）** | `npm test`；import 路径更新后冒烟仍绿 |
+| **验收（手测）** | 自机/敌/弹/道具视觉与改前一致 |
+| **风险** | 中——循环 import；用 `game.js` re-export 过渡亦可 |
+
+---
+
+### T14 主线关卡表驱动
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **目标** | 对齐 Extra：元数据工厂 + mid wave helper，压缩 a4–b6 / s1–s3 重复脚手架 |
+| **范围** | `_shared.js` 增加 `mid()`/`letter()`/`spawnWave` 类 helper；**先 1 个面试点**再推广 |
+| **不做** | 首轮不重写全部 Letter 弹幕内容；不改手感数值 |
+| **验收（自动）** | 全章 build 冒烟；stageSelect 对齐 |
+| **验收（手测）** | 试点面完整可打；再批量化后抽查 A/B 各一面 |
+| **风险** | 中——易在迁移 wave 时再引入 early-return 辅压问题 |
+
+---
+
+### T15 统一 BG mode + 调色板
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **目标** | `bgModes` / playfield `BG_TEX` / Three 侧共用一份 mode 登记与主题色 |
+| **范围** | 扩展 `bgModes.js` 或 `stageVisual.js`；`backgrounds` builder 注册表 |
+| **不做** | 不重做 3D 场景美术 |
+| **验收（自动）** | 章节 bg ∈ 统一 allowlist（已有测可加强） |
+| **验收（手测）** | 换面时左栏与版面主题仍匹配 |
+| **风险** | 中——EX 回落与 `ex_mid` 别名需对齐 |
+
+---
+
+### T16 collision 只吐事件
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **目标** | `runCollisions` 只做几何与命中检测；score/drop/SFX/`onDeath` 由 Game/combat 消费 |
+| **范围** | `collision.js` + `game`/`combat` 接线 |
+| **不做** | 不改判定公式与网格策略（除非测试证明等价） |
+| **验收（自动）** | 现有 collision 几何测；可加「事件形状」单测 |
+| **验收（手测）** | 击破掉落、擦弹 Edit、自机中弹/决死与改前一致 |
+| **风险** | 中高——击杀时序（onDeath 必须在 purge 前） |
+
+---
+
+### T17 CSS 焦点样式收敛
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **目标** | 统一 `.menu-focusable` + CSS 变量，去掉金色 token 漂移 |
+| **范围** | `style.css`；必要时 HTML class |
+| **不做** | 不大改布局栅格 |
+| **验收（自动）** | 无（或仅静态检查无） |
+| **验收（手测）** | 各菜单键盘焦点描边一致 |
+| **风险** | 低 |
+
+---
+
+### T18 立绘 / Boss 贴图策略
+
+| | |
+|--|--|
+| **状态** | 待做（可后置） |
+| **目标** | 缺立绘/占位 boss 精灵显式化（常量 + 注释/白名单），避免「错角色」误读 |
+| **范围** | `assets.js` / `sprites.js`；可选测试：对话 speaker 映射或 allowlist |
+| **不做** | 不强制本任务产出全部新美术 |
+| **验收（手测）** | 无立绘角色稳定隐藏图；占位策略文档化 |
+| **风险** | 低 |
+
+---
+
+## 执行顺序（全队列）
 
 ```
-T01 → 手测 → T02 → 手测 → T03 → 手测 → T04 → 手测 → T05 → 手测
-  → T06 → 手测 → T07 → 手测 → T08 → 手测
-  → T09 → 手测 → T10 → 手测 → T11 → 手测
-  → （再开阶段 D，另议）
+[已完成] T01…T11
+  → T12a → 手测 → T12b → … → T12d
+  → T13 → T16 → T14 → T15 → T17 → T18
 ```
 
-当前应执行：**阶段 A–C（T01–T11）已完成**。测试基建 A+B+C 已落地（`npm test`）。阶段 D 大重构另议。
+当前应执行：**T12a 等手测** → 通过后 **T12b**（抽出 overlay）。
 
 ---
 
@@ -209,8 +323,10 @@ T01 → 手测 → T02 → 手测 → T03 → 手测 → T04 → 手测 → T05 
 
 | 日期 | 任务 | 自动测试 | 手测 | 备注 |
 |------|------|----------|------|------|
-| 2026-07-18 | T01–T10 | 通过 | 完成 | T10 `4f0759a` |
-| 2026-07-18 | T11 | 23/23 | 完成 | onClear + Extra；Stage Select EX 亦 mode=extra |
+| 2026-07-18 | T01–T11 | 通过 | 完成 | 阶段 A–C |
+| 2026-07-18 | 测试 A+B+C + CI | 32/32 | — | `npm test` + Actions |
+| 2026-07-18 | 阶段 D 规格 | — | — | T12–T18 可执行卡 |
+| 2026-07-18 | T12a | 32/32 | 待确认 | `js/gameDraw.js`；game.js ~1500 行；未提交 |
 
 ---
 
