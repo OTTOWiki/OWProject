@@ -1,5 +1,6 @@
 # 纯逻辑 + mock 冒烟（node test/run-node.mjs）
 # 无 npm 依赖安装；与本地 `npm test` 一致
+# main push 测试通过后 stamp js/version.js 的 GIT_HASH 为触发提交短哈希
 name: Test
 
 on:
@@ -29,3 +30,56 @@ jobs:
       # 项目零运行时依赖，无需 npm install；直接跑测试入口
       - name: Run tests
         run: npm test
+
+  # 仅 main 的人工/内容 push：把 GIT_HASH 写成该次 push 的 short SHA 并回写仓库
+  # stamp 提交消息含 [version-stamp] → 不再二次 stamp（避免环）
+  stamp-hash:
+    name: Stamp GIT_HASH
+    needs: unit
+    if: >
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && !contains(github.event.head_commit.message, '[version-stamp]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 回写 push 需要完整权限 token（默认 GITHUB_TOKEN 即可）
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Stamp version hash
+        id: stamp
+        run: |
+          set -e
+          SHORT=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "Trigger SHA short=${SHORT}"
+          OUT=$(node tools/stamp-git-hash.mjs "${GITHUB_SHA}")
+          echo "stamp: ${OUT}"
+          if echo "${OUT}" | grep -q '^unchanged'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "short=${SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push stamp
+        if: steps.stamp.outputs.changed == 'true'
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/version.js
+          git commit -m "chore: stamp GIT_HASH ${{ steps.stamp.outputs.short }} [version-stamp]"
+          # 若期间有新 push，rebase 后重试一次
+          git pull --rebase origin main || true
+          git push origin HEAD:main

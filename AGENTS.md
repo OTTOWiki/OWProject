@@ -63,7 +63,7 @@ test/               # 零依赖自动化测试（assert + cases + 结果页）
 css/style.css       # 布局与东方风菜单样式
 js/
   main.js           # 入口：组装 Input / Audio / Background / Game / UI
-  version.js        # VERSION 自然数构建号 + VERSION_LABEL 版本名 vX.Y.Z.hash
+  version.js        # VERSION 构建号；VERSION_LABEL=vX.Y.Z[.hash]（hash 可由 CI stamp）
   config.js         # 逻辑分辨率、BALANCE、难度、角色色、Unstable 池、说明书
   game.js           # 主循环、状态机、章节推进、得分、A/B 线
   gameDraw.js       # 版面绘制（从 game 抽出；FPS/倾向条/过渡页/主 draw）
@@ -208,52 +208,46 @@ tools/
 
 | 字段 | 含义 | 示例 |
 |------|------|------|
-| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `65` |
+| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `66` |
 | **`VERSION_NAME`** | 展示用语义段（无 `v`） | `0.4.0` |
-| **`GIT_HASH`** | 本版本对应提交短哈希 | `a1b2c3d` |
-| **`VERSION_LABEL`** | **版本名**（界面显示） | `v0.4.0.a1b2c3d` |
+| **`GIT_HASH`** | 短哈希；可为空 | `a1b2c3d` 或 `''` |
+| **`VERSION_LABEL`** | **版本名**（界面） | `v0.4.0` 或 `v0.4.0.a1b2c3d` |
 
-- **单一源**：`js/version.js`
-- **显示**：`VERSION_LABEL` = `v` + `VERSION_NAME` + `.` + `GIT_HASH`，写在主菜单与暂停右下角（`[data-app-version]`）；节点 `title` 可为 `build ${VERSION}`
-- **每次提交前**：将 **`VERSION` 加 1**（即使小修也加；从当前文件值递增）
-- **营销升版**：改 `VERSION_NAME`（如 `0.4.0` → `0.4.1` / `0.5.0`）；构建号仍只靠 `VERSION++`
-- **Git tag（发版时）**：推荐 **`v` + `VERSION_NAME`**（如 `v0.4.0`），annotated 说明里写完整 `VERSION_LABEL` 与 `VERSION=N`
+- **单一源**：`js/version.js`（`formatVersionLabel`：有合法 hash 才拼 `.<hash>`）
+- **本地预览**：文件里已有 hash 则显示；**空字符串则只显示 `v` + `VERSION_NAME`**（不要为本地预览硬编 tip）
+- **CI 自动 stamp**（`.github/workflows/test.yml` → job `stamp-hash`）：
+  1. `push` 到 `main` 且 **npm test 通过**
+  2. 用 `tools/stamp-git-hash.mjs` 将 `GIT_HASH` 写成 **该次 push 的 `GITHUB_SHA` 短 7 位**
+  3. bot 提交并 push，消息含 **`[version-stamp]`**（再触发 workflow 时 **跳过** stamp，防环）
+  4. tip 是 stamp 提交；界面 hash 指向 **被 stamp 的内容提交**（与 tip 差 1 次提交，属预期）
+- **每次人工提交前**：将 **`VERSION` 加 1**（CI stamp **不**改 `VERSION`）
+- **营销升版**：改 `VERSION_NAME`；构建号仍只靠人工 `VERSION++`
+- **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.0`）；说明里可写完整 `VERSION_LABEL` 与 `build N`
 
 ### 日常提交（含非发版）
 
-1. 改代码前/提交前：编辑 `js/version.js` → `VERSION` **+1**
-2. 若本次是正式发版：同时升 `VERSION_NAME`（需要时），提交后把 `GIT_HASH` 写成 **`git rev-parse --short HEAD`**
-3. 若哈希与 commit 不一致：更新 `GIT_HASH` 后 **`git commit --amend`**（仅限未推送、本会话刚产生的 tip）再推
-4. 正常 `git commit` / `git push`
+1. 提交前：`js/version.js` → `VERSION` **+1**（需要时改 `VERSION_NAME`）
+2. **不必**手写 `GIT_HASH`（可保持 `''` 或保留上次 CI 结果）
+3. `git commit` / `git push origin main`
+4. 等 Actions：测试绿 → stamp → 再 pull 可见 `vX.Y.Z.<hash>`
 
 ### 发版步骤（打 tag 时）
 
-1. **确认可发布**：本地可运行、改动在目标分支（通常 `main`）。
-2. **版本文件**：`VERSION` 已按提交递增；`VERSION_NAME` 为目标展示段；`GIT_HASH` 与最终 release commit 短哈希一致；`VERSION_LABEL` 自动为 `vX.Y.Z.hash`。
-3. **提交**（示例）：
+1. **确认可发布**：测试通过；`main` 上 stamp 已完成（或接受先 tag 内容提交）
+2. **版本文件**：`VERSION` 已递增；`VERSION_NAME` 正确；hash 由 CI 写入
+3. **提交并 push** 后等 stamp（可选）
+4. **打 tag**（annotated，指向期望 commit）：
    ```bash
-   git add js/version.js   # 及其它改动
-   git commit -m "Release v0.4.0 (build 65)"
-   # 写入短哈希后必要时 amend
-   ```
-4. **打 tag**（annotated）：
-   ```bash
-   git tag -a v0.4.0 -m "OWProject v0.4.0.<hash> (build 65)"
-   ```
-   - tag 名通常为 `v` + `VERSION_NAME`
-   - 勿在脏工作区乱打 tag
-5. **同步**：
-   ```bash
-   git push origin main
+   git tag -a v0.4.0 -m "OWProject v0.4.0 (build N)"
    git push origin v0.4.0
    ```
-6. **自检**：主菜单/暂停右下角为 `v0.4.0.<hash>`；悬停可见 `build 65`。
+5. **自检**：线上/本地 pull 后角标为 `v0.4.0.<hash>` 或本地未 stamp 时 `v0.4.0`
 
 ### 注意
 
-- **不要**只推 tag 而不更新 `version.js`。
-- **不要**移动已推送的历史 tag；要改版请升 `VERSION_NAME` 并 `VERSION++` 后新打 tag。
-- 构建号 `VERSION` **只增不改历史**；不要为对齐而回退数字。
+- **不要**在 stamp 提交上再改业务逻辑；hash 由 CI 维护。
+- **不要**移动已推送的历史 tag。
+- 构建号 `VERSION` **只增不改历史**。
 
 ## 改代码约定
 

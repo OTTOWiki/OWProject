@@ -6,7 +6,10 @@ import {
   getDifficulty, calcLetterBonus, letterStageMul, nextExtendThreshold,
   PLAYER_DEFS, DEFAULT_SETTINGS, PLAYER_BULLET_OPACITY_MIN,
 } from '../js/config.js';
-import { VERSION, VERSION_NAME, VERSION_LABEL, GIT_HASH } from '../js/version.js';
+import {
+  VERSION, VERSION_NAME, VERSION_LABEL, GIT_HASH,
+  formatVersionLabel, normalizeGitHash,
+} from '../js/version.js';
 import {
   stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds,
 } from '../js/startMode.js';
@@ -86,12 +89,22 @@ test('自机定义与设置默认值合法', () => {
   assert(DEFAULT_SETTINGS.musicVolume >= 0 && DEFAULT_SETTINGS.musicVolume <= 1);
 });
 
-test('VERSION 为自然数构建号；VERSION_LABEL 为 vX.Y.Z.hash', () => {
+test('VERSION 为自然数构建号；VERSION_LABEL 有 hash 则带后缀否则仅 vX.Y.Z', () => {
   assert(Number.isInteger(VERSION) && VERSION > 0, `VERSION=${VERSION}`);
   assert(/^\d+\.\d+\.\d+$/.test(VERSION_NAME), `VERSION_NAME=${VERSION_NAME}`);
-  assert(typeof GIT_HASH === 'string' && GIT_HASH.length >= 4, `GIT_HASH=${GIT_HASH}`);
-  assertEqual(VERSION_LABEL, `v${VERSION_NAME}.${GIT_HASH}`);
-  assert(/^v\d+\.\d+\.\d+\./.test(VERSION_LABEL), `VERSION_LABEL=${VERSION_LABEL}`);
+  assert(typeof GIT_HASH === 'string', `GIT_HASH type`);
+  assertEqual(VERSION_LABEL, formatVersionLabel(VERSION_NAME, GIT_HASH));
+  const h = normalizeGitHash(GIT_HASH);
+  if (h) {
+    assertEqual(VERSION_LABEL, `v${VERSION_NAME}.${h}`);
+  } else {
+    assertEqual(VERSION_LABEL, `v${VERSION_NAME}`);
+  }
+  assertEqual(formatVersionLabel('1.2.3', ''), 'v1.2.3');
+  assertEqual(formatVersionLabel('1.2.3', 'abcDEF0'), 'v1.2.3.abcdef0');
+  assertEqual(normalizeGitHash(''), '');
+  assertEqual(normalizeGitHash('  '), '');
+  assertEqual(normalizeGitHash('not-a-hash'), '');
 });
 
 test('stageSelectStartMode：EX→extra，其余→stage', () => {
