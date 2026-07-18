@@ -2,13 +2,12 @@
  * 版本约定
  * - VERSION：纯自然数构建号（每次人工提交前 +1；CI stamp 不 +1）
  * - VERSION_NAME：营销/展示用 x.y.z（如 0.4.0）
- * - GIT_HASH：短哈希；本地可为空；main 上由 GitHub Actions 写入对应提交短哈希
- * - VERSION_LABEL：版本名 = 有 hash 时 `v{NAME}.{hash}`，否则 `v{NAME}`
+ * - GIT_HASH：短哈希；文件里为空则界面不显示 hash 段；有值才拼到版本名
+ * - VERSION_LABEL：有合法 hash → `v{NAME}.{hash}`，否则 `v{NAME}`
  *
- * CI：push 到 main 且测试通过后 stamp 工作流将 GIT_HASH 设为该次 push 的 GITHUB_SHA 短哈希
- * （stamp 提交本身带 [version-stamp]，不再二次 stamp，故 tip 哈希可与文件内 hash 差一次提交）
+ * CI：Test 成功后由 stamp-version.yml 写入「被测内容提交」短哈希（见 AGENTS.md）
  */
-export const VERSION = 66;
+export const VERSION = 67;
 
 /** 展示用语义版本段（无 v 前缀），如 0.4.0 */
 export const VERSION_NAME = '0.4.0';

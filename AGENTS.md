@@ -214,12 +214,13 @@ tools/
 | **`VERSION_LABEL`** | **版本名**（界面） | `v0.4.0` 或 `v0.4.0.a1b2c3d` |
 
 - **单一源**：`js/version.js`（`formatVersionLabel`：有合法 hash 才拼 `.<hash>`）
-- **本地预览**：文件里已有 hash 则显示；**空字符串则只显示 `v` + `VERSION_NAME`**（不要为本地预览硬编 tip）
-- **CI 自动 stamp**（`.github/workflows/test.yml` → job `stamp-hash`）：
-  1. `push` 到 `main` 且 **npm test 通过**
-  2. 用 `tools/stamp-git-hash.mjs` 将 `GIT_HASH` 写成 **该次 push 的 `GITHUB_SHA` 短 7 位**
-  3. bot 提交并 push，消息含 **`[version-stamp]`**（再触发 workflow 时 **跳过** stamp，防环）
-  4. tip 是 stamp 提交；界面 hash 指向 **被 stamp 的内容提交**（与 tip 差 1 次提交，属预期）
+- **显示规则**：`GIT_HASH` **文件里有合法短哈希就显示**，**没有（空）就不显示**；与是否本地无关。CF Pages 部署的是仓库文件，hash 须已写进 `js/version.js`。
+- **CI 自动 stamp**（与 Test 编排）：
+  1. **`test.yml`**：push/PR → `npm test` only
+  2. **`stamp-version.yml`**：`workflow_run` 监听 **Test 成功** + 来源为 **push main**
+  3. 用 `tools/stamp-git-hash.mjs` 将 `GIT_HASH` 写成 **被测内容提交** `head_sha` 的短 7 位
+  4. bot 提交消息含 **`[version-stamp]`** → 再跑 Test 时 stamp **跳过**（防环）
+  5. 界面 hash 指向**内容提交**；tip 多为 stamp 提交（差 1 次，预期）
 - **每次人工提交前**：将 **`VERSION` 加 1**（CI stamp **不**改 `VERSION`）
 - **营销升版**：改 `VERSION_NAME`；构建号仍只靠人工 `VERSION++`
 - **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.0`）；说明里可写完整 `VERSION_LABEL` 与 `build N`
@@ -227,9 +228,9 @@ tools/
 ### 日常提交（含非发版）
 
 1. 提交前：`js/version.js` → `VERSION` **+1**（需要时改 `VERSION_NAME`）
-2. **不必**手写 `GIT_HASH`（可保持 `''` 或保留上次 CI 结果）
+2. **不必**手写 `GIT_HASH`（可保持 `''`；部署前等 CI stamp）
 3. `git commit` / `git push origin main`
-4. 等 Actions：测试绿 → stamp → 再 pull 可见 `vX.Y.Z.<hash>`
+4. 等 Actions：Test 绿 → Stamp version hash → CF 再部署后角标为 `vX.Y.Z.<hash>`
 
 ### 发版步骤（打 tag 时）
 
