@@ -167,8 +167,9 @@ export function spawnGravityRain(game, count, type = 'medium', color = '#38bdf8'
 
 export function spawnPlayerShot(game, player, dmgMul = 1) {
   const atk = (game.playerAtkMul || 1) * (game.atkMul || 1) * dmgMul;
-  const mainDmg = 2.8 * atk;
-  const optDmg = 1.35 * atk;
+  const mainDmg = (BALANCE.playerShotDamage ?? 2.8) * atk;
+  const optDmg = (BALANCE.playerOptionDamage ?? 1.35) * atk;
+  const mainSpeed = BALANCE.playerShotSpeed ?? 15;
   const color = player.def.color;
   const color2 = player.def.color2;
 
@@ -192,7 +193,7 @@ export function spawnPlayerShot(game, player, dmgMul = 1) {
       x: player.x + s.ox,
       y: player.y + s.oy,
       angle: s.ang,
-      speed: 15,
+      speed: mainSpeed,
       type: 'player',
       color,
       color2,
@@ -242,7 +243,7 @@ export function clearBulletsToItems(game, cx, cy, radius) {
       b.dead = true;
       n++;
       game.spawnItem(b.x, b.y, Math.random() < 0.15 ? 'scoreL' : 'score');
-      game.addScore(10);
+      game.addScore(BALANCE.score.clearBullet ?? 10);
     }
   }
   return n;

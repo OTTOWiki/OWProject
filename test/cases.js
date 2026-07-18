@@ -63,6 +63,11 @@ test('BALANCE 关键字段存在', () => {
   assert(BALANCE.tendencyThreshold > 0);
   assert(BALANCE.score.letterBonus > 0);
   assert(BALANCE.resource?.extendThresholds?.length > 0);
+  // 自机射击 / 消弹得分（patterns 经 BALANCE 读取，数值锁死）
+  assertEqual(BALANCE.playerShotDamage, 2.8);
+  assertEqual(BALANCE.playerOptionDamage, 1.35);
+  assertEqual(BALANCE.playerShotSpeed, 15);
+  assertEqual(BALANCE.score.clearBullet, 10);
 });
 
 test('Letter 红利：满时高、超时 0（floor=0）', () => {
