@@ -30,7 +30,14 @@ export class Input {
     this._touchBtnsBound = false;
 
     this._onKeyDown = (e) => {
-      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+      // 表单控件获得焦点时不要吞方向键/空格（练习残机输入等）
+      const t = e.target;
+      const formField = t && (
+        t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable
+      );
+      if (!formField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+        e.preventDefault();
+      }
       if (!this.down.has(e.code)) this.pressed.add(e.code);
       this.down.add(e.code);
     };

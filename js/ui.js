@@ -323,6 +323,13 @@ export class UI {
       opt.textContent = `#${ch.id} ${ch.name}`;
       sel.appendChild(opt);
     }
+    const unstableCb = document.getElementById('practice-unstable');
+    const unstableVal = document.getElementById('practice-unstable-val');
+    const syncUnstableLabel = () => {
+      if (unstableVal) unstableVal.textContent = unstableCb?.checked ? '开启' : '关闭';
+    };
+    unstableCb?.addEventListener('change', syncUnstableLabel);
+    syncUnstableLabel();
   }
 
   _initKeys() {
@@ -571,7 +578,9 @@ export class UI {
       this.show('practice');
     } else if (action === 'practice-start') {
       const ch = Number(document.getElementById('practice-chapter').value);
-      const lives = Number(document.getElementById('practice-lives').value);
+      const rawLives = Number(document.getElementById('practice-lives').value);
+      // 练习残机不封顶（仅下限 0）；空/非法回落 2
+      const lives = Number.isFinite(rawLives) ? Math.max(0, Math.floor(rawLives)) : 2;
       const unstable = document.getElementById('practice-unstable').checked;
       this.pendingStart = {
         startChapter: ch,
@@ -608,12 +617,15 @@ export class UI {
   _practiceItems() {
     return [
       { type: 'select', el: document.getElementById('practice-chapter'), wrap: null },
-      { type: 'number', el: document.getElementById('practice-lives'), min: 0, max: 9, wrap: null },
+      // max: null = 左右调值不封顶（练习可自定义任意残机）
+      { type: 'number', el: document.getElementById('practice-lives'), min: 0, max: null, wrap: null },
       { type: 'checkbox', el: document.getElementById('practice-unstable'), wrap: null },
       { type: 'button', el: document.querySelector('#screen-practice [data-action="practice-start"]') },
       { type: 'button', el: document.querySelector('#screen-practice [data-action="back"]') },
     ].filter((it) => it.el).map((it) => {
-      if (it.type !== 'button') it.wrap = it.el.closest('label') || it.el;
+      if (it.type !== 'button') {
+        it.wrap = it.el.closest('.settings-row') || it.el.closest('label') || it.el;
+      }
       return it;
     });
   }

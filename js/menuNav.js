@@ -190,6 +190,7 @@ export function handleStageGridKey(e, {
 
 /**
  * 表单屏（练习 / 设置）：↑↓ 移焦点，←→ 调值或在按钮间切换，确认/返回。
+ * 数字框获得焦点时可直接键入；导航键才 blur 并交回菜单焦点。
  * @param {'practice'|'settings'} mode
  */
 export function handleFormListKey(e, {
@@ -203,6 +204,53 @@ export function handleFormListKey(e, {
   onBack,
 }) {
   if (!items.length) return false;
+
+  const ae = document.activeElement;
+  const editingNumber = ae
+    && ae.tagName === 'INPUT'
+    && (ae.type === 'number' || ae.type === 'text');
+  const editingSelect = ae && ae.tagName === 'SELECT';
+
+  // 输入框/下拉处于焦点：放行键入；仅导航键切回菜单控制
+  if (editingNumber || editingSelect) {
+    if (isNavNext(e) || isNavPrev(e)) {
+      e.preventDefault();
+      ae.blur();
+      setIndex(wrapIndex(index + (isNavNext(e) ? 1 : -1), items.length));
+      highlight();
+      return true;
+    }
+    if (isBack(e) && onBack) {
+      e.preventDefault();
+      ae.blur();
+      onBack();
+      return true;
+    }
+    if (isConfirm(e)) {
+      e.preventDefault();
+      ae.blur();
+      return true;
+    }
+    // 数字框：方向键交给浏览器（光标/步进）；A/D 仍走菜单调值
+    if (editingNumber && (e.code === 'ArrowLeft' || e.code === 'ArrowRight'
+      || e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+      return false;
+    }
+    if (editingSelect && (isNavLeft(e) || isNavRight(e)
+      || e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+      return false;
+    }
+    if (isNavLeft(e) || isNavRight(e)) {
+      e.preventDefault();
+      ae.blur();
+      const dir = isNavRight(e) ? 1 : -1;
+      adjustItem?.(items[index], dir, e);
+      return true;
+    }
+    // 数字、退格等：不拦截
+    return false;
+  }
+
   blurActiveField();
 
   if (isNavNext(e)) {
@@ -338,10 +386,16 @@ export function adjustFocusItem(item, dir, mods = {}, hooks = {}) {
     return true;
   }
   if (item.type === 'number') {
-    const min = item.min ?? (Number(item.el.min) || 0);
-    const max = item.max ?? (Number(item.el.max) || 9);
+    const min = item.min != null ? item.min : (item.el.min !== '' ? Number(item.el.min) : 0);
+    // max 为 null/undefined 表示不封顶（练习残机等）；HTML 无 max 时也不默认为 9
+    let max = item.max;
+    if (max === undefined) {
+      max = item.el.max !== '' ? Number(item.el.max) : null;
+    }
     const step = Number(item.el.step) || 1;
-    const next = Math.max(min, Math.min(max, Number(item.el.value) + dir * step));
+    let next = (Number(item.el.value) || 0) + dir * step;
+    if (Number.isFinite(min)) next = Math.max(min, next);
+    if (max != null && Number.isFinite(max)) next = Math.min(max, next);
     item.el.value = String(next);
     item.el.dispatchEvent(new Event('input', { bubbles: true }));
     sfx('ok');

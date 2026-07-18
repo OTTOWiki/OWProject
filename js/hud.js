@@ -74,7 +74,7 @@ export function updateGameHud(game) {
     el.edit?.classList.toggle('full', full);
   }
 
-  setText(el.unstable, game.unstableFx ? game.unstableFx.label : 'OFF', 'unstable', cache);
+  setText(el.unstable, game.unstableFx ? game.unstableFx.label : '关', 'unstable', cache);
   setText(el.tendency, `${game.totalTendency.toFixed(0)}%`, 'tendency', cache);
 
   const ch = game.chapters[game.chapterIndex];
@@ -191,7 +191,7 @@ export function drawChapterBanner(ctx, s, W, H) {
       ctx.textAlign = 'center';
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      const line = `UNSTABLE · ${s.unstable}`;
+      const line = `系统异常 · ${s.unstable}`;
       ctx.strokeText(line, cx, nextY);
       ctx.fillStyle = s.unstableNegative ? '#f9a8d4' : '#c4b5fd';
       ctx.fillText(line, cx, nextY);
@@ -234,7 +234,7 @@ export function drawChapterBanner(ctx, s, W, H) {
   if (s.unstableComp > 1) {
     ctx.fillStyle = '#c4b5fd';
     ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(`UNSTABLE 补偿 ×${s.unstableComp.toFixed(2)}`, cx, nextY);
+    ctx.fillText(`系统异常 补偿 ×${s.unstableComp.toFixed(2)}`, cx, nextY);
     nextY += 16;
   }
 

@@ -104,19 +104,29 @@
       <div class="menu-bg"></div>
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
-          <h2 class="panel-title">Practice Mode</h2>
-          <p class="keys-hint">↑↓ 移动 · ←→ 改值 · Z/Enter 确认 · Esc/X 返回</p>
+          <h2 class="panel-title">Practice Mode · 练习</h2>
+          <p class="keys-hint">↑↓ 移动 · ←→ 改值 · 可点击残机框直接输入 · Z/Enter 确认 · Esc/X 返回</p>
           <div class="practice-form">
-            <label>关卡章节
-              <select id="practice-chapter"></select>
+            <label class="settings-row">
+              <span class="settings-label">关卡章节</span>
+              <div class="settings-control">
+                <select id="practice-chapter"></select>
+              </div>
             </label>
-            <label>初始残机
-              <input type="number" id="practice-lives" min="0" max="9" value="2" />
+            <label class="settings-row">
+              <span class="settings-label">初始残机</span>
+              <div class="settings-control">
+                <input type="number" id="practice-lives" min="0" step="1" value="2" inputmode="numeric" />
+              </div>
             </label>
-            <label class="check">
-              <input type="checkbox" id="practice-unstable" checked />
-              Unstable Machine
+            <label class="settings-row check" title="道中章节随机附加系统异常（攻击/分数/迷雾/Bomb 等）。关闭则本练习不加异常。">
+              <span class="settings-label">系统异常</span>
+              <div class="settings-control">
+                <input type="checkbox" id="practice-unstable" checked />
+                <span class="settings-value" id="practice-unstable-val">开启</span>
+              </div>
             </label>
+            <p class="practice-hint">系统异常：道中随机附加攻击/分数变化、迷雾、Bomb 禁用等；负面仅在章内 NMNB 结算补偿。故事模式默认开启，练习可关。</p>
           </div>
           <div class="row-btns">
             <button class="menu-btn" data-action="practice-start">开始练习</button>
@@ -271,7 +281,7 @@
                 <span>Edit</span>
                 <div class="edit-bar"><div id="ui-edit" class="edit-fill"></div></div>
               </div>
-              <div class="stat-row"><span>Unstable</span><strong id="ui-unstable">OFF</strong></div>
+              <div class="stat-row"><span>系统异常</span><strong id="ui-unstable">关</strong></div>
               <div class="stat-row"><span>A / B</span><strong id="ui-tendency">0 / 0</strong></div>
               <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>
               <div class="stat-row"><span>Bonus</span><strong id="ui-bonus">—</strong></div>
