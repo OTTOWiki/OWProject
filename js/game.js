@@ -2,7 +2,8 @@ import {
   LOGICAL_W, PLAYER_DEFS,
   getDifficulty,
 } from './config.js';
-import { Player, drawPlayer } from './entities.js';
+import { Player } from './entities.js';
+import { drawPlayer } from './draw/index.js';
 import { drawGameFrame, drawFps } from './gameDraw.js';
 import {
   bindOverlayClicks, hideOverlay, openPause, openResult,

@@ -72,7 +72,8 @@ js/
   gameCombat.js     # 战斗帧 update、Bomb/Miss/得分/道具（从 game 抽出）
   collision.js      # 碰撞与网格粗筛
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
-  entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制
+  entities.js       # Player / Enemy / Bullet / Item / Particle（update；绘制 re-export）
+  draw/             # 实体绘制 entitiesDraw.js + index
   stages/           # 章节表（index.js 聚合）+ 各面 build
   dialogue.js       # 剧情对话与结局文本
   ui.js             # 菜单编排：难度/自机/关卡/练习/设置（含键位）

@@ -22,6 +22,8 @@ const CORE_MODULES = [
   '../js/input.js',
   '../js/patterns.js',
   '../js/entities.js',
+  '../js/draw/index.js',
+  '../js/draw/entitiesDraw.js',
   '../js/collision.js',
 ];
 

@@ -5,7 +5,7 @@
 import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
 import {
   drawBullet, drawPlayer, drawEnemy, drawItem, drawCollectLine,
-} from './entities.js';
+} from './draw/index.js';
 import { rebuildBulletLists } from './collision.js';
 import { drawChapterBanner } from './hud.js';
 
