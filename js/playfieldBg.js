@@ -179,6 +179,11 @@ function hash(n) {
   return x - Math.floor(x);
 }
 
+/** 版面背景 mode id 列表（测试 / 校验章节 bg 用） */
+export function getPlayfieldBgModes() {
+  return Object.keys(BG_TEX);
+}
+
 export function preloadPlayfieldBg() {
   return Promise.all(Object.values(BG_TEX).map((p) => new Promise((res) => {
     const img = loadTex(p);

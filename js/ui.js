@@ -9,6 +9,7 @@ import {
   normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
 } from './storage.js';
 import { stageSelectEntries, buildChapterList } from './stages/index.js';
+import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
 import {
   handleListKey,
   handleStageGridKey,
@@ -185,7 +186,7 @@ export class UI {
   }
 
   _isExtraStart() {
-    return this.pendingStart?.mode === 'extra';
+    return isExtraRestrictedMode(this.pendingStart?.mode);
   }
 
   _extraStartChapter() {
@@ -194,9 +195,7 @@ export class UI {
   }
 
   _availableDifficulties() {
-    if (this._isExtraStart()) {
-      return DIFFICULTY_ORDER.filter((id) => id === 'hard' || id === 'lunatic');
-    }
+    if (this._isExtraStart()) return extraDifficultyIds(DIFFICULTY_ORDER);
     return DIFFICULTY_ORDER;
   }
 
@@ -307,7 +306,7 @@ export class UI {
         // EX 与 Extra Start 同限：Hard/Lunatic only（靠 mode === 'extra'）
         this.pendingStart = {
           startChapter: s.startChapter,
-          mode: s.id === 'EX' ? 'extra' : 'stage',
+          mode: stageSelectStartMode(s.id),
         };
         this.show('difficulty');
       });

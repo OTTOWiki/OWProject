@@ -1,0 +1,11 @@
+{
+  "name": "owproject",
+  "private": true,
+  "version": "0.3.0",
+  "description": "OTTOWiki Project — pure frontend STG (no build step)",
+  "type": "module",
+  "scripts": {
+    "test": "node test/run-node.mjs",
+    "serve": "npx --yes serve ."
+  }
+}

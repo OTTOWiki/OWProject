@@ -31,17 +31,25 @@ owDebug.kill()            // 清敌+清弹+本章成功
 - 热键：`F8` 开关面板（首次也可开启）、`F9` 循环加速
 - 实现：`js/debug.js`（不写 localStorage，刷新即关）
 
-### 自动化测试（零依赖，浏览器）
+### 自动化测试（零依赖）
 
 ```bash
+# 推荐（Node CLI）
+npm test
+# 或
+node test/run-node.mjs
+
+# 浏览器结果页
 npx --yes serve .
-# 浏览器打开 http://localhost:3000/test/  （端口以 serve 输出为准）
+# 打开 http://localhost:3000/test/  （端口以 serve 输出为准）
 ```
 
-- 入口：`test/index.html` → `test/run.js` + `test/cases.js`
-- 覆盖：配置/难度、章节表完整性、`scaleBulletCount`、碰撞几何、版本号等纯逻辑
-- 不启动 Game 主循环；结果见页面与 `window.__TEST_RESULT__`
-- Node 也可跑：`node --input-type=module -e "import './test/cases.js'; import { runAll } from './test/assert.js'; const r=await runAll(); console.log(r); if(r.failed) process.exit(1)"`
+- 入口：`test/run-node.mjs`（CLI）/ `test/index.html` → `run.js` + `cases.js`（聚合）
+- 分文件：`cases-config|patterns|collision|stages|storage-spawn|smoke.js` + `mockGame.js`
+- 覆盖：配置/难度、章节表与 onClear、对话键、bg mode、`scaleBulletCount`、碰撞、spawnScale、startMode
+- **冒烟（mock Game）**：全章 `build` 不抛错；boss 有 bossRef；mid `waveFn` 固定步长 tick
+- **不**启动真实 Game 主循环 / Canvas / Three / WebAudio
+- 浏览器结果：`window.__TEST_RESULT__`
 
 ## 目录结构
 
