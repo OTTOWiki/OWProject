@@ -6,7 +6,7 @@ import {
   getDifficulty, calcLetterBonus, letterStageMul, nextExtendThreshold,
   PLAYER_DEFS, DEFAULT_SETTINGS, PLAYER_BULLET_OPACITY_MIN,
 } from '../js/config.js';
-import { VERSION, VERSION_LABEL } from '../js/version.js';
+import { VERSION, VERSION_NAME, VERSION_LABEL, GIT_HASH } from '../js/version.js';
 import {
   stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds,
 } from '../js/startMode.js';
@@ -86,9 +86,12 @@ test('自机定义与设置默认值合法', () => {
   assert(DEFAULT_SETTINGS.musicVolume >= 0 && DEFAULT_SETTINGS.musicVolume <= 1);
 });
 
-test('VERSION 为 SemVer，VERSION_LABEL 带 v 前缀', () => {
-  assert(/^\d+\.\d+\.\d+/.test(VERSION), `VERSION=${VERSION}`);
-  assertEqual(VERSION_LABEL, `v${VERSION}`);
+test('VERSION 为自然数构建号；VERSION_LABEL 为 vX.Y.Z.hash', () => {
+  assert(Number.isInteger(VERSION) && VERSION > 0, `VERSION=${VERSION}`);
+  assert(/^\d+\.\d+\.\d+$/.test(VERSION_NAME), `VERSION_NAME=${VERSION_NAME}`);
+  assert(typeof GIT_HASH === 'string' && GIT_HASH.length >= 4, `GIT_HASH=${GIT_HASH}`);
+  assertEqual(VERSION_LABEL, `v${VERSION_NAME}.${GIT_HASH}`);
+  assert(/^v\d+\.\d+\.\d+\./.test(VERSION_LABEL), `VERSION_LABEL=${VERSION_LABEL}`);
 });
 
 test('stageSelectStartMode：EX→extra，其余→stage', () => {
