@@ -219,10 +219,7 @@ export class Game {
     this.stageIntro = null; // 旧版兼容；现用 stageTransit
     this.stageTransit = null; // 关卡（面）间过渡页
     this._pendingChapterBegin = null;
-    if (this._pendingAdvance) {
-      clearTimeout(this._pendingAdvance);
-      this._pendingAdvance = null;
-    }
+    this._cancelAdvance();
     this.lastStageKey = null;
 
     this.running = true;
@@ -319,10 +316,7 @@ export class Game {
   stop() {
     this.running = false;
     this.input.resetShotLatch();
-    if (this._pendingAdvance) {
-      clearTimeout(this._pendingAdvance);
-      this._pendingAdvance = null;
-    }
+    this._cancelAdvance();
     this._setEndingCinematic(false);
     this._hideOverlay();
     this.el.bossEnemyMarker?.classList.add('hidden');
@@ -657,6 +651,8 @@ export class Game {
 
     try {
       this._handleGlobalInput();
+      // 章间推进用游戏时间；暂停冻结（见 _scheduleAdvance）
+      if (!this.paused) this._tickAdvance(dt);
       if (this.state === 'stageTransit' && !this.paused) {
         this._updateStageTransit(dt);
       } else if (this.state === 'playing' && !this.paused) {
@@ -1421,11 +1417,11 @@ export class Game {
     // 本章结束：敌弹变点并吸引（唯一变点入口）
     this._softClearForNextChapter({ convert: true });
 
-    /** 清场后固定 0.8s 再进下一流程 */
-    const NEXT_DELAY = 800;
+    /** 清场后固定 0.8s 游戏时间再进下一流程（暂停不计时） */
+    const NEXT_DELAY_SEC = 0.8;
 
     if (this.singleChapter || this.mode === 'practice') {
-      this._scheduleAdvance(NEXT_DELAY, () => {
+      this._scheduleAdvance(NEXT_DELAY_SEC, () => {
         this._openResult({
           title: '练习结束',
           body: `难度：${this.diff.rank} ${this.diff.name}\n章节：${ch.name}\n得分：${this.score}\n${perfect ? 'Perfect Clear!' : ''}`,
@@ -1440,13 +1436,13 @@ export class Game {
 
     // after stage 3 chapter 22 → route check
     if (ch.id === 22) {
-      this._scheduleAdvance(NEXT_DELAY, () => this._afterStage3());
+      this._scheduleAdvance(NEXT_DELAY_SEC, () => this._afterStage3());
       return;
     }
 
     // after patrol 24 → route select
     if (ch.id === 24) {
-      this._scheduleAdvance(NEXT_DELAY, () => {
+      this._scheduleAdvance(NEXT_DELAY_SEC, () => {
         this._openDialogue(this.dialogues.patrol_win || [], () => this._enterRouteSelect());
       });
       return;
@@ -1454,36 +1450,50 @@ export class Game {
 
     // win dialogue on route bosses
     if (ch.winDialogue && this.dialogues[ch.winDialogue]) {
-      this._scheduleAdvance(NEXT_DELAY, () => {
+      this._scheduleAdvance(NEXT_DELAY_SEC, () => {
         this._openDialogue(this.dialogues[ch.winDialogue], () => this._nextChapterOrEnd(ch));
       });
       return;
     }
 
     if (ch.ending) {
-      this._scheduleAdvance(NEXT_DELAY, () => this._showEnding(ch.ending));
+      this._scheduleAdvance(NEXT_DELAY_SEC, () => this._showEnding(ch.ending));
       return;
     }
 
     // 所有怪打完 → 强制结束本章 → 0.8s → 下一章
-    this._scheduleAdvance(NEXT_DELAY, () => {
+    this._scheduleAdvance(NEXT_DELAY_SEC, () => {
       this.chapterIndex++;
       this._skipToValidChapter();
       this._startChapter();
     });
   }
 
-  /** 短延迟推进；可被 stop/新调度取消。不阻塞标题条动画。 */
-  _scheduleAdvance(ms, fn) {
-    if (this._pendingAdvance) {
-      clearTimeout(this._pendingAdvance);
-      this._pendingAdvance = null;
-    }
-    this._pendingAdvance = setTimeout(() => {
-      this._pendingAdvance = null;
-      if (!this.running) return;
-      fn();
-    }, ms);
+  /**
+   * 章间短延迟推进（游戏时间秒，受暂停冻结与 Debug 加速影响）。
+   * 可被 stop / 新调度 / 开局取消。不阻塞标题条动画。
+   * @param {number} sec
+   * @param {() => void} fn
+   */
+  _scheduleAdvance(sec, fn) {
+    this._advanceWait = {
+      left: Math.max(0, Number(sec) || 0),
+      fn,
+    };
+  }
+
+  _cancelAdvance() {
+    this._advanceWait = null;
+  }
+
+  _tickAdvance(dt) {
+    const w = this._advanceWait;
+    if (!w) return;
+    w.left -= dt;
+    if (w.left > 0) return;
+    this._advanceWait = null;
+    if (!this.running) return;
+    w.fn?.();
   }
 
   _nextChapterOrEnd(ch) {

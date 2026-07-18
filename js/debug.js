@@ -198,10 +198,7 @@ export function debugSoftJumpChapter(id) {
   if (game.chapterIndexById.get(cid) == null) {
     return false;
   }
-  if (game._pendingAdvance) {
-    clearTimeout(game._pendingAdvance);
-    game._pendingAdvance = null;
-  }
+  game._cancelAdvance?.();
   game.chapterDone = false;
   game.chapterIndex = game._indexForChapterId(cid);
   game._startChapter();
@@ -211,10 +208,7 @@ export function debugSoftJumpChapter(id) {
 export function debugNextChapter() {
   const game = g();
   if (!game?.running) return false;
-  if (game._pendingAdvance) {
-    clearTimeout(game._pendingAdvance);
-    game._pendingAdvance = null;
-  }
+  game._cancelAdvance?.();
   game.chapterDone = false;
   // Debug：精确 +1，不按路线过滤（方便扫表）
   game.chapterIndex += 1;
