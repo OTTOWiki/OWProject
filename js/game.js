@@ -8,10 +8,15 @@ import {
   drawPlayer,
 } from './entities.js';
 import { drawGameFrame, drawFps } from './gameDraw.js';
+import {
+  bindOverlayClicks, showOverlay, hideOverlay, openPause, openResult,
+  runOverlayAction, handleOverlayInput, highlightOverlay, overlayButtons,
+} from './gameOverlay.js';
 import { spawnPlayerShot, fullScreenClear, clearBulletsToItems, spawnBombOrbs } from './patterns.js';
 import { buildChapterList, stageIntroFor } from './stages/index.js';
 import { getDialogues, getEndingDialogue } from './dialogue.js';
 import { saveHiscore, loadHiscore, unlockStage, unlockRoute, loadSettings } from './storage.js';
+// saveHiscore 仍用于结局/gameover 等；overlay 菜单回标题在 gameOverlay 内 save
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './backgrounds.js';
 import { portraitFor } from './assets.js';
@@ -724,126 +729,35 @@ export class Game {
   }
 
   _bindOverlayClicks() {
-    if (this._overlayBound) return;
-    this._overlayBound = true;
-    this.el.overlayActions?.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-overlay]');
-      if (!btn || !this.overlayMode) return;
-      this._runOverlayAction(btn.dataset.overlay);
-    });
+    bindOverlayClicks(this);
   }
 
   _overlayButtons() {
-    return [...(this.el.overlayActions?.querySelectorAll('[data-overlay]') || [])]
-      .filter((b) => !b.classList.contains('hidden'));
+    return overlayButtons(this);
   }
 
   _highlightOverlay() {
-    const btns = this._overlayButtons();
-    btns.forEach((b, i) => b.classList.toggle('selected', i === this.overlayActionIndex));
+    highlightOverlay(this);
   }
 
-  _showOverlay({ mode, title, body = '', actions, hint }) {
-    this.overlayMode = mode;
-    this.overlayActionIndex = 0;
-    this.el.overlay?.classList.remove('hidden');
-    this.el.overlay?.classList.toggle('mode-result', mode === 'result');
-    this.el.overlay?.classList.toggle('mode-pause', mode === 'pause');
-    if (this.el.overlayTitle) this.el.overlayTitle.textContent = title;
-    if (this.el.overlayBody) this.el.overlayBody.textContent = body || '';
-    if (this.el.overlayHint) this.el.overlayHint.textContent = hint || '';
-
-    const all = [...(this.el.overlayActions?.querySelectorAll('[data-overlay]') || [])];
-    const want = new Set(actions);
-    for (const btn of all) {
-      const id = btn.dataset.overlay;
-      const show = want.has(id);
-      btn.classList.toggle('hidden', !show);
-      if (id === 'resume') btn.textContent = '继续';
-      if (id === 'settings') btn.textContent = '设置';
-      if (id === 'retry') btn.textContent = mode === 'pause' ? '重开本章' : '再试一次';
-      if (id === 'menu') btn.textContent = '主菜单';
-    }
-    this._highlightOverlay();
+  _showOverlay(opts) {
+    showOverlay(this, opts);
   }
 
   _hideOverlay() {
-    this.overlayMode = null;
-    this.paused = false;
-    this.el.overlay?.classList.add('hidden');
+    hideOverlay(this);
   }
 
   _openPause() {
-    if (this.overlayMode === 'result' || this.overlayMode === 'pause') return;
-    if (this.state !== 'playing' && this.state !== 'dialogue' && this.state !== 'stageTransit') return;
-    this.paused = true;
-    this._showOverlay({
-      mode: 'pause',
-      title: 'PAUSED',
-      body: '',
-      actions: ['resume', 'settings', 'retry', 'menu'],
-      hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
-    });
+    openPause(this);
   }
 
-  _openResult({ title, body, retryChapter }) {
-    this.paused = true;
-    this.state = 'gameover';
-    this.resultPayload = {
-      retryChapter: retryChapter ?? this.chapters[this.chapterIndex]?.id ?? 1,
-      difficulty: this.difficultyId,
-    };
-    this._showOverlay({
-      mode: 'result',
-      title,
-      body,
-      actions: ['retry', 'menu'],
-      hint: '↑↓ 选择 · Z 确认',
-    });
-    this.ui?.showGame?.();
+  _openResult(opts) {
+    openResult(this, opts);
   }
 
   _runOverlayAction(action) {
-    if (!this.overlayMode) return;
-    if (action === 'resume') {
-      if (this.overlayMode === 'pause') this._hideOverlay();
-      return;
-    }
-    if (action === 'settings') {
-      if (this.overlayMode !== 'pause') return;
-      // 保持暂停，切到设置页；返回后回到暂停菜单
-      this.overlayMode = null;
-      this.el.overlay?.classList.add('hidden');
-      this.paused = true;
-      this.ui?.openSettingsFromPause?.(() => {
-        this.ui.showGame();
-        this._openPause();
-      });
-      return;
-    }
-    if (action === 'retry') {
-      const chId = this.overlayMode === 'result'
-        ? (this.resultPayload?.retryChapter ?? this.chapters[this.chapterIndex]?.id)
-        : this.chapters[this.chapterIndex]?.id;
-      const keepLives = this.overlayMode === 'pause' ? this.player.lives : undefined;
-      this._hideOverlay();
-      this.start({
-        playerId: this.playerId,
-        startChapter: chId,
-        mode: this.mode,
-        lives: keepLives,
-        unstable: this.practiceUnstable,
-        singleChapter: this.singleChapter,
-        difficulty: this.difficultyId,
-      });
-      return;
-    }
-    if (action === 'menu') {
-      saveHiscore(this.score);
-      this._hideOverlay();
-      this.stop();
-      this.ui.showMenu();
-    }
+    runOverlayAction(this, action);
   }
 
   _handleGlobalInput() {
@@ -856,47 +770,7 @@ export class Game {
     const wantPause = this.input.consumePause();
 
     // 叠加层（暂停 / 结束）优先
-    if (this.overlayMode) {
-      const btns = this._overlayButtons();
-      if (wantPause && this.overlayMode === 'pause') {
-        this._hideOverlay();
-        return;
-      }
-      if (
-        this.input.justPressed('ArrowDown') || this.input.justPressed('KeyS')
-        || this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')
-      ) {
-        this.overlayActionIndex = (this.overlayActionIndex + 1) % Math.max(1, btns.length);
-        this._highlightOverlay();
-        return;
-      }
-      if (
-        this.input.justPressed('ArrowUp') || this.input.justPressed('KeyW')
-        || this.input.justPressed('ArrowLeft') || this.input.justPressed('KeyA')
-      ) {
-        this.overlayActionIndex = (this.overlayActionIndex - 1 + btns.length) % Math.max(1, btns.length);
-        this._highlightOverlay();
-        return;
-      }
-      if (
-        this.input.shotPressed()
-        || this.input.justPressed('Enter')
-        || this.input.justPressed('Space')
-        || this.input.justPressed('KeyZ')
-      ) {
-        const id = btns[this.overlayActionIndex]?.dataset.overlay;
-        if (id) this._runOverlayAction(id);
-        return;
-      }
-      if (this.overlayMode === 'pause' && this.input.justPressed('KeyR')) {
-        this._runOverlayAction('retry');
-        return;
-      }
-      if (this.overlayMode === 'pause' && this.input.justPressed('KeyQ')) {
-        this._runOverlayAction('menu');
-      }
-      return;
-    }
+    if (handleOverlayInput(this, wantPause)) return;
 
     // 暂停：playing / dialogue / 关卡过渡 均可
     if (wantPause && (this.state === 'playing' || this.state === 'dialogue' || this.state === 'stageTransit')) {

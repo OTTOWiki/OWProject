@@ -64,6 +64,7 @@ js/
   config.js         # 逻辑分辨率、BALANCE、难度、角色色、Unstable 池、说明书
   game.js           # 主循环、状态机、章节推进、得分、A/B 线
   gameDraw.js       # 版面绘制（从 game 抽出；FPS/倾向条/过渡页/主 draw）
+  gameOverlay.js    # 暂停/结果叠加层（从 game 抽出）
   collision.js      # 碰撞与网格粗筛
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
   entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制
