@@ -270,7 +270,7 @@ T12（拆 game，可分步提交）
 
 | | |
 |--|--|
-| **状态** | 待手测 |
+| **状态** | 完成 |
 | **目标** | `runCollisions` 只做几何与命中检测；score/drop/SFX/`onDeath` 由 Game/combat 消费 |
 | **范围** | `collision.js` 返回 `kill`/`graze`/`playerHit`；`gameCombat.applyCollisionEvents` 消费 |
 | **不做** | 不改判定公式与网格策略（除非测试证明等价） |
@@ -284,12 +284,12 @@ T12（拆 game，可分步提交）
 
 | | |
 |--|--|
-| **状态** | 待做 |
-| **目标** | 统一 `.menu-focusable` + CSS 变量，去掉金色 token 漂移 |
-| **范围** | `style.css`；必要时 HTML class |
-| **不做** | 不大改布局栅格 |
-| **验收（自动）** | 无（或仅静态检查无） |
-| **验收（手测）** | 各菜单键盘焦点描边一致 |
+| **状态** | 待手测 |
+| **目标** | 统一焦点 CSS 变量 + 列表/表单 `.selected` 描边；去掉 `#d4af37` 等金色漂移 |
+| **范围** | `style.css`（`:root` 焦点 token；practice/keys/settings/history/manual/overlay） |
+| **不做** | 不大改布局栅格；不改菜单 JS 导航逻辑 |
+| **验收（自动）** | `npm test` 不回归（纯 CSS） |
+| **验收（手测）** | 各菜单键盘焦点描边一致（主菜单/难度/设置/History/暂停） |
 | **风险** | 低 |
 
 ---
@@ -310,11 +310,11 @@ T12（拆 game，可分步提交）
 ## 执行顺序（全队列）
 
 ```
-[已完成] T01…T11 · T12a–d · T13 · T14 · T15
-  → T16（待手测）→ T17 → T18
+[已完成] T01…T11 · T12a–d · T13 · T14 · T15 · T16
+  → T17（待手测）→ T18
 ```
 
-当前应执行：**T16 手测**（击破掉落 / 擦弹 / 中弹决死）→ 通过后 **T17 CSS 焦点**。
+当前应执行：**T17 手测**（各菜单键盘焦点描边）→ 通过后 **T18 立绘/占位策略**。
 
 ---
 
@@ -327,7 +327,8 @@ T12（拆 game，可分步提交）
 | 2026-07-18 | T14 试点 | 35/35 | 完成 | s1 + shared 工厂；`442a83c` |
 | 2026-07-18 | T14 全主线表 | 35/35 | 完成 | s2–s3/patrol/A/B 章节表迁 midChapter/letterChapter |
 | 2026-07-19 | T15 | 36/36 | 完成 | `4497417` bgModes 单一登记；playfield 去重；Three builder 表 |
-| 2026-07-19 | T16 | 待跑 | 待确认 | runCollisions 事件化 + applyCollisionEvents |
+| 2026-07-19 | T16 | 40/40 | 完成 | `5357e4d` runCollisions 事件化 + applyCollisionEvents |
+| 2026-07-19 | T17 | 待跑 | 待确认 | 焦点 CSS 变量；去掉 #d4af37 漂移 |
 
 ---
 

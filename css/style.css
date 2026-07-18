@@ -5,7 +5,7 @@
   --panel2: #1a1628;
   --border: #5c4a2e;
   --border-lite: #8a7348;
-  --gold: #d4b56a;
+  --gold: #d4b56a;           /* rgb(212, 181, 106) — 唯一主金色 */
   --gold2: #f0d78c;
   --text: #f2e6c8;
   --muted: #9a8b6e;
@@ -18,6 +18,19 @@
   --font: "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
   --serif: "Songti SC", "SimSun", "Noto Serif SC", "Times New Roman", serif;
   --mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+
+  /* 键盘/菜单焦点描边（禁止再写 #d4af37 / 212,175,55 等漂移金） */
+  --focus-border: var(--gold);
+  --focus-bg: rgba(40, 32, 16, 0.75);
+  --focus-bg-soft: rgba(40, 32, 16, 0.55);
+  --focus-ring: rgba(212, 181, 106, 0.25);
+  --focus-ring-soft: rgba(212, 181, 106, 0.18);
+  --focus-outline: rgba(212, 181, 106, 0.45);
+  --focus-glow: rgba(212, 181, 106, 0.15);
+  --focus-glow-mid: rgba(212, 181, 106, 0.22);
+  --focus-glow-strong: rgba(232, 200, 120, 0.35);
+  --focus-border-soft: rgba(212, 181, 106, 0.22);
+  --focus-border-mid: rgba(212, 181, 106, 0.28);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -246,7 +259,7 @@ html, body {
   transition: opacity .12s;
 }
 .menu-btn:hover, .menu-btn:focus, .menu-btn.selected {
-  border-color: rgba(212,181,106,.45);
+  border-color: var(--focus-outline);
   background: linear-gradient(90deg, rgba(212,181,106,.12), transparent 70%);
   color: #fff8e8;
   outline: none;
@@ -350,12 +363,12 @@ html, body {
 }
 .player-card:hover,
 .player-card.selected {
-  border-color: var(--gold);
+  border-color: var(--focus-border);
   transform: translateY(-2px);
-  box-shadow: 0 0 18px rgba(212,181,106,.15);
+  box-shadow: 0 0 18px var(--focus-glow);
 }
 .player-card.selected {
-  outline: 1px solid rgba(212,181,106,.55);
+  outline: 1px solid rgba(212, 181, 106, 0.55);
 }
 .player-orb {
   width: 48px; height: 48px;
@@ -408,11 +421,11 @@ html, body {
 }
 .stage-btn:hover,
 .stage-btn.selected {
-  border-color: var(--gold);
-  box-shadow: 0 0 12px rgba(212,181,106,.18);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 12px var(--focus-ring-soft);
 }
 .stage-btn.selected {
-  outline: 1px solid rgba(212,181,106,.45);
+  outline: 1px solid var(--focus-outline);
 }
 .stage-btn small { display: block; color: var(--muted); margin-top: 0.25rem; font-size: 0.7rem; font-family: var(--font); }
 .stage-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -443,9 +456,9 @@ html, body {
   color: var(--text);
 }
 .practice-form label.selected {
-  border-color: var(--gold, #d4af37);
-  background: rgba(40, 32, 16, 0.55);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.22);
+  border-color: var(--focus-border);
+  background: var(--focus-bg-soft);
+  box-shadow: 0 0 0 1px var(--focus-glow-mid);
   color: var(--text);
 }
 .practice-form select,
@@ -485,9 +498,9 @@ html, body {
 }
 .key-row:hover,
 .key-row.selected {
-  border-color: var(--gold, #d4af37);
-  background: rgba(40, 32, 16, 0.75);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25);
+  border-color: var(--focus-border);
+  background: var(--focus-bg);
+  box-shadow: 0 0 0 1px var(--focus-ring);
 }
 .key-row.listening {
   border-color: var(--warn);
@@ -506,7 +519,7 @@ html, body {
 .settings-section-title {
   font-family: var(--serif);
   font-size: 1rem;
-  color: var(--gold2, #d4a574);
+  color: var(--gold2);
   text-align: left;
   margin: 0.35rem 0 0.55rem;
   letter-spacing: 0.04em;
@@ -541,9 +554,9 @@ html, body {
   cursor: pointer;
 }
 .settings-row.selected {
-  border-color: var(--gold, #d4af37);
-  background: rgba(40, 32, 16, 0.75);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25);
+  border-color: var(--focus-border);
+  background: var(--focus-bg);
+  box-shadow: 0 0 0 1px var(--focus-ring);
 }
 .settings-label {
   font-size: 0.95rem;
@@ -557,19 +570,19 @@ html, body {
 .settings-control input[type="range"] {
   flex: 1;
   min-width: 0;
-  accent-color: var(--gold2, #d4a574);
+  accent-color: var(--gold2);
   cursor: pointer;
 }
 .settings-control input[type="checkbox"] {
   width: 1.15rem;
   height: 1.15rem;
-  accent-color: var(--gold2, #d4a574);
+  accent-color: var(--gold2);
   cursor: pointer;
 }
 .settings-value {
   font-family: var(--mono);
   font-size: 0.9rem;
-  color: var(--gold2, #d4a574);
+  color: var(--gold2);
   min-width: 3.2rem;
   text-align: right;
 }
@@ -606,7 +619,7 @@ html, body {
   width: 100%;
   text-align: left;
   background: rgba(12, 14, 20, 0.55);
-  border: 1px solid rgba(212, 175, 55, 0.22);
+  border: 1px solid var(--focus-border-soft);
   color: #d8cbb0;
   padding: 0.55rem 0.7rem;
   border-radius: 4px;
@@ -616,9 +629,9 @@ html, body {
 }
 .history-item:hover,
 .history-item.selected {
-  border-color: var(--gold, #d4af37);
-  background: rgba(40, 32, 16, 0.75);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25);
+  border-color: var(--focus-border);
+  background: var(--focus-bg);
+  box-shadow: 0 0 0 1px var(--focus-ring);
 }
 .history-item.is-current {
   border-color: rgba(120, 180, 220, 0.45);
@@ -632,7 +645,7 @@ html, body {
   font-size: 0.78rem;
 }
 .history-time {
-  color: var(--gold2, #d4a574);
+  color: var(--gold2);
   font-family: var(--mono, monospace);
 }
 .history-meta {
@@ -647,7 +660,7 @@ html, body {
   font-size: 0.72rem;
   padding: 0.05rem 0.35rem;
   border-radius: 3px;
-  border: 1px solid rgba(212, 175, 55, 0.28);
+  border: 1px solid var(--focus-border-mid);
   color: #c9b896;
 }
 .history-current-tag {
@@ -686,13 +699,13 @@ html, body {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .manual-body.kb-focus {
-  border-color: rgba(212, 175, 55, 0.45);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.18);
+  border-color: var(--focus-outline);
+  box-shadow: 0 0 0 1px var(--focus-ring-soft);
 }
 .manual-chapter {
   margin-bottom: 1.1rem;
   padding-bottom: 0.85rem;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+  border-bottom: 1px solid var(--focus-ring-soft);
 }
 .manual-chapter:last-child {
   border-bottom: none;
@@ -1012,7 +1025,7 @@ html, body {
 .game-overlay-actions .overlay-btn.selected,
 .game-overlay-actions .overlay-btn:focus-visible {
   outline: 1px solid var(--gold2);
-  box-shadow: 0 0 12px rgba(232, 200, 120, 0.35);
+  box-shadow: 0 0 12px var(--focus-glow-strong);
 }
 .game-overlay-hint {
   margin: 0.65rem 0 0;
