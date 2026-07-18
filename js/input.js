@@ -1,12 +1,21 @@
 import { loadKeys } from './storage.js';
 import { LOGICAL_W, LOGICAL_H } from './config.js';
 
+/** 移动键集合（方向键 + WASD） */
+const MOVE_LEFT = new Set(['ArrowLeft', 'KeyA']);
+const MOVE_RIGHT = new Set(['ArrowRight', 'KeyD']);
+const MOVE_UP = new Set(['ArrowUp', 'KeyW']);
+const MOVE_DOWN = new Set(['ArrowDown', 'KeyS']);
+const MOVE_KEYS = new Set([...MOVE_LEFT, ...MOVE_RIGHT, ...MOVE_UP, ...MOVE_DOWN]);
+
 export class Input {
   constructor() {
     this.keys = loadKeys();
     this.down = new Set();
     this.pressed = new Set();
     this.released = new Set();
+    /** 当前仍按住的移动键，按按下先后排序（末尾 = 最近按下，优先级最高） */
+    this._moveSeq = [];
 
     this.touchActive = false;
     this.autoShot = false;
@@ -38,12 +47,19 @@ export class Input {
       if (!formField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
         e.preventDefault();
       }
-      if (!this.down.has(e.code)) this.pressed.add(e.code);
+      if (!this.down.has(e.code)) {
+        this.pressed.add(e.code);
+        if (MOVE_KEYS.has(e.code)) this._moveSeq.push(e.code);
+      }
       this.down.add(e.code);
     };
     this._onKeyUp = (e) => {
       this.down.delete(e.code);
       this.released.add(e.code);
+      if (MOVE_KEYS.has(e.code)) {
+        const i = this._moveSeq.indexOf(e.code);
+        if (i >= 0) this._moveSeq.splice(i, 1);
+      }
     };
 
     window.addEventListener('keydown', this._onKeyDown);
@@ -213,12 +229,24 @@ export class Input {
     return this.isDown('ShiftLeft') || this.isDown('ShiftRight');
   }
 
+  /**
+   * 移动轴：同轴对向键以后按下的为准（先左后右 → 向右；松右后仍按左 → 向左）。
+   * 上下轴同理。
+   */
   moveAxis() {
     let x = 0, y = 0;
-    if (this.isDown('ArrowLeft') || this.isDown('KeyA')) x -= 1;
-    if (this.isDown('ArrowRight') || this.isDown('KeyD')) x += 1;
-    if (this.isDown('ArrowUp') || this.isDown('KeyW')) y -= 1;
-    if (this.isDown('ArrowDown') || this.isDown('KeyS')) y += 1;
+    for (let i = this._moveSeq.length - 1; i >= 0; i--) {
+      const code = this._moveSeq[i];
+      if (!x) {
+        if (MOVE_LEFT.has(code)) x = -1;
+        else if (MOVE_RIGHT.has(code)) x = 1;
+      }
+      if (!y) {
+        if (MOVE_UP.has(code)) y = -1;
+        else if (MOVE_DOWN.has(code)) y = 1;
+      }
+      if (x && y) break;
+    }
     if (x && y) {
       const inv = 1 / Math.SQRT2;
       x *= inv; y *= inv;

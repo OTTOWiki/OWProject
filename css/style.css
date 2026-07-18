@@ -1222,8 +1222,9 @@ input, select, textarea {
   to { filter: brightness(1.35); }
 }
 
+/* 桌面默认隐藏；仅移动端 / 粗指针触控设备显示 Item·Bomb·暂停 */
 .touch-keys {
-  display: grid;
+  display: none;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.45rem;
   padding-top: 0.75rem;
@@ -1232,6 +1233,11 @@ input, select, textarea {
   position: relative;
   z-index: 30;
   pointer-events: auto;
+}
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  .touch-keys {
+    display: grid;
+  }
 }
 .touch-btn {
   appearance: none;
