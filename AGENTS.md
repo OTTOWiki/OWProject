@@ -180,6 +180,18 @@ tools/
 - 右侧：分数板 + 触屏 Item/Bomb
 - 立绘/精灵在 `assets/`，由 `assets.js` / `sprites.js` 加载；需求原文曾要求纯几何，**当前代码已支持贴图+几何混用**
 
+### 立绘 / Boss 贴图策略（T18）
+
+| 类型 | 规则 | 位置 |
+|------|------|------|
+| **对话立绘** | 仅 `PORTRAIT_PATHS` 有图才显示；无图则 **隐藏**，禁止把 A 的立绘挂到 B 名下 | `js/assets.js` |
+| **无立绘白名单** | `PORTRAIT_HIDDEN_OK`：系统/旁白/尚无美术 Boss 名等；新增对话角色必须进 PATHS 或本表 | 同上 |
+| **Boss 专用图** | `DEDICATED_BOSS_BY_KIND`（alice/icebin/dazong/patrol） | `js/sprites.js` |
+| **Boss 显式占位** | `PLACEHOLDER_BOSS_SPRITES`：复用路径但注释标明「非本人」；值为 `null` = 纯几何 | 同上 |
+| **未知 boss kind** | `spriteKeyForEnemy` 返回 `null` → 几何绘制，**禁止**默认 `boss_alice` | 同上 + `draw/entitiesDraw.js` |
+
+补美术：新 jpg 进 `assets/portraits` 或 `assets/sprites` → 写入 PATHS / DEDICATED，并从 HIDDEN_OK 或 PLACEHOLDER 删除对应项。
+
 ### 存档（localStorage）
 
 | Key | 内容 |
@@ -278,7 +290,7 @@ tools/
 | 改设置/键位 | `ui.js` + `storage.js` + `config.js` |
 | 改 BGM 映射 | `audio.js` + `assets/midi/` |
 | 改左侧 3D 场景 | `backgrounds.js` |
-| 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/` |
+| 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/`（见下「立绘/Boss 贴图策略」） |
 | 重新解析 MIDI | `tools/parse_all_midis.py` |
 | 发版 / 升版本号 | `js/version.js` + git tag `vX.Y.Z`（见上文） |
 | 跑自动化测试 | 本地 HTTP 打开 `/test/`（见上文） |

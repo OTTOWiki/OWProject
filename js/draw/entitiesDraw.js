@@ -275,7 +275,8 @@ function softGlowAt(ctx, x, y, r, color, color2) {
 
 export function drawEnemy(ctx, e) {
   const key = spriteKeyForEnemy(e);
-  const img = loadSprite(key);
+  // key 为 null：占位策略为几何绘制（无专用/显式无图 Boss）
+  const img = key ? loadSprite(key) : null;
   const isBoss = e.type === 'boss' || e.kind === 'boss';
   const isElite = e.type === 'elite' || e.kind === 'mid' || e.kind === 'mid1' || e.kind === 'mid2' || e.kind === 'mid3';
   const size = isBoss ? 78 : isElite ? 48 : 32;

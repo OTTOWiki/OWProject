@@ -303,6 +303,8 @@ export const SPEAKER_COLORS = {
   拉斯特神炫: '#a3e635',
   饮泉思源: '#7dd3fc',
   誓约沙玛: '#f9a8d4',
+  'van♂': '#c084fc',
+  'van♂分身': '#a78bfa',
   系统: '#94a3b8',
   旁白: '#cbd5e1',
 };
