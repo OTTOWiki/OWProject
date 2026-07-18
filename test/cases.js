@@ -117,13 +117,30 @@ test('aimAngle / oddAim / evenAim / ring / fan 形状', () => {
   const to = { x: 1, y: 0 };
   assertClose(aimAngle(from, to), 0);
 
-  const odds = oddAim(from, { x: 0, y: -10 }, 3, 0.2);
-  assertEqual(odds.length, 3);
-  // 中心路应对准正上 ≈ -π/2
-  assertClose(odds[1], -Math.PI / 2, 1e-9);
+  const playerUp = { x: 0, y: -10 };
+  const base = aimAngle(from, playerUp); // ≈ -π/2
 
-  const evens = evenAim(from, { x: 0, y: -10 }, 4, 0.2);
+  const odds = oddAim(from, playerUp, 3, 0.2);
+  assertEqual(odds.length, 3);
+  // 中心路对准自机
+  assertClose(odds[1], base, 1e-9);
+  assertClose(odds[0], base - 0.2, 1e-9);
+  assertClose(odds[2], base + 0.2, 1e-9);
+
+  // 偶数路：半步偏移，无弹正对 base；相邻间隔 = spread
+  const evens = evenAim(from, playerUp, 4, 0.2);
   assertEqual(evens.length, 4);
+  assertClose(evens[0], base - 0.3, 1e-9);
+  assertClose(evens[1], base - 0.1, 1e-9);
+  assertClose(evens[2], base + 0.1, 1e-9);
+  assertClose(evens[3], base + 0.3, 1e-9);
+  for (const a of evens) {
+    assert(Math.abs(a - base) > 1e-9, 'evenAim must not fire dead-on at player');
+  }
+  // 与公式一致：oddAim(4) 与 evenAim(4) 相同（锁死当前行为）
+  const odds4 = oddAim(from, playerUp, 4, 0.2);
+  assertEqual(odds4.length, 4);
+  for (let i = 0; i < 4; i++) assertClose(odds4[i], evens[i], 1e-9);
 
   const r = ring(8, 0);
   assertEqual(r.length, 8);

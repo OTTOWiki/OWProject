@@ -27,8 +27,11 @@ export function scaleBulletCount(game, n, parity = null) {
   return c;
 }
 
+/**
+ * 奇数路扇形狙：等角间隔，中心路对准自机（n 为奇数时；n 为偶数时几何与 evenAim 相同）。
+ * 角度 = base + (i - (n-1)/2) * spread
+ */
 export function oddAim(from, player, n, spread = 0.18) {
-  // n 路奇数狙：中心路对准自机
   const base = aimAngle(from, player);
   const bullets = [];
   const mid = (n - 1) / 2;
@@ -38,18 +41,17 @@ export function oddAim(from, player, n, spread = 0.18) {
   return bullets;
 }
 
+/**
+ * 偶数路扇形狙：与 oddAim 同一公式。
+ * n 为偶数时 (n-1)/2 为半步，无弹正对 base，自机方向在中心两弹夹缝。
+ * n 为奇数时中心路对准 base（与 oddAim 一致）。历史上曾有空 if 分支，已删除以免误导。
+ */
 export function evenAim(from, player, n, spread = 0.2) {
-  // n 路偶数狙：不对准自机，对称夹缝
   const base = aimAngle(from, player);
   const bullets = [];
+  const mid = (n - 1) / 2;
   for (let i = 0; i < n; i++) {
-    const offset = (i - (n - 1) / 2) * spread;
-    // 微调使中心缝对准自机
-    bullets.push(base + offset);
-  }
-  // 偶数：把中心两弹稍微拉开，自机正中为安全缝
-  if (n % 2 === 0) {
-    return bullets; // already offset by half-step when using (n-1)/2
+    bullets.push(base + (i - mid) * spread);
   }
   return bullets;
 }
