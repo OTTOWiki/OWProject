@@ -63,3 +63,19 @@ functions/api/     # Cloudflare Functions
 ## 开发说明
 
 更完整的架构与约定见 **`AGENTS.md`**。规格冲突时以可运行代码与 `AGENTS.md` 为准；`参考/需求.txt` 不要当作权威文档。
+
+### 首次克隆后（推荐）
+
+```bash
+npm run hooks:install
+```
+
+这会设置 `git config core.hooksPath .githooks`，之后每次 **`git commit` 会自动把 `js/version.js` 的构建号 `VERSION` +1**（写进**同一次**提交，不另开 commit）。
+
+| | |
+|--|--|
+| 跳过本次 | `git commit --no-verify` |
+| 新电脑 / 新克隆 | 再执行一次 `npm run hooks:install`（hooks 路径是本机 git 配置，不会随 clone 自动生效） |
+| 营销版本名 | 改 `VERSION_NAME`（如 `0.4.1` → 界面 `v0.4.1`）；**不必**手改 `VERSION` |
+
+部署短哈希由 Cloudflare Pages 构建命令 `npm run pages:build` 注入，不进仓库。详见 `AGENTS.md`「版本号与发版流程」。

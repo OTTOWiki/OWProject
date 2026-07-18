@@ -1053,12 +1053,14 @@ input, select, textarea {
   bottom: 12px;
   z-index: 5;
   margin: 0;
-  padding: 0;
+  padding: 2px 4px;
   font-family: var(--mono, ui-monospace, monospace);
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   color: rgba(201, 184, 150, 0.72);
-  pointer-events: none;
+  /* 需可悬停，否则 title（build 号 / hash）不会弹出 */
+  pointer-events: auto;
+  cursor: default;
   user-select: none;
 }
 .version-badge-overlay {

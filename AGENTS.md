@@ -14,6 +14,17 @@ python -m http.server 8080
 
 无构建步骤、无 npm 依赖包。改 JS/CSS/HTML 后刷新浏览器即可。
 
+### 首次克隆 / 新电脑（Git hooks）
+
+```bash
+npm run hooks:install
+```
+
+- 设置 `core.hooksPath=.githooks`（**本机配置**，不会随 clone 自动带上，**每个工作副本要跑一次**）
+- 之后每次 `git commit`：pre-commit 将 `js/version.js` 的 **`VERSION` +1** 并 `git add` 进**同一次**提交
+- 跳过：`git commit --no-verify`
+- 不自动 +1：`amend` / `rebase` / `merge` / `cherry-pick` 过程中
+
 ### Debug 模式（自测）
 
 浏览器控制台：
@@ -209,10 +220,10 @@ tools/
 
 | 字段 | 含义 | 示例 |
 |------|------|------|
-| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `68` |
-| **`VERSION_NAME`** | 展示用语义段（无 `v`） | `0.4.0` |
+| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `71` |
+| **`VERSION_NAME`** | 展示用语义段（无 `v`） | `0.4.1` |
 | **`DEPLOY_GIT_HASH`** | 部署短哈希（`js/git-hash.js`） | `''` 或 `a1b2c3d` |
-| **`VERSION_LABEL`** | **版本名**（界面） | `v0.4.0` 或 `v0.4.0.a1b2c3d` |
+| **`VERSION_LABEL`** | **版本名**（界面） | `v0.4.1` 或 `v0.4.1.a1b2c3d` |
 
 - **仓库**：**不**硬编码 commit 哈希；`js/git-hash.js` 中 `DEPLOY_GIT_HASH` 恒为 `''`
 - **显示**：有合法 hash → `v{NAME}.{hash}`；**空则只显示 `v{NAME}`**（本地默认如此）
@@ -224,16 +235,20 @@ tools/
   - 构建日志应出现：`[inject-deploy-hash] source=CF_PAGES_COMMIT_SHA short=xxxxxxx`
   - **不会**把 hash commit 回 GitHub
 - **GitHub Actions**：仅 `test.yml` 跑 `npm test`；**无** stamp 回写
-- **每次人工提交前**：`VERSION` **+1**
-- **营销升版**：改 `VERSION_NAME`；构建号仍靠 `VERSION++`
-- **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.0`）
+- **构建号 `VERSION` 自动 +1**：由 **pre-commit hook** 在**同一次提交**里完成（不另开 commit）
+  - 启用一次：`npm run hooks:install`（= `git config core.hooksPath .githooks`）
+  - 跳过本次：`git commit --no-verify`
+  - amend / rebase / merge / cherry-pick 过程中 **不**自动 +1
+- **营销升版**：只改 `VERSION_NAME`（如 `0.4.0` → `0.4.1`）；**不必**手改 `VERSION`
+- **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.1`）
 
 ### 日常提交
 
-1. 提交前：`js/version.js` → `VERSION` **+1**（需要时改 `VERSION_NAME`）
-2. 确认 `js/git-hash.js` 仍为 `DEPLOY_GIT_HASH = ''`（勿提交本地注入结果）
-3. `git commit` / `git push origin main`
-4. CF 自动部署后，线上角标为 `vX.Y.Z.<shortSha>`
+1. （新克隆后）`npm run hooks:install` 一次
+2. 需要营销升版时改 `VERSION_NAME`；**不要**为构建号手改 `VERSION`（hook 会 +1）
+3. 确认 `js/git-hash.js` 仍为 `DEPLOY_GIT_HASH = ''`（勿提交本地注入结果）
+4. `git commit` / `git push origin main` → 本次 commit 已含 `VERSION+1`
+5. CF 自动部署后，线上角标为 `vX.Y.Z.<shortSha>`
 
 ### 本地预览带哈希（可选）
 
@@ -305,5 +320,6 @@ node tools/inject-deploy-hash.mjs abcdef0
 | 改左侧 3D 场景 | `backgrounds.js` |
 | 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/`（见下「立绘/Boss 贴图策略」） |
 | 重新解析 MIDI | `tools/parse_all_midis.py` |
-| 发版 / 升版本号 | `js/version.js`（VERSION++、VERSION_NAME）+ CF `pages:build` 注入 hash + tag `vX.Y.Z` |
+| 发版 / 升版本号 | `VERSION_NAME` + pre-commit 自动 `VERSION++`；CF `pages:build` 注入 hash；tag `vX.Y.Z` |
+| 启用 commit 自动构建号 | `npm run hooks:install`（见上文「首次克隆」） |
 | 跑自动化测试 | 本地 HTTP 打开 `/test/`（见上文） |

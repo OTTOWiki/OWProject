@@ -1,7 +1,7 @@
 /**
  * 版本约定
- * - VERSION：纯自然数构建号（每次人工提交前 +1）
- * - VERSION_NAME：展示用 x.y.z（如 0.4.0）
+ * - VERSION：纯自然数构建号（pre-commit 每次提交自动 +1，勿手改）
+ * - VERSION_NAME：展示用 x.y.z（如 0.4.1）
  * - GIT_HASH：来自 js/git-hash.js（仓库为空；CF 部署构建时注入短哈希）
  * - VERSION_LABEL：有合法 hash → `v{NAME}.{hash}`，否则 `v{NAME}`
  *
@@ -9,10 +9,10 @@
  */
 import { DEPLOY_GIT_HASH } from './git-hash.js';
 
-export const VERSION = 69;
+export const VERSION = 71;
 
-/** 展示用语义版本段（无 v 前缀），如 0.4.0 */
-export const VERSION_NAME = '0.4.0';
+/** 展示用语义版本段（无 v 前缀），如 0.4.1 */
+export const VERSION_NAME = '0.4.1';
 
 /** 规范化：仅保留可展示的短哈希 */
 export function normalizeGitHash(h) {
@@ -40,14 +40,16 @@ export function formatVersionLabel(name = VERSION_NAME, hash = GIT_HASH) {
   return h ? `v${n}.${h}` : `v${n}`;
 }
 
-/** 界面版本名，如 v0.4.0 或 v0.4.0.a1b2c3d */
+/** 界面版本名，如 v0.4.1 或 v0.4.1.a1b2c3d */
 export const VERSION_LABEL = formatVersionLabel(VERSION_NAME, GIT_HASH);
 
 /** 将版本名写入页面上所有 [data-app-version] 节点 */
 export function applyVersionToDom(root = document) {
-  const h = normalizeGitHash(GIT_HASH);
+  // 悬停 title：版本名 + 构建号（VERSION_LABEL 在有部署 hash 时已含短哈希）
+  const tip = `${VERSION_LABEL} · build ${VERSION}`;
   root.querySelectorAll('[data-app-version]').forEach((el) => {
     el.textContent = VERSION_LABEL;
-    el.title = h ? `build ${VERSION} · ${h}` : `build ${VERSION}`;
+    el.title = tip;
+    el.setAttribute('aria-label', tip);
   });
 }

@@ -1,0 +1,29 @@
+#!/bin/sh
+# 每次 commit 将 js/version.js 的 VERSION +1，并加入本次提交（不另开 commit）。
+# 启用：git config core.hooksPath .githooks
+# 跳过：git commit --no-verify
+
+set -e
+
+# amend / rebase / merge 进行中不自动 +1，避免意外连加
+if [ "${GIT_REFLOG_ACTION-}" = "commit (amend)" ]; then
+  exit 0
+fi
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+if [ -d "$GIT_DIR/rebase-merge" ] || [ -d "$GIT_DIR/rebase-apply" ]; then
+  exit 0
+fi
+if [ -f "$GIT_DIR/MERGE_HEAD" ] || [ -f "$GIT_DIR/CHERRY_PICK_HEAD" ]; then
+  exit 0
+fi
+
+# 需要 Node（本项目测试/工具均依赖）
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found; skip VERSION bump" >&2
+  exit 0
+fi
+
+node tools/bump-build-version.mjs
+git add js/version.js
+
+exit 0
