@@ -10,6 +10,14 @@ import { Bullet } from '../entities.js';
 function chapter_b5_mid_1(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.5) {
+      g.rainT = 0;
+      g.bullets.push(new Bullet({
+        x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 2.0,
+        type: 'rice', color: '#fdba74', from: 'enemy', gravity: 0.015,
+      }));
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.8) return;
     g.waveTimer = 0;
@@ -24,14 +32,6 @@ function chapter_b5_mid_1(g) {
       });
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.5) {
-      g.rainT = 0;
-      g.bullets.push(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 2.0,
-        type: 'rice', color: '#fdba74', from: 'enemy', gravity: 0.015,
-      }));
-    }
   };
 }
 
@@ -60,6 +60,12 @@ function chapter_b5_mid_2(g) {
 function chapter_b5_mid_3(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.laserT = (g.laserT || 0) + dt;
+    if (g.laserT > 0.7) {
+      g.laserT = 0;
+      const dummy = { x: LOGICAL_W / 2, y: 30 };
+      spawnAimedLaser(g, dummy, g.player, '#fb923c');
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.65) return;
     g.waveTimer = 0;
@@ -73,18 +79,17 @@ function chapter_b5_mid_3(g) {
       });
     };
     g.enemies.push(e);
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.7) {
-      g.laserT = 0;
-      const dummy = { x: LOGICAL_W / 2, y: 30 };
-      spawnAimedLaser(g, dummy, g.player, '#fb923c');
-    }
   };
 }
 
 function chapter_b5_mid_4(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.3) {
+      g.rainT = 0;
+      spawnGravityRain(g, 1, 'rice', '#fdba74', 1.4);
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.7) return;
     g.waveTimer = 0;
@@ -101,11 +106,6 @@ function chapter_b5_mid_4(g) {
       timer(en, 'ring', 1.6, d, () => spawnRingAt(game, en.x, en.y, 8, 1.5, 'dot', '#fb923c', en.age));
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.3) {
-      g.rainT = 0;
-      spawnGravityRain(g, 1, 'rice', '#fdba74', 1.4);
-    }
   };
 }
 
@@ -163,6 +163,12 @@ function chapter_b5_mid_5(g) {
 function chapter_b5_mid_6(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.laserT = (g.laserT || 0) + dt;
+    if (g.laserT > 0.6) {
+      g.laserT = 0;
+      // 用当前 waveCount 定轨（刷怪前也可能为 0）
+      spawnHLaser(g, 80 + ((g.waveCount || 0) * 35) % 380, (g.waveCount || 0) % 3 === 0 ? 1 : -1, '#f97316');
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.7) return;
     g.waveTimer = 0;
@@ -178,11 +184,6 @@ function chapter_b5_mid_6(g) {
         });
       };
       g.enemies.push(e);
-    }
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.6) {
-      g.laserT = 0;
-      spawnHLaser(g, 80 + (g.waveCount * 35) % 380, g.waveCount % 3 === 0 ? 1 : -1, '#f97316');
     }
   };
 }

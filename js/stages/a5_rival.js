@@ -78,6 +78,14 @@ function chapter_a5_mid_3(g) {
 function chapter_a5_mid_4(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.32) {
+      g.rainT = 0;
+      g.bullets.push(new Bullet({
+        x: Math.random() * LOGICAL_W, y: -10, vx: 0, vy: 1.5,
+        type: 'dot', color: '#a78bfa', from: 'enemy',
+      }));
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.65) return;
     g.waveTimer = 0;
@@ -94,14 +102,6 @@ function chapter_a5_mid_4(g) {
       timer(en, 'ring', 1.6, d, () => spawnRingAt(game, en.x, en.y, 8, 1.5, 'talisman', '#c4b5fd', en.age));
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.32) {
-      g.rainT = 0;
-      g.bullets.push(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -10, vx: 0, vy: 1.5,
-        type: 'dot', color: '#a78bfa', from: 'enemy',
-      }));
-    }
   };
 }
 
@@ -183,6 +183,11 @@ function chapter_a5_mid_6(g) {
 function chapter_a5_mid_7(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.laserT = (g.laserT || 0) + dt;
+    if (g.laserT > 0.6) {
+      g.laserT = 0;
+      spawnAimedLaser(g, { x: LOGICAL_W / 2, y: 50 }, g.player, '#a78bfa');
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.8) return;
     g.waveTimer = 0;
@@ -200,11 +205,6 @@ function chapter_a5_mid_7(g) {
         timer(en, 'ring', 1.8, d, () => spawnRingAt(game, en.x, en.y, 8, 1.4, 'talisman', '#c4b5fd'));
       };
       g.enemies.push(e);
-    }
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.6) {
-      g.laserT = 0;
-      spawnAimedLaser(g, { x: LOGICAL_W / 2, y: 50 }, g.player, '#a78bfa');
     }
   };
 }

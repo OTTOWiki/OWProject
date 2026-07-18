@@ -118,6 +118,12 @@ function chapter_a4_mid_4(g) {
 function chapter_a4_mid_5(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    // 辅压先 tick，避免 spawn early-return 卡住雨
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.25) {
+      g.rainT = 0;
+      spawnGravityRain(g, 1, 'rice', '#fde68a', 1.4);
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.9) return;
     g.waveTimer = 0;
@@ -136,11 +142,6 @@ function chapter_a4_mid_5(g) {
       });
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.25) {
-      g.rainT = 0;
-      spawnGravityRain(g, 1, 'rice', '#fde68a', 1.4);
-    }
   };
 }
 

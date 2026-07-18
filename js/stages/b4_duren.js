@@ -119,6 +119,11 @@ function chapter_b4_mid_4(g) {
 function chapter_b4_mid_5(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.2) {
+      g.rainT = 0;
+      spawnGravityRain(g, 1, 'rice', '#fb7185', 1.3);
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.8) return;
     g.waveTimer = 0;
@@ -136,11 +141,6 @@ function chapter_b4_mid_5(g) {
       timer(en, 'ring', 1.6, d, () => spawnRingAt(game, en.x, en.y, 8, 1.5, 'dot', '#fda4af', en.age));
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.2) {
-      g.rainT = 0;
-      spawnGravityRain(g, 1, 'rice', '#fb7185', 1.3);
-    }
   };
 }
 

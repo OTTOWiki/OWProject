@@ -10,6 +10,14 @@ import { Bullet } from '../entities.js';
 function chapter_b6_mid_1(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.4) {
+      g.rainT = 0;
+      g.bullets.push(new Bullet({
+        x: Math.random() * LOGICAL_W, y: -10, angle: Math.PI / 2, speed: 1.0,
+        type: 'medium', color: '#bef264', from: 'enemy', gravity: 0.004,
+      }));
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 1.0) return;
     g.waveTimer = 0;
@@ -23,14 +31,6 @@ function chapter_b6_mid_1(g) {
       });
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.4) {
-      g.rainT = 0;
-      g.bullets.push(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -10, angle: Math.PI / 2, speed: 1.0,
-        type: 'medium', color: '#bef264', from: 'enemy', gravity: 0.004,
-      }));
-    }
   };
 }
 
@@ -61,6 +61,14 @@ function chapter_b6_mid_2(g) {
 function chapter_b6_mid_3(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.rainT = (g.rainT || 0) + dt;
+    if (g.rainT > 0.35) {
+      g.rainT = 0;
+      g.bullets.push(new Bullet({
+        x: Math.random() * LOGICAL_W, y: -8, vx: 0, vy: 1.3,
+        type: 'rice', color: '#65a30d', from: 'enemy',
+      }));
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.8) return;
     g.waveTimer = 0;
@@ -75,14 +83,6 @@ function chapter_b6_mid_3(g) {
       timer(en, 'ring', 2.0, d, () => spawnRingAt(game, en.x, en.y, 6, 1.3, 'dot', '#bef264'));
     };
     g.enemies.push(e);
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.35) {
-      g.rainT = 0;
-      g.bullets.push(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -8, vx: 0, vy: 1.3,
-        type: 'rice', color: '#65a30d', from: 'enemy',
-      }));
-    }
   };
 }
 
@@ -259,6 +259,11 @@ function chapter_b6_mid_8(g) {
 function chapter_b6_mid_9(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
+    g.laserT = (g.laserT || 0) + dt;
+    if (g.laserT > 0.55) {
+      g.laserT = 0;
+      spawnAimedLaser(g, { x: LOGICAL_W / 2, y: 40 }, g.player, '#a3e635');
+    }
     g.waveTimer += dt;
     if (g.waveTimer < 0.65) return;
     g.waveTimer = 0;
@@ -274,11 +279,6 @@ function chapter_b6_mid_9(g) {
         });
       };
       g.enemies.push(e);
-    }
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.55) {
-      g.laserT = 0;
-      spawnAimedLaser(g, { x: LOGICAL_W / 2, y: 40 }, g.player, '#a3e635');
     }
   };
 }
