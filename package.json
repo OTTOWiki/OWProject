@@ -8,6 +8,8 @@
     "test": "node test/check-syntax.mjs && node test/run-node.mjs",
     "test:unit": "node test/run-node.mjs",
     "test:syntax": "node test/check-syntax.mjs",
-    "serve": "npx --yes serve ."
+    "serve": "npx --yes serve .",
+    "pages:build": "node tools/inject-deploy-hash.mjs",
+    "inject-hash": "node tools/inject-deploy-hash.mjs"
   }
 }

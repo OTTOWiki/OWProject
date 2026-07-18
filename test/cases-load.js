@@ -8,6 +8,7 @@ const isBrowser = typeof document !== 'undefined' && typeof window !== 'undefine
 
 /** 不启 main 引导副作用；只加载游戏核心链 */
 const CORE_MODULES = [
+  '../js/git-hash.js',
   '../js/version.js',
   '../js/config.js',
   '../js/spawnScale.js',

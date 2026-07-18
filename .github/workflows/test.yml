@@ -1,6 +1,6 @@
 # 纯逻辑 + mock 冒烟（node test/run-node.mjs）
 # 无 npm 依赖安装；与本地 `npm test` 一致
-# 版本哈希 stamp 见 stamp-version.yml（workflow_run，避免与本文件并发互相取消）
+# 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
 name: Test
 
 on:
@@ -27,6 +27,5 @@ jobs:
         with:
           node-version: '22'
 
-      # 项目零运行时依赖，无需 npm install；直接跑测试入口
       - name: Run tests
         run: npm test

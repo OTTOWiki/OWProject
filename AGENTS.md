@@ -63,7 +63,8 @@ test/               # 零依赖自动化测试（assert + cases + 结果页）
 css/style.css       # 布局与东方风菜单样式
 js/
   main.js           # 入口：组装 Input / Audio / Background / Game / UI
-  version.js        # VERSION 构建号；VERSION_LABEL=vX.Y.Z[.hash]（hash 可由 CI stamp）
+  version.js        # VERSION 构建号；VERSION_LABEL=vX.Y.Z[.hash]
+  git-hash.js       # DEPLOY_GIT_HASH（仓库为空；CF 构建注入）
   config.js         # 逻辑分辨率、BALANCE、难度、角色色、Unstable 池、说明书
   game.js           # 主循环、状态机、章节推进、得分、A/B 线
   gameDraw.js       # 版面绘制（从 game 抽出；FPS/倾向条/过渡页/主 draw）
@@ -208,45 +209,50 @@ tools/
 
 | 字段 | 含义 | 示例 |
 |------|------|------|
-| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `66` |
+| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `68` |
 | **`VERSION_NAME`** | 展示用语义段（无 `v`） | `0.4.0` |
-| **`GIT_HASH`** | 短哈希；可为空 | `a1b2c3d` 或 `''` |
+| **`DEPLOY_GIT_HASH`** | 部署短哈希（`js/git-hash.js`） | `''` 或 `a1b2c3d` |
 | **`VERSION_LABEL`** | **版本名**（界面） | `v0.4.0` 或 `v0.4.0.a1b2c3d` |
 
-- **单一源**：`js/version.js`（`formatVersionLabel`：有合法 hash 才拼 `.<hash>`）
-- **显示规则**：`GIT_HASH` **文件里有合法短哈希就显示**，**没有（空）就不显示**；与是否本地无关。CF Pages 部署的是仓库文件，hash 须已写进 `js/version.js`。
-- **CI 自动 stamp**（与 Test 编排）：
-  1. **`test.yml`**：push/PR → `npm test` only
-  2. **`stamp-version.yml`**：`workflow_run` 监听 **Test 成功** + 来源为 **push main**
-  3. 用 `tools/stamp-git-hash.mjs` 将 `GIT_HASH` 写成 **被测内容提交** `head_sha` 的短 7 位
-  4. bot 提交消息含 **`[version-stamp]`** → 再跑 Test 时 stamp **跳过**（防环）
-  5. 界面 hash 指向**内容提交**；tip 多为 stamp 提交（差 1 次，预期）
-- **每次人工提交前**：将 **`VERSION` 加 1**（CI stamp **不**改 `VERSION`）
-- **营销升版**：改 `VERSION_NAME`；构建号仍只靠人工 `VERSION++`
-- **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.0`）；说明里可写完整 `VERSION_LABEL` 与 `build N`
+- **仓库**：**不**硬编码 commit 哈希；`js/git-hash.js` 中 `DEPLOY_GIT_HASH` 恒为 `''`
+- **显示**：有合法 hash → `v{NAME}.{hash}`；**空则只显示 `v{NAME}`**（本地默认如此）
+- **Cloudflare Pages 部署注入**（推荐）：
+  - **Build command**：`npm run pages:build`（= `node tools/inject-deploy-hash.mjs`）
+  - **Build output directory**：`/` 或项目根（与现网静态托管一致，无打包产物目录）
+  - 脚本读取 **`CF_PAGES_COMMIT_SHA`**（Pages 自动注入）→ 覆盖构建目录里的 `js/git-hash.js`
+  - **不会**把 hash commit 回 GitHub
+- **GitHub Actions**：仅 `test.yml` 跑 `npm test`；**无** stamp 回写
+- **每次人工提交前**：`VERSION` **+1**
+- **营销升版**：改 `VERSION_NAME`；构建号仍靠 `VERSION++`
+- **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.0`）
 
-### 日常提交（含非发版）
+### 日常提交
 
 1. 提交前：`js/version.js` → `VERSION` **+1**（需要时改 `VERSION_NAME`）
-2. **不必**手写 `GIT_HASH`（可保持 `''`；部署前等 CI stamp）
+2. 确认 `js/git-hash.js` 仍为 `DEPLOY_GIT_HASH = ''`（勿提交本地注入结果）
 3. `git commit` / `git push origin main`
-4. 等 Actions：Test 绿 → Stamp version hash → CF 再部署后角标为 `vX.Y.Z.<hash>`
+4. CF 自动部署后，线上角标为 `vX.Y.Z.<shortSha>`
 
-### 发版步骤（打 tag 时）
+### 本地预览带哈希（可选）
 
-1. **确认可发布**：测试通过；`main` 上 stamp 已完成（或接受先 tag 内容提交）
-2. **版本文件**：`VERSION` 已递增；`VERSION_NAME` 正确；hash 由 CI 写入
-3. **提交并 push** 后等 stamp（可选）
-4. **打 tag**（annotated，指向期望 commit）：
-   ```bash
-   git tag -a v0.4.0 -m "OWProject v0.4.0 (build N)"
-   git push origin v0.4.0
-   ```
-5. **自检**：线上/本地 pull 后角标为 `v0.4.0.<hash>` 或本地未 stamp 时 `v0.4.0`
+```bash
+npm run inject-hash          # 用当前 git HEAD 写入 js/git-hash.js
+# 或
+node tools/inject-deploy-hash.mjs abcdef0
+```
+
+预览完请恢复空串再提交，或 `git checkout -- js/git-hash.js`。
+
+### 发版（打 tag）
+
+1. 测试通过、`VERSION` / `VERSION_NAME` 正确  
+2. 提交并 push → CF 部署  
+3. `git tag -a v0.4.0 -m "OWProject v0.4.0 (build N)"` → `git push origin v0.4.0`  
+4. 线上角标应含部署 commit 短哈希  
 
 ### 注意
 
-- **不要**在 stamp 提交上再改业务逻辑；hash 由 CI 维护。
+- **不要**把含真实 hash 的 `js/git-hash.js` 提交进仓库（除非有意）。
 - **不要**移动已推送的历史 tag。
 - 构建号 `VERSION` **只增不改历史**。
 
@@ -297,5 +303,5 @@ tools/
 | 改左侧 3D 场景 | `backgrounds.js` |
 | 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/`（见下「立绘/Boss 贴图策略」） |
 | 重新解析 MIDI | `tools/parse_all_midis.py` |
-| 发版 / 升版本号 | `js/version.js`（VERSION++、VERSION_NAME、GIT_HASH）+ tag `vX.Y.Z` |
+| 发版 / 升版本号 | `js/version.js`（VERSION++、VERSION_NAME）+ CF `pages:build` 注入 hash + tag `vX.Y.Z` |
 | 跑自动化测试 | 本地 HTTP 打开 `/test/`（见上文） |
