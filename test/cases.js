@@ -181,17 +181,23 @@ test('bulletDistToPlayer：圆弹与激光', () => {
 
 /* ========== stages ========== */
 
-test('章节表：id 唯一且含故事关键节点 22/24', () => {
+test('章节表：id 唯一且故事节点用 onClear 元数据', () => {
   const list = buildChapterList();
   assert(list.length > 30, `too few chapters: ${list.length}`);
 
   const ids = list.map((c) => c.id);
   assertEqual(new Set(ids).size, ids.length, 'duplicate chapter id');
+  assert(ids.includes(1), 'missing chapter 1');
 
-  const byId = new Map(list.map((c) => [c.id, c]));
-  assert(byId.has(22), 'missing chapter 22 (stage3 end / route check)');
-  assert(byId.has(24), 'missing chapter 24 (patrol end / route select)');
-  assert(byId.has(1), 'missing chapter 1');
+  const routeChecks = list.filter((c) => c.onClear === 'routeCheck');
+  const routeSelects = list.filter((c) => c.onClear === 'routeSelect');
+  assertEqual(routeChecks.length, 1, 'exactly one routeCheck chapter');
+  assertEqual(routeSelects.length, 1, 'exactly one routeSelect chapter');
+  assertEqual(String(routeChecks[0].stageKey), '3', 'routeCheck on stage 3');
+  assertEqual(String(routeSelects[0].stageKey), 'patrol', 'routeSelect on patrol');
+
+  const patrolFirst = list.find((c) => String(c.stageKey) === 'patrol');
+  assert(patrolFirst, 'patrol stage exists');
 
   for (const c of list) {
     assert(typeof c.build === 'function', `chapter ${c.id} missing build`);
@@ -230,6 +236,11 @@ test('stageSelect startChapter 对齐各 stageKey 首章', () => {
     assert(expected != null, `stageSelect id ${e.id} 无对应章节`);
     assertEqual(e.startChapter, expected, `startChapter for ${e.id}`);
   }
+  const ex = stageSelectEntries().find((e) => e.id === 'EX');
+  assert(ex, 'EX stage select entry');
+  assertEqual(ex.startChapter, firstByKey.get('EX'), 'EX start is first EX chapter');
+  // Stage Select 进 EX 应与 Extra Start 同策略：mode=extra（UI 据此限 Hard/Lunatic）
+  assertEqual(ex.id, 'EX');
 });
 
 test('章节 dialogue / winDialogue / loseDialogue 键均存在于 getDialogues', () => {

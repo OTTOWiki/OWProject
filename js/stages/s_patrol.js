@@ -63,6 +63,8 @@ export const chapters = [
     id: 24, name: '巡查姬「404」', stage: 'patrol', stageKey: 'patrol', kind: 'boss',
     music: 'patrol', bg: 'patrol',
     letter: '404 Not Found · 存在抹消', letterTime: 50,
+    /** 通关后进入 A/B 手选（勿用魔法 id 硬编码） */
+    onClear: 'routeSelect',
     build: (g) => chapter_patrol_2(g),
   },
 ];

@@ -6,7 +6,7 @@
  *   owDebug(false)         关闭
  *   owDebug.help()         说明
  *   owDebug.set({ … })     改选项
- *   owDebug.jump(129)      跳章节 id
+ *   owDebug.jump(id)       跳章节 id
  *   owDebug.kill()         清敌+清弹并章成功
  *   owDebug.clear()        仅清弹
  *
@@ -546,14 +546,14 @@ OW Debug 用法
   owDebug(false)            关闭
   owDebug.set({ invincible:true, timeScale:3, lockLives:true, lockBombs:true,
                 autoEdit:true, skipDialogue:true, showOverlay:true })
-  owDebug.jump(129)         硬跳章节 id（重开局到该章）
-  owDebug.softJump(100)     软跳（保留分数资源）
+  owDebug.jump(id)          硬跳章节 id（重开局到该章）
+  owDebug.softJump(id)      软跳（保留分数资源）
   owDebug.next()            下一章
   owDebug.kill()            清敌+清弹+本章成功
   owDebug.clear()           清弹
   owDebug.life() / .bomb() / .edit()
   热键：F8 面板 · F9 循环加速
-常见 EX 起点：stageSelect EX startChapter（多为 129）
+EX 起点：stageSelectEntries 中 id=EX 的 startChapter
 `);
   };
   api.set = (opts = {}) => {

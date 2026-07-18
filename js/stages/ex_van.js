@@ -93,5 +93,6 @@ export const stageSelectEntry = {
   id: 'EX',
   label: 'Extra',
   desc: 'van♂ — 键政灌输（单关 · 道中→道中Boss→Boss）',
-  startChapter: 129,
+  // 与 EX 首章 id 同源，避免字面量 129 与表脱节
+  startChapter: chapters[0]?.id ?? mids[0]?.id,
 };

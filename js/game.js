@@ -1434,14 +1434,12 @@ export class Game {
     // stage unlocks
     if (typeof ch.stage === 'number') unlockStage(ch.stage + 1);
 
-    // after stage 3 chapter 22 → route check
-    if (ch.id === 22) {
+    // 故事节点：章节元数据 onClear（勿硬编码章节 id）
+    if (ch.onClear === 'routeCheck') {
       this._scheduleAdvance(NEXT_DELAY_SEC, () => this._afterStage3());
       return;
     }
-
-    // after patrol 24 → route select
-    if (ch.id === 24) {
+    if (ch.onClear === 'routeSelect') {
       this._scheduleAdvance(NEXT_DELAY_SEC, () => {
         this._openDialogue(this.dialogues.patrol_win || [], () => this._enterRouteSelect());
       });
@@ -1748,8 +1746,14 @@ export class Game {
       unlockRoute('B');
       this._jumpToStage('B4');
     } else {
-      this.chapterIndex = this._indexForChapterId(23);
-      this._startChapter();
+      // 倾向不足：跳到巡查面首章（由 stageKey 索引，非魔法 id）
+      const patrolIdx = this._chapterIndexByStageAny.get('patrol');
+      if (patrolIdx != null) {
+        this.chapterIndex = patrolIdx;
+        this._startChapter();
+      } else {
+        this._enterRouteSelect();
+      }
     }
   }
 
@@ -1808,10 +1812,15 @@ export class Game {
     this._setEndingCinematic(true);
     this._openDialogue(lines, () => {
       this._setEndingCinematic(false);
+      let retryChapter = 1;
+      if (which === 'EX') {
+        const exIdx = this._chapterIndexByStageAny.get('EX');
+        retryChapter = exIdx != null ? this.chapters[exIdx]?.id : 1;
+      }
       this._openResult({
         title,
         body: `难度：${this.diff.rank} ${this.diff.name}\n最终得分：${this.score}`,
-        retryChapter: which === 'EX' ? 129 : 1,
+        retryChapter,
       });
     });
   }

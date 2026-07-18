@@ -184,8 +184,17 @@ export class UI {
     }).join('');
   }
 
+  _isExtraStart() {
+    return this.pendingStart?.mode === 'extra';
+  }
+
+  _extraStartChapter() {
+    const ex = stageSelectEntries().find((e) => e.id === 'EX');
+    return ex?.startChapter ?? 1;
+  }
+
   _availableDifficulties() {
-    if (this.pendingStart?.mode === 'extra' || this.pendingStart?.startChapter === 129) {
+    if (this._isExtraStart()) {
       return DIFFICULTY_ORDER.filter((id) => id === 'hard' || id === 'lunatic');
     }
     return DIFFICULTY_ORDER;
@@ -200,7 +209,7 @@ export class UI {
     list.innerHTML = '';
     const avail = this._availableDifficulties();
     if (
-      (this.pendingStart?.mode === 'extra' || this.pendingStart?.startChapter === 129) &&
+      this._isExtraStart() &&
       this.pendingDifficulty !== 'hard' &&
       this.pendingDifficulty !== 'lunatic'
     ) {
@@ -295,7 +304,11 @@ export class UI {
       btn.innerHTML = `<strong>${s.label}</strong><small>${s.desc}</small>`;
       btn.addEventListener('click', () => {
         this._sfx('ok');
-        this.pendingStart = { startChapter: s.startChapter, mode: 'stage' };
+        // EX 与 Extra Start 同限：Hard/Lunatic only（靠 mode === 'extra'）
+        this.pendingStart = {
+          startChapter: s.startChapter,
+          mode: s.id === 'EX' ? 'extra' : 'stage',
+        };
         this.show('difficulty');
       });
       grid.appendChild(btn);
@@ -537,7 +550,7 @@ export class UI {
       this.pendingStart = { startChapter: 1, mode: 'story' };
       this.show('difficulty');
     } else if (action === 'extra-start') {
-      this.pendingStart = { startChapter: 129, mode: 'extra' };
+      this.pendingStart = { startChapter: this._extraStartChapter(), mode: 'extra' };
       this.show('difficulty');
     } else if (action === 'stage-select') {
       this.show('stage');

@@ -224,6 +224,8 @@ export const chapters = [
     id: 22, name: '大宗关「最终合并」', stage: 3, stageKey: 3, kind: 'boss',
     music: 's3_boss', bg: 's3_boss',
     letter: '编辑战 · 最终合并请求', letterTime: 48,
+    /** 通关后倾向判定进 A/B 或巡查（勿用魔法 id 硬编码） */
+    onClear: 'routeCheck',
     build: (g) => chapter_dazong_2(g),
   },
 ];
