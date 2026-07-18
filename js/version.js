@@ -14,10 +14,10 @@ export const VERSION = 65;
 export const VERSION_NAME = '0.4.0';
 
 /**
- * 本版本对应 git 短哈希（与打 tag 的 commit 一致）
- * 提交后若与真实 HEAD 不一致，应更新后 amend 再打 tag
+ * 本版本主变更提交的短哈希（写入 version.js 会改变 tip 哈希，故无法与「含本文件的 tip」自指）
+ * 发版：内容提交后 → 将此处改为该内容提交短哈希 → 再提交一次 stamp（VERSION 可同号）
  */
-export const GIT_HASH = '67f68e5';
+export const GIT_HASH = '6dd5497';
 
 /** 界面版本名，如 v0.4.0.a1b2c3d */
 export const VERSION_LABEL = `v${VERSION_NAME}.${GIT_HASH}`;
