@@ -1,32 +1,10 @@
 /**
  * 伪 3D 前推场景背景 + 阶段转场 + 主题侧景装饰
  * Mode-7 地面 + 侧柱/标线/掠过物/剪影（纯 Canvas 几何）
+ * mode 登记 / 贴图路径：js/bgModes.js
  */
 import { LOGICAL_W, LOGICAL_H } from './config.js';
-
-const BG_TEX = {
-  s1_mid: 'assets/bg/tex_s1_mid.jpg',
-  s1_boss: 'assets/bg/tex_s1_boss.jpg',
-  s2_mid: 'assets/bg/tex_s2_mid.jpg',
-  s2_boss: 'assets/bg/tex_s2_boss.jpg',
-  s3_mid: 'assets/bg/tex_s3_mid.jpg',
-  s3_boss: 'assets/bg/tex_s3_boss.jpg',
-  patrol: 'assets/bg/tex_patrol.jpg',
-  a4_mid: 'assets/bg/tex_a4_mid.jpg',
-  a4_boss: 'assets/bg/tex_a4_boss.jpg',
-  a5_mid: 'assets/bg/tex_a5_mid.jpg',
-  a5_boss: 'assets/bg/tex_a5_boss.jpg',
-  a6_mid: 'assets/bg/tex_a6_mid.jpg',
-  a6_boss: 'assets/bg/tex_a6_boss.jpg',
-  b4_mid: 'assets/bg/tex_b4_mid.jpg',
-  b4_boss: 'assets/bg/tex_b4_boss.jpg',
-  b5_mid: 'assets/bg/tex_b5_mid.jpg',
-  b5_boss: 'assets/bg/tex_b5_boss.jpg',
-  b6_mid: 'assets/bg/tex_b6_mid.jpg',
-  b6_boss: 'assets/bg/tex_b6_boss.jpg',
-  ex_mid: 'assets/bg/tex_a5_mid.jpg',
-  ex_boss: 'assets/bg/tex_a6_boss.jpg',
-};
+import { PLAYFIELD_BG_TEX, resolveBgMode, getAllBgModes } from './bgModes.js';
 
 const SKY = {
   s1_mid: ['#06140e', '#0f2e20'],
@@ -179,13 +157,13 @@ function hash(n) {
   return x - Math.floor(x);
 }
 
-/** 版面背景 mode id 列表（测试 / 校验章节 bg 用） */
+/** 版面背景 mode id 列表（测试 / 校验章节 bg 用）— 与 bgModes 同源 */
 export function getPlayfieldBgModes() {
-  return Object.keys(BG_TEX);
+  return getAllBgModes();
 }
 
 export function preloadPlayfieldBg() {
-  return Promise.all(Object.values(BG_TEX).map((p) => new Promise((res) => {
+  return Promise.all(Object.values(PLAYFIELD_BG_TEX).map((p) => new Promise((res) => {
     const img = loadTex(p);
     if (img.complete && img.naturalWidth) res(img);
     else {
@@ -217,7 +195,7 @@ export class PlayfieldBackground {
   }
 
   setMode(mode, { transition = true } = {}) {
-    const next = BG_TEX[mode] ? mode : 's1_mid';
+    const next = resolveBgMode(mode);
     if (next === this.mode && !this.prevMode) return;
     if (transition && next !== this.mode) {
       this.prevMode = this.mode;
@@ -312,7 +290,7 @@ export class PlayfieldBackground {
     const W = LOGICAL_W;
     const H = LOGICAL_H;
     const sky = SKY[mode] || SKY.s1_mid;
-    const path = BG_TEX[mode] || BG_TEX.s1_mid;
+    const path = PLAYFIELD_BG_TEX[mode] || PLAYFIELD_BG_TEX.s1_mid;
     const tex = loadTex(path);
     const th = THEME[mode] || THEME.s1_mid;
     const z = this.scrollZ + scrollOff;
@@ -824,5 +802,5 @@ export class PlayfieldBackground {
 }
 
 export function getPlayfieldBgPaths() {
-  return [...new Set(Object.values(BG_TEX))];
+  return [...new Set(Object.values(PLAYFIELD_BG_TEX))];
 }

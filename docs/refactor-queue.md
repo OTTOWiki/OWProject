@@ -256,12 +256,12 @@ T12（拆 game，可分步提交）
 
 | | |
 |--|--|
-| **状态** | 待做 |
-| **目标** | `bgModes` / playfield `BG_TEX` / Three 侧共用一份 mode 登记与主题色 |
-| **范围** | 扩展 `bgModes.js` 或 `stageVisual.js`；`backgrounds` builder 注册表 |
-| **不做** | 不重做 3D 场景美术 |
-| **验收（自动）** | 章节 bg ∈ 统一 allowlist（已有测可加强） |
-| **验收（手测）** | 换面时左栏与版面主题仍匹配 |
+| **状态** | 待手测 |
+| **目标** | `bgModes` / playfield 贴图 / Three 侧共用一份 mode 登记；Three builder 表 |
+| **范围** | `bgModes.js`（`PLAYFIELD_BG_TEX` / `resolveBgMode`）；`playfieldBg` 去重本地 `BG_TEX`；`backgrounds` `STAGE_BG_BUILDERS` |
+| **不做** | 不重做 3D 场景美术；版面 SKY/THEME/ACCENT 仍留 playfield（纯绘制调色板） |
+| **验收（自动）** | 章节 bg ∈ 统一 allowlist；`getPlayfieldBgModes` ≡ `getAllBgModes`；EX→`ex_*` |
+| **验收（手测）** | 换面时左栏与版面主题仍匹配（抽查 1/3/A5/B6/EX） |
 | **风险** | 中——EX 回落与 `ex_mid` 别名需对齐 |
 
 ---
@@ -310,12 +310,11 @@ T12（拆 game，可分步提交）
 ## 执行顺序（全队列）
 
 ```
-[已完成] T01…T11
-  → T12a → 手测 → T12b → … → T12d
-  → T13 → T16 → T14 → T15 → T17 → T18
+[已完成] T01…T11 · T12a–d · T13 · T14
+  → T15（待手测）→ T16 → T17 → T18
 ```
 
-当前应执行：**T14 等手测**（第1面试点）→ 通过后可推广其它面或开 **T16/T15**。
+当前应执行：**T15 手测**（换面左栏+版面主题）→ 通过后 **T16 collision 事件化**。
 
 ---
 
@@ -326,7 +325,8 @@ T12（拆 game，可分步提交）
 | 2026-07-18 | T12a–d | 完成 | 完成 | game 门面 ~540 行 |
 | 2026-07-18 | T13 | 语法+32 | 完成 | `71e8a99` `js/draw/*` |
 | 2026-07-18 | T14 试点 | 35/35 | 完成 | s1 + shared 工厂；`442a83c` |
-| 2026-07-18 | T14 全主线表 | 35/35 | 待确认 | s2–s3/patrol/A/B 章节表迁 midChapter/letterChapter |
+| 2026-07-18 | T14 全主线表 | 35/35 | 完成 | s2–s3/patrol/A/B 章节表迁 midChapter/letterChapter |
+| 2026-07-19 | T15 | 待跑 | 待确认 | bgModes 单一登记；playfield 去重；Three builder 表 |
 
 ---
 

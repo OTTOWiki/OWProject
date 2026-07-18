@@ -1,8 +1,10 @@
 /**
  * Three.js 左侧关卡印象图 — 按剧情主题差异化
  * 严禁人形；仅几何 / 粒子 / 线框 / 文字平面
+ * mode 登记：js/bgModes.js；场景 builder 见 STAGE_BG_BUILDERS
  */
 import * as THREE from 'three';
+import { resolveBgMode } from './bgModes.js';
 
 function makeTextTexture(lines, {
   w = 256, h = 128, fill = '#a8ffc8', bg = 'rgba(0,0,0,0.35)',
@@ -59,8 +61,9 @@ export class StageBackground {
   }
 
   setMode(mode) {
-    if (this.mode === mode) return;
-    this.mode = mode;
+    const next = resolveBgMode(mode);
+    if (this.mode === next) return;
+    this.mode = next;
     this._rebuild();
   }
 
@@ -95,21 +98,9 @@ export class StageBackground {
 
   _rebuild() {
     this._clear();
-    const m = this.mode;
-    if (m === 's1_mid') this._s1mid();
-    else if (m === 's1_boss') this._s1boss();
-    else if (m === 's2_mid') this._s2mid();
-    else if (m === 's2_boss') this._s2boss();
-    else if (m === 's3_mid') this._s3mid();
-    else if (m === 's3_boss') this._s3boss();
-    else if (m === 'patrol') this._patrol();
-    else if (m === 'a4_mid' || m === 'a4_boss') this._a4(m.endsWith('boss'));
-    else if (m === 'a5_mid' || m === 'a5_boss' || m === 'ex_mid') this._a5(m.endsWith('boss'));
-    else if (m === 'a6_mid' || m === 'a6_boss' || m === 'ex_boss') this._a6(m === 'a6_boss' || m === 'ex_boss');
-    else if (m === 'b4_mid' || m === 'b4_boss') this._b4(m.endsWith('boss'));
-    else if (m === 'b5_mid' || m === 'b5_boss') this._b5(m.endsWith('boss'));
-    else if (m === 'b6_mid' || m === 'b6_boss') this._b6(m.endsWith('boss'));
-    else this._s1mid();
+    const m = resolveBgMode(this.mode);
+    const build = STAGE_BG_BUILDERS[m] || STAGE_BG_BUILDERS.s1_mid;
+    build(this);
   }
 
   _addLights(color = 0x88aaff, intensity = 1.2, amb = 0.55) {
@@ -1089,4 +1080,33 @@ export class StageBackground {
   }
 }
 
+/**
+ * mode → builder(StageBackground)
+ * EX 复用 A5/A6 场景（与历史 if/else 一致）
+ */
+const STAGE_BG_BUILDERS = {
+  s1_mid: (bg) => bg._s1mid(),
+  s1_boss: (bg) => bg._s1boss(),
+  s2_mid: (bg) => bg._s2mid(),
+  s2_boss: (bg) => bg._s2boss(),
+  s3_mid: (bg) => bg._s3mid(),
+  s3_boss: (bg) => bg._s3boss(),
+  patrol: (bg) => bg._patrol(),
+  a4_mid: (bg) => bg._a4(false),
+  a4_boss: (bg) => bg._a4(true),
+  a5_mid: (bg) => bg._a5(false),
+  a5_boss: (bg) => bg._a5(true),
+  a6_mid: (bg) => bg._a6(false),
+  a6_boss: (bg) => bg._a6(true),
+  b4_mid: (bg) => bg._b4(false),
+  b4_boss: (bg) => bg._b4(true),
+  b5_mid: (bg) => bg._b5(false),
+  b5_boss: (bg) => bg._b5(true),
+  b6_mid: (bg) => bg._b6(false),
+  b6_boss: (bg) => bg._b6(true),
+  ex_mid: (bg) => bg._a5(false),
+  ex_boss: (bg) => bg._a6(true),
+};
+
 export { bgModeFor } from './bgModes.js';
+export { STAGE_BG_BUILDERS };

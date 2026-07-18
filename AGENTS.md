@@ -121,6 +121,7 @@ tools/
 关卡与 `patterns` 出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**（难度缩放与刷怪记账），勿直接 `enemies.push` / `bullets.push`。
 | `ui.js` | 菜单与屏幕切换 | 碰撞/得分 |
 | `audio.js` | BGM/SFX | 关卡内容 |
+| `bgModes.js` | stageKey→mode、版面贴图路径、mode allowlist | Three 场景几何 / Canvas 绘制 |
 
 ### 游戏状态（`Game.state`）
 
@@ -236,7 +237,7 @@ tools/
 1. **平衡数值**优先改 `js/config.js` 的 `BALANCE` / `DIFFICULTIES`，不要在 `game.js` 里散落魔法数。
 2. **新章节/弹幕**：在 `js/stages/` 对应面文件增加章节，并确保 `stages/index.js` 的 `buildChapterList` 已聚合；复用 `patterns.js` 的 `spawnAimed` / `oddAim` / `evenAim` / `spawnRingAt` 等。
 3. **新对话**：`dialogue.js` 的 `getDialogues(playerId)`；说话人颜色在 `SPEAKER_COLORS`。
-4. **新背景模式**：`backgrounds.js` 的 `setMode` / `bgModeFor`，必要时补 `assets/bg/` 贴图。
+4. **新背景模式**：先在 `bgModes.js` 登记 mode + 贴图路径 + `BG_MODE_BY_STAGE`；再在 `backgrounds.js` 的 `STAGE_BG_BUILDERS` 与 `playfieldBg` 的 SKY/THEME 补绘制。
 5. **保持 ES modules**：`import`/`export`，无打包器；浏览器原生加载。
 6. **语言**：UI/剧情以中文为主；代码标识符英文；注释可用中文。
 7. **规格冲突时**：以当前可运行代码与本文件为准。`参考/需求.txt` 是早期草稿、**已过时、仅供参考**，不要当作权威规格去“对齐”实现。

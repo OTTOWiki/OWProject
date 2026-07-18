@@ -3,7 +3,10 @@
  */
 import { buildChapterList, stageIntroFor, stageSelectEntries } from '../js/stages/index.js';
 import { getDialogues } from '../js/dialogue.js';
-import { bgModeFor } from '../js/bgModes.js';
+import {
+  bgModeFor, getAllBgModes, isKnownBgMode, resolveBgMode,
+  BG_MODE_BY_STAGE, PLAYFIELD_BG_TEX,
+} from '../js/bgModes.js';
 import { getPlayfieldBgModes } from '../js/playfieldBg.js';
 import {
   faceDefaults, midChapter, letterChapter, installMidWave,
@@ -96,13 +99,38 @@ test('有 letter 的章节必须 letterTime > 0', () => {
   }
 });
 
-test('章节 bg 或 bgModeFor 结果在版面 BG mode 表内', () => {
-  const modes = new Set(getPlayfieldBgModes());
+test('bgModes 登记：stageKey 齐全、EX 用 ex_*、resolve 回落', () => {
+  for (const k of REQUIRED_STAGE_KEYS) {
+    assert(BG_MODE_BY_STAGE[k] || BG_MODE_BY_STAGE[Number(k)], `missing BG_MODE_BY_STAGE ${k}`);
+  }
+  assertEqual(bgModeFor('EX', false), 'ex_mid');
+  assertEqual(bgModeFor('EX', true), 'ex_boss');
+  assertEqual(bgModeFor(1, false), 's1_mid');
+  assertEqual(bgModeFor(1, true), 's1_boss');
+  assert(isKnownBgMode('ex_mid'));
+  assert(!isKnownBgMode('not_a_mode'));
+  assertEqual(resolveBgMode('ex_boss'), 'ex_boss');
+  assertEqual(resolveBgMode('nope'), 's1_mid');
+  assertEqual(resolveBgMode(null), 's1_mid');
+  // 每个 stageKey 的 mid/boss 都在贴图表内
+  for (const [key, pair] of Object.entries(BG_MODE_BY_STAGE)) {
+    for (const m of pair) {
+      assert(isKnownBgMode(m), `BG_MODE_BY_STAGE[${key}] → ${m} not in PLAYFIELD_BG_TEX`);
+    }
+  }
+  assert(Object.keys(PLAYFIELD_BG_TEX).length >= 20);
+});
+
+test('章节 bg 或 bgModeFor 结果在统一 BG mode 表内', () => {
+  const modes = new Set(getAllBgModes());
+  const playfield = new Set(getPlayfieldBgModes());
+  assertEqual(modes.size, playfield.size, 'playfield modes must match bgModes.getAllBgModes');
+  for (const m of modes) assert(playfield.has(m), `playfield missing ${m}`);
   assert(modes.size > 10, 'bg modes table empty');
   for (const c of buildChapterList()) {
     const isBoss = c.kind === 'boss';
     const mode = c.bg || bgModeFor(c.stageKey, isBoss);
-    assert(modes.has(mode), `chapter ${c.id} bg mode '${mode}' not in playfield BG_TEX`);
+    assert(modes.has(mode), `chapter ${c.id} bg mode '${mode}' not in PLAYFIELD_BG_TEX`);
   }
 });
 
