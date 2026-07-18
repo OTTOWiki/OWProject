@@ -1,30 +1,23 @@
 import {
-  BALANCE, LOGICAL_W, LOGICAL_H, PLAYER_DEFS,
-  getDifficulty, nextExtendThreshold,
+  LOGICAL_W, PLAYER_DEFS,
+  getDifficulty,
 } from './config.js';
-import {
-  Player, Item, Particle,
-  drawPlayer,
-} from './entities.js';
+import { Player, drawPlayer } from './entities.js';
 import { drawGameFrame, drawFps } from './gameDraw.js';
 import {
   bindOverlayClicks, hideOverlay, openPause, openResult,
   runOverlayAction, handleOverlayInput, highlightOverlay, overlayButtons,
 } from './gameOverlay.js';
 import * as chapterFlow from './chapterFlow.js';
-import { spawnPlayerShot, fullScreenClear, clearBulletsToItems, spawnBombOrbs } from './patterns.js';
+import * as combat from './gameCombat.js';
 import { buildChapterList } from './stages/index.js';
 import { getDialogues } from './dialogue.js';
 import { loadHiscore, loadSettings } from './storage.js';
 import { PlayfieldBackground } from './playfieldBg.js';
-import { runCollisions, rebuildBulletLists } from './collision.js';
 import {
   createHudCache, updateGameHud, updateLetterHud,
 } from './hud.js';
-import {
-  getDebugTimeScale, debugBlocksHit, debugLocksLives, debugLocksBombs,
-  debugTick, debugAutoEdit,
-} from './debug.js';
+import { getDebugTimeScale, debugTick } from './debug.js';
 import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from './spawnScale.js';
 
 export class Game {
@@ -303,18 +296,10 @@ export class Game {
     this.audio.stopMusic(0.5);
   }
 
-  /**
-   * 场上敌弹 → 得分道具，并锁定吸引（章间/Bomb 同款手感）
-   * 不重置自机位置，不抹掉自机弹与已有道具。
-   */
   _bulletsToPointsAndAttract() {
-    fullScreenClear(this);
-    if (this.items?.length) {
-      for (const it of this.items) {
-        if (!it.dead) it.attract = true;
-      }
-    }
+    combat.bulletsToPointsAndAttract(this);
   }
+
 
   _softClearForNextChapter(opts) {
     chapterFlow.softClearForNextChapter(this, opts);
@@ -434,39 +419,9 @@ export class Game {
 
   /** 关卡过渡页计时；期间继续吸点，不刷怪 */
   _updateStageTransit(dt) {
-    const p = this.player;
-    if (p) {
-      p.update(dt, this.input);
-      // 过渡中仍可移动，但不射击/不碰伤
-      for (const it of this.items) {
-        it.update(dt, p, true);
-        if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
-          it.dead = true;
-          this._collectItem(it);
-        }
-      }
-      for (const b of this.bullets) {
-        if (b.from === 'player') b.update(dt, p, null);
-      }
-      for (const pt of this.particles) pt.update(dt);
-      this._purgeDead(this.bullets);
-      this.items = this.items.filter((i) => !i.dead);
-      this.particles = this.particles.filter((pt) => !pt.dead);
-    }
-
-    this._tickChapterBanner(dt);
-
-    if (this.stageTransit) {
-      this.stageTransit.t += dt;
-      if (this.stageTransit.t >= this.stageTransit.duration) {
-        const begin = this._pendingChapterBegin;
-        this.stageTransit = null;
-        this._pendingChapterBegin = null;
-        begin?.();
-      }
-    }
-    this._updateHUD();
+    combat.updateStageTransit(this, dt);
   }
+
 
   _bindOverlayClicks() {
     bindOverlayClicks(this);
@@ -542,379 +497,82 @@ export class Game {
   }
 
   _update(dt) {
-    const p = this.player;
-    const ch = this.chapters[this.chapterIndex];
-    const settling = !!this.chapterDone;
-
-    if (debugAutoEdit() && p) p.edit = BALANCE.editMax;
-
-    // 决死 Bomb：在审核窗口内优先处理
-    let deathSaved = false;
-    if (!settling && p.arbitration > 0) {
-      this.el.flash.classList.remove('hidden');
-      this.el.flash.textContent = '违规编辑！';
-      this._flashTimer = 0;
-      if (this.input.bombPressed() && this._tryBomb(true)) {
-        p.arbitration = 0;
-        deathSaved = true;
-        this.el.flash.classList.add('hidden');
-      }
-    } else if (this._flashTimer > 0) {
-      this._flashTimer -= dt;
-      if (this._flashTimer <= 0) {
-        this._flashTimer = 0;
-        this.el.flash.classList.add('hidden');
-      }
-    }
-
-    const arbBefore = p.arbitration;
-    p.update(dt, this.input);
-
-    // 审核窗口结束且未决死成功 → Miss
-    if (!settling && arbBefore > 0 && p.arbitration <= 0 && !deathSaved) {
-      this.el.flash.classList.add('hidden');
-      this._miss();
-      if (!this.running || this.player.lives < 0) return;
-    }
-
-    // tendency (stage 1-3 only): pointer drifts toward side based on player position
-    if (!settling && typeof ch.stage === 'number' && ch.stage <= 3) {
-      const cx = LOGICAL_W / 2;
-      const offset = p.x - cx;
-      if (Math.abs(offset) > 2) {
-        const dir = offset > 0 ? 1 : -1;
-        const speed = (Math.abs(offset) / cx) * BALANCE.tendencySpeed * dt;
-        this.chapterTendency += dir * speed;
-      }
-      this.chapterTendency = Math.max(-BALANCE.tendencyMaxPerChapter,
-        Math.min(BALANCE.tendencyMaxPerChapter, this.chapterTendency));
-    }
-
-    // 章结算期间：可移动、吸点；不射击、不刷怪、不受伤
-    if (!settling) {
-      // shot（toggle 模式在此帧更新锁存）
-      this.input.updateShotToggle();
-      if (this.input.shotHeld() && p.shotCd <= 0 && p.arbitration <= 0) {
-        spawnPlayerShot(this, p);
-        p.shotCd = BALANCE.playerShotCooldown;
-        if (Math.random() < 0.15) this.audio.sfx('shot');
-      }
-
-      // bomb（非决死）
-      if (this.input.bombPressed() && p.arbitration <= 0) {
-        this._tryBomb(false);
-      }
-
-      // item / edit war
-      if (this.input.itemPressed() && p.edit >= BALANCE.editMax && p.arbitration <= 0) {
-        p.edit = 0;
-        clearBulletsToItems(this, p.x, p.y, BALANCE.editClearRadius);
-        this.audio.sfx('item');
-        this._burst(p.x, p.y, p.def.color, 24);
-      }
-
-      // waves
-      this.waveFn?.(dt);
-
-      // enemies（击杀 onDeath 在 collision 击破路径触发；此处不跑，避免屏外消失误触发）
-      for (const e of this.enemies) {
-        try {
-          e.update(dt, this);
-        } catch (err) {
-          console.error('[enemy script]', e?.label || e?.kind, err);
-          e.script = null;
-        }
-      }
-    }
-
-    // 最近敌机 → 子机追踪目标；Bomb 巨弹按 slot 分摊（本帧复用给碰撞）
-    let homeTarget = null;
-    let bestD = Infinity;
-    const homeList = [];
-    for (const e of this.enemies) {
-      if (e.dead || e.isSpawning) continue;
-      homeList.push(e);
-      const d = Math.hypot(e.x - p.x, e.y - p.y) + (e.y > p.y ? 80 : 0);
-      if (d < bestD) {
-        bestD = d;
-        homeTarget = e;
-      }
-    }
-    this._homeList = homeList;
-    this._homeTarget = homeTarget;
-
-    // bullets：分表更新，避免每发扫 from
-    rebuildBulletLists(this);
-    for (const b of this.playerBullets) {
-      let ht = null;
-      if (b.homing) {
-        if (b.type === 'bomb' && homeList.length) {
-          ht = homeList[(b._homeSlot || 0) % homeList.length];
-        } else {
-          ht = homeTarget;
-        }
-      }
-      b.update(dt, p, ht);
-    }
-    for (const b of this.enemyBullets) {
-      b.update(dt, p, null);
-    }
-
-    // items（结算中强制吸引）
-    for (const it of this.items) {
-      it.update(dt, p, settling || p.bombTimer > 0);
-      if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
-        it.dead = true;
-        this._collectItem(it);
-      }
-    }
-
-    // particles
-    for (const pt of this.particles) pt.update(dt);
-
-    // collisions（网格粗筛 + 分弹表，见 collision.js）
-    if (!settling) runCollisions(this);
-
-    // chapter 结束判定
-    // 本章所有怪打完 → 强制 _finishChapter（残弹变点）→ 0.8s 后进下一章
-    // 波间暂时无怪不结束（必须 wavesExhausted：刷怪脚本确认不再出怪）
-    if (!settling) {
-      this.chapterTime += dt;
-
-      const living = this.enemies.some((e) => !e.dead);
-
-      // Letter 限时：超时未击破 → 失败（强制击破收场）
-      if (this.letterTimeMax > 0) {
-        this.letterTimeLeft -= dt;
-        this._updateLetterHud();
-        if (this.letterTimeLeft <= 0 && !this.chapterDone) {
-          if (this.bossRef && !this.bossRef.dead) {
-            this.bossRef.hp = 0;
-            this.bossRef.dead = true;
-          }
-          this._finishChapter(false);
-        }
-      } else if (ch.duration && this.chapterTime >= ch.duration && !this.chapterDone) {
-        // 有 bossRef 的限时章（道中精英/midboss）：到时未击破 → 失败收场
-        // 纯道中：存活到时即成功（无限刷怪/纯弹幕保底）
-        if (this.bossRef && !this.bossRef.dead) {
-          this.bossRef.hp = 0;
-          this.bossRef.dead = true;
-          this._finishChapter(false);
-        } else {
-          this._finishChapter(true);
-        }
-      }
-
-      // Boss / Letter：击破即本章结束（以 dead 为准，避免阶段切血误伤）
-      if (!this.chapterDone && this.bossRef && this.bossRef.dead) {
-        this._finishChapter(true);
-      }
-
-      // 道中：刷怪已耗尽 + 场上无存活敌机 = 本章敌人全部打完
-      if (!this.chapterDone && !this.bossRef && (ch.kind === 'mid' || ch.kind === 'midboss')) {
-        if (this.wavesExhausted && !living && this.chapterTime > 0.4) {
-          this._finishChapter(true);
-        }
-      }
-    }
-
-    // 非阻塞章标题/结算条
-    this._tickChapterBanner(dt);
-
-    // cleanup（原地 splice，避免每帧重建大数组）
-    this._purgeDead(this.bullets);
-    this._purgeDead(this.enemies);
-    this.items = this.items.filter((i) => !i.dead);
-    this.particles = this.particles.filter((pt) => !pt.dead);
-
-    this._updateHUD();
+    combat.updateCombat(this, dt);
   }
+
 
   _tickChapterBanner(dt) {
-    const b = this.chapterBanner;
-    if (!b) {
-      if (this._queuedStartTitle) {
-        this.chapterBanner = this._queuedStartTitle;
-        this._queuedStartTitle = null;
-      }
-      return;
-    }
-    b.t += dt;
-    if (b.t >= b.duration) {
-      this.chapterBanner = null;
-      if (this._queuedStartTitle) {
-        this.chapterBanner = this._queuedStartTitle;
-        this._queuedStartTitle = null;
-      }
-    }
+    combat.tickChapterBanner(this, dt);
   }
+
 
   _tryBomb(isDeath) {
-    const p = this.player;
-    if (this.noBomb && !isDeath) return false;
-    const cost = this.bombCost;
-    const freeBomb = debugLocksBombs();
-    if (!freeBomb && p.bombs < cost) return false;
-    if (p.bombTimer > 0 && !isDeath) return false;
-
-    if (!freeBomb) p.bombs -= cost;
-    p.bombTimer = BALANCE.bombDuration;
-    p.invuln = BALANCE.bombInvuln;
-    this.chapterBomb = true;
-    fullScreenClear(this);
-    // 清屏后放出 8 发巨型追踪弹（避免被 fullScreenClear 清掉）
-    spawnBombOrbs(this, p);
-    this.audio.sfx('bomb');
-    this._burst(p.x, p.y, p.def?.color || '#c4b5fd', 40);
-    return true;
+    return combat.tryBomb(this, isDeath);
   }
+
 
   _miss() {
-    const p = this.player;
-    this.chapterMiss = true;
-    if (!debugLocksLives()) p.lives -= 1;
-    p.arbitration = 0;
-    p.edit = Math.min(p.edit, BALANCE.editMax * 0.3);
-    this.audio.sfx('dead');
-    this._burst(p.x, p.y, '#f87171', 30);
-    fullScreenClear(this);
-
-    if (p.lives < 0) {
-      this._gameOver();
-      return;
-    }
-    const floor = this.diff.missBombFloor ?? BALANCE.resource.missBombFloor ?? 2;
-    p.bombs = Math.max(p.bombs, floor);
-    p.invuln = 3;
-    p.resetPos();
+    combat.miss(this);
   }
+
 
   _hitPlayer() {
-    const p = this.player;
-    if (debugBlocksHit()) return;
-    if (p.invuln > 0 || p.arbitration > 0 || p.bombTimer > 0) return;
-    p.arbitration = this.deathBombWindow || BALANCE.deathBombWindow;
-    this.audio.sfx('hit');
+    combat.hitPlayer(this);
   }
+
 
   _collectItem(it) {
-    if (it.kind === 'score') this.addScore(BALANCE.score.itemSmall);
-    else if (it.kind === 'scoreL') this.addScore(BALANCE.score.itemLarge);
-    else if (it.kind === 'life') {
-      this.player.lives = Math.min(BALANCE.maxLives, this.player.lives + 1);
-      this.audio.sfx('ok');
-    } else if (it.kind === 'bomb') {
-      this.player.bombs = Math.min(BALANCE.maxBombs, this.player.bombs + 1);
-      this.audio.sfx('item');
-    }
+    combat.collectItem(this, it);
   }
+
 
   addScore(n) {
-    const raw = Math.floor(n * (this.scoreMul || 1));
-    const v = Math.floor(raw * (this.diffScoreMul || 1));
-    this.score += v;
-    this.chapterScore += v;
-    this.baseScore += raw;
-    if (this.score > this.hiscore) {
-      this.hiscore = this.score;
-    }
-    this._checkExtend();
+    combat.addScore(this, n);
   }
+
 
   _checkExtend() {
-    let th = nextExtendThreshold(this.extendCount);
-    while (this.baseScore >= th) {
-      this.extendCount += 1;
-      this.player.lives = Math.min(BALANCE.maxLives, this.player.lives + 1);
-      this.audio.sfx('extend');
-      this._flashMsg('EXTEND', 1.4);
-      th = nextExtendThreshold(this.extendCount);
-    }
+    combat.checkExtend(this);
   }
 
+
   _flashMsg(text, sec = 1.2) {
-    if (!this.el.flash) return;
-    this.el.flash.textContent = text;
-    this.el.flash.classList.remove('hidden');
-    this._flashTimer = sec;
+    combat.flashMsg(this, text, sec);
   }
+
 
   /** 击破默认掉落：道中 midboss 章主敌 → bomb（难度可关） */
   _defaultKillDrop(e) {
-    if (e.drop) return e.drop;
-    const ch = this.chapters[this.chapterIndex];
-    if (!ch) return null;
-    if (
-      ch.kind === 'midboss'
-      && this.diff.midbossDrop !== false
-      && (e.type === 'boss' || e.type === 'elite')
-    ) {
-      return 'bomb';
-    }
-    return null;
+    return combat.defaultKillDrop(this, e);
   }
+
 
   /** 是否为本 stage 最后一张 Letter（boss 章） */
   _isLastLetterOfStage(ch) {
-    if (!ch || ch.kind !== 'boss') return false;
-    return this._letterProgressInStage(ch).remain <= 1;
+    return combat.isLastLetterOfStage(this, ch);
   }
 
-  /**
-   * 当前 stage 内 Letter（boss 章）进度
-   * @returns {{ idx: number, total: number, remain: number }}
-   * idx 从 1 起；remain 含当前这张
-   */
-  _letterProgressInStage(ch = this.chapters[this.chapterIndex]) {
-    if (!ch || ch.kind !== 'boss') return { idx: 0, total: 0, remain: 0 };
-    const sk = String(ch.stageKey);
-    let start = this.chapterIndex;
-    while (start > 0 && String(this.chapters[start - 1].stageKey) === sk) start--;
-    let end = this.chapterIndex;
-    while (end + 1 < this.chapters.length && String(this.chapters[end + 1].stageKey) === sk) end++;
-    let total = 0;
-    let idx = 0;
-    let seen = 0;
-    for (let i = start; i <= end; i++) {
-      const n = this.chapters[i];
-      if (n.kind !== 'boss') continue;
-      total++;
-      if (i <= this.chapterIndex) {
-        seen++;
-        if (i === this.chapterIndex) idx = seen;
-      }
-    }
-    return { idx, total, remain: Math.max(0, total - idx + 1) };
+
+  _letterProgressInStage(ch) {
+    return combat.letterProgressInStage(this, ch);
   }
+
 
   /** Letter NMNB 资源掉落（midboss 已在击破时固定掉 B，此处只处理 boss Letter） */
   _grantLetterResource(ch, perfect, success) {
-    if (!success || !perfect) return;
-    if (ch.kind !== 'boss' || !(this.letterTimeMax > 0)) return;
-
-    const bx = this.bossRef ? this.bossRef.x : LOGICAL_W / 2;
-    const by = this.bossRef ? this.bossRef.y : 120;
-    const res = BALANCE.resource;
-
-    if (this._isLastLetterOfStage(ch)) {
-      this.spawnItem(bx, by + 20, 'life');
-      return;
-    }
-
-    const chance = this.diff.letterNmnbBombChance ?? res.letterNmnbBombChance ?? 0.4;
-    if (Math.random() < chance) {
-      this.spawnItem(bx + (Math.random() - 0.5) * 30, by + 18, 'bomb');
-    }
+    combat.grantLetterResource(this, ch, perfect, success);
   }
+
 
   spawnItem(x, y, kind = 'score') {
-    this.items.push(new Item(x, y, kind));
+    combat.spawnItem(this, x, y, kind);
   }
 
+
   _burst(x, y, color, n) {
-    for (let i = 0; i < n; i++) this.particles.push(new Particle(x, y, color));
+    combat.burst(this, x, y, color, n);
   }
+
 
   _finishChapter(success) {
     chapterFlow.finishChapter(this, success);

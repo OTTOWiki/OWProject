@@ -69,6 +69,7 @@ js/
   gameDraw.js       # 版面绘制（从 game 抽出；FPS/倾向条/过渡页/主 draw）
   gameOverlay.js    # 暂停/结果叠加层（从 game 抽出）
   chapterFlow.js    # 章节开/结、对话、路线与结局（从 game 抽出）
+  gameCombat.js     # 战斗帧 update、Bomb/Miss/得分/道具（从 game 抽出）
   collision.js      # 碰撞与网格粗筛
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
   entities.js       # Player / Enemy / Bullet / Item / Particle + 绘制

@@ -14,6 +14,7 @@ const CORE_MODULES = [
   '../js/startMode.js',
   '../js/bgModes.js',
   '../js/chapterFlow.js',
+  '../js/gameCombat.js',
   '../js/gameDraw.js',
   '../js/gameOverlay.js',
   '../js/game.js',
