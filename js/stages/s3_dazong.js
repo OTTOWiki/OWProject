@@ -136,7 +136,7 @@ function chapter_dazong_1(g) {
         const ang = en.data.la + (i / n) * Math.PI * 2;
         game.spawnBullet(new Bullet({
           x: en.x, y: en.y, angle: ang, speed: 3.5, type: 'laser',
-          color: '#fbbf24', laserLen: 160, w: 10, r: 5, life: 1.0, from: 'enemy',
+          color: '#fbbf24', laserLen: 160, w: 10, r: 5, from: 'enemy',
         }));
       }
     });

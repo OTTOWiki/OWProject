@@ -81,7 +81,7 @@ export function spawnAimed(game, from, player, opts) {
     baseAngle = null,
     accel = 0,
     gravity = 0,
-    life = 12,
+    life, // 仅显式传入时生效；敌方激光未传则不出时限（见 Bullet）
     laserLen = 220,
     w,
     h,
@@ -103,7 +103,7 @@ export function spawnAimed(game, from, player, opts) {
   }
 
   for (const ang of angles) {
-    game.spawnBullet(new Bullet({
+    const bopts = {
       x: from.x,
       y: from.y,
       angle: ang,
@@ -114,12 +114,15 @@ export function spawnAimed(game, from, player, opts) {
       from: 'enemy',
       accel,
       gravity,
-      life,
       laserLen,
       w: w ?? (type === 'laser' ? 10 : undefined),
       h,
       r,
-    }));
+    };
+    // 非激光保持原默认寿命 12；激光未传 life → 仅出屏销毁
+    if (life != null) bopts.life = life;
+    else if (type !== 'laser') bopts.life = 12;
+    game.spawnBullet(new Bullet(bopts));
   }
 }
 

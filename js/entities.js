@@ -21,7 +21,14 @@ export class Bullet {
     this.h = opts.h || visualSize(this.type).h;
     this.color = opts.color || '#f472b6';
     this.color2 = opts.color2 || '#fff';
-    this.life = opts.life ?? 20;
+    // 敌方激光：未显式传 life 时不按时间销毁（Infinity，只靠出屏）；硬编码 life 的短促激光仍计时
+    if (opts.life != null) {
+      this.life = opts.life;
+    } else if (this.type === 'laser' && this.from === 'enemy') {
+      this.life = Infinity;
+    } else {
+      this.life = 20;
+    }
     this.grazed = false;
     this.dead = false;
     this.accel = opts.accel || 0;
@@ -61,7 +68,10 @@ export class Bullet {
       return;
     }
     this.age += dt;
-    this.life -= dt;
+    // 激光伸展期不扣 life（计时从满长后开始）
+    if (!(this.type === 'laser' && this.laserExtending)) {
+      this.life -= dt;
+    }
     if (this.life <= 0) {
       if (this.onSplit) this.onSplit(this);
       this.dead = true;
