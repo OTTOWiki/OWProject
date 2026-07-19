@@ -57,7 +57,7 @@ test('BALANCE 关键字段存在', () => {
   assertEqual(BALANCE.playerShotDamage, 2.8);
   assertEqual(BALANCE.playerOptionDamage, 1.35);
   assertEqual(BALANCE.playerShotSpeed, 15);
-  assertEqual(BALANCE.score.clearBullet, 10);
+  assertEqual(BALANCE.score.clearBullet, 100);
 });
 
 test('Letter 红利：满时高、超时 0（floor=0）', () => {
@@ -112,11 +112,11 @@ test('stageSelectStartMode：EX→extra，其余→stage', () => {
   assertEqual(stageSelectStartMode('patrol'), 'stage');
 });
 
-test('Extra 难度仅 Hard/Lunatic', () => {
+test('Extra 难度仅 extra', () => {
   assert(isExtraRestrictedMode('extra'));
   assert(!isExtraRestrictedMode('stage'));
   assert(!isExtraRestrictedMode('story'));
   const ids = extraDifficultyIds(DIFFICULTY_ORDER);
-  assertEqual(ids.length, 2);
-  assert(ids.includes('hard') && ids.includes('lunatic'));
+  assertEqual(ids.length, 1);
+  assert(ids.includes('extra'));
 });

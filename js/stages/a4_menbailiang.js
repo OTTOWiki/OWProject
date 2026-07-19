@@ -104,13 +104,17 @@ function chapter_a4_mid_4(g) {
       spawnHLaser(g, y, g.waveCount % 2 === 0 ? 1 : -1, '#fbbf24');
     }
     g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.18) {
+    g.rainPhase = (g.rainPhase || 0) + dt;
+    const interval = 0.135 + 0.045 * Math.sin(g.rainPhase * 1.5);
+    if (g.rainT > interval) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -10,
-        vx: (Math.random() - 0.5) * 0.3, vy: 1.6 + Math.random(),
-        type: 'rice', color: '#fde68a', from: 'enemy', gravity: 0.012,
-      }));
+      for (let i = 0; i < 2; i++) {
+        g.spawnBullet(new Bullet({
+          x: Math.random() * LOGICAL_W, y: -10,
+          vx: (Math.random() - 0.5) * 0.3, vy: 1.6 + Math.random(),
+          type: 'rice', color: '#fde68a', from: 'enemy', gravity: 0.012,
+        }));
+      }
     }
   };
 }
@@ -163,7 +167,7 @@ function chapter_a4_mid_6(g) {
     if (g.laserT > 0.5) {
       g.laserT = 0;
       const dummy = { x: LOGICAL_W / 2, y: 30 };
-      spawnAimedLaser(g, dummy, g.player, '#fbbf24');
+      spawnAimedLaser(g, dummy, g.player, '#fbbf24', 58, 4.5);
     }
     g.crossT = (g.crossT || 0) + dt;
     if (g.crossT > 1.4) {
@@ -181,9 +185,9 @@ function chapter_menbailiang_1(g) {
   e.script = (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age) * 70;
     timer(en, 'fan', 0.5, d, () => {
-      spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.6, color: '#fbbf24' });
+      spawnAimed(game, en, game.player, { n: 9, parity: 'odd', type: 'talisman', speed: 2.6, color: '#fbbf24' });
     });
-    timer(en, 'ring', 2.0, d, () => spawnRingAt(game, en.x, en.y, 12, 2.0, 'medium', '#fcd34d'));
+    timer(en, 'ring', 2.0, d, () => spawnRingAt(game, en.x, en.y, 36, 2.0, 'medium', '#fcd34d'));
   };
   g.spawnEnemy(e);
   g.bossRef = e;
@@ -197,9 +201,12 @@ function chapter_menbailiang_2(g) {
   e.script = (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.1) * 80;
     en.y = 95 + Math.cos(en.age * 0.7) * 25;
-    timer(en, 'aim', 0.45, d, () => {
+    en.data.aimT = (en.data.aimT || 0) - d;
+    if (en.data.aimT <= 0) {
+      const base = 0.30 + 0.15 * Math.sin(en.age * 1.2);
+      en.data.aimT = base * (en._fireMul ?? 1);
       spawnAimed(game, en, game.player, { n: 4, parity: 'even', type: 'rice', speed: 2.6, spread: 0.22, color: '#fcd34d' });
-    });
+    }
     timer(en, 'spin', 0.12, d, () => {
       en.data.a = (en.data.a || 0) + 0.4;
       for (const side of [-1, 1]) {
@@ -209,6 +216,15 @@ function chapter_menbailiang_2(g) {
       }
     });
     timer(en, 'ring', 1.8, d, () => spawnRingAt(game, en.x, en.y, 14, 1.8, 'talisman', '#fde68a', en.age * 0.7));
+    timer(en, 'bloom', 1.2, d, () => {
+      const bx = 30 + Math.random() * (LOGICAL_W - 60);
+      const by = 60 + Math.random() * 150;
+      game.spawnBullet(new Bullet({
+        x: bx, y: by, vx: 0, vy: 0, type: 'large', color: '#f59e0b', from: 'enemy',
+        life: 0.8, r: 12,
+        onSplit: (self) => spawnRingAt(game, self.x, self.y, 12, 1.8, 'talisman', '#fde68a'),
+      }));
+    });
   };
   g.spawnEnemy(e);
   g.bossRef = e;
@@ -223,6 +239,7 @@ function chapter_menbailiang_3(g) {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.3) * 90;
     timer(en, 'dual', 0.4, d, () => {
       spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'medium', speed: 2.8, spread: 0.35, color: '#fbbf24' });
+      spawnAimed(game, { x: LOGICAL_W - en.x, y: en.y }, game.player, { n: 2, parity: 'even', type: 'medium', speed: 2.8, spread: 0.35, color: '#fbbf24' });
     });
     timer(en, 'ring', 1.3, d, () => spawnRingAt(game, en.x, en.y, 16, 2.0, 'talisman', '#fde68a', en.age * 0.5));
     timer(en, 'drop', 1.6, d, () => {
@@ -249,7 +266,7 @@ function chapter_menbailiang_4(g) {
       spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.8, spread: 0.15, color: '#f59e0b' });
     });
     timer(en, 'laser', 0.6, d, () => {
-      spawnAimedLaser(game, en, game.player, '#fbbf24');
+      spawnAimedLaser(game, en, game.player, '#fbbf24', 45);
     });
     timer(en, 'ring', 1.5, d, () => {
       spawnRingAt(game, en.x, en.y, 16, 2.0, 'rice', '#fde68a', en.age * 0.8);
@@ -272,7 +289,11 @@ function chapter_menbailiang_5(g) {
       const parity = hpRatio < 0.5 ? 'even' : 'odd';
       spawnAimed(game, en, game.player, { n: 3, parity, type: 'medium', speed: 3.0, spread: 0.2, color: '#f59e0b' });
     });
-    timer(en, 'ring', speedup * 1.4, d, () => spawnRingAt(game, en.x, en.y, 18, 2.2, 'talisman', '#fde68a', en.age));
+    timer(en, 'ring', speedup * 1.4, d, () => {
+      const rx = 40 + Math.random() * (LOGICAL_W - 80);
+      const ry = 40 + Math.random() * 200;
+      spawnRingAt(game, rx, ry, 18, 2.75, 'talisman', '#fde68a', en.age);
+    });
     timer(en, 'drop', speedup * 1.5, d, () => {
       spawnGravityRain(game, 2, 'rice', '#fcd34d', 1.6);
     });
@@ -319,7 +340,7 @@ function chapter_menbailiang_7(g) {
     const hpRatio = en.hp / en.maxHp;
     const frenzyMul = hpRatio < 0.3 ? 0.55 : 0.8;
     timer(en, 'laser', frenzyMul, d, () => {
-      spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'laser', speed: 4.5, color: '#fbbf24', laserLen: 200 });
+      spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'laser', speed: 4.5, color: '#fbbf24', laserLen: 50 });
     });
     timer(en, 'aim', frenzyMul * 1.5, d, () => {
       spawnAimed(game, en, game.player, { n: 7, parity: 'odd', type: 'rice', speed: hpRatio < 0.3 ? 3.5 : 2.8, color: '#f59e0b' });
@@ -355,7 +376,7 @@ function chapter_menbailiang_last(g) {
     });
     timer(en, 'laser', frenzy ? 0.3 : 0.5, d, () => {
       for (const side of [-1, 1]) {
-        spawnAimedLaser(game, { x: en.x + side * 40, y: en.y }, game.player, '#fcd34d');
+        spawnAimedLaser(game, { x: en.x + side * 40, y: en.y }, game.player, '#fcd34d', 45);
       }
     });
     if (frenzy) {

@@ -57,7 +57,7 @@ function chapter_s3_3(g) {
     if (g.waveCount > 16) return;
     const e = mob(30 + Math.random() * (LOGICAL_W - 60), -15, 20, Math.random() < 0.5 ? '#f87171' : '#60a5fa');
     e.vy = 1.5;
-    e.score = 800;
+    e.score = 8000;
     e.drop = 'scoreL';
     e.onDeath = (en, game) => {
       spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'rice', speed: 2.6, color: '#fbbf24' });

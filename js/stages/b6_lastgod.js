@@ -386,7 +386,7 @@ function chapter_lastgod_3(g) {
       spawnAimed(game, en, game.player, { n: 4, parity: 'odd', type: 'rice', speed: 2.8, color: '#84cc16' });
     });
     timer(en, 'ring', 1.5, d, () => spawnRingAt(game, en.x, en.y, 14, 1.8, 'talisman', '#a3e635', en.age));
-    timer(en, 'laser', 0.7, d, () => spawnAimedLaser(game, en, game.player, '#65a30d'));
+    timer(en, 'laser', 0.7, d, () => spawnAimedLaser(game, en, game.player, '#65a30d', 90));
   };
   g.spawnEnemy(e);
   g.bossRef = e;
@@ -439,7 +439,7 @@ function chapter_lastgod_5(g) {
     timer(en, 'ring', 1.5, d, () => {
       spawnRingAt(game, en.x, en.y, 16, 2.0, 'talisman', '#a3e635', en.age);
     });
-    timer(en, 'laser', 0.7, d, () => spawnAimedLaser(game, en, game.player, '#65a30d'));
+    timer(en, 'laser', 0.7, d, () => spawnAimedLaser(game, en, game.player, '#65a30d', 90));
   };
   g.spawnEnemy(e);
   g.bossRef = e;
@@ -526,8 +526,8 @@ function chapter_lastgod_8(g) {
     timer(en, 'ring', frenzy ? 0.6 : 1.0, d, () => {
       spawnRingAt(game, en.x, en.y, frenzy ? 24 : 20, frenzy ? 3.0 : 2.4, 'rice', '#ecfccb', en.age);
     });
-    timer(en, 'aim', frenzy ? 0.25 : 0.4, d, () => {
-      spawnAimed(game, en, game.player, { n: frenzy ? 7 : 5, parity: 'odd', type: 'laser', speed: frenzy ? 5 : 4, color: '#65a30d', laserLen: frenzy ? 220 : 180 });
+    timer(en, 'aim', frenzy ? 0.4 : 0.6, d, () => {
+      spawnAimed(game, en, game.player, { n: frenzy ? 5 : 3, parity: 'odd', type: 'laser', speed: frenzy ? 3.5 : 2.8, color: '#65a30d', laserLen: frenzy ? 200 : 160 });
     });
     if (frenzy) {
       timer(en, 'rain', 0.12, d, () => spawnGravityRain(game, 4, 'medium', '#a3e635', 2.4));
@@ -558,7 +558,7 @@ function chapter_lastgod_last(g) {
       }
     });
     timer(en, 'aim', frenzy ? 0.2 : 0.35, d, () => {
-      spawnAimed(game, en, game.player, { n: frenzy ? 9 : 7, parity: 'odd', type: frenzy ? 'laser' : 'talisman', speed: frenzy ? 5.5 : 4, color: '#65a30d', laserLen: 250 });
+      spawnAimed(game, en, game.player, { n: frenzy ? 9 : 11, parity: 'odd', type: frenzy ? 'laser' : 'talisman', speed: frenzy ? 5.5 : 4, color: '#65a30d', laserLen: 250, spread: 0.08 });
     });
     timer(en, 'ring', frenzy ? 0.5 : 0.9, d, () => {
       spawnRingAt(game, en.x, en.y, frenzy ? 28 : 22, frenzy ? 3.2 : 2.6, 'rice', '#d9f99d', en.age);

@@ -294,7 +294,7 @@ function chapter_duren_5(g) {
         }));
       }
     });
-    timer(en, 'laser', 0.55, d, () => spawnAimedLaser(game, en, game.player, '#f43f5e'));
+    timer(en, 'laser', 0.55, d, () => spawnAimedLaser(game, en, game.player, '#f43f5e', 45));
     timer(en, 'ring', 1.5, d, () => spawnRingAt(game, en.x, en.y, 18, 2.4, 'rice', '#fda4af', en.age));
   };
   g.spawnEnemy(e);
@@ -310,19 +310,29 @@ function chapter_duren_6(g) {
     const hpRatio = en.hp / en.maxHp;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 3.2) * 125;
     en.y = 100 + Math.cos(en.age * 2.8) * 45;
-    timer(en, 'aim', 0.25, d, () => {
-      spawnAimed(game, en, game.player, { n: 4, parity: 'odd', type: 'talisman', speed: 3.2, color: '#f43f5e' });
-    });
-    timer(en, 'spin', 0.08, d, () => {
-      en.data.a = (en.data.a || 0) + 0.6;
-      for (const side of [-1, 1]) {
+    timer(en, 'burst', 0.35, d, () => {
+      for (let i = 0; i < (hpRatio < 0.4 ? 8 : 5); i++) {
+        const rx = Math.random() * LOGICAL_W;
+        const ry = Math.random() * 300;
         game.spawnBullet(new Bullet({
-          x: en.x + side * 15, y: en.y, angle: en.data.a * side, speed: 3.0, type: 'rice', color: '#e11d48', from: 'enemy',
+          x: rx, y: ry, angle: Math.random() * Math.PI * 2, speed: 1.8 + Math.random() * 1.5,
+          type: 'talisman', color: hpRatio < 0.4 && i % 2 ? '#e11d48' : '#f43f5e', from: 'enemy',
         }));
       }
     });
-    timer(en, 'ring', 1.2, d, () => spawnRingAt(game, en.x, en.y, 18, 2.4, 'medium', '#fda4af', en.age));
-    timer(en, 'rain', 0.25, d, () => spawnGravityRain(game, 2, 'dot', '#fb7185', 1.8));
+    timer(en, 'fall', 0.6, d, () => {
+      for (let i = 0; i < (hpRatio < 0.4 ? 6 : 4); i++) {
+        game.spawnBullet(new Bullet({
+          x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 1.2, vy: 1.5 + Math.random() * 1.0,
+          type: 'rice', color: '#fda4af', from: 'enemy', gravity: 0.008,
+        }));
+      }
+    });
+    timer(en, 'ring', 1.4, d, () => {
+      const rx = 60 + Math.random() * (LOGICAL_W - 120);
+      const ry = 60 + Math.random() * 300;
+      spawnRingAt(game, rx, ry, hpRatio < 0.4 ? 20 : 14, 2.2, 'medium', '#fb7185', en.age);
+    });
   };
   g.spawnEnemy(e);
   g.bossRef = e;

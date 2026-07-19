@@ -15,5 +15,5 @@ export function isExtraRestrictedMode(mode) {
 
 /** Extra 可用难度 id 列表（从全量 order 过滤） */
 export function extraDifficultyIds(allOrder) {
-  return (allOrder || []).filter((id) => id === 'hard' || id === 'lunatic');
+  return ['extra'];
 }

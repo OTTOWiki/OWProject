@@ -76,7 +76,7 @@ export const BALANCE = {
 
   editMax: 100,
   editPerGraze: 1.15,
-  grazeRadius: 22,
+  grazeRadius: 33,
   editClearRadius: 50,
 
   chapterPerfectMul: 1.05,
@@ -99,17 +99,17 @@ export const BALANCE = {
   itemPickupRadius: 20,
 
   score: {
-    graze: 20,
-    killSmall: 300,
-    killElite: 2000,
-    killBoss: 50000,
+    graze: 200,
+    killSmall: 3000,
+    killElite: 20000,
+    killBoss: 500000,
     /** Letter 红利基准（1 面满时）；随关卡进程 × letterStageMul，再随剩余时间线性衰减 */
-    letterBonus: 80000,
+    letterBonus: 800000,
     /** 压线捕获时仍保留的最低比例（0 = 超时无分） */
     letterBonusTimeFloor: 0,
-    itemSmall: 150,
-    itemLarge: 800,
-    clearBullet: 10,
+    itemSmall: 1500,
+    itemLarge: 8000,
+    clearBullet: 100,
   },
 
   /**
@@ -237,6 +237,28 @@ export const DIFFICULTIES = {
     name: '职业选手',
     rank: 'LUNATIC',
     color: '#f87171',
+    desc: '极限弹速与密度 · 仅限高手',
+    enemyHp: 1.0,
+    bulletSpeed: 1.55,
+    fireInterval: 0.55,
+    spawnMul: 0.62,
+    bulletCount: 1.5,
+    startLives: 2,
+    startBombs: 3,
+    deathBombWindow: 0.12,
+    grazeMul: 0.8,
+    scoreMul: 2.0,
+    playerAtk: 0.9,
+    missBombFloor: 1,
+    midbossDrop: false,
+    letterNmnbBombChance: 0.3,
+  },
+  extra: {
+    id: 'extra',
+    key: 'EXTRA',
+    name: '被吓到眩晕瘫坐，那一刻就像看到原子弹爆炸',
+    rank: 'EXTRA',
+    color: '#a78bfa',
     desc: '极限弹速与密度 · 仅限高手',
     enemyHp: 1.0,
     bulletSpeed: 1.55,

@@ -204,12 +204,8 @@ export class UI {
     const list = document.getElementById('diff-list');
     list.innerHTML = '';
     const avail = this._availableDifficulties();
-    if (
-      this._isExtraStart() &&
-      this.pendingDifficulty !== 'hard' &&
-      this.pendingDifficulty !== 'lunatic'
-    ) {
-      this.pendingDifficulty = 'hard';
+    if (this._isExtraStart()) {
+      this.pendingDifficulty = 'extra';
     }
     avail.forEach((id, i) => {
       const d = DIFFICULTIES[id];

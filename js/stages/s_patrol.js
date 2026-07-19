@@ -34,15 +34,17 @@ function chapter_patrol_2(g) {
   });
   e.script = (en, d, game) => {
     timer(en, 'big', 1.3, d, () => {
-      const bx = 40 + Math.random() * (LOGICAL_W - 80);
-      const by = 80 + Math.random() * 200;
-      game.spawnBullet(new Bullet({
-        x: bx, y: by, vx: 0, vy: 0, type: 'large', color: '#f87171', from: 'enemy',
-        life: 0.9, r: 14,
-        onSplit: (self) => {
-          spawnRingAt(game, self.x, self.y, 16, 2.0, 'talisman', '#fca5a5');
-        },
-      }));
+      for (let i = 0; i < 2; i++) {
+        const bx = 40 + Math.random() * (LOGICAL_W - 80);
+        const by = 80 + Math.random() * 200;
+        game.spawnBullet(new Bullet({
+          x: bx, y: by, vx: 0, vy: 0, type: 'large', color: '#f87171', from: 'enemy',
+          life: 0.9, r: 14,
+          onSplit: (self) => {
+            spawnRingAt(game, self.x, self.y, 20, 2.0, 'talisman', '#fca5a5');
+          },
+        }));
+      }
     });
     timer(en, 'laser', 0.7, d, () => {
       spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'laser', speed: 5, spread: 0.25, color: '#ef4444', laserLen: 200 });

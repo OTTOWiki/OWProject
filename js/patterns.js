@@ -83,6 +83,9 @@ export function spawnAimed(game, from, player, opts) {
     gravity = 0,
     life = 12,
     laserLen = 220,
+    w,
+    h,
+    r,
   } = opts;
 
   const parityKey = (parity === 'odd' || parity === 'even') ? parity : null;
@@ -113,7 +116,9 @@ export function spawnAimed(game, from, player, opts) {
       gravity,
       life,
       laserLen,
-      w: type === 'laser' ? 10 : undefined,
+      w: w ?? (type === 'laser' ? 10 : undefined),
+      h,
+      r,
     }));
   }
 }
@@ -292,7 +297,7 @@ export function spawnBombOrbs(game, player) {
 }
 
 /** 横向激光墙 */
-export function spawnHLaser(game, y, dir = 1, color = '#f87171') {
+export function spawnHLaser(game, y, dir = 1, color = '#f87171', laserLen = 60) {
   const x = dir > 0 ? -20 : LOGICAL_W + 20;
   game.spawnBullet(new Bullet({
     x, y,
@@ -300,7 +305,7 @@ export function spawnHLaser(game, y, dir = 1, color = '#f87171') {
     vy: 0,
     type: 'laser',
     color,
-    laserLen: 60,
+    laserLen,
     angle: dir > 0 ? 0 : Math.PI,
     w: 10,
     r: 5,
@@ -310,16 +315,16 @@ export function spawnHLaser(game, y, dir = 1, color = '#f87171') {
 }
 
 /** 固定指向激光（短促） */
-export function spawnAimedLaser(game, from, player, color = '#fbbf24') {
+export function spawnAimedLaser(game, from, player, color = '#fbbf24', laserLen = 180, speed = 6) {
   const ang = aimAngle(from, player);
   game.spawnBullet(new Bullet({
     x: from.x,
     y: from.y,
     angle: ang,
-    speed: 6,
+    speed,
     type: 'laser',
     color,
-    laserLen: 180,
+    laserLen,
     w: 10,
     r: 5,
     life: 1.2,

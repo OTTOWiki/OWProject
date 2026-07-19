@@ -58,7 +58,7 @@ function softGlow(ctx, r, color, color2) {
  * @param {*} b
  * @param {number} [alphaMul=1] 整体不透明度倍率（自机弹用）
  */
-export function drawBullet(ctx, b, alphaMul = 1) {
+export function drawBullet(ctx, b, alphaMul = 1, player = null) {
   const a = Math.max(0, Math.min(1, alphaMul));
   if (b.delay > 0) {
     // 预显环
@@ -198,6 +198,25 @@ export function drawBullet(ctx, b, alphaMul = 1) {
       ctx.lineTo(Math.cos(ang) * r * 1.1, Math.sin(ang) * r * 1.1);
     }
     ctx.stroke();
+  }
+
+  // 擦弹范围红色提示
+  if (player && b.from === 'enemy' && b.delay <= 0) {
+    const dx = b.x - player.x;
+    const dy = b.y - player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : b.r;
+    if (dist < BALANCE.grazeRadius + hitR + 6) {
+      const pulse = 0.45 + Math.sin(performance.now() / 90) * 0.25;
+      ctx.strokeStyle = `rgba(255,40,40,${pulse * (dist < player.r + hitR ? 0.2 : 0.7)})`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, (b.w || 10) * 0.5 + 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
   }
   ctx.restore();
 }

@@ -241,7 +241,7 @@ export function drawGameFrame(game) {
   for (const e of game.enemies) drawEnemy(ctx, e);
 
   rebuildBulletLists(game);
-  for (const b of game.enemyBullets) drawBullet(ctx, b);
+  for (const b of game.enemyBullets) drawBullet(ctx, b, 1, game.player);
 
   if (game.player) drawPlayer(ctx, game.player);
 

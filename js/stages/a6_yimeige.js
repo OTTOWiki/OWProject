@@ -22,14 +22,14 @@ function chapter_a6_mid_1(g) {
   g.waveTimer = 0;
   g.waveFn = (dt) => {
     g.waveTimer += dt;
-    if (g.waveTimer < 0.9) return;
+    if (g.waveTimer < 0.7) return;
     g.waveTimer = 0;
     g.waveCount = (g.waveCount || 0) + 1;
     if (g.waveCount > 12) return;
     const e = mob(60 + Math.random() * (LOGICAL_W - 120), -20, 30, PINK);
     e.vy = 0.8;
     e.script = (en, d, game) => {
-      timer(en, 's', 0.9, d, () => {
+      timer(en, 's', 0.7, d, () => {
         spawnAimed(game, en, game.player, {
           n: 2, parity: 'even', type: 'dot', speed: 1.85, spread: 0.28, color: PINK_L,
         });
@@ -48,11 +48,13 @@ function chapter_a6_mid_2(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.3) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -10,
-        vx: (Math.random() - 0.5) * 0.4, vy: 1.2,
-        type: 'talisman', color: PINK_D, from: 'enemy',
-      }));
+      for (let i = 0; i < 2; i++) {
+        g.spawnBullet(new Bullet({
+          x: Math.random() * LOGICAL_W, y: -10,
+          vx: (Math.random() - 0.5) * 0.4, vy: 2.4,
+          type: 'talisman', color: PINK_D, from: 'enemy',
+        }));
+      }
     }
     g.waveTimer += dt;
     if (g.waveTimer < 0.7) return;
@@ -104,7 +106,7 @@ function chapter_a6_mid_4(g) {
       spawnGravityRain(g, 1, 'dot', PINK_L, 1.3);
     }
     g.waveTimer += dt;
-    if (g.waveTimer < 0.65) return;
+    if (g.waveTimer < 0.52) return;
     g.waveTimer = 0;
     g.waveCount = (g.waveCount || 0) + 1;
     if (g.waveCount > 14) return;
@@ -247,7 +249,7 @@ function chapter_a6_mid_8(g) {
     if (g.laserT > 0.35) {
       g.laserT = 0;
       g.waveCount = (g.waveCount || 0) + 1;
-      const y = 50 + (g.waveCount * 28) % 420;
+      const y = (g.waveCount * 36) % 600;
       spawnHLaser(g, y, g.waveCount % 3 === 0 ? 1 : -1, PINK_D);
     }
     g.rainT = (g.rainT || 0) + dt;

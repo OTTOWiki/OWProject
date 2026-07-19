@@ -138,24 +138,41 @@ function chapter_b5_midboss(g) {
 
 function chapter_b5_mid_5(g) {
   g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.5) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const side = g.waveCount % 2 ? 1 : -1;
-      const src = { x: side > 0 ? -10 : LOGICAL_W + 10, y: 100 + (g.waveCount * 40) % 400 };
-      spawnAimedLaser(g, src, g.player, '#f97316');
-    }
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.15) {
-      g.rainT = 0;
-      for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
-          x: Math.random() * LOGICAL_W, y: -10,
-          vx: (Math.random() - 0.5) * 0.5, vy: 1.8,
-          type: 'dot', color: '#fdba74', from: 'enemy', gravity: 0.012,
-        }));
-      }
+    g.waveTimer = (g.waveTimer || 0) + dt;
+    if (g.waveTimer < 0.85) return;
+    g.waveTimer = 0;
+    g.waveCount = (g.waveCount || 0) + 1;
+    if (g.waveCount > 16) return;
+
+    const side = g.waveCount % 2 ? 1 : -1;
+    const y = 60 + (g.waveCount * 23) % 380;
+    const e = mob(side > 0 ? -20 : LOGICAL_W + 20, y, 30, side > 0 ? '#fb923c' : '#fdba74');
+    e.hp = 30;
+    e.vx = -side * 2.2;
+    e.vy = Math.sin(g.waveCount * 1.3) * 0.6;
+    e.script = (en, d, game) => {
+      timer(en, 'aim', 0.35, d, () => {
+        spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'rice', speed: 2.4, spread: 0.15, color: '#f97316' });
+      });
+      timer(en, 'ring', 0.7, d, () => {
+        spawnRingAt(game, en.x, en.y, { n: 8, speed: 1.6 + Math.random() * 0.4, color: '#fdba74', type: 'dot' });
+      });
+      timer(en, 'reverse', 1.2, d, () => {
+        en.vx = -en.vx;
+      });
+    };
+    g.spawnEnemy(e);
+
+    if (g.waveCount % 2 === 0) {
+      const filler = mob(side > 0 ? -20 : LOGICAL_W + 20, 60 + Math.random() * 380, 15, '#fda4af');
+      filler.hp = 12;
+      filler.vx = -side * 3.0;
+      filler.script = (en, d2, game) => {
+        timer(en, 'f', 0.5, d2, () => {
+          spawnAimed(game, en, game.player, { n: 2, type: 'talisman', speed: 2.8, color: '#fda4af' });
+        });
+      };
+      g.spawnEnemy(filler);
     }
   };
 }
@@ -233,7 +250,7 @@ function chapter_b5_mid_8(g) {
     if (g.aimT > 0.55) {
       g.aimT = 0;
       for (const side of [-1, 1]) {
-        spawnAimedLaser(g, { x: LOGICAL_W / 2 + side * 70, y: 40 }, g.player, '#fb923c');
+        spawnAimedLaser(g, { x: LOGICAL_W / 2 + side * 70, y: 40 }, g.player, '#fb923c', 45);
       }
     }
   };
@@ -296,7 +313,7 @@ function chapter_gundian_3(g) {
     timer(en, 'laser', 0.35, d, () => {
       const side = en.data.side ? 1 : -1;
       en.data.side = !en.data.side;
-      spawnAimedLaser(game, { x: en.x + side * 50, y: en.y }, game.player, '#f97316');
+      spawnAimedLaser(game, { x: en.x + side * 50, y: en.y }, game.player, '#f97316', 45);
     });
     timer(en, 'aim', 0.4, d, () => {
       spawnAimed(game, en, game.player, { n: 4, parity: 'odd', type: 'talisman', speed: 2.8, color: '#fb923c' });
@@ -322,10 +339,8 @@ function chapter_gundian_4(g) {
       spawnAimed(game, en, game.player, { n: hpRatio < 0.5 ? 5 : 4, parity: 'even', type: 'rice', speed: 2.8, color: '#f97316' });
     });
     timer(en, 'ring', 1.1, d, () => spawnRingAt(game, en.x, en.y, 16, 2.2, 'talisman', '#fdba74', en.age));
-    timer(en, 'laser', 0.55, d, () => spawnAimedLaser(game, en, game.player, '#fb923c'));
-    if (hpRatio < 0.5) {
-      timer(en, 'rain', 0.35, d, () => spawnGravityRain(game, 1, 'dot', '#fb923c', 1.4));
-    }
+    timer(en, 'laser', 0.8, d, () => spawnAimedLaser(game, en, game.player, '#fb923c', 45));
+    timer(en, 'rain', 0.18, d, () => spawnGravityRain(game, 2, 'rice', '#fdba74', 1.6));
   };
   g.spawnEnemy(e);
   g.bossRef = e;
@@ -373,7 +388,7 @@ function chapter_gundian_6(g) {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (fast ? 3 : 2)) * (fast ? 120 : 100);
     en.y = 95 + Math.cos(en.age * (fast ? 2.2 : 1.5)) * (fast ? 30 : 20);
     timer(en, 'laser', fast ? 0.3 : 0.45, d, () => {
-      spawnAimedLaser(game, en, game.player, fast ? '#f97316' : '#fb923c');
+      spawnAimedLaser(game, en, game.player, fast ? '#f97316' : '#fb923c', 45);
     });
     timer(en, 'aim', fast ? 0.25 : 0.4, d, () => {
       spawnAimed(game, en, game.player, { n: fast ? 6 : 4, parity: 'odd', type: 'talisman', speed: fast ? 3.2 : 2.8, color: fast ? '#f97316' : '#fb923c' });
