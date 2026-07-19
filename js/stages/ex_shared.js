@@ -130,8 +130,9 @@ export function pushBossLetter(g, opts = {}) {
         spawnRingAt(game, en.x, en.y, exN(12), exSp(1.6), 'dot', color2, en.age * -0.8);
       });
       timer(en, 'aim', exFire(0.7), d, () => {
+        const ms = 3 + 2 * Math.sin(en.age * 0.04);
         spawnAimed(game, en, game.player, {
-          n: exN(2, 'even'), parity: 'even', type: 'rice', speed: exSp(2.8), color: color2,
+          n: exN(4, 'even'), parity: 'even', type: 'rice', speed: exSp(2.8) * ms, color: color2,
         });
       });
     }
