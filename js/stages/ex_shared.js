@@ -53,7 +53,7 @@ export function exDur(mainlineSec) {
 }
 
 export function exLetter(mainlineSec) {
-  return Math.max(14, Math.round(mainlineSec * EX.time));
+  return Math.max(14, Math.round(mainlineSec * EX.time * 2));
 }
 
 // 道中波次：现网由 ex_mid.js 的 MID_PATTERNS + buildExMid 承担（已无 buildMid* 调用方）
