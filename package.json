@@ -1,7 +1,7 @@
 {
   "name": "owproject",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "OTTOWiki Project — pure frontend STG (no build step)",
   "type": "module",
   "scripts": {
