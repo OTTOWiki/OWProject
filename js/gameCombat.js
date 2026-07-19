@@ -19,9 +19,9 @@ import {
  * @param {import('./collision.js').CollisionEvent[]} events
  */
 /** 单次擦弹生成粒子数 / 场上擦弹粒子上限 */
-const GRAZE_PARTICLES_PER = 4;
-const GRAZE_PARTICLE_MAX = 36;
-const GRAZE_PARTICLE_R = 1.25;
+const GRAZE_PARTICLES_PER = 8;
+const GRAZE_PARTICLE_MAX = 48;
+const GRAZE_PARTICLE_R = 1.55;
 
 function countGrazeParticles(game) {
   let n = 0;
@@ -38,12 +38,13 @@ function spawnGrazeParticles(game, p) {
   const n = Math.min(GRAZE_PARTICLES_PER, room);
   for (let i = 0; i < n; i++) {
     const ang = Math.random() * Math.PI * 2;
-    const spread = 3 + Math.random() * 10;
-    const gx = p.x + Math.cos(ang) * spread * 0.4;
-    const gy = p.y + Math.sin(ang) * spread * 0.4;
-    const pt = new Particle(gx, gy, '#ffffff', 0.22 + Math.random() * 0.1);
+    const spread = 4 + Math.random() * 12;
+    const gx = p.x + Math.cos(ang) * spread * 0.45;
+    const gy = p.y + Math.sin(ang) * spread * 0.45;
+    // 寿命略长 → 整体消失更慢
+    const pt = new Particle(gx, gy, '#ffffff', 0.38 + Math.random() * 0.14);
     pt.r = GRAZE_PARTICLE_R;
-    const spd = 1.0 + Math.random() * 1.6;
+    const spd = 0.85 + Math.random() * 1.25;
     pt.vx = Math.cos(ang) * spd;
     pt.vy = Math.sin(ang) * spd;
     pt.grazeFade = true;
