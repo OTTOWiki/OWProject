@@ -249,8 +249,11 @@ export function drawGameFrame(game) {
   for (const b of game.playerBullets) drawBullet(ctx, b, pAlpha);
 
   for (const pt of game.particles) {
-    const mul = pt.alphaMul != null ? pt.alphaMul : 1;
-    ctx.globalAlpha = Math.min(1, (pt.life / pt.max) * mul);
+    if (pt.fullAlpha) ctx.globalAlpha = 1;
+    else {
+      const mul = pt.alphaMul != null ? pt.alphaMul : 1;
+      ctx.globalAlpha = Math.min(1, (pt.life / pt.max) * mul);
+    }
     ctx.fillStyle = pt.color;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);

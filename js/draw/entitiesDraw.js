@@ -25,10 +25,14 @@ function withAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/** 敌弹擦弹邻域：仅靠近自机的一侧，按弹体形状描边发光（非整圆盖在弹上） */
+/**
+ * 擦弹紫辉：敌弹本身可有类似 softGlow 的紫色自发光，
+ * 但只在自机「看不见的擦弹圆盘」内可见（clip 到 graze 圆，激光可只亮穿过圆盘的一段）。
+ */
 function drawGrazeProximityGlow(ctx, b, player) {
   if (!player || b.from !== 'enemy' || b.delay > 0) return;
 
+  const grazeR = BALANCE.grazeRadius;
   const dxW = player.x - b.x;
   const dyW = player.y - b.y;
   const dist = Math.hypot(dxW, dyW);
@@ -36,17 +40,17 @@ function drawGrazeProximityGlow(ctx, b, player) {
   // 与 drawBullet 一致：部分弹种会 rotate(angle+π/2)
   const rotated = b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large'
     && b.type !== 'option' && b.type !== 'bomb';
-  let localX;
-  let localY;
+  let localPx;
+  let localPy;
   if (rotated) {
     const cosA = Math.cos(b.angle);
     const sinA = Math.sin(b.angle);
-    // 世界偏移 → 当前 canvas 本地（已含 angle+π/2）
-    localX = -dxW * sinA + dyW * cosA;
-    localY = -dxW * cosA - dyW * sinA;
+    // 自机中心 → 当前 bullet 本地坐标
+    localPx = -dxW * sinA + dyW * cosA;
+    localPy = -dxW * cosA - dyW * sinA;
   } else {
-    localX = dxW;
-    localY = dyW;
+    localPx = dxW;
+    localPy = dyW;
   }
 
   const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
@@ -54,75 +58,111 @@ function drawGrazeProximityGlow(ctx, b, player) {
   if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 200) * 0.55);
   else if (b.type === 'rice') reach = Math.max(b.w || 8, b.h || 8) * 0.55;
   else if (b.type === 'talisman') reach = Math.hypot((b.w || 10) / 2, (b.h || 14) / 2);
-  if (dist > BALANCE.grazeRadius + reach + 10) return;
+  // 弹体外包与擦弹圆不相交则跳过
+  if (dist > grazeR + reach + 4) return;
 
-  const pulse = 0.5 + Math.sin(performance.now() / 100) * 0.22;
-  const nearHit = dist < player.r + hitR + 2;
-  const strokeA = pulse * (nearHit ? 0.35 : 0.9);
-  const glowA = nearHit ? 0.2 : 0.55;
+  const pulse = 0.55 + Math.sin(performance.now() / 95) * 0.2;
+  const purple = '#c084fc';
+  const purpleHi = '#f0abfc';
 
   ctx.save();
-  ctx.shadowColor = '#c084fc';
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = `rgba(216, 180, 254, ${strokeA})`;
-  ctx.fillStyle = `rgba(168, 85, 247, ${glowA * 0.4})`;
-  ctx.lineWidth = 2.2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // clip：只保留朝向自机的半平面（本地坐标）
-  const len = Math.hypot(localX, localY) || 1;
-  const nx = localX / len;
-  const ny = localY / len;
-  const pad = 2;
-  const big = 500;
-  const px = -ny;
-  const py = nx;
+  // 只显示落在自机擦弹圆内的部分
   ctx.beginPath();
-  ctx.moveTo(nx * (-pad) + px * big, ny * (-pad) + py * big);
-  ctx.lineTo(nx * (-pad) - px * big, ny * (-pad) - py * big);
-  ctx.lineTo(nx * big - px * big, ny * big - py * big);
-  ctx.lineTo(nx * big + px * big, ny * big + py * big);
-  ctx.closePath();
+  ctx.arc(localPx, localPy, grazeR, 0, Math.PI * 2);
   ctx.clip();
 
   if (b.type === 'laser') {
     const lenL = b.laserLen || 200;
-    const hw = (b.w || 10) * 0.5 + 3.5;
-    // 整条激光体填充淡紫 + 两侧描边（clip 后只显示靠近自机的一段）
+    const hw = (b.w || 10) * 0.5;
+    // 激光体：外层紫光 + 芯（风格接近 softGlow / 原激光绘制）
+    ctx.shadowColor = purple;
+    ctx.shadowBlur = 18;
+    const g = ctx.createLinearGradient(0, 0, 0, -lenL);
+    g.addColorStop(0, withAlpha(purpleHi, 0.95 * pulse));
+    g.addColorStop(0.2, withAlpha(purple, 0.75 * pulse));
+    g.addColorStop(1, withAlpha(purple, 0.15 * pulse));
+    ctx.strokeStyle = g;
+    ctx.lineWidth = hw * 2 + 8;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.45;
     ctx.beginPath();
-    ctx.moveTo(-hw, 4);
-    ctx.lineTo(-hw, -lenL);
-    ctx.lineTo(hw, -lenL);
-    ctx.lineTo(hw, 4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -lenL);
+    ctx.stroke();
+    ctx.globalAlpha = 0.85 * pulse;
+    ctx.lineWidth = hw * 2 + 2;
+    ctx.strokeStyle = purple;
     ctx.beginPath();
-    ctx.moveTo(-hw, 2);
-    ctx.lineTo(-hw, -lenL);
-    ctx.lineTo(hw, -lenL);
-    ctx.lineTo(hw, 2);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -lenL);
+    ctx.stroke();
+    ctx.globalAlpha = 0.95;
+    ctx.lineWidth = Math.max(2, hw * 0.9);
+    ctx.strokeStyle = purpleHi;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -lenL * 0.98);
     ctx.stroke();
   } else if (b.type === 'talisman') {
-    const w = (b.w || 10) + 6;
-    const h = (b.h || 16) + 6;
+    const w = (b.w || 10);
+    const h = (b.h || 16);
+    // 外晕矩形
+    ctx.shadowColor = purple;
+    ctx.shadowBlur = 16;
+    const pad = 5;
+    const outer = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(w, h));
+    outer.addColorStop(0, withAlpha(purpleHi, 0.55 * pulse));
+    outer.addColorStop(0.5, withAlpha(purple, 0.4 * pulse));
+    outer.addColorStop(1, 'transparent');
+    ctx.fillStyle = outer;
+    ctx.fillRect(-w / 2 - pad, -h / 2 - pad, w + pad * 2, h + pad * 2);
+    ctx.strokeStyle = withAlpha(purpleHi, 0.85 * pulse);
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, 3);
-    else ctx.rect(-w / 2, -h / 2, w, h);
+    if (ctx.roundRect) ctx.roundRect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2, 2);
+    else ctx.rect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2);
     ctx.stroke();
   } else if (b.type === 'rice') {
-    const rx = (b.h || 8) / 2 + 3.5;
-    const ry = (b.w || 12) / 2 + 3.5;
+    const rx = (b.h || 8) / 2;
+    const ry = (b.w || 12) / 2;
+    ctx.shadowColor = purple;
+    ctx.shadowBlur = 14;
+    // 椭圆径向紫光（同 softGlow 层次）
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(rx, ry) * 1.9);
+    g.addColorStop(0, withAlpha(purpleHi, 0.75 * pulse));
+    g.addColorStop(0.35, withAlpha(purple, 0.5 * pulse));
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.ellipse(0, 0, rx * 1.85, ry * 1.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = withAlpha(purpleHi, 0.55 * pulse);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx * 0.95, ry * 0.95, 0, 0, Math.PI * 2);
+    ctx.fill();
   } else {
-    // 圆弹：圆环弧（clip 后只剩朝向自机一侧）
-    const rr = (b.w || hitR * 2) / 2 + 3.5;
+    // 圆弹：复用 softGlow 结构，固定紫色
+    const r = (b.w || hitR * 2) / 2;
+    ctx.shadowColor = purple;
+    ctx.shadowBlur = 12;
+    const outer = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.9);
+    outer.addColorStop(0, withAlpha(purpleHi, 0.7 * pulse));
+    outer.addColorStop(0.35, withAlpha(purple, 0.45 * pulse));
+    outer.addColorStop(1, 'transparent');
+    ctx.fillStyle = outer;
     ctx.beginPath();
-    ctx.arc(0, 0, rr, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.arc(0, 0, r * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+    const g = ctx.createRadialGradient(-r * 0.15, -r * 0.2, 0, 0, 0, r);
+    g.addColorStop(0, withAlpha('#ffffff', 0.9 * pulse));
+    g.addColorStop(0.3, withAlpha(purpleHi, 0.85 * pulse));
+    g.addColorStop(0.72, withAlpha(purple, 0.75 * pulse));
+    g.addColorStop(1, withAlpha(purple, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   ctx.restore();
@@ -303,7 +343,7 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.stroke();
   }
 
-  // 擦弹邻域：弹体轮廓上靠近自机的一侧紫色描边（方形/激光跟形状，非整圆）
+  // 擦弹圆盘内可见的紫色自发光（圆盘外完全裁掉）
   drawGrazeProximityGlow(ctx, b, player);
   ctx.restore();
 }

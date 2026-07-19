@@ -34,15 +34,15 @@ export function applyCollisionEvents(game, events) {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
       game.addScore(BALANCE.score.graze);
-      // 自机附近白色擦弹粒子：小、密、更不透明 → 颗粒感
-      for (let i = 0; i < 9; i++) {
-        const gx = p.x + (Math.random() - 0.5) * 22;
-        const gy = p.y + (Math.random() - 0.5) * 22;
-        const pt = new Particle(gx, gy, '#ffffff', 0.14 + Math.random() * 0.1);
-        pt.r = 0.45 + Math.random() * 0.85;
-        pt.vx *= 0.35 + Math.random() * 0.25;
-        pt.vy *= 0.35 + Math.random() * 0.25;
-        pt.alphaMul = 2.2;
+      // 自机附近白色擦弹粒子：密、中等大小、全程 100% 不透明
+      for (let i = 0; i < 10; i++) {
+        const gx = p.x + (Math.random() - 0.5) * 24;
+        const gy = p.y + (Math.random() - 0.5) * 24;
+        const pt = new Particle(gx, gy, '#ffffff', 0.18 + Math.random() * 0.12);
+        pt.r = 1.35 + Math.random() * 1.1;
+        pt.vx *= 0.4 + Math.random() * 0.3;
+        pt.vy *= 0.4 + Math.random() * 0.3;
+        pt.fullAlpha = true;
         game.particles.push(pt);
       }
       if (Math.random() < 0.2) game.audio.sfx('graze');
