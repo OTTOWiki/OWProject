@@ -311,10 +311,13 @@ export function spawnBombOrbs(game, player) {
   }
 }
 
-/** 横向激光墙 */
-export function spawnHLaser(game, y, dir = 1, color = '#f87171', laserLen = 60) {
+/**
+ * 横向激光墙。
+ * 默认不设 life → 敌方激光仅出屏销毁（见 Bullet）；需要时限时传 life。
+ */
+export function spawnHLaser(game, y, dir = 1, color = '#f87171', laserLen = 60, life = null) {
   const x = dir > 0 ? -20 : LOGICAL_W + 20;
-  game.spawnBullet(acquireBullet({
+  const opts = {
     x, y,
     vx: dir * 3.5,
     vy: 0,
@@ -324,15 +327,19 @@ export function spawnHLaser(game, y, dir = 1, color = '#f87171', laserLen = 60) 
     angle: dir > 0 ? 0 : Math.PI,
     w: 10,
     r: 5,
-    life: 4,
     from: 'enemy',
-  }));
+  };
+  if (life != null) opts.life = life;
+  game.spawnBullet(acquireBullet(opts));
 }
 
-/** 固定指向激光（短促） */
-export function spawnAimedLaser(game, from, player, color = '#fbbf24', laserLen = 180, speed = 6) {
+/**
+ * 固定指向激光。
+ * 默认不设 life → 敌方激光仅出屏销毁；需要短促时限时传 life。
+ */
+export function spawnAimedLaser(game, from, player, color = '#fbbf24', laserLen = 180, speed = 6, life = null) {
   const ang = aimAngle(from, player);
-  game.spawnBullet(acquireBullet({
+  const opts = {
     x: from.x,
     y: from.y,
     angle: ang,
@@ -342,7 +349,8 @@ export function spawnAimedLaser(game, from, player, color = '#fbbf24', laserLen 
     laserLen,
     w: 10,
     r: 5,
-    life: 1.2,
     from: 'enemy',
-  }));
+  };
+  if (life != null) opts.life = life;
+  game.spawnBullet(acquireBullet(opts));
 }

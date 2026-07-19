@@ -314,37 +314,74 @@ T12（拆 game，可分步提交）
 [已完成] T01…T11 · T12a–d · T13 · T14 · T15 · T16 · T17 · T18
   → Phase D 收尾完成
 
-[规划中] Phase E（2026-07-19 全库审查）
-  E01 → E02 → E03a → E03b → E03c → E04 → E05 → E06（可选）
+[进行中] Phase E（2026-07-20 拍板顺序，见下「默认执行方案」）
+  E02手测 → E03a → E03b → E03c → E03d1 → E03d2
+    → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**Phase E 已规划、待用户指令后逐项开工**（一次一个、测绿等手测）。
+当前：**Phase D 完成**；**E02 / E03a 完成**；**E03b 等手测**；手测 OK 后下一项 = **E03c**。  
+原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。
 
 ---
 
-## 阶段 E — 收束门面 / 推广 mid 脚手架 / 降 1k 文件（2026-07-19 审查）
+## 阶段 E — 关卡规范化主线 + 框架收束（2026-07-19 审查 / 2026-07-20 重排）
 
-> 来源：`main` 全库严格代码审查（第二轮，T18 之后）  
+> 来源：`main` 全库严格代码审查（第二轮）+ 关卡解耦讨论。  
 > 原则同上文「工作方式」：**一次一个 Exx**、不改手感、`npm test` 绿 → 等手测 → 再开下一项。  
-> 目标：删 indirection、消灭 mid 双系统、把唯一 >1k 的 JS 拆下去。
+> **产品方向**：关卡 mid 壳统一 → EX 可浏览 → 薄 StageContext → 再收 Game / 章结束 / BG。
 
-### 推荐顺序（锁定）
+### 默认执行方案（已拍板 · 不用再选）
+
+**策略一句话**：先把关卡 mid 写成同一种现代写法，再补契约层，最后收拾框架大文件。  
+**严格度**：中等（统一 wave 壳 + 拆大文件 + 薄 StageContext；**不做**弹幕 DSL / 构建工具）。
+
+| 步 | 任务 | 你要做的 | 为何这个顺序 |
+|----|------|----------|--------------|
+| 0 | **E02 手测收口** | ~~完成~~ | 代码已合，清掉「等手测」再动刀 |
+| 1 | **E03a** | ~~完成~~ | 最小试点，验证 helper 够用 |
+| 2 | **E03b** | **等手测**：A4/A5/A6 抽查 | 主线 A 一气迁完 |
+| 3 | **E03c** | B4–B6 mid | 主线 B 同上 |
+| 4 | **E03d1** | EX 只拆文件、不改编数值 | 先降 `ex_mid` 体量，diff 安全 |
+| 5 | **E03d2** | EX 手写 wave → `installMidWave` | 壳与主线对齐 |
+| 6 | **E07** | 薄 StageContext + **仅 s1 试点** | mid 已统一后再收窄 `g` 契约 |
+| 7 | **E01** | 收 Game 转发门面 | 关卡线告一段落再清门面债 |
+| 8 | **E05** | 章结束纯函数 + 单测 | combat 边界稳后再抽 |
+| 9 | **E04** | 拆 `backgrounds.js` | 与关卡无关，放后；累了可穿插 |
+| — | **E06*** | 默认不做 | 需要扩内容时再开；优先 **E06b** Letter 目录化 |
+
+**刻意延后 / 不做的**
+
+- 不在 E03 中途引入 StageContext（双变量难回归）  
+- 不把 E01 插在 E03 前面（对关卡观感帮助小，打断主线）  
+- 不重写 Letter 弹幕内容；不引入打包器  
+- 关卡长期仍可 `build(g)`，E07 只是薄包装，不是插件引擎
+
+**你怎么用这份方案**
+
+1. 打开游戏，按 E02 手测要点点一遍 → 回我「E02 OK」  
+2. 我说开工 **E03a** → 改完测绿 → 你手测 2/3 面  
+3. 回「OK」→ 自动进表内下一步，**你不用重新想顺序**
+
+---
+
+### 推荐顺序（锁定 · 与上表一致）
 
 ```
-E01（Game 转发壳 + 死代码）
-  → E02（settlement / stageIntro 双轨）
-  → E03a（installMidWave 能力补齐 + s2/s3 试点）
-  → E03b（A 线 mid 迁移）
+E02 手测收口
+  → E03a（installMidWave + s2/s3 试点）
+  → E03b（A 线 mid）
   → E03c（B 线 mid）
-  → E03d（EX mid 拆分 / helper——优先：ex_mid.js ~1954 行）
-  → E04（拆 backgrounds.js）
+  → E03d1（ex_mid 拆文件，内容不动）
+  → E03d2（ex_mid 迁 installMidWave）
+  → E07（StageContext 薄封装 + s1 试点）
+  → E01（Game 转发壳 + 死代码）
   → E05（章结束条件纯函数）
-  → E06（可选：settings 表单抽离 / Letter 目录化，另开再做）
+  → E04（拆 backgrounds.js）
+  → E06*（可选；优先 E06b Letter 目录化）
 ```
 
-说明：E01/E02 低风险先清债；E03 是最大收益、按面分批。  
-**2026-07-19 远端提交后**：`js/stages/ex_mid.js` 已扩到 **~1954 行 / 62 独立 mid**，从原 E03c 中**拆出 E03d 并提权**——内容先不动，架构债必须进队列，勿再往该文件堆。  
-E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
+说明：`ex_mid.js` ~1867+ 行 / 62 mid——**E03d 已拆成 d1/d2 两提交**，禁止再往单文件堆内容。  
+E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 后。
 
 ---
 
@@ -352,7 +389,7 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 待做（**排在 E07 之后**，勿提前插队） |
 | **审查对应** | Issue 1（门面 indirection）、Issue 4（`_showOverlay` 未 import 且无调用方） |
 | **目标** | `game.js` 不再充当「每个私有方法转发一次」的双 API；模块内直调；公开 API 变薄 |
 | **范围** | |
@@ -373,7 +410,7 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 
 | | |
 |--|--|
-| **状态** | 等手测 |
+| **状态** | 完成 |
 | **审查对应** | Issue 4（兼容字段双读） |
 | **目标** | 绘制与章节流只认单一真源 |
 | **范围** | |
@@ -389,36 +426,40 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 
 ---
 
-### E03 主线 mid 全面 `installMidWave`（T14 收尾，分三步）
+### E03 主线 mid 全面 `installMidWave`（T14 收尾）
 
-> 现状：`installMidWave` **仅 s1 使用**；a4–b6 / s2–s3 / ex_mid 仍有 ~80 处手写 `waveTimer`/`waveCount` 壳。  
-> 成功标准：新 mid **默认**走 helper；手写 wave 壳仅允许有注释的特例。
+> 成功标准：新 mid **默认**走 helper；手写 wave 壳仅允许有注释的特例。  
+> **本阶段核心**，按 a→b→c→d1→d2 连做，中间不插 E01/E04。
 
 #### E03a helper 补齐 + s2 / s3 试点
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 完成 |
 | **审查对应** | Issue 2（mid 双系统） |
+| **改动清单** | `_shared.installMidWave` 支持仅 `continuous`（不推进 waveCount）；s3_1/5/6 手写 waveFn 迁 helper；s2 早已全量 installMidWave，无改 |
 | **范围** | |
-| | 1. 视需要扩展 `_shared.js`：`installMidWave` 的 `continuous` 已够用则不扩；若多章同构「雨弹 + 刷怪」，可加薄封装（如 `rainContinuous(opts)`）**但禁止为封装而封装** |
-| | 2. 将 **s2_icebin / s3_dazong** 全部 mid 的手写 wave 迁到 `installMidWave`（行为/间隔/发数不变） |
-| | 3. 可选：测试侧加「s2/s3 mid 的 build 后存在 waveFn」类冒烟（已有全章 build 则可只依赖现网） |
+| | 1. 扩展 `installMidWave`：无 `onWave` 或 `maxWaves<=0` 时只跑 continuous |
+| | 2. **s3_dazong** 全部 mid 手写壳迁完；s2 确认已是 helper |
+| | 3. 单测：仅 continuous 不推进 waveCount |
 | **不做** | 不改 A/B/EX；不改编弹幕数值；不重写 Letter |
 | **验收（自动）** | 全绿；全章 build 冒烟 |
 | **验收（手测）** | 2 面、3 面道中密度与辅压「一直有」；midboss/Boss 可进 |
 | **风险** | 中——迁移时勿把 continuous 再塞进 spawn 门后 |
+| **手测要点** | 3-1 大玉辅压+节点；3-5 横扫激光持续；3-6 精英+重力雨打完精英后**不应提前结束**（靠 duration）；2-2 雨+刷怪并存 |
 
 #### E03b A 线 mid（a4 / a5 / a6）
 
 | | |
 |--|--|
-| **状态** | 待做 |
-| **范围** | `a4_menbailiang.js` / `a5_rival.js` / `a6_yimeige.js` 中全部 mid（及 mid 形态 wave）迁 `installMidWave`；Letter/`pushBossRef` 可不动 |
+| **状态** | 等手测 |
+| **改动清单** | a4 mid_4/6；a5 mid_5/6/8；a6 mid_6/8/10 → continuous-only `installMidWave`；其余 mid 原本已是 helper |
+| **范围** | `a4_menbailiang.js` / `a5_rival.js` / `a6_yimeige.js` 中全部 mid（及 mid 形态 wave）迁 `installMidWave`；Letter/`pushBossRef` 不动 |
 | **不做** | 不调 hp/间隔/颜色；不改对话与章节 id |
 | **验收（自动）** | 全绿 |
 | **验收（手测）** | A4 抽 2 个 mid + midboss；A5/A6 各抽查；辅压与刷怪并存 |
 | **风险** | 中；a6 文件大，可按 mid_1…mid_n 分段改、一次提交 |
+| **手测要点** | A4 mid_4 激光墙+雨持续；A4 mid_6 雨/狙/十字并存；A5 mid_5–8 辅压密度；A6 mid_6/8/10 纯弹幕章不提前结束 |
 
 #### E03c B 线 mid（b4 / b5 / b6）
 
@@ -431,22 +472,51 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 | **验收（手测）** | B4 或 B5 一道中面 |
 | **风险** | 中 |
 
-#### E03d EX mid 拆分 / helper（`ex_mid.js` 优先）
+#### E03d1 EX mid 拆文件（内容不动）
 
 | | |
 |--|--|
 | **状态** | 待做 |
-| **审查对应** | 2026-07-19 远端：`ex_mid.js` ~559→**~1954** 行、62 独立 `mid_*`；Issue 10 |
-| **目标** | 降单文件体量 + wave 壳与主线 helper 对齐；**不改弹幕数值与章顺序** |
-| **建议路径（任选或组合）** | |
-| | 1. 拆文件：`ex_mid_patterns_0_31.js` / `32_61.js` + `ex_mid.js` 只保留 `MID_PATTERNS` 表与 `buildExMid` |
-| | 2. 壳层：手写 `waveTimer/waveCount` 迁 `installMidWave`（`exFire` 间隔仍由调用方传入） |
-| | 3. 可选：按索引段目录 `stages/ex/mid/` |
-| **不做** | 本任务不重设计 62 章内容；不改 `ex_shared` 强度公式（除非纯注释） |
-| **验收（自动）** | 全绿；`MID_PATTERNS.length === 62` 且均可 build 冒烟 |
-| **验收（手测）** | Extra 道中→道中 Boss→van；抽查 mid 前后半段密度 |
-| **风险** | 中高——文件大、易漏 export；宜独立提交、可分步 |
-| **完成定义** | 单文件显著 <1k **或** 分卷后每文件可浏览；grep 主线+EX 手写 wave 壳仅剩特例 |
+| **审查对应** | Issue 10；`ex_mid.js` ~1867+ 行 / 62 `mid_*` |
+| **目标** | 单文件可浏览；**零行为变化** |
+| **范围** | 拆为例如 `ex_mid_0_31.js` + `ex_mid_32_61.js`（或 `stages/ex/mid/`）；`ex_mid.js` 只保留 `MID_PATTERNS` 表、`buildExMid`、re-export |
+| **不做** | 不改编幕数值、章顺序、强度公式；**本步不迁** `installMidWave` |
+| **验收（自动）** | 全绿；`MID_PATTERNS.length === 62`；全 EX mid build 冒烟 |
+| **验收（手测）** | Extra 开局道中 30s + 进道中 Boss 即可（抽查） |
+| **风险** | 中——漏 export / 表漏项；宜独立提交 |
+
+#### E03d2 EX mid 壳迁 `installMidWave`
+
+| | |
+|--|--|
+| **状态** | 待做（**必须在 E03d1 之后**） |
+| **目标** | EX 与主线同一 wave 壳；grep 手写 `waveTimer` 壳仅剩有注释特例 |
+| **范围** | d1 拆出的 pattern 文件内：手写 `waveTimer/waveCount/waveFn` → `installMidWave`；`exFire` 间隔仍由调用方传入 |
+| **不做** | 不改 `ex_shared` 公式；不重设计 62 章内容 |
+| **验收（自动）** | 全绿；`MID_PATTERNS.length === 62` |
+| **验收（手测）** | Extra 道中→道中 Boss→van；抽查前半/后半段 mid 密度 |
+| **风险** | 中——continuous 勿塞进 spawn 门后 |
+| **完成定义（E03 整段）** | 主线+EX 新手写 wave 壳仅特例；EX 每文件可浏览 |
+
+---
+
+### E07 薄 StageContext（关卡契约收窄 · 试点）
+
+| | |
+|--|--|
+| **状态** | 待做（**排在 E03d2 之后**） |
+| **目标** | 关卡不再直接把完整 `Game` 当沙箱；经窄 API 出怪/出弹/挂波次/设 Boss |
+| **严格度** | 中等：包装现有能力，**不**做插件加载器 / 弹幕 DSL |
+| **范围** | |
+| | 1. 新增 `js/stages/stageContext.js`（或 `_shared` 旁）：`asStageContext(game)` → `{ spawnEnemy, spawnBullet, player, installWave, setBoss, raw? }` |
+| | 2. `installWave` 转调 `installMidWave`；`setBoss` 转调 `pushBossRef` / 写 `bossRef` |
+| | 3. **仅 s1** 的 `build` / script 改为用 ctx（`build(g)` 签名可保留：`const ctx = asStageContext(g)`） |
+| | 4. 可选：关卡内减少直接 `acquireBullet`——能走 `spawnAimed` 等则走 patterns；本任务不强行全库清 |
+| **不做** | 不迁 A/B/EX；不改数值；不删 `game.spawn*` 对外 API |
+| **验收（自动）** | 全绿；s1 全章 build 冒烟 |
+| **验收（手测）** | 1 面完整：道中密度、midboss、Alice Letter |
+| **风险** | 中——ctx 漏转发字段会导致 script 读不到 player 等；试点面要打穿 |
+| **后续（不本任务）** | E06b 或 Phase F 再把 A/B/EX 迁到 ctx；patterns 进一步只收 `spawnBullet`+倍率 |
 
 ---
 
@@ -454,7 +524,7 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 待做（**默认排在 E05 之后**；与关卡无关，疲劳时可穿插） |
 | **审查对应** | Issue 3（1081 行） |
 | **目标** | 单一 JS 文件不再 >1000 行；场景 builder 可按面浏览 |
 | **建议结构** | |
@@ -473,11 +543,11 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 待做（**排在 E01 之后**） |
 | **审查对应** | Issue 5（`updateCombat` 内四套结束分支） |
 | **目标** | `evaluateChapterEnd(game, ch, ctx) → null \| { success: boolean, reason: string }`；`updateCombat` 只消费 |
 | **范围** | `gameCombat.js`（或新 `chapterEnd.js`）；覆盖：Letter 超时、duration±bossRef、bossRef.dead、mid+wavesExhausted |
-| **不做** | 不改判定阈值与成功/失败语义；不改 collision |
+| **不做** | 不改判定时机与成功/失败语义；不改 collision |
 | **验收（自动）** | 全绿；**建议**为纯函数加单元测（超时失败 / 击破成功 / 道中耗尽） |
 | **验收（手测）** | Letter 拖满超时失败；击破 boss 成功；纯道中清完提前结束；有 duration 的 midboss 到时 |
 | **风险** | 中——时序（dead 与 purge 先后）必须与现网一致 |
@@ -489,10 +559,10 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 | ID | 题 | 说明 | 状态 |
 |----|----|------|------|
 | E06a | `ui` 设置表单抽离 | `_initSettings` FPS 指针规则 → `settingsForm.js`；UI 只编排 | 待做（可选） |
-| E06b | Letter 内容目录化 | 大面 letter script 迁 `stages/patterns/` 或按 boss 拆文件；**不动数值** | 待做（可选） |
+| E06b | Letter 内容目录化 | 大面 letter 按 boss 拆文件；**不动数值**；可与 StageContext 推广一起做 | 待做（可选·**优先**） |
 | E06c | `playfieldBg` 调色板数据外置 | SKY/THEME/ACCENT 按 mode 数据文件；绘制逻辑不动 | 待做（可选） |
 
-E06* 不阻塞 E01–E05；有产品/内容扩张需求时再拆任务卡。
+E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再开，**优先 E06b**。
 
 ---
 
@@ -510,6 +580,10 @@ E06* 不阻塞 E01–E05；有产品/内容扩张需求时再拆任务卡。
 | 2026-07-19 | T18 | 44/44 | 完成 | `d90192d` 立绘 HIDDEN_OK；Boss 占位表；未知→几何 |
 | 2026-07-19 | Phase E 规划 | — | — | 审查写入 E01–E06；**未开工** |
 | 2026-07-19 | 热修+规划修订 | 45/45 | 等手测 | endFrame/描画 24–240/patrol BGM/难度与 Extend/擦弹紫辉+白粒子；E03d 提权 ex_mid；VERSION 手改 76（commit 后 hook→77） |
+| 2026-07-20 | Phase E 重排拍板 | — | — | 关卡主线优先：E02手测→E03*→E07→E01→E05→E04；E03d 拆 d1/d2；新增 E07 StageContext；**未开工代码** |
+| 2026-07-20 | E02 | — | 完成 | 用户确认手测 OK |
+| 2026-07-20 | E03a | 全绿 | 完成 | installMidWave continuous-only；s3 mid 手写壳清完；s2 已是 helper |
+| 2026-07-20 | E03b | 全绿 | 等手测 | A4/A5/A6 剩余手写 pure-continuous mid 全迁 installMidWave |
 
 ---
 
@@ -521,8 +595,9 @@ E06* 不阻塞 E01–E05；有产品/内容扩张需求时再拆任务卡。
 2. 暂停 / 继续 / 回标题  
 3. 练习模式一章结束 → 重试  
 4. Stage Select 任意 A/B 面进关  
-5. Extra 进关（与 T01/T03/T11 / E03c 相关时必做）  
+5. Extra 进关（E03d / 与 EX 相关时必做）  
 6. 设置改键 / 音量后进关仍有效  
 7. （E02）换面过渡 + 章结算条  
 8. （E04）左栏 Three 换面主题  
-9. （E05）Letter 超时失败 vs 击破成功
+9. （E05）Letter 超时失败 vs 击破成功  
+10. （E07）1 面完整道中 + Alice Letter

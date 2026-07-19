@@ -152,25 +152,28 @@ function chapter_a6_mid_5(g) {
 }
 
 function chapter_a6_mid_6(g) {
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.4) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const y = 70 + (g.waveCount * 30) % 400;
-      spawnHLaser(g, y, g.waveCount % 2 === 0 ? 1 : -1, VIOLET);
-    }
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.18) {
-      g.rainT = 0;
-      spawnGravityRain(g, 1, 'talisman', PINK, 1.4);
-    }
-    g.aimT = (g.aimT || 0) + dt;
-    if (g.aimT > 0.7) {
-      g.aimT = 0;
-      spawnAimedLaser(g, { x: LOGICAL_W / 2, y: 30 }, g.player, PINK_D);
-    }
-  };
+  // 纯辅压：横扫 + 重力雨 + 狙激光
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.4) {
+        game.laserT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const y = 70 + (game.waveCount * 30) % 400;
+        spawnHLaser(game, y, game.waveCount % 2 === 0 ? 1 : -1, VIOLET);
+      }
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.18) {
+        game.rainT = 0;
+        spawnGravityRain(game, 1, 'talisman', PINK, 1.4);
+      }
+      game.aimT = (game.aimT || 0) + dt;
+      if (game.aimT > 0.7) {
+        game.aimT = 0;
+        spawnAimedLaser(game, { x: LOGICAL_W / 2, y: 30 }, game.player, PINK_D);
+      }
+    },
+  });
 }
 
 function chapter_a6_mid_7(g) {
@@ -202,33 +205,35 @@ function chapter_a6_mid_7(g) {
 }
 
 function chapter_a6_mid_8(g) {
-  g.waveFn = (dt) => {
-    g.crossT = (g.crossT || 0) + dt;
-    if (g.crossT > 1.2) {
-      g.crossT = 0;
-      spawnCrossFall(g, { type: 'rice', color: VIOLET, speed: 1.8, lanes: 6 });
-    }
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.35) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const y = (g.waveCount * 36) % 600;
-      spawnHLaser(g, y, g.waveCount % 3 === 0 ? 1 : -1, PINK_D);
-    }
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.16) {
-      g.rainT = 0;
-      for (let i = 0; i < 2; i++) {
-        g.spawnBullet(acquireBullet({
-          x: Math.random() * LOGICAL_W, y: -8,
-          vx: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random(),
-          type: 'talisman', color: PINK, from: 'enemy', gravity: 0.01,
-        }));
+  // 纯辅压：十字落 + 横扫 + 双符雨
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.crossT = (game.crossT || 0) + dt;
+      if (game.crossT > 1.2) {
+        game.crossT = 0;
+        spawnCrossFall(game, { type: 'rice', color: VIOLET, speed: 1.8, columns: 6 });
       }
-    }
-  };
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.35) {
+        game.laserT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const y = (game.waveCount * 36) % 600;
+        spawnHLaser(game, y, game.waveCount % 3 === 0 ? 1 : -1, PINK_D);
+      }
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.16) {
+        game.rainT = 0;
+        for (let i = 0; i < 2; i++) {
+          game.spawnBullet(acquireBullet({
+            x: Math.random() * LOGICAL_W, y: -8,
+            vx: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random(),
+            type: 'talisman', color: PINK, from: 'enemy', gravity: 0.01,
+          }));
+        }
+      }
+    },
+  });
 }
-
 function chapter_a6_mid_9(g) {
   installMidWave(g, {
     interval: 0.55, maxWaves: 14,
@@ -255,36 +260,39 @@ function chapter_a6_mid_9(g) {
 }
 
 function chapter_a6_mid_10(g) {
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.1) {
-      g.rainT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const col = [PINK, VIOLET, PINK_L][g.waveCount % 3];
-      for (let i = 0; i < 2; i++) {
-        g.spawnBullet(acquireBullet({
-          x: Math.random() * LOGICAL_W, y: -10,
-          vx: (Math.random() - 0.5) * 0.8, vy: 2.0 + Math.random() * 0.6,
-          type: 'talisman', color: col, from: 'enemy', gravity: 0.01,
-        }));
-      }
-    }
-    /* H 激光与 aimed 交替，密度接近原双发 */
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.42) {
-      g.laserT = 0;
-      g._a6Alt = ((g._a6Alt || 0) + 1) % 2;
-      if (g._a6Alt === 0) {
-        for (const side of [-1, 1]) {
-          spawnHLaser(g, 80 + ((g.waveCount || 0) * 35) % 380, side, side === -1 ? PINK_D : VIOLET);
-        }
-      } else {
-        for (const side of [-1, 1]) {
-          spawnAimedLaser(g, { x: LOGICAL_W / 2 + side * 70, y: 45 }, g.player, PINK);
+  // 纯辅压：三色符雨 + H/狙激光交替
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.1) {
+        game.rainT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const col = [PINK, VIOLET, PINK_L][game.waveCount % 3];
+        for (let i = 0; i < 2; i++) {
+          game.spawnBullet(acquireBullet({
+            x: Math.random() * LOGICAL_W, y: -10,
+            vx: (Math.random() - 0.5) * 0.8, vy: 2.0 + Math.random() * 0.6,
+            type: 'talisman', color: col, from: 'enemy', gravity: 0.01,
+          }));
         }
       }
-    }
-  };
+      /* H 激光与 aimed 交替，密度接近原双发 */
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.42) {
+        game.laserT = 0;
+        game._a6Alt = ((game._a6Alt || 0) + 1) % 2;
+        if (game._a6Alt === 0) {
+          for (const side of [-1, 1]) {
+            spawnHLaser(game, 80 + ((game.waveCount || 0) * 35) % 380, side, side === -1 ? PINK_D : VIOLET);
+          }
+        } else {
+          for (const side of [-1, 1]) {
+            spawnAimedLaser(game, { x: LOGICAL_W / 2 + side * 70, y: 45 }, game.player, PINK);
+          }
+        }
+      }
+    },
+  });
 }
 
 /* ---------- Boss Letter（强度≈原版，保留 even 缝 / 主题） ---------- */

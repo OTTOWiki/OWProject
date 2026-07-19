@@ -1,5 +1,5 @@
 /**
- * 第3面 · 大宗关（T14：installMidWave + pushBossRef + 章节元数据工厂）
+ * 第3面 · 大宗关（T14 元数据 + E03a：mid 全走 installMidWave）
  */
 import {
   mob, elite, timer, scaleN,
@@ -22,17 +22,20 @@ function chapter_s3_1(g) {
   }, (en, d, game) => {
     timer(en, 'laser', 0.35, d, () => spawnAimedLaser(game, en, game.player, '#fbbf24'));
   }, 'elite');
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.9) {
-      g.rainT = 0;
-      g.spawnBullet(acquireBullet({
-        x: Math.random() * LOGICAL_W, y: -20,
-        vx: (Math.random() - 0.5) * 1.5, vy: 0.8,
-        type: 'large', color: '#fdba74', from: 'enemy', life: 10,
-      }));
-    }
-  };
+  // 仅辅压大玉：不挂 onWave，避免 waveCount 推进误触发 wavesExhausted
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.9) {
+        game.rainT = 0;
+        game.spawnBullet(acquireBullet({
+          x: Math.random() * LOGICAL_W, y: -20,
+          vx: (Math.random() - 0.5) * 1.5, vy: 0.8,
+          type: 'large', color: '#fdba74', from: 'enemy', life: 10,
+        }));
+      }
+    },
+  });
 }
 
 function chapter_s3_2(g) {
@@ -90,15 +93,18 @@ function chapter_s3_4(g) {
 }
 
 function chapter_s3_5(g) {
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.55) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const y = 80 + (g.waveCount * 37) % 400;
-      spawnHLaser(g, y, g.waveCount % 2 === 0 ? 1 : -1, '#f97316');
-    }
-  };
+  // 纯横扫激光：waveCount 仅作图案相位（与历史一致），不走 onWave 刷怪
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.55) {
+        game.laserT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const y = 80 + (game.waveCount * 37) % 400;
+        spawnHLaser(game, y, game.waveCount % 2 === 0 ? 1 : -1, '#f97316');
+      }
+    },
+  });
 }
 
 function chapter_s3_6(g) {
@@ -112,17 +118,20 @@ function chapter_s3_6(g) {
     });
   };
   g.spawnEnemy(e);
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.12) {
-      g.rainT = 0;
-      g.spawnBullet(acquireBullet({
-        x: Math.random() * LOGICAL_W, y: -10,
-        vx: 0, vy: 2.2 + Math.random(),
-        type: 'dot', color: '#fdba74', from: 'enemy', gravity: 0.01,
-      }));
-    }
-  };
+  // 仅重力雨辅压；不推进 helper 的 waveCount，避免精英击破后提前清章
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.12) {
+        game.rainT = 0;
+        game.spawnBullet(acquireBullet({
+          x: Math.random() * LOGICAL_W, y: -10,
+          vx: 0, vy: 2.2 + Math.random(),
+          type: 'dot', color: '#fdba74', from: 'enemy', gravity: 0.01,
+        }));
+      }
+    },
+  });
 }
 
 function chapter_dazong_1(g) {

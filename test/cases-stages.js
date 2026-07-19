@@ -182,6 +182,18 @@ test('installMidWave：continuous 先于 spawn 门控', () => {
   assertEqual(order.join(''), 'ccw'); // continuous + wave
 });
 
+test('installMidWave：仅 continuous 不推进 waveCount（E03a）', () => {
+  const g = { waveTimer: 0, waveCount: 0 };
+  let ticks = 0;
+  installMidWave(g, {
+    continuous: () => { ticks += 1; },
+  });
+  g.waveFn(1);
+  g.waveFn(1);
+  assertEqual(ticks, 2);
+  assertEqual(g.waveCount, 0); // 勿误触发 wrapWaveFn → wavesExhausted
+});
+
 test('第1–3面章节表经工厂后字段完整（T14）', () => {
   const faces = [
     { key: '1', n: 6, firstId: 1, musicMid: 's1_mid', firstBossIdx: 4, letterTime: 40, lastId: 6 },

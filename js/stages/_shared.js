@@ -136,15 +136,22 @@ export function letterChapter(face, row) {
 
 /**
  * 道中 wave 脚手架：continuous 先 tick，再 spawn 门控（避免辅压被 early-return 卡住）
+ *
+ * - 常规：传 `interval` + `maxWaves` + `onWave`（可加 `continuous` 辅压）
+ * - 仅辅压/纯弹幕：只传 `continuous`（或不传 `onWave` / `maxWaves<=0`）——**不**推进 waveCount，
+ *   避免 wrapWaveFn 误判 wavesExhausted 导致「打死精英提前清章」等行为变化
+ *
  * @param {object} g game
- * @param {{ interval: number, maxWaves: number, onWave: (g: object, wave: number) => void, continuous?: (g: object, dt: number) => void }} opts
+ * @param {{ interval?: number, maxWaves?: number, onWave?: (g: object, wave: number) => void, continuous?: (g: object, dt: number) => void }} opts
  */
 export function installMidWave(g, opts) {
-  const { interval, maxWaves, onWave, continuous } = opts;
+  const { interval = 1, maxWaves = 0, onWave, continuous } = opts;
+  const hasWaves = typeof onWave === 'function' && maxWaves > 0;
   g.waveTimer = 0;
   g.waveCount = 0;
   g.waveFn = (dt) => {
     continuous?.(g, dt);
+    if (!hasWaves) return;
     g.waveTimer += dt;
     if (g.waveTimer < interval) return;
     g.waveTimer = 0;
