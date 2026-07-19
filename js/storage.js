@@ -1,6 +1,6 @@
 import {
   DEFAULT_KEYS, DEFAULT_SETTINGS, STORAGE_KEYS,
-  PLAYER_BULLET_OPACITY_MIN, FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
+  PLAYER_BULLET_OPACITY_MIN, FPS_LIMIT_MIN, FPS_LIMIT_CAP,
 } from './config.js';
 
 export function loadKeys() {
@@ -32,26 +32,24 @@ function clampBulletOpacity(v, fallback = DEFAULT_SETTINGS.playerBulletOpacity) 
 }
 
 /**
- * 帧率限制：0 = 无限制；有限时钳制到 24–240
+ * 帧率限制（描画用）：24–60，0 等同于最高（60）
  */
-export function normalizeFpsLimit(v, fallback = DEFAULT_SETTINGS.fpsLimit) {
-  if (v == null || v === '' || v === 'unlimited') return 0;
+export function normalizeFpsLimit(v, fallback = FPS_LIMIT_CAP) {
+  if (v == null || v === '' || v === 'unlimited') return FPS_LIMIT_CAP;
   const n = Math.round(Number(v));
-  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (!Number.isFinite(n) || n <= 0) return FPS_LIMIT_CAP;
   return Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, n));
 }
 
-/** 设置值 → 滑条 DOM 值（无限制 = FPS_SLIDER_UNLIMITED） */
+/** 设置值 → 滑条 DOM 值（现与设置值一致） */
 export function fpsLimitToSlider(fpsLimit) {
-  const n = normalizeFpsLimit(fpsLimit, 0);
-  return n <= 0 ? FPS_SLIDER_UNLIMITED : n;
+  return normalizeFpsLimit(fpsLimit, FPS_LIMIT_CAP);
 }
 
-/** 滑条 DOM 值 → 设置值（最右 = 0 无限制） */
+/** 滑条 DOM 值 → 设置值（与滑条值一致） */
 export function sliderToFpsLimit(sliderVal) {
   const n = Math.round(Number(sliderVal));
-  if (!Number.isFinite(n) || n >= FPS_SLIDER_UNLIMITED) return 0;
-  if (n <= 0) return 0;
+  if (!Number.isFinite(n) || n <= 0) return FPS_LIMIT_CAP;
   return Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, n));
 }
 

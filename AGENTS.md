@@ -93,7 +93,7 @@ js/
   historyScreen.js  # History 构建列表：加载/渲染/焦点/键盘
   historyVersions.js # /api/versions 客户端拉取
   input.js          # 键盘 + 触屏相对滑动 + 虚拟键
-  audio.js          # Web Audio：MIDI JSON 合成 BGM + SFX
+  audio.js          # Web Audio：OGG 播放 + SFX 合成
   backgrounds.js    # 左侧 Three.js 关卡印象
   playfieldBg.js    # 版面伪 3D / 贴图背景
   sprites.js        # 角色/敌人贴图绘制
@@ -102,9 +102,9 @@ js/
 functions/api/      # Cloudflare Pages Functions（History 版本列表等）
 assets/
   bg/ portraits/ sprites/ ui/   # 图片资源
-  midi/*.json                   # 解析后的 MIDI 音符数据（运行时使用）
+  bgm/*.ogg                     # BGM 音频文件（运行时使用）
 tools/
-  parse_midi.py / parse_all_midis.py   # 将 参考/*.mid → assets/midi/*.json
+  parse_midi.py / parse_all_midis.py   # 将 参考/*.mid → 过时 MIDI JSON（已不启用）
 参考/               # 源 MIDI + 过时设计稿等（不直接在运行时加载）
   需求.txt          # 早期产品/关卡草稿（已过时，仅供参考，非权威）
 ```
@@ -181,9 +181,9 @@ tools/
 
 ### 音频
 
-- 运行时读 `assets/midi/*.json`（非 wav/mp3），用 Web Audio 合成
-- 映射：`MUSIC_FILE_MAP` / `trackForStage(stageId, isBoss)` in `audio.js`
-- 新增曲目：源 mid 放 `参考/` → `tools/parse_all_midis.py` → 更新 `manifest.json` 与 `MUSIC_FILE_MAP`
+- 运行时读 OGG 文件（`assets/bgm/*.ogg`），用 Web Audio 解码播放
+- 映射：`AUDIO_FILE_MAP` / `trackForStage(stageId, isBoss)` in `audio.js`
+- 新增曲目：OGG 放 `assets/bgm/` → 更新 `AUDIO_FILE_MAP`
 
 ### 视觉
 
@@ -316,10 +316,9 @@ node tools/inject-deploy-hash.mjs abcdef0
 | 改碰撞/Bomb/擦弹 | `collision.js` / `game.js` |
 | 改菜单流程 | `ui.js` + `index.html` |
 | 改设置/键位 | `ui.js` + `storage.js` + `config.js` |
-| 改 BGM 映射 | `audio.js` + `assets/midi/` |
+| 改 BGM 映射 | `audio.js` |
 | 改左侧 3D 场景 | `backgrounds.js` |
 | 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/`（见下「立绘/Boss 贴图策略」） |
-| 重新解析 MIDI | `tools/parse_all_midis.py` |
 | 发版 / 升版本号 | `VERSION_NAME` + pre-commit 自动 `VERSION++`；CF `pages:build` 注入 hash；tag `vX.Y.Z` |
 | 启用 commit 自动构建号 | `npm run hooks:install`（见上文「首次克隆」） |
 | 跑自动化测试 | 本地 HTTP 打开 `/test/`（见上文） |

@@ -1,34 +1,29 @@
 /**
- * BGM：参考文件夹 MIDI × 干净电子音色
- * （去掉失真箱体链，恢复方波/三角/正弦叠层）
+ * BGM + SFX：仅音频文件（OGG）播放
  */
 
-const m2f = (m) => 440 * 2 ** ((m - 69) / 12);
-
-/** 关卡 music id → JSON 文件 id */
-export const MUSIC_FILE_MAP = {
-  s1_mid: 'th08_05',
-  s1_boss: 'th08_09',
-  s2_mid: 'th08_16',
-  s2_boss: 'th08_10',
-  s3_mid: 'th12_08',
-  s3_boss: 'th08_15',
-  patrol: 'th10_11',
-  a4_mid: 'th10_10',
-  a4_boss: 'th10_13',
-  a5_mid: 'th11_09',
-  a5_boss: 'th11_15',
-  a6_mid: 'th08_18',
-  a6_boss: 'th08_15',
-  b4_mid: 'th12_08',
-  b4_boss: 'th08_10',
-  b5_mid: 'th11_09',
-  b5_boss: 'th10_13',
-  b6_mid: 'th08_18',
-  b6_boss: 'th11_15',
-  ex_mid: 'th08_18',
-  ex_boss: 'th11_15',
-  default: 'th08_05',
+/** 音频文件映射：musicId → OGG 文件路径 */
+export const AUDIO_FILE_MAP = {
+  s1_mid: 'assets/bgm/押っ開かれた火蓋 ～ Slow Starter.ogg',
+  s1_boss: 'assets/bgm/真夏の妖精の夢.ogg',
+  s2_mid: 'assets/bgm/押っ開かれた火蓋 ～ Slow Starter.ogg',
+  s2_boss: 'assets/bgm/イントゥ・バックドア.ogg',
+  s3_mid: 'assets/bgm/プレステ・ジョアンの黄金境.ogg',
+  s3_boss: 'assets/bgm/どうせなら命を賭けて謎を解け.ogg',
+  a4_mid: 'assets/bgm/Dr.レイテンシーの眠れなくなる瞳.ogg',
+  a4_boss: 'assets/bgm/摘苹果.ogg',
+  a5_mid: 'assets/bgm/進まねばならぬ道.ogg',
+  a5_boss: 'assets/bgm/天空のグリニッジ.ogg',
+  a6_mid: 'assets/bgm/振り向かない黄泉の道.ogg',
+  a6_boss: 'assets/bgm/最後の一人は慣れてるから　〜 Stone Goddess.ogg',
+  b4_mid: 'assets/bgm/小鳥達の黒羽焚き.ogg',
+  b4_boss: 'assets/bgm/弹舌.ogg',
+  b5_mid: 'assets/bgm/記憶の深海に沈む少女.ogg',
+  b5_boss: 'assets/bgm/二枚貝の上のハルシネーション.ogg',
+  b6_mid: 'assets/bgm/逸脱者達の無礙光 ～ Kingdom of Nothingness..ogg',
+  b6_boss: 'assets/bgm/秘匿されたフォーシーズンズ.ogg',
+  ex_mid: 'assets/bgm/妖怪裏参道.ogg',
+  ex_boss: 'assets/bgm/輝く針の小人族　～ Little Princess.ogg',
 };
 
 export class AudioEngine {
@@ -39,31 +34,19 @@ export class AudioEngine {
     this.musicGain = null;
     this.sfxGain = null;
     this.enabled = true;
-    /** 用户音乐音量 0–1（默认 1 = 100%） */
     this.musicVolume = 1;
-    /** BGM bus 基准增益（再乘 musicVolume） */
     this._musicBaseGain = 0.48;
     this.currentId = null;
-    this._timer = null;
-    this._notes = null;
-    this._cursor = 0;
-    this._loopDur = 0;
-    this._origin = 0;
-    this._loopIndex = 0;
-    this._ahead = 0.28;
-    this._cache = new Map();
-    this._loading = new Map();
+
+    this._audioSourceNode = null;
+    this._audioBufferCache = new Map();
+    this._audioBufferLoading = new Map();
   }
 
-  /** 当前应输出的 BGM 增益 */
   _musicTargetGain() {
     return Math.max(1e-4, this._musicBaseGain * Math.max(0, Math.min(1, this.musicVolume)));
   }
 
-  /**
-   * 设置音乐音量（0–1）。可在播放中即时生效。
-   * @param {number} v
-   */
   setMusicVolume(v) {
     this.musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
     if (!this.ctx || !this.musicGain || !this.currentId) return;
@@ -103,7 +86,6 @@ export class AudioEngine {
     this.musicGain.gain.value = this._musicTargetGain();
     this.musicGain.connect(this.comp);
 
-    // 轻延迟（电子空间感）
     const delay = this.ctx.createDelay(1);
     delay.delayTime.value = 0.22;
     const fb = this.ctx.createGain();
@@ -121,71 +103,37 @@ export class AudioEngine {
     dlp.connect(this.comp);
   }
 
-  async loadSoundfonts() {
-    await this.ensure();
-    return this.loadTrackData('s1_mid');
-  }
-
-  async loadMidiNotes() {
-    return this.loadTrackData('s1_mid');
-  }
-
-  fileIdFor(musicId) {
-    return MUSIC_FILE_MAP[musicId] || MUSIC_FILE_MAP.default;
-  }
-
-  /**
-   * 将已解析的 MIDI JSON 写入缓存（供启动预载复用，避免二次 fetch）
-   * @param {string} fileId assets/midi 文件名（无扩展名）
-   * @param {object} data
-   */
-  cacheMidiData(fileId, data) {
-    if (!fileId || !data || this._cache.has(fileId)) {
-      return this._cache.get(fileId) || null;
-    }
-    const notes = data.notes || [];
-    let end = data.duration || 0;
-    if (!end) {
-      for (const n of notes) end = Math.max(end, n.t + n.d);
-    }
-    const pack = {
-      fileId,
-      notes,
-      duration: Math.max(20, end + 0.6),
-      source: data.source || fileId,
-    };
-    this._cache.set(fileId, pack);
-    return pack;
-  }
-
-  async loadTrackData(musicId) {
-    const fileId = this.fileIdFor(musicId);
-    if (this._cache.has(fileId)) return this._cache.get(fileId);
-    if (this._loading.has(fileId)) return this._loading.get(fileId);
+  async loadAudioBuffer(musicId) {
+    const path = AUDIO_FILE_MAP[musicId];
+    if (!path) return null;
+    if (this._audioBufferCache.has(path)) return this._audioBufferCache.get(path);
+    if (this._audioBufferLoading.has(path)) return this._audioBufferLoading.get(path);
 
     const p = (async () => {
-      const url = `assets/midi/${fileId}.json`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`MIDI JSON load fail: ${url}`);
-      const data = await res.json();
-      const pack = this.cacheMidiData(fileId, data);
-      console.info(`[audio] ${fileId}: ${pack.notes.length} notes, ${pack.duration.toFixed(1)}s`);
-      return pack;
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`Audio file load fail: ${path}`);
+      const arrayBuf = await res.arrayBuffer();
+      const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
+      this._audioBufferCache.set(path, audioBuf);
+      return audioBuf;
     })();
-    this._loading.set(fileId, p);
+    this._audioBufferLoading.set(path, p);
     try {
       return await p;
     } finally {
-      this._loading.delete(fileId);
+      this._audioBufferLoading.delete(path);
     }
   }
 
   stopMusic(fade = 0.4) {
     if (!this.ctx) return;
-    if (this._timer) {
-      clearInterval(this._timer);
-      this._timer = null;
+
+    if (this._audioSourceNode) {
+      try { this._audioSourceNode.stop(); } catch (_) {}
+      this._audioSourceNode.disconnect();
+      this._audioSourceNode = null;
     }
+
     if (this.musicGain) {
       const t = this.ctx.currentTime;
       this.musicGain.gain.cancelScheduledValues(t);
@@ -193,9 +141,6 @@ export class AudioEngine {
       this.musicGain.gain.linearRampToValueAtTime(1e-4, t + fade);
     }
     this.currentId = null;
-    this._notes = null;
-    this._cursor = 0;
-    this._loopIndex = 0;
   }
 
   async playTrack(id) {
@@ -204,111 +149,33 @@ export class AudioEngine {
     const musicId = id || 's1_mid';
     if (this.currentId === musicId) return;
 
-    let pack;
-    try {
-      pack = await this.loadTrackData(musicId);
-    } catch (e) {
-      console.error(e);
-      pack = await this.loadTrackData('s1_mid');
-    }
+    if (!AUDIO_FILE_MAP[musicId]) return;
 
     this.stopMusic(0.25);
+
+    let audioBuf;
+    try {
+      audioBuf = await this.loadAudioBuffer(musicId);
+    } catch (e) {
+      console.warn(`[audio] failed to load '${musicId}'`, e);
+      return;
+    }
+    if (!audioBuf) return;
+
     this.currentId = musicId;
-    this._notes = pack.notes;
-    this._loopDur = pack.duration;
-    this._cursor = 0;
-    this._loopIndex = 0;
 
     const now = this.ctx.currentTime;
-    try {
-      this.musicGain.disconnect();
-    } catch {}
+    try { this.musicGain.disconnect(); } catch (_) {}
     this._wireMusicBus();
     this.musicGain.gain.setValueAtTime(1e-4, now);
     this.musicGain.gain.linearRampToValueAtTime(this._musicTargetGain(), now + 0.6);
 
-    this._origin = now + 0.12;
-    this._timer = setInterval(() => this._scheduler(), 18);
-    this._prefetchNeighbors(musicId);
-  }
-
-  _prefetchNeighbors(musicId) {
-    const ids = Object.keys(MUSIC_FILE_MAP);
-    const i = ids.indexOf(musicId);
-    for (const id of [ids[i + 1], ids[i + 2], 's1_boss'].filter(Boolean)) {
-      this.loadTrackData(id).catch(() => {});
-    }
-  }
-
-  _scheduler() {
-    if (!this._notes || !this.currentId) return;
-    const now = this.ctx.currentTime;
-    const look = now + this._ahead;
-
-    while (this._cursor < this._notes.length) {
-      const n = this._notes[this._cursor];
-      const when = this._origin + this._loopIndex * this._loopDur + n.t;
-      if (when > look) break;
-      if (when + n.d > now - 0.04) {
-        this._playNote(when, n.n, n.d, (n.v || 80) / 127);
-      }
-      this._cursor++;
-    }
-
-    if (this._cursor >= this._notes.length) {
-      const loopEnd = this._origin + (this._loopIndex + 1) * this._loopDur;
-      if (now + this._ahead >= loopEnd - 0.05) {
-        this._loopIndex++;
-        this._cursor = 0;
-      }
-    }
-  }
-
-  /**
-   * 干净电子音色：
-   * 低音 sine+triangle；中高音 square+triangle+sine 八度
-   */
-  _playNote(time, midi, dur, vel = 0.6) {
-    const ctx = this.ctx;
-    const freq = m2f(midi);
-    const isBass = midi < 52;
-
-    const out = ctx.createGain();
-    const filt = ctx.createBiquadFilter();
-    filt.type = 'lowpass';
-    filt.frequency.setValueAtTime(isBass ? 1000 : midi >= 72 ? 4500 : 3000, time);
-    filt.Q.value = 0.7;
-
-    if (isBass) {
-      this._osc(time, freq, dur, 'sine', 0.38 * vel, out);
-      this._osc(time, freq, dur, 'triangle', 0.16 * vel, out);
-    } else {
-      this._osc(time, freq, dur, 'square', 0.14 * vel, out);
-      this._osc(time, freq, dur, 'triangle', 0.22 * vel, out);
-      this._osc(time, freq * 2, dur * 0.8, 'sine', 0.07 * vel, out);
-    }
-
-    const peak = 0.55 * Math.min(1, vel + 0.12);
-    out.gain.setValueAtTime(1e-4, time);
-    out.gain.linearRampToValueAtTime(peak, time + 0.012);
-    out.gain.linearRampToValueAtTime(peak * 0.72, time + Math.min(0.1, dur * 0.28));
-    out.gain.setValueAtTime(peak * 0.55, time + Math.max(0.05, dur - 0.07));
-    out.gain.exponentialRampToValueAtTime(1e-4, time + dur + 0.05);
-
-    out.connect(filt);
-    filt.connect(this.musicGain);
-  }
-
-  _osc(time, freq, dur, type, gain, dest) {
-    const osc = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, time);
-    g.gain.value = gain;
-    osc.connect(g);
-    g.connect(dest);
-    osc.start(time);
-    osc.stop(time + dur + 0.08);
+    const src = this.ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.loop = true;
+    src.connect(this.musicGain);
+    src.start(now);
+    this._audioSourceNode = src;
   }
 
   async sfx(type) {
@@ -392,7 +259,3 @@ export function trackForStage(stageId, isBoss) {
   const pair = map[stageId] || map[1];
   return isBoss ? pair[1] : pair[0];
 }
-
-export const TRACKS = Object.fromEntries(
-  Object.keys(MUSIC_FILE_MAP).map((k) => [k, true])
-);

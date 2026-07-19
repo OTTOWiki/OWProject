@@ -129,6 +129,7 @@ input, select, textarea {
   background:
     radial-gradient(ellipse at 50% 0%, #2a1840 0%, transparent 55%),
     radial-gradient(ellipse at 80% 100%, #1a1028 0%, var(--bg) 60%);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 .screen.active { display: flex; }
 
@@ -736,7 +737,7 @@ input, select, textarea {
   background: #06050a;
   align-items: stretch;
   justify-content: stretch;
-  padding: 0;
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 /* 结局故事：全屏空白 + 对话，无左右栏/版面装饰 */
 #screen-game.ending-cinematic {
@@ -1227,7 +1228,7 @@ input, select, textarea {
   display: none;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.45rem;
-  padding-top: 0.75rem;
+  padding: 0.75rem 0 env(safe-area-inset-bottom, 0);
   border-top: 1px solid rgba(92,74,46,.55);
   margin-top: auto;
   position: relative;
@@ -1257,6 +1258,9 @@ input, select, textarea {
   user-select: none;
   position: relative;
   z-index: 31;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .touch-btn:active, .touch-btn.active {
   background: #2a2040;
@@ -1433,7 +1437,7 @@ input, select, textarea {
 
 @media (max-width: 820px) {
   .game-layout {
-    grid-template-columns: 0 1fr minmax(100px, 28vw);
+    grid-template-columns: 0 1fr minmax(130px, 30vw);
   }
   .panel-left { display: none; }
 }
@@ -1446,10 +1450,10 @@ input, select, textarea {
   .panel-right {
     border-left: none;
     border-top: 1px solid var(--border);
-    max-height: 38vh;
+    max-height: 50vh;
+    overflow-y: auto;
   }
   .stat-block { flex-direction: row; flex-wrap: wrap; gap: 0.4rem 1rem; }
   .stat-row { min-width: 40%; }
-  .touch-keys { padding-bottom: env(safe-area-inset-bottom, 0); }
   .player-cards { grid-template-columns: 1fr; }
 }

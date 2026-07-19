@@ -35,7 +35,7 @@ python -m http.server 8080
 - 前三面 + 中立拦截 + A/B 线 4–6 面 + EX + 双结局
 - **Stage Select 全开放**（不锁关；进度仍可能写入 localStorage，仅作记录）
 - 章节 Perfect ×1.05、擦弹编辑度、决死 Bomb、Unstable Machine、阵营倾向
-- 左侧 Three.js 关卡印象；BGM 为 **MIDI JSON + Web Audio 合成**（`assets/midi/*.json`）
+- 左侧 Three.js 关卡印象；BGM 为 **OGG 音频文件**（`assets/bgm/*.ogg`）
 - 高分 / 键位 / 设置 localStorage 存档
 - History 版本列表依赖 Cloudflare Pages Functions（`functions/api/`），本地纯静态时可能不可用
 
@@ -49,7 +49,7 @@ js/
   stages/          # 各面章节（index.js 聚合）
   ui.js audio.js backgrounds.js storage.js ...
 test/              # 零依赖自动化测试
-assets/            # 贴图 + midi JSON
+assets/            # 贴图 + OGG
 tools/             # MIDI 解析脚本
 functions/api/     # Cloudflare Functions
 参考/              # 源 MIDI 与过时设计稿

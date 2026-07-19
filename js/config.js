@@ -26,9 +26,7 @@ export const PLAYER_BULLET_OPACITY_MIN = 0.1;
  * - 最右一格：无限制（仅鼠标拖到 / Z·Enter 切换，键盘加减到不了）
  */
 export const FPS_LIMIT_MIN = 24;
-export const FPS_LIMIT_CAP = 240;
-/** 滑条 DOM 最大值：表示无限制（存档 fpsLimit=0） */
-export const FPS_SLIDER_UNLIMITED = 241;
+export const FPS_LIMIT_CAP = 60;
 
 /** 玩家设置默认值 */
 export const DEFAULT_SETTINGS = {
@@ -174,13 +172,13 @@ export const DIFFICULTIES = {
     rank: 'EASY',
     color: '#60a5fa',
     desc: '弹速慢 · 密度低 · 适合熟悉操作',
-    enemyHp: 0.6,
+    enemyHp: 1.0,
     bulletSpeed: 0.78,
     fireInterval: 1.45,   // >1 开火更慢
     spawnMul: 1.35,       // >1 刷怪更慢
     bulletCount: 0.65,
-    startLives: 4,
-    startBombs: 4,
+    startLives: 2,
+    startBombs: 3,
     deathBombWindow: 0.28,
     grazeMul: 1.35,
     scoreMul: 0.5,
@@ -218,13 +216,13 @@ export const DIFFICULTIES = {
     rank: 'HARD',
     color: '#fbbf24',
     desc: '弹幕加密 · 血量提升 · 资源偏紧',
-    enemyHp: 1.4,
+    enemyHp: 1.0,
     bulletSpeed: 1.28,
     fireInterval: 0.72,
     spawnMul: 0.78,
     bulletCount: 1.25,
     startLives: 2,
-    startBombs: 2,
+    startBombs: 3,
     deathBombWindow: 0.15,
     grazeMul: 0.9,
     scoreMul: 1.5,
@@ -240,13 +238,13 @@ export const DIFFICULTIES = {
     rank: 'LUNATIC',
     color: '#f87171',
     desc: '极限弹速与密度 · 仅限高手',
-    enemyHp: 1.85,
+    enemyHp: 1.0,
     bulletSpeed: 1.55,
     fireInterval: 0.55,
     spawnMul: 0.62,
     bulletCount: 1.5,
-    startLives: 1,
-    startBombs: 2,
+    startLives: 2,
+    startBombs: 3,
     deathBombWindow: 0.12,
     grazeMul: 0.8,
     scoreMul: 2.0,

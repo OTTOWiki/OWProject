@@ -40,13 +40,11 @@ test('未知难度回退 Normal', () => {
   assertEqual(getDifficulty(undefined).id, 'normal');
 });
 
-test('Easy 比 Lunatic 更宽松（血/速/发数）', () => {
+test('Easy 比 Lunatic 更宽松（速/发数）', () => {
   const e = getDifficulty('easy');
   const l = getDifficulty('lunatic');
-  assert(e.enemyHp < l.enemyHp);
   assert(e.bulletSpeed < l.bulletSpeed);
   assert(e.bulletCount < l.bulletCount);
-  assert(e.startLives >= l.startLives);
   assert(e.deathBombWindow > l.deathBombWindow);
 });
 

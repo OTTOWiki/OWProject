@@ -56,10 +56,12 @@ export class Game {
     this._lastBgMode = null;
     const initSettings = loadSettings();
     this.playerBulletOpacity = initSettings.playerBulletOpacity;
-    /** 0 = 不限制；>0 为目标 FPS 上限 */
-    this.fpsLimit = initSettings.fpsLimit || 0;
-    /** 限帧时间银行（ms），累加 rAF 间隔后按 1000/cap 扣款 */
+    /** 描画帧率上限（24–60；仅限描画，不影响逻辑） */
+    this.fpsLimit = initSettings.fpsLimit || 60;
+    /** 逻辑步进银行（ms），累加 rAF 间隔后按固定 60fps 扣款 */
     this._fpsBankMs = 0;
+    /** 描画节流累计时间（s），累加逻辑 dt 后按 1/fpsLimit 扣款 */
+    this._drawAccum = 0;
     this._hudCache = createHudCache();
     this.playerBullets = [];
     this.enemyBullets = [];
@@ -83,13 +85,7 @@ export class Game {
   applySettings(settings) {
     const s = settings || loadSettings();
     this.playerBulletOpacity = s.playerBulletOpacity ?? 0.3;
-    const nextCap = Number(s.fpsLimit) > 0 ? Math.round(Number(s.fpsLimit)) : 0;
-    if (nextCap !== this.fpsLimit) {
-      this.fpsLimit = nextCap;
-      this._fpsBankMs = 0;
-    } else {
-      this.fpsLimit = nextCap;
-    }
+    this.fpsLimit = s.fpsLimit || 60;
     this.input.applySettings(s);
     this.audio.setMusicVolume(s.musicVolume ?? 1);
   }
@@ -324,93 +320,83 @@ export class Game {
 
   _loop(t) {
     if (!this.running) return;
-    // 先挂下一帧，避免中途 return 断链
     this.raf = requestAnimationFrame((nt) => this._loop(nt));
 
     if (!this.lastT) this.lastT = t;
     const elapsedMs = Math.max(0, t - this.lastT);
     this.lastT = t;
 
-    const cap = this.fpsLimit > 0 ? this.fpsLimit : 0;
-    let dt;
+    // ---- 逻辑推进：固定 60fps（判定/碰撞/刷怪/物理） ----
+    const LOGIC_FRAME_MS = 1000 / 60;
+    this._fpsBankMs += elapsedMs;
+    if (this._fpsBankMs > LOGIC_FRAME_MS * 4) this._fpsBankMs = LOGIC_FRAME_MS * 4;
 
-    if (cap > 0) {
-      const frameMs = 1000 / cap;
-      const frameDt = 1 / cap;
-      this._fpsBankMs += elapsedMs;
-      // 防止切后台后一次补太多帧
-      if (this._fpsBankMs > frameMs * 4) this._fpsBankMs = frameMs * 4;
-
-      if (this._fpsBankMs < frameMs * 0.92) {
-        // 未攒够一帧：不推进逻辑（避免半帧抖动）
-        return;
-      }
-
-      // 可追上最多 3 个逻辑步，合并为一次 update（保持墙钟时间）
-      let steps = 0;
-      while (this._fpsBankMs >= frameMs * 0.92 && steps < 3) {
-        this._fpsBankMs -= frameMs;
-        steps++;
-      }
-      if (this._fpsBankMs < 0) this._fpsBankMs = 0;
-      dt = Math.min(0.05, frameDt * Math.max(1, steps));
-    } else {
-      this._fpsBankMs = 0;
-      dt = Math.min(0.05, elapsedMs / 1000);
+    let steps = 0;
+    while (this._fpsBankMs >= LOGIC_FRAME_MS * 0.92 && steps < 3) {
+      this._fpsBankMs -= LOGIC_FRAME_MS;
+      steps++;
     }
 
-    // Debug 整体加速（只乘逻辑 dt；不改变 rAF 本身）
-    const dbgScale = getDebugTimeScale();
-    if (dbgScale !== 1) {
-      dt *= dbgScale;
-      // 加速时放宽单帧上限，避免 5× 时被 0.05 卡成「并没快多少」
-      const capDt = 0.05 * Math.max(1, dbgScale);
-      if (dt > capDt) dt = capDt;
-    }
+    if (steps > 0) {
+      let dt = (1 / 60) * steps;
 
-    // 帧率统计（仅统计实际推进的逻辑帧）
-    if (this._fpsLastT != null) {
-      const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
-      this._fpsFrames += 1;
-      this._fpsAccum += rawDt;
-      if (this._fpsAccum >= 0.5) {
-        this._fps = Math.round(this._fpsFrames / this._fpsAccum);
-        this._fpsFrames = 0;
-        this._fpsAccum = 0;
+      const dbgScale = getDebugTimeScale();
+      if (dbgScale !== 1) {
+        dt *= dbgScale;
+        const capDt = 0.05 * Math.max(1, dbgScale);
+        if (dt > capDt) dt = capDt;
       }
-    }
-    this._fpsLastT = t;
 
-    try {
-      this._handleGlobalInput();
-      // 章间推进用游戏时间；暂停冻结（见 _scheduleAdvance）
-      if (!this.paused) this._tickAdvance(dt);
-      if (this.state === 'stageTransit' && !this.paused) {
-        this._updateStageTransit(dt);
-      } else if (this.state === 'playing' && !this.paused) {
-        this._update(dt);
-      }
-      debugTick();
-      // 背景始终滚动（对话/过渡时也缓慢前推）
-      const bgMul = this.paused ? 0
-        : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
-          : 1;
-      this.playBg?.update(dt * bgMul);
-      this._draw();
-      this.background?.setTendency(this.totalTendency);
-      this.background?.update();
-      this.input.endFrame();
-    } catch (err) {
-      console.error('[game loop]', err);
-      // 保底：避免异常后 rAF 断链导致版面永久黑屏
-      try {
-        if (this.ctx) {
-          this.ctx.fillStyle = '#0c1018';
-          this.ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
-          if (this.player) drawPlayer(this.ctx, this.player);
-          this._drawFps(this.ctx);
+      // 帧率统计（逻辑/描画同步帧）
+      if (this._fpsLastT != null) {
+        const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
+        this._fpsFrames += 1;
+        this._fpsAccum += rawDt;
+        if (this._fpsAccum >= 0.5) {
+          this._fps = Math.round(this._fpsFrames / this._fpsAccum);
+          this._fpsFrames = 0;
+          this._fpsAccum = 0;
         }
-      } catch (_) { /* ignore */ }
+      }
+      this._fpsLastT = t;
+
+      try {
+        this._handleGlobalInput();
+        if (!this.paused) this._tickAdvance(dt);
+        if (this.state === 'stageTransit' && !this.paused) {
+          this._updateStageTransit(dt);
+        } else if (this.state === 'playing' && !this.paused) {
+          this._update(dt);
+        }
+        debugTick();
+      } catch (err) {
+        console.error('[game loop]', err);
+        try {
+          if (this.ctx) {
+            this.ctx.fillStyle = '#0c1018';
+            this.ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+            if (this.player) drawPlayer(this.ctx, this.player);
+            this._drawFps(this.ctx);
+          }
+        } catch (_) { /* ignore */ }
+      }
+
+      // ---- 描画节流（按 fpsLimit 跳帧） ----
+      this._drawAccum += dt;
+      const drawInt = 1 / Math.max(24, Math.min(60, this.fpsLimit || 60));
+      if (this._drawAccum >= drawInt * 0.92) {
+        this._drawAccum -= drawInt;
+        if (this._drawAccum < 0) this._drawAccum = 0;
+
+        const bgMul = this.paused ? 0
+          : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
+            : 1;
+        this.playBg?.update(dt * bgMul);
+        this._draw();
+        this.background?.setTendency(this.totalTendency);
+        this.background?.update();
+        this.input.endFrame();
+      }
     }
   }
 

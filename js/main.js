@@ -2,7 +2,7 @@
  * OWProject — 入口
  */
 import { Input } from './input.js';
-import { AudioEngine, MUSIC_FILE_MAP } from './audio.js';
+import { AudioEngine, AUDIO_FILE_MAP } from './audio.js';
 import { StageBackground } from './backgrounds.js';
 import { Game } from './game.js';
 import { UI } from './ui.js';
@@ -41,7 +41,7 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * 预载贴图 + MIDI。MIDI 直接写入 AudioEngine 缓存，开局播歌不再二次 fetch。
+ * 预载贴图 + OGG。AudioBuffer 直接写入引擎缓存，开局播歌不再二次 fetch。
  * @param {import('./audio.js').AudioEngine} [audio]
  */
 async function preloadAll(audio) {
@@ -50,9 +50,9 @@ async function preloadAll(audio) {
     ...getSpritePaths(),
     ...getPlayfieldBgPaths(),
   ])];
-  const midiIds = [...new Set(Object.values(MUSIC_FILE_MAP))];
+  const audioFilePaths = [...new Set(Object.values(AUDIO_FILE_MAP).filter(Boolean))];
 
-  const total = Math.max(1, imagePaths.length + midiIds.length);
+  const total = Math.max(1, imagePaths.length + audioFilePaths.length);
   let loaded = 0;
 
   const step = () => {
@@ -83,28 +83,31 @@ async function preloadAll(audio) {
     }));
   }
 
-  for (const fileId of midiIds) {
-    const path = `assets/midi/${fileId}.json`;
+  // 预载音频文件（OGG）
+  for (const path of audioFilePaths) {
     const ac = new AbortController();
-    let midiDone = false;
-    const stepMidi = () => {
-      if (midiDone) return;
-      midiDone = true;
-      clearTimeout(timer);
+    let audioDone = false;
+    const stepAudio = () => {
+      if (audioDone) return;
+      audioDone = true;
+      clearTimeout(audioTimer);
       step();
     };
-    const timer = setTimeout(() => { ac.abort(); stepMidi(); }, 8000);
+    const audioTimer = setTimeout(() => { ac.abort(); stepAudio(); }, 10000);
     tasks.push(
       fetch(path, { signal: ac.signal })
-        .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then((data) => {
-          audio?.cacheMidiData?.(fileId, data);
-          stepMidi();
-        }, () => stepMidi())
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+        .then((buf) => audio?.ctx?.decodeAudioData(buf))
+        .then((decoded) => {
+          if (decoded && audio) {
+            audio._audioBufferCache.set(path, decoded);
+          }
+          stepAudio();
+        }, () => stepAudio())
     );
   }
 
-  await withTimeout(Promise.all(tasks), 15000);
+  await withTimeout(Promise.all(tasks), 30000);
   setLoadProgress(100, PRAYING);
 }
 
@@ -119,9 +122,12 @@ function dismissLoadScreen() {
 async function boot() {
   setLoadProgress(0, PRAYING);
 
-  // Audio 先于预载创建，使 MIDI JSON 直接进引擎缓存
+  // Audio 先于预载创建，使 OGG Buffer 直接进引擎缓存
   const audio = new AudioEngine();
   const input = new Input();
+
+  // 初始化 AudioContext 以供后续预载 decodeAudioData 使用
+  await audio.ensure();
 
   try {
     await preloadAll(audio);

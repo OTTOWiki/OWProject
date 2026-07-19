@@ -9,10 +9,9 @@ import {
 import { rebuildBulletLists } from './collision.js';
 import { drawChapterBanner } from './hud.js';
 
-/** 版面左上角帧率（限帧时显示 实际/目标） */
+/** 版面左上角帧率（描画帧） */
 export function drawFps(game, ctx) {
   const fps = game._fps || 0;
-  const cap = game.fpsLimit > 0 ? game.fpsLimit : 0;
   ctx.save();
   ctx.globalAlpha = 0.75;
   ctx.font = 'bold 12px ui-monospace, Consolas, monospace';
@@ -21,9 +20,8 @@ export function drawFps(game, ctx) {
   ctx.lineWidth = 3;
   ctx.strokeStyle = 'rgba(0,0,0,0.55)';
   ctx.fillStyle = fps > 0 && fps < 50 ? '#fbbf24' : '#e2e8f0';
-  const label = cap > 0 ? `${fps}/${cap} FPS` : `${fps} FPS`;
-  ctx.strokeText(label, 8, 8);
-  ctx.fillText(label, 8, 8);
+  ctx.strokeText(`${fps} FPS`, 8, 8);
+  ctx.fillText(`${fps} FPS`, 8, 8);
   ctx.restore();
 }
 

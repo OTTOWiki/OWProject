@@ -142,7 +142,7 @@
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">Settings · 设置</h2>
-          <p class="keys-hint">↑↓ 移动 · ←→ 调值 · Z/Enter 确认 · 帧率：←→调数值 · Z切换无限制 · 拖最右=无限制</p>
+          <p class="keys-hint">↑↓ 移动 · ←→ 调值 · Z/Enter 确认 · Esc/X 返回</p>
           <div class="settings-form" id="settings-form">
             <label class="settings-row">
               <span class="settings-label">音乐音量</span>
@@ -159,10 +159,10 @@
               </div>
             </label>
             <label class="settings-row">
-              <span class="settings-label">帧率限制</span>
+              <span class="settings-label">描画帧率上限</span>
               <div class="settings-control">
-                <input type="range" id="set-fps-limit" min="24" max="241" step="1" value="241" aria-label="帧率限制" />
-                <span class="settings-value" id="set-fps-limit-val">无限制</span>
+                <input type="range" id="set-fps-limit" min="24" max="60" step="1" value="60" aria-label="描画帧率上限" />
+                <span class="settings-value" id="set-fps-limit-val">60 FPS</span>
               </div>
             </label>
             <label class="settings-row check">
