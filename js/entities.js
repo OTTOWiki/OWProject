@@ -28,7 +28,18 @@ export class Bullet {
     this.spin = opts.spin || 0;
     this.homing = opts.homing || 0;
     this.delay = opts.delay || 0;
-    this.laserLen = opts.laserLen || 0;
+    // 激光：laserLenMax 为满长；敌弹默认从 0 伸长，尾在 (x,y)、头沿 angle
+    this.laserLenMax = opts.laserLenMax ?? opts.laserLen ?? 0;
+    this.laserLen = opts.laserLenCur ?? (
+      (this.type === 'laser' && this.from === 'enemy' && this.laserLenMax > 0)
+        ? 0
+        : (opts.laserLen || 0)
+    );
+    this.laserExtending = this.type === 'laser'
+      && this.from === 'enemy'
+      && this.laserLenMax > 0
+      && this.laserLen < this.laserLenMax
+      && opts.laserExtending !== false;
     this.owner = opts.owner || null;
     this.gravity = opts.gravity || 0;
     this.onSplit = opts.onSplit || null;
@@ -79,12 +90,35 @@ export class Bullet {
         this.angle = na;
       }
     }
-    this.x += this.vx * dt * 60;
-    this.y += this.vy * dt * 60;
+
+    if (this.type === 'laser' && this.laserExtending) {
+      // 伸展期：尾固定在发射点，头沿 angle 伸出；未满长前非线性加速
+      const maxL = this.laserLenMax || 200;
+      const baseSp = this.speed || Math.hypot(this.vx, this.vy) || 4;
+      const p = Math.min(1, this.laserLen / maxL);
+      // ease-in：起速慢，接近满长时更快（二次）
+      const mul = 0.4 + 2.2 * p * p;
+      this.laserLen = Math.min(maxL, this.laserLen + baseSp * mul * dt * 60);
+      if (this.laserLen >= maxL) {
+        this.laserLen = maxL;
+        this.laserExtending = false;
+      }
+      // 伸展中不平移整段（头靠变长前进，尾仍在敌机处）
+    } else {
+      this.x += this.vx * dt * 60;
+      this.y += this.vy * dt * 60;
+    }
 
     if (this.type === 'laser') {
-      // laser is a segment from (x,y) along angle
-      if (this.x < -80 || this.x > LOGICAL_W + 80 || this.y < -80 || this.y > LOGICAL_H + 80) this.dead = true;
+      // 段 [尾(x,y) → 头 along angle]；头出屏也可再飞一会儿，用尾+外包
+      const len = this.laserLen || 0;
+      const hx = this.x + Math.cos(this.angle || 0) * len;
+      const hy = this.y + Math.sin(this.angle || 0) * len;
+      const minX = Math.min(this.x, hx);
+      const maxX = Math.max(this.x, hx);
+      const minY = Math.min(this.y, hy);
+      const maxY = Math.max(this.y, hy);
+      if (maxX < -80 || minX > LOGICAL_W + 80 || maxY < -80 || minY > LOGICAL_H + 80) this.dead = true;
     } else {
       if (this.x < -40 || this.x > LOGICAL_W + 40 || this.y < -40 || this.y > LOGICAL_H + 40) this.dead = true;
     }

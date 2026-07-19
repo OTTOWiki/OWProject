@@ -26,10 +26,11 @@ export function distPointSeg(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
-/** 敌弹相对自机的有效距离（圆弹=圆心；激光=线段） */
+/** 敌弹相对自机的有效距离（圆弹=圆心；激光=当前长度线段） */
 export function bulletDistToPlayer(b, p) {
   if (b.type === 'laser') {
-    const len = b.laserLen || 200;
+    const len = b.laserLen || 0;
+    if (len <= 0) return Infinity;
     const ang = b.angle || 0;
     const x2 = b.x + Math.cos(ang) * len;
     const y2 = b.y + Math.sin(ang) * len;

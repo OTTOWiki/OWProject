@@ -23,6 +23,12 @@ test('bulletDistToPlayer：圆弹与激光', () => {
     type: 'laser', x: 0, y: 100, angle: 0, laserLen: 200,
   };
   assertClose(bulletDistToPlayer(laser, p), 0);
+
+  // 伸展中长度为 0：尚无判定线段
+  const growing = {
+    type: 'laser', x: 0, y: 100, angle: 0, laserLen: 0,
+  };
+  assert(bulletDistToPlayer(growing, p) === Infinity, 'zero-length laser has no hit segment');
 });
 
 /** 最小 mock：碰撞只读实体字段 + hurt，不碰 audio/score */

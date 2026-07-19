@@ -33,7 +33,7 @@ function isEnemyInGrazeRange(b, player) {
   if (!player || b.from !== 'enemy' || b.delay > 0) return false;
   const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
   let reach = hitR;
-  if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 200) * 0.5);
+  if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 0) * 0.5);
   else if (b.type === 'rice') reach = Math.max(b.w || 8, b.h || 8) * 0.55;
   else if (b.type === 'talisman') reach = Math.hypot((b.w || 10) / 2, (b.h || 14) / 2);
   const dist = Math.hypot(b.x - player.x, b.y - player.y);
@@ -82,13 +82,14 @@ function softGlow(ctx, r, color, color2) {
 
 /**
  * 激光弹绘制：细光束，中间略粗、两头略细（纺锤形）
- * 局部坐标已旋转，段从 (0,0) 沿 -Y 方向延伸 laserLen
+ * 局部坐标已旋转，段从 (0,0) 沿 -Y 方向延伸当前 laserLen（生长中可短）
  */
 function drawLaserBeam(ctx, b, col, col2, a, grazeFx) {
-  const len = Math.max(8, b.laserLen || 200);
-  // 整体比判定宽 w 更细：视觉半宽约 w 的 0.28～0.42
-  const halfMid = Math.max(1.4, (b.w || 10) * 0.38);
-  const halfEnd = halfMid * 0.55;
+  const len = b.laserLen || 0;
+  if (len < 1.5) return;
+  // 中间略粗、两端略细；整体偏细
+  const halfMid = Math.max(1.1, (b.w || 10) * 0.26);
+  const halfEnd = halfMid * 0.52;
   const y0 = 0;
   const y1 = -len;
 
