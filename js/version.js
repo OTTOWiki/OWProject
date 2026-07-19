@@ -9,10 +9,10 @@
  */
 import { DEPLOY_GIT_HASH } from './git-hash.js';
 
-export const VERSION = 93;
+export const VERSION = 94;
 
 /** 展示用语义版本段（无 v 前缀），如 0.4.1 */
-export const VERSION_NAME = '0.4.2';
+export const VERSION_NAME = '0.4.3';
 
 /** 规范化：仅保留可展示的短哈希 */
 export function normalizeGitHash(h) {
