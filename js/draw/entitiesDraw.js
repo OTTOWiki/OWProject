@@ -25,147 +25,31 @@ function withAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/**
- * 擦弹紫辉：敌弹本身可有类似 softGlow 的紫色自发光，
- * 但只在自机「看不见的擦弹圆盘」内可见（clip 到 graze 圆，激光可只亮穿过圆盘的一段）。
- */
-function drawGrazeProximityGlow(ctx, b, player) {
-  if (!player || b.from !== 'enemy' || b.delay > 0) return;
+const GRAZE_PURPLE = '#c084fc';
+const GRAZE_PURPLE_HI = '#f0abfc';
 
-  const grazeR = BALANCE.grazeRadius;
-  const dxW = player.x - b.x;
-  const dyW = player.y - b.y;
-  const dist = Math.hypot(dxW, dyW);
-
-  // 与 drawBullet 一致：部分弹种会 rotate(angle+π/2)
-  const rotated = b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large'
-    && b.type !== 'option' && b.type !== 'bomb';
-  let localPx;
-  let localPy;
-  if (rotated) {
-    const cosA = Math.cos(b.angle);
-    const sinA = Math.sin(b.angle);
-    // 自机中心 → 当前 bullet 本地坐标
-    localPx = -dxW * sinA + dyW * cosA;
-    localPy = -dxW * cosA - dyW * sinA;
-  } else {
-    localPx = dxW;
-    localPy = dyW;
-  }
-
+/** 敌弹是否进入自机擦弹范围（中心距 ≤ grazeR + 判定外包） */
+function isEnemyInGrazeRange(b, player) {
+  if (!player || b.from !== 'enemy' || b.delay > 0) return false;
   const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
   let reach = hitR;
-  if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 200) * 0.55);
+  if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 200) * 0.5);
   else if (b.type === 'rice') reach = Math.max(b.w || 8, b.h || 8) * 0.55;
   else if (b.type === 'talisman') reach = Math.hypot((b.w || 10) / 2, (b.h || 14) / 2);
-  // 弹体外包与擦弹圆不相交则跳过
-  if (dist > grazeR + reach + 4) return;
+  const dist = Math.hypot(b.x - player.x, b.y - player.y);
+  return dist < BALANCE.grazeRadius + reach;
+}
 
-  const pulse = 0.55 + Math.sin(performance.now() / 95) * 0.2;
-  const purple = '#c084fc';
-  const purpleHi = '#f0abfc';
-
-  ctx.save();
-  // 只显示落在自机擦弹圆内的部分
-  ctx.beginPath();
-  ctx.arc(localPx, localPy, grazeR, 0, Math.PI * 2);
-  ctx.clip();
-
-  if (b.type === 'laser') {
-    const lenL = b.laserLen || 200;
-    const hw = (b.w || 10) * 0.5;
-    // 激光体：外层紫光 + 芯（风格接近 softGlow / 原激光绘制）
-    ctx.shadowColor = purple;
-    ctx.shadowBlur = 18;
-    const g = ctx.createLinearGradient(0, 0, 0, -lenL);
-    g.addColorStop(0, withAlpha(purpleHi, 0.95 * pulse));
-    g.addColorStop(0.2, withAlpha(purple, 0.75 * pulse));
-    g.addColorStop(1, withAlpha(purple, 0.15 * pulse));
-    ctx.strokeStyle = g;
-    ctx.lineWidth = hw * 2 + 8;
-    ctx.lineCap = 'round';
-    ctx.globalAlpha = 0.45;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, -lenL);
-    ctx.stroke();
-    ctx.globalAlpha = 0.85 * pulse;
-    ctx.lineWidth = hw * 2 + 2;
-    ctx.strokeStyle = purple;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, -lenL);
-    ctx.stroke();
-    ctx.globalAlpha = 0.95;
-    ctx.lineWidth = Math.max(2, hw * 0.9);
-    ctx.strokeStyle = purpleHi;
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, -lenL * 0.98);
-    ctx.stroke();
-  } else if (b.type === 'talisman') {
-    const w = (b.w || 10);
-    const h = (b.h || 16);
-    // 外晕矩形
-    ctx.shadowColor = purple;
-    ctx.shadowBlur = 16;
-    const pad = 5;
-    const outer = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(w, h));
-    outer.addColorStop(0, withAlpha(purpleHi, 0.55 * pulse));
-    outer.addColorStop(0.5, withAlpha(purple, 0.4 * pulse));
-    outer.addColorStop(1, 'transparent');
-    ctx.fillStyle = outer;
-    ctx.fillRect(-w / 2 - pad, -h / 2 - pad, w + pad * 2, h + pad * 2);
-    ctx.strokeStyle = withAlpha(purpleHi, 0.85 * pulse);
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2, 2);
-    else ctx.rect(-w / 2 - 1, -h / 2 - 1, w + 2, h + 2);
-    ctx.stroke();
-  } else if (b.type === 'rice') {
-    const rx = (b.h || 8) / 2;
-    const ry = (b.w || 12) / 2;
-    ctx.shadowColor = purple;
-    ctx.shadowBlur = 14;
-    // 椭圆径向紫光（同 softGlow 层次）
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(rx, ry) * 1.9);
-    g.addColorStop(0, withAlpha(purpleHi, 0.75 * pulse));
-    g.addColorStop(0.35, withAlpha(purple, 0.5 * pulse));
-    g.addColorStop(1, 'transparent');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, rx * 1.85, ry * 1.85, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = withAlpha(purpleHi, 0.55 * pulse);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, rx * 0.95, ry * 0.95, 0, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    // 圆弹：复用 softGlow 结构，固定紫色
-    const r = (b.w || hitR * 2) / 2;
-    ctx.shadowColor = purple;
-    ctx.shadowBlur = 12;
-    const outer = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.9);
-    outer.addColorStop(0, withAlpha(purpleHi, 0.7 * pulse));
-    outer.addColorStop(0.35, withAlpha(purple, 0.45 * pulse));
-    outer.addColorStop(1, 'transparent');
-    ctx.fillStyle = outer;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.9, 0, Math.PI * 2);
-    ctx.fill();
-    const g = ctx.createRadialGradient(-r * 0.15, -r * 0.2, 0, 0, 0, r);
-    g.addColorStop(0, withAlpha('#ffffff', 0.9 * pulse));
-    g.addColorStop(0.3, withAlpha(purpleHi, 0.85 * pulse));
-    g.addColorStop(0.72, withAlpha(purple, 0.75 * pulse));
-    g.addColorStop(1, withAlpha(purple, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
+/** 擦弹时视觉微抖：小幅度、高频率，相位跟子弹 id 绑定 */
+function grazeJitterOffset(b) {
+  const t = performance.now();
+  const seed = (b.id || 0) * 12.9898;
+  // ~0.7px 量级，约 25–40Hz 观感
+  const jx = Math.sin(t * 0.085 + seed) * 0.75
+    + Math.sin(t * 0.13 + seed * 1.7) * 0.35;
+  const jy = Math.cos(t * 0.09 + seed * 0.9) * 0.75
+    + Math.sin(t * 0.14 + seed * 2.1) * 0.35;
+  return { jx, jy };
 }
 
 function softGlow(ctx, r, color, color2) {
@@ -215,25 +99,38 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.restore();
     return;
   }
+
+  // 进入擦弹范围：整弹紫色辉光替换原色辉光 + 小幅高频抖动（不叠加原色 glow）
+  const grazeFx = isEnemyInGrazeRange(b, player);
+  const col = grazeFx ? GRAZE_PURPLE : b.color;
+  const col2 = grazeFx ? GRAZE_PURPLE_HI : (b.color2 || '#fff');
+  let drawX = b.x;
+  let drawY = b.y;
+  if (grazeFx) {
+    const { jx, jy } = grazeJitterOffset(b);
+    drawX += jx;
+    drawY += jy;
+  }
+
   ctx.save();
   ctx.globalAlpha = a;
-  ctx.translate(b.x, b.y);
+  ctx.translate(drawX, drawY);
   if (b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large' && b.type !== 'option' && b.type !== 'bomb') {
     ctx.rotate(b.angle + Math.PI / 2);
   }
 
   if (b.type === 'dot' || b.type === 'medium' || b.type === 'large') {
-    softGlow(ctx, b.w / 2, b.color, b.color2 || '#fff');
+    softGlow(ctx, b.w / 2, col, col2);
   } else if (b.type === 'bomb') {
     // Bomb 巨型追踪弹：大光球 + 外环
     const rr = (b.w || 40) / 2;
-    softGlow(ctx, rr * 0.95, b.color, b.color2 || '#fff');
-    ctx.strokeStyle = withAlpha(b.color2 || '#fff', 0.75);
+    softGlow(ctx, rr * 0.95, col, col2);
+    ctx.strokeStyle = withAlpha(col2, 0.75);
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, 0, rr * 1.05, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = withAlpha(b.color, 0.45);
+    ctx.strokeStyle = withAlpha(col, 0.45);
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(0, 0, rr * 1.35, 0, Math.PI * 2);
@@ -243,19 +140,19 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2;
+      const ang = (i / 4) * Math.PI * 2;
       ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * rr * 0.35, Math.sin(a) * rr * 0.35);
-      ctx.lineTo(Math.cos(a) * rr * 1.15, Math.sin(a) * rr * 1.15);
+      ctx.moveTo(Math.cos(ang) * rr * 0.35, Math.sin(ang) * rr * 0.35);
+      ctx.lineTo(Math.cos(ang) * rr * 1.15, Math.sin(ang) * rr * 1.15);
       ctx.stroke();
     }
   } else if (b.type === 'rice') {
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = grazeFx ? 16 : 12;
     const g = ctx.createRadialGradient(0, 0, 0, 0, 0, b.w / 2);
     g.addColorStop(0, '#fff');
-    g.addColorStop(0.4, b.color2 || '#fff');
-    g.addColorStop(1, b.color);
+    g.addColorStop(0.4, col2);
+    g.addColorStop(1, col);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.ellipse(0, 0, b.h / 2 + 1, b.w / 2 + 1, 0, 0, Math.PI * 2);
@@ -266,12 +163,12 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.ellipse(0, -1, b.h * 0.15, b.w * 0.22, 0, 0, Math.PI * 2);
     ctx.fill();
   } else if (b.type === 'talisman') {
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 10;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = grazeFx ? 14 : 10;
     const grd = ctx.createLinearGradient(0, -b.h, 0, b.h);
     grd.addColorStop(0, '#fff');
-    grd.addColorStop(0.4, b.color2 || b.color);
-    grd.addColorStop(1, b.color);
+    grd.addColorStop(0.4, col2);
+    grd.addColorStop(1, col);
     ctx.fillStyle = grd;
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
     ctx.lineWidth = 1.2;
@@ -286,28 +183,28 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.fillRect(-w / 2 + 3, -1, w - 6, 2);
   } else if (b.type === 'laser') {
     const len = b.laserLen || 200;
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 16;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = grazeFx ? 20 : 16;
     const g = ctx.createLinearGradient(0, 0, 0, -len);
     g.addColorStop(0, '#fff');
-    g.addColorStop(0.15, b.color);
+    g.addColorStop(0.15, col);
     g.addColorStop(1, 'transparent');
     ctx.strokeStyle = g;
     ctx.lineWidth = b.w + 4;
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.35 * a;
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, -len);
     ctx.stroke();
-    ctx.globalAlpha = 0.9;
+    ctx.globalAlpha = 0.9 * a;
     ctx.lineWidth = b.w * 0.55;
     ctx.strokeStyle = '#fff';
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, -len * 0.92);
     ctx.stroke();
-    ctx.globalAlpha = 1;
-    softGlow(ctx, b.w * 0.45, b.color, '#fff');
+    ctx.globalAlpha = a;
+    softGlow(ctx, b.w * 0.45, col, col2 === GRAZE_PURPLE_HI ? GRAZE_PURPLE_HI : '#fff');
   } else if (b.type === 'player') {
     const hw = (b.w || 10) / 2;
     const hh = (b.h || 22) / 2;
@@ -343,8 +240,6 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.stroke();
   }
 
-  // 擦弹圆盘内可见的紫色自发光（圆盘外完全裁掉）
-  drawGrazeProximityGlow(ctx, b, player);
   ctx.restore();
 }
 
