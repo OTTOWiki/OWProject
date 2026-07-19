@@ -1,81 +1,83 @@
-import { mob, elite, boss, timer, faceDefaults, midChapter, letterChapter } from './_shared.js';
+/**
+ * A4 门百梁 — mid/midboss 走 installMidWave + pushBossRef；Letter 脚本不变
+ */
+import {
+  mob, elite, timer, faceDefaults, midChapter, letterChapter,
+  installMidWave, pushBossRef,
+} from './_shared.js';
 import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnHLaser, spawnGravityRain, spawnAimedLaser, spawnCrossFall,
 } from '../patterns.js';
 import { Bullet } from '../entities.js';
 
-/* === A4 门百梁 — 15 chapters (mid x6 + midboss x1 + boss x8) === */
+const BOSS_A4 = {
+  x: LOGICAL_W / 2, y: 95, kind: 'menbailiang',
+  color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
+};
 
 function chapter_a4_mid_1(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.7) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 13) return;
-    const e = mob(40 + Math.random() * (LOGICAL_W - 80), -20, 35, '#fbbf24');
-    e.vy = 1.1;
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.75, d, () => {
-        spawnAimed(game, en, game.player, { n: 2, parity: 'odd', type: 'dot', speed: 2.3, color: '#fbbf24' });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.7,
+    maxWaves: 13,
+    onWave: (game) => {
+      const e = mob(40 + Math.random() * (LOGICAL_W - 80), -20, 35, '#fbbf24');
+      e.vy = 1.1;
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.75, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 2, parity: 'odd', type: 'dot', speed: 2.3, color: '#fbbf24' });
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_a4_mid_2(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.55) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    const e = mob(30 + Math.random() * (LOGICAL_W - 60), -20, 38, '#fcd34d');
-    e.vy = 1.0;
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.6, d, () => {
-        spawnAimed(game, en, game.player, { n: 3, parity: 'even', type: 'rice', speed: 2.5, spread: 0.18, color: '#fde68a' });
-      });
-      timer(en, 'ring', 1.8, d, () => {
-        spawnRingAt(game, en.x, en.y, 8, 1.5, 'talisman', '#fbbf24');
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.55,
+    maxWaves: 14,
+    onWave: (game) => {
+      const e = mob(30 + Math.random() * (LOGICAL_W - 60), -20, 38, '#fcd34d');
+      e.vy = 1.0;
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.6, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 3, parity: 'even', type: 'rice', speed: 2.5, spread: 0.18, color: '#fde68a' });
+        });
+        timer(en, 'ring', 1.8, d, () => {
+          spawnRingAt(gm, en.x, en.y, 8, 1.5, 'talisman', '#fbbf24');
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_a4_mid_3(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.65) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 13) return;
-    for (const side of [-1, 1]) {
-      const x = LOGICAL_W / 2 + side * 90;
-      const e = mob(x, -15, 34, side === -1 ? '#f59e0b' : '#fbbf24');
-      e.vy = 1.3;
-      e.script = (en, d, game) => {
-        timer(en, 's', 0.7, d, () => {
-          spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'dot', speed: 2.6, spread: 0.26, color: en.color });
-        });
-      };
-      g.spawnEnemy(e);
-    }
-  };
+  installMidWave(g, {
+    interval: 0.65,
+    maxWaves: 13,
+    onWave: (game) => {
+      for (const side of [-1, 1]) {
+        const x = LOGICAL_W / 2 + side * 90;
+        const e = mob(x, -15, 34, side === -1 ? '#f59e0b' : '#fbbf24');
+        e.vy = 1.3;
+        e.script = (en, d, gm) => {
+          timer(en, 's', 0.7, d, () => {
+            spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'dot', speed: 2.6, spread: 0.26, color: en.color });
+          });
+        };
+        game.spawnEnemy(e);
+      }
+    },
+  });
 }
 
 function chapter_a4_midboss(g) {
-  const e = elite({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 1900, kind: 'menbailiang', color: '#fbbf24', color2: '#fde68a',
     label: '客服部精英', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     timer(en, 'aim', 0.8, d, () => {
       spawnAimed(game, en, game.player, { n: 5, parity: 'odd', type: 'talisman', speed: 2.4, spread: 0.16, color: '#fbbf24' });
     });
@@ -89,12 +91,11 @@ function chapter_a4_midboss(g) {
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.6, 'dot', '#fde68a'),
       }));
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  }, 'elite');
 }
 
 function chapter_a4_mid_4(g) {
+  // 纯辅压（激光墙 + 变周期雨），无刷怪波
   g.waveFn = (dt) => {
     g.laserT = (g.laserT || 0) + dt;
     if (g.laserT > 0.45) {
@@ -120,33 +121,32 @@ function chapter_a4_mid_4(g) {
 }
 
 function chapter_a4_mid_5(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    // 辅压先 tick，避免 spawn early-return 卡住雨
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.25) {
-      g.rainT = 0;
-      spawnGravityRain(g, 1, 'rice', '#fde68a', 1.4);
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.9) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 12) return;
-    const e = elite({
-      x: 50 + Math.random() * (LOGICAL_W - 100), y: 70, hp: 240, kind: 'generic', color: '#fcd34d',
-    });
-    e.vy = 0.3;
-    e.script = (en, d, game) => {
-      timer(en, 'aim', 0.8, d, () => {
-        spawnAimed(game, en, game.player, { n: 3, parity: 'even', type: 'medium', speed: 2.2, spread: 0.24, color: '#f59e0b' });
+  installMidWave(g, {
+    interval: 0.9,
+    maxWaves: 12,
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.25) {
+        game.rainT = 0;
+        spawnGravityRain(game, 1, 'rice', '#fde68a', 1.4);
+      }
+    },
+    onWave: (game) => {
+      const e = elite({
+        x: 50 + Math.random() * (LOGICAL_W - 100), y: 70, hp: 240, kind: 'generic', color: '#fcd34d',
       });
-      timer(en, 'ring', 1.6, d, () => {
-        spawnRingAt(game, en.x, en.y, 10, 1.6, 'talisman', '#fbbf24', en.age);
-      });
-    };
-    g.spawnEnemy(e);
-  };
+      e.vy = 0.3;
+      e.script = (en, d, gm) => {
+        timer(en, 'aim', 0.8, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 3, parity: 'even', type: 'medium', speed: 2.2, spread: 0.24, color: '#f59e0b' });
+        });
+        timer(en, 'ring', 1.6, d, () => {
+          spawnRingAt(gm, en.x, en.y, 10, 1.6, 'talisman', '#fbbf24', en.age);
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_a4_mid_6(g) {
@@ -172,33 +172,23 @@ function chapter_a4_mid_6(g) {
     g.crossT = (g.crossT || 0) + dt;
     if (g.crossT > 1.4) {
       g.crossT = 0;
-      spawnCrossFall(g, { type: 'dot', color: '#fcd34d', speed: 1.6, lanes: 6 });
+      spawnCrossFall(g, { type: 'dot', color: '#fcd34d', speed: 1.6, columns: 6 });
     }
   };
 }
 
 function chapter_menbailiang_1(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 2800, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 2800 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age) * 70;
     timer(en, 'fan', 0.5, d, () => {
       spawnAimed(game, en, game.player, { n: 9, parity: 'odd', type: 'talisman', speed: 2.6, color: '#fbbf24' });
     });
     timer(en, 'ring', 2.0, d, () => spawnRingAt(game, en.x, en.y, 36, 2.0, 'medium', '#fcd34d'));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_2(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3000, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 3000 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.1) * 80;
     en.y = 95 + Math.cos(en.age * 0.7) * 25;
     en.data.aimT = (en.data.aimT || 0) - d;
@@ -225,17 +215,11 @@ function chapter_menbailiang_2(g) {
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 12, 1.8, 'talisman', '#fde68a'),
       }));
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_3(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3200, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 3200 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.3) * 90;
     timer(en, 'dual', 0.4, d, () => {
       spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'medium', speed: 2.8, spread: 0.35, color: '#fbbf24' });
@@ -249,17 +233,11 @@ function chapter_menbailiang_3(g) {
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 10, 1.8, 'dot', '#fde68a'),
       }));
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_4(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3400, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 3400 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.5) * 100;
     en.y = 95 + Math.cos(en.age * 1.2) * 30;
     timer(en, 'aim', 0.35, d, () => {
@@ -271,17 +249,11 @@ function chapter_menbailiang_4(g) {
     timer(en, 'ring', 1.5, d, () => {
       spawnRingAt(game, en.x, en.y, 16, 2.0, 'rice', '#fde68a', en.age * 0.8);
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_5(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3600, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 3600 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const speedup = hpRatio < 0.5 ? 0.6 : 0.85;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (hpRatio < 0.5 ? 2.2 : 1.5)) * 110;
@@ -297,17 +269,11 @@ function chapter_menbailiang_5(g) {
     timer(en, 'drop', speedup * 1.5, d, () => {
       spawnGravityRain(game, 2, 'rice', '#fcd34d', 1.6);
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_6(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3800, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 3800 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.8) * 100;
     en.y = 95 + Math.cos(en.age * 1.4) * 35;
@@ -326,17 +292,11 @@ function chapter_menbailiang_6(g) {
     if (hpRatio < 0.4) {
       timer(en, 'laser', 0.5, d, () => spawnAimedLaser(game, en, game.player, '#fde68a'));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_7(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 4000, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 4000 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const frenzyMul = hpRatio < 0.3 ? 0.55 : 0.8;
     timer(en, 'laser', frenzyMul, d, () => {
@@ -348,17 +308,11 @@ function chapter_menbailiang_7(g) {
     timer(en, 'ring', frenzyMul * 2.5, d, () => {
       spawnRingAt(game, en.x, en.y, 20, hpRatio < 0.3 ? 2.8 : 2.0, 'dot', '#fcd34d', en.age);
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_menbailiang_last(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 4800, kind: 'menbailiang',
-    color: '#fbbf24', color2: '#fde68a', label: '门百梁', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_A4, hp: 4800 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const frenzy = hpRatio < 0.25;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (frenzy ? 3 : 2)) * (frenzy ? 140 : 110);
@@ -382,9 +336,7 @@ function chapter_menbailiang_last(g) {
     if (frenzy) {
       timer(en, 'rain', 0.15, d, () => spawnGravityRain(game, 3, 'rice', '#fde68a', 2.4));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 const FACE = faceDefaults('A4');

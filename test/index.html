@@ -111,7 +111,7 @@
       须通过本地 HTTP 打开（与游戏相同），例如项目根目录执行
       <code>npx --yes serve .</code>
       后访问 <code>/test/</code>。
-      浏览器会多跑「主路径模块可加载」；CLI 用 <code>npm test</code> 含 <code>node --check</code> 语法门。
+      浏览器会多跑「主路径模块可加载」；CLI 用 <code>npm test</code>（<code>node --check</code> + <code>node:test</code>）。
       结果也会写到 <code>window.__TEST_RESULT__</code> 与控制台。
     </p>
   </main>

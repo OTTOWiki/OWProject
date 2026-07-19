@@ -1,21 +1,51 @@
 /**
- * 零依赖迷你断言 / 用例收集（浏览器）
+ * 断言 / 用例注册
+ * - Node CLI：桥接 node:test + node:assert/strict（由 Node 跑完并设 exit code）
+ * - 浏览器：零依赖 suite + runAll（/test/ 结果页）
  */
 
 /** @typedef {{ name: string, fn: () => void | Promise<void> }} TestCase */
+
+const isNode = typeof process !== 'undefined' && !!process.versions?.node;
+
+/** @type {((name: string, fn: () => void | Promise<void>) => void) | null} */
+let nodeTest = null;
+/** @type {typeof import('node:assert/strict') | null} */
+let nodeAssert = null;
+
+if (isNode) {
+  const nt = await import('node:test');
+  nodeTest = nt.default;
+  nodeAssert = await import('node:assert/strict');
+}
 
 /** @type {TestCase[]} */
 const suite = [];
 
 export function test(name, fn) {
+  if (nodeTest) {
+    nodeTest(name, async () => {
+      await fn();
+    });
+    return;
+  }
   suite.push({ name, fn });
 }
 
 export function assert(cond, message = 'assertion failed') {
+  if (nodeAssert) {
+    nodeAssert.ok(cond, message);
+    return;
+  }
   if (!cond) throw new Error(message);
 }
 
 export function assertEqual(actual, expected, message) {
+  if (nodeAssert) {
+    if (message) nodeAssert.equal(actual, expected, message);
+    else nodeAssert.equal(actual, expected);
+    return;
+  }
   if (actual !== expected) {
     throw new Error(
       message
@@ -26,14 +56,18 @@ export function assertEqual(actual, expected, message) {
 
 export function assertClose(actual, expected, eps = 1e-6, message) {
   if (typeof actual !== 'number' || Math.abs(actual - expected) > eps) {
-    throw new Error(
-      message
-        || `expected ≈ ${expected} (±${eps}), got ${actual}`,
-    );
+    const msg = message
+      || `expected ≈ ${expected} (±${eps}), got ${actual}`;
+    if (nodeAssert) nodeAssert.fail(msg);
+    else throw new Error(msg);
   }
 }
 
 export function assertThrows(fn, message = 'expected throw') {
+  if (nodeAssert) {
+    nodeAssert.throws(fn, message);
+    return;
+  }
   let threw = false;
   try {
     fn();
@@ -44,9 +78,14 @@ export function assertThrows(fn, message = 'expected throw') {
 }
 
 /**
+ * 浏览器结果页用。Node CLI 勿调用（用例已交给 node:test）。
  * @param {{ onStart?: (t: TestCase) => void, onPass?: (t: TestCase, ms: number) => void, onFail?: (t: TestCase, err: Error, ms: number) => void }} [hooks]
  */
 export async function runAll(hooks = {}) {
+  if (nodeTest) {
+    throw new Error('runAll is browser-only; Node CLI uses node:test via import of cases');
+  }
+
   let passed = 0;
   let failed = 0;
   const failures = [];

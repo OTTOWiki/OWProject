@@ -1,20 +1,27 @@
-import { mob, elite, boss, timer, scaleN, faceDefaults, midChapter, letterChapter } from './_shared.js';
-import { LOGICAL_W, LOGICAL_H } from '../config.js';
+/**
+ * 第3面 · 大宗关（T14：installMidWave + pushBossRef + 章节元数据工厂）
+ */
 import {
-  spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser,
+  mob, elite, timer, scaleN,
+  faceDefaults, midChapter, letterChapter,
+  installMidWave, pushBossRef,
+} from './_shared.js';
+import { LOGICAL_W } from '../config.js';
+import {
+  spawnAimed, spawnRingAt, spawnAimedLaser, spawnHLaser,
 } from '../patterns.js';
 import { Bullet } from '../entities.js';
 
-/* ========== s3 chapters ========== */
+const FACE = faceDefaults(3);
+
+/* ========== s3 builds ========== */
 function chapter_s3_1(g) {
-  const e = elite({
-    x: LOGICAL_W / 2, y: 100, hp: 1200, color: '#fbbf24', r: 28, label: '防火墙节点', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, {
+    x: LOGICAL_W / 2, y: 100, hp: 1200, color: '#fbbf24', r: 28,
+    label: '防火墙节点', enterY: 100,
+  }, (en, d, game) => {
     timer(en, 'laser', 0.35, d, () => spawnAimedLaser(game, en, game.player, '#fbbf24'));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  }, 'elite');
   g.waveFn = (dt) => {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.9) {
@@ -29,48 +36,44 @@ function chapter_s3_1(g) {
 }
 
 function chapter_s3_2(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.9) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 12) return;
-    const left = g.waveCount % 2 === 0;
-    const e = mob(left ? 40 : LOGICAL_W - 40, 50 + (g.waveCount % 4) * 30, 35, left ? '#f87171' : '#60a5fa');
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.7, d, () => {
-        spawnAimed(game, en, game.player, { n: 6, parity: 'even', type: 'dot', speed: 2.2, spread: 0.11, color: en.color });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.9,
+    maxWaves: 12,
+    onWave: (game, wave) => {
+      const left = wave % 2 === 0;
+      const e = mob(left ? 40 : LOGICAL_W - 40, 50 + (wave % 4) * 30, 35, left ? '#f87171' : '#60a5fa');
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.7, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 6, parity: 'even', type: 'dot', speed: 2.2, spread: 0.11, color: en.color });
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_s3_3(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.6) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 16) return;
-    const e = mob(30 + Math.random() * (LOGICAL_W - 60), -15, 20, Math.random() < 0.5 ? '#f87171' : '#60a5fa');
-    e.vy = 1.5;
-    e.score = 8000;
-    e.drop = 'scoreL';
-    e.onDeath = (en, game) => {
-      spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'rice', speed: 2.6, color: '#fbbf24' });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.6,
+    maxWaves: 16,
+    onWave: (game) => {
+      const e = mob(30 + Math.random() * (LOGICAL_W - 60), -15, 20, Math.random() < 0.5 ? '#f87171' : '#60a5fa');
+      e.vy = 1.5;
+      e.score = 8000;
+      e.drop = 'scoreL';
+      e.onDeath = (en, gm) => {
+        spawnAimed(gm, en, gm.player, { n: 3, parity: 'odd', type: 'rice', speed: 2.6, color: '#fbbf24' });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_s3_4(g) {
-  const e = elite({
-    x: LOGICAL_W / 2, y: 90, hp: 1400, kind: 'mid3', color: '#fbbf24', label: '防护三角', enterY: 90,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, {
+    x: LOGICAL_W / 2, y: 90, hp: 1400, kind: 'mid3', color: '#fbbf24',
+    label: '防护三角', enterY: 90,
+  }, (en, d, game) => {
     timer(en, 'drop', 1.6, d, () => {
       for (let i = -2; i <= 2; i++) {
         const b = new Bullet({
@@ -83,9 +86,7 @@ function chapter_s3_4(g) {
         game.spawnBullet(b);
       }
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  }, 'elite');
 }
 
 function chapter_s3_5(g) {
@@ -101,6 +102,7 @@ function chapter_s3_5(g) {
 }
 
 function chapter_s3_6(g) {
+  // 非 midboss：有 elite 但不挂 bossRef（到时 duration 成功，与历史一致）
   const e = elite({
     x: LOGICAL_W / 2, y: 80, hp: 400, color: '#fb923c', enterY: 80,
   });
@@ -124,11 +126,10 @@ function chapter_s3_6(g) {
 }
 
 function chapter_dazong_1(g) {
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 3500, kind: 'dazong',
     color: '#fbbf24', color2: '#fb923c', label: '大宗关不是·互然雏', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     timer(en, 'laser', 0.2, d, () => {
       en.data.la = (en.data.la || 0) + 0.4;
       const n = Math.max(3, scaleN(game, 4));
@@ -143,17 +144,14 @@ function chapter_dazong_1(g) {
     timer(en, 'aim', 0.45, d, () => {
       spawnAimed(game, en, game.player, { n: 5, parity: 'odd', type: 'rice', speed: 2.8, spread: 0.12, color: '#fdba74' });
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_dazong_2(g) {
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 4000, kind: 'dazong',
     color: '#fbbf24', color2: '#fb923c', label: '大宗关不是·互然雏', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     timer(en, 'ring', 0.8, d, () => {
       const n = Math.max(8, scaleN(game, 24));
       const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
@@ -178,77 +176,45 @@ function chapter_dazong_2(g) {
         }));
       }
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
-
-const FACE = faceDefaults(3);
 
 export const chapters = [
   midChapter(FACE, {
-    id: 15,
-    name: '3-1 激光与大玉',
-    kind: 'mid',
-    unstable: true,
-    duration: 26,
-    build: chapter_s3_1,
+    id: 15, name: '3-1 激光与大玉', kind: 'mid',
+    unstable: true, duration: 26, build: chapter_s3_1,
   }),
   midChapter(FACE, {
-    id: 16,
-    name: '3-2 Unstable 交叉网',
-    kind: 'mid',
-    unstable: true,
-    duration: 26,
-    build: chapter_s3_2,
+    id: 16, name: '3-2 Unstable 交叉网', kind: 'mid',
+    unstable: true, duration: 26, build: chapter_s3_2,
   }),
   midChapter(FACE, {
-    id: 17,
-    name: '3-3 高分反击',
-    kind: 'mid',
-    unstable: true,
-    duration: 24,
-    build: chapter_s3_3,
+    id: 17, name: '3-3 高分反击', kind: 'mid',
+    unstable: true, duration: 24, build: chapter_s3_3,
   }),
   midChapter(FACE, {
-    id: 18,
-    name: '3-4 三角精英',
-    kind: 'midboss',
-    duration: 32,
-    build: chapter_s3_4,
+    id: 18, name: '3-4 三角精英', kind: 'midboss',
+    duration: 32, build: chapter_s3_4,
   }),
   midChapter(FACE, {
-    id: 19,
-    name: '3-5 横向激光墙',
-    kind: 'mid',
-    unstable: true,
-    duration: 26,
-    build: chapter_s3_5,
+    id: 19, name: '3-5 横向激光墙', kind: 'mid',
+    unstable: true, duration: 26, build: chapter_s3_5,
   }),
   midChapter(FACE, {
-    id: 20,
-    name: '3-6 重力倾泻',
-    kind: 'mid',
-    unstable: true,
-    duration: 26,
-    build: chapter_s3_6,
+    id: 20, name: '3-6 重力倾泻', kind: 'mid',
+    unstable: true, duration: 26, build: chapter_s3_6,
   }),
   letterChapter(FACE, {
-    id: 21,
-    name: '大宗关「代码冲突」',
-    dialogue: 's3_boss',
-    letter: '代码冲突 · 无法合并的分支',
-    letterTime: 45,
+    id: 21, name: '大宗关「代码冲突」',
+    dialogue: 's3_boss', letter: '代码冲突 · 无法合并的分支', letterTime: 45,
     build: chapter_dazong_1,
   }),
   letterChapter(FACE, {
-    id: 22,
-    name: '大宗关「最终合并」',
-    letter: '编辑战 · 最终合并请求',
-    letterTime: 48,
+    id: 22, name: '大宗关「最终合并」',
+    letter: '编辑战 · 最终合并请求', letterTime: 48,
     onClear: 'routeCheck',
     build: chapter_dazong_2,
   }),
-]
+];
 
 export const stageSelectEntry = { id: '3', label: '第3面', desc: '分歧的十字路口', startChapter: 15 };

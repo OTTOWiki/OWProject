@@ -40,9 +40,9 @@ owDebug.kill()            // 清敌+清弹+本章成功
 
 - 面板：锁残 / 锁 B / 不受伤 / Edit 常满 / 跳过对话 / 整体加速 / 跳章 / 清弹清敌等
 - 热键：`F8` 开关面板（首次也可开启）、`F9` 循环加速
-- 实现：`js/debug.js`（不写 localStorage，刷新即关）
+- 实现：`js/debug.js` + **Tweakpane**（`importmap` / CDN；**首次** `owDebug()`/`F8` 才动态加载；不写 localStorage，刷新即关）
 
-### 自动化测试（零依赖）
+### 自动化测试（无 npm 依赖包）
 
 ```bash
 # 推荐（Node CLI）= 语法检查 + 单元/冒烟
@@ -58,6 +58,8 @@ npx --yes serve .
 
 - 入口：`test/check-syntax.mjs` + `test/run-node.mjs`（CLI）/ `test/index.html` → `run.js` + `cases.js`
 - 分文件：`cases-config|patterns|collision|stages|storage-spawn|smoke.js` + `mockGame.js`
+- **CLI runner**：`test/assert.js` 在 Node 下桥接 **`node:test` + `node:assert/strict`**（内置，零第三方）；`cases*.js` API 不变
+- **浏览器 runner**：仍用 `assert.js` 的 suite + `runAll`（零依赖）
 - **语法（CLI/CI）**：`node --check` 扫描 `js/**`、`test/**`（含 `game.js`，不执行）
 - **加载（浏览器 /test/）**：`cases-load.js` 动态 `import` 主路径模块（含 `game.js`），抓语法与坏依赖
 - 覆盖：配置/难度、章节表与 onClear、对话键、bg mode、`scaleBulletCount`、碰撞、spawnScale、startMode
@@ -70,7 +72,7 @@ npx --yes serve .
 
 ```
 index.html          # 三栏 UI 壳 + 屏幕切换
-test/               # 零依赖自动化测试（assert + cases + 结果页）
+test/               # 自动化测试（Node: node:test 桥；浏览器: 自研 suite + 结果页）
 css/style.css       # 布局与东方风菜单样式
 js/
   main.js           # 入口：组装 Input / Audio / Background / Game / UI
@@ -162,10 +164,10 @@ tools/
 
 - **章节 Perfect ×1.05**：成功通关且章内无 Miss/Bomb → `BALANCE.chapterPerfectMul`（超时失败不发）
 - **擦弹编辑度**：判定附近 graze → `edit` 槽；满 100 按 Item → 半径 50 消弹变分
-- **决死 Bomb**：被弹后 `deathBombWindow`（难度相关）内按 Bomb 免死全清
+- **决死 Bomb**：被弹后 `deathBombWindow`（各难度相同，见 `BALANCE`）内按 Bomb 免死全清
 - **Unstable Machine**：道中 `unstable: true` 章节从 `UNSTABLE_POOL` 抽效果
 - **A/B 倾向**：自机在左/右半场累计；阈值见 `BALANCE.tendencyThreshold`
-- **默认资源**：2 残 3B（难度可覆盖）
+- **默认资源**：4 残 4B（`BALANCE`，对齐 Easy，全难度相同）
 - **Stage Select**：**不锁关**；1–3 / 巡查 / A4–A6 / B4–B6 / EX 均可直接选
 
 ### 自机
@@ -175,7 +177,7 @@ tools/
 
 ### 难度
 
-`easy` / `normal` / `hard` / `lunatic` — 见 `DIFFICULTIES`：`enemyHp`, `bulletSpeed`, `fireInterval`, `spawnMul`, 初始残 B、决死窗、得分倍率等。
+`easy` / `normal` / `hard` / `lunatic` — 见 `DIFFICULTIES`：仅 `bulletSpeed` / `fireInterval` / `spawnMul` / `bulletCount` / `grazeMul` / `scoreMul`。残机、Bomb、决死窗、敌血、资源掉落等全难度共用 `BALANCE`。
 
 中文昵称：这么菜啊 / 白银 / S6第一个王者 / 职业选手。
 
@@ -278,7 +280,7 @@ node tools/inject-deploy-hash.mjs abcdef0
 1. **平衡数值**优先改 `js/config.js` 的 `BALANCE` / `DIFFICULTIES`，不要在 `game.js` 里散落魔法数。
 2. **新章节/弹幕**：在 `js/stages/` 对应面文件增加章节，并确保 `stages/index.js` 的 `buildChapterList` 已聚合；复用 `patterns.js` 的 `spawnAimed` / `oddAim` / `evenAim` / `spawnRingAt` 等。
 3. **新对话**：`dialogue.js` 的 `getDialogues(playerId)`；说话人颜色在 `SPEAKER_COLORS`。
-4. **新背景模式**：先在 `bgModes.js` 登记 mode + 贴图路径 + `BG_MODE_BY_STAGE`；再在 `backgrounds.js` 的 `STAGE_BG_BUILDERS` 与 `playfieldBg` 的 SKY/THEME 补绘制。
+4. **新背景模式**：先在 `bgModes.js` 登记 mode + 贴图路径 + `BG_MODE_BY_STAGE`；再在 `backgrounds.js` 的 `STAGE_BG_BUILDERS` 与 `playfieldBg` 的 **`MODE_THEME`**（sky/accent/侧景一行表）补绘制。左侧 3D：优先 `_atmosphere` + `_scatter`（+ 必要手写构图），勿再复制 bg/fog/lights 样板。
 5. **保持 ES modules**：`import`/`export`，无打包器；浏览器原生加载。
 6. **语言**：UI/剧情以中文为主；代码标识符英文；注释可用中文。
 7. **规格冲突时**：以当前可运行代码与本文件为准。`参考/需求.txt` 是早期草稿、**已过时、仅供参考**，不要当作权威规格去“对齐”实现。

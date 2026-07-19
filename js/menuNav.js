@@ -105,6 +105,40 @@ export function handleListKey(e, {
 }
 
 /**
+ * 列表屏描述符：getItems + 焦点下标 + 确认/返回。
+ * 默认确认 = 点击当前项 DOM（元素本身或 item.el）。
+ * @returns {boolean}
+ */
+export function handleListScreen(e, {
+  getItems,
+  index,
+  setIndex,
+  highlight,
+  onConfirm,
+  onBack,
+  useHorizontal = true,
+  /** @type {(item: unknown, index: number, items: unknown[]) => HTMLElement | null | undefined} */
+  resolveClickEl = (item) => (item && typeof item === 'object' && 'el' in item ? item.el : item),
+}) {
+  const items = getItems() || [];
+  return handleListKey(e, {
+    count: items.length,
+    index,
+    setIndex,
+    highlight: () => highlight?.(items),
+    onConfirm: () => {
+      if (onConfirm) {
+        onConfirm(items[index], index, items);
+        return;
+      }
+      resolveClickEl(items[index], index, items)?.click?.();
+    },
+    onBack,
+    useHorizontal,
+  });
+}
+
+/**
  * 选关网格：行列步进 + 底部「返回」
  * items: [{ type: 'stage'|'button', el }]，stage 在前、button 在后
  */
@@ -308,6 +342,34 @@ export function handleFormListKey(e, {
     return true;
   }
   return false;
+}
+
+/**
+ * 表单屏描述符：getItems + 焦点 + 调值/激活/返回。
+ * practice / settings 共用，少抄 handleFormListKey 样板。
+ * @returns {boolean}
+ */
+export function handleFormScreen(e, {
+  mode,
+  getItems,
+  index,
+  setIndex,
+  highlight,
+  adjustItem,
+  activateItem,
+  onBack,
+}) {
+  const items = getItems() || [];
+  return handleFormListKey(e, {
+    mode,
+    items,
+    index,
+    setIndex,
+    highlight: () => highlight?.(items),
+    adjustItem,
+    activateItem,
+    onBack,
+  });
 }
 
 /**

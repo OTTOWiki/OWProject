@@ -1,6 +1,6 @@
 import {
   MANUAL_CHAPTERS, displayKey, DEFAULT_KEYS, DEFAULT_SETTINGS,
-  DIFFICULTIES, DIFFICULTY_ORDER,
+  BALANCE, DIFFICULTIES, DIFFICULTY_ORDER,
   PLAYER_BULLET_OPACITY_MIN,
   FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
 } from './config.js';
@@ -11,9 +11,9 @@ import {
 import { stageSelectEntries, buildChapterList } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
 import {
-  handleListKey,
+  handleListScreen,
   handleStageGridKey,
-  handleFormListKey,
+  handleFormScreen,
   handleManualKey,
   adjustFocusItem,
   activateFocusItem,
@@ -83,40 +83,32 @@ export class UI {
     return null;
   }
 
+  /**
+   * 屏描述符 → keydown。
+   * 列表：handleListScreen；表单：handleFormScreen。
+   */
   _buildNavHandlers() {
     return {
-      menu: (e) => {
-        const list = [...document.querySelectorAll('#main-menu-nav .menu-btn')];
-        handleListKey(e, {
-          count: list.length,
-          index: this.menuIndex,
-          setIndex: (i) => { this.menuIndex = i; },
-          highlight: () => this._highlightMenu(list),
-          onConfirm: () => list[this.menuIndex]?.click(),
-        });
-      },
-      difficulty: (e) => {
-        const items = this._diffItems();
-        handleListKey(e, {
-          count: items.length,
-          index: this.diffIndex,
-          setIndex: (i) => { this.diffIndex = i; },
-          highlight: () => this._highlightDiff(),
-          onConfirm: () => items[this.diffIndex]?.el?.click(),
-          onBack: () => this._action('back'),
-        });
-      },
-      player: (e) => {
-        const items = this._playerItems();
-        handleListKey(e, {
-          count: items.length,
-          index: this.playerIndex,
-          setIndex: (i) => { this.playerIndex = i; },
-          highlight: () => this._highlightPlayer(),
-          onConfirm: () => items[this.playerIndex]?.el?.click(),
-          onBack: () => this._action('back-diff'),
-        });
-      },
+      menu: (e) => handleListScreen(e, {
+        getItems: () => [...document.querySelectorAll('#main-menu-nav .menu-btn')],
+        index: this.menuIndex,
+        setIndex: (i) => { this.menuIndex = i; },
+        highlight: (list) => this._highlightMenu(list),
+      }),
+      difficulty: (e) => handleListScreen(e, {
+        getItems: () => this._diffItems(),
+        index: this.diffIndex,
+        setIndex: (i) => { this.diffIndex = i; },
+        highlight: () => this._highlightDiff(),
+        onBack: () => this._action('back'),
+      }),
+      player: (e) => handleListScreen(e, {
+        getItems: () => this._playerItems(),
+        index: this.playerIndex,
+        setIndex: (i) => { this.playerIndex = i; },
+        highlight: () => this._highlightPlayer(),
+        onBack: () => this._action('back-diff'),
+      }),
       stage: (e) => {
         const items = this._stageItems();
         handleStageGridKey(e, {
@@ -129,36 +121,30 @@ export class UI {
           gridEl: document.getElementById('stage-grid'),
         });
       },
-      practice: (e) => {
-        const items = this._practiceItems();
-        handleFormListKey(e, {
-          mode: 'practice',
-          items,
-          index: this.practiceIndex,
-          setIndex: (i) => { this.practiceIndex = i; },
-          highlight: () => this._highlightPractice(),
-          adjustItem: (item, dir, mods) => this._adjustFocusItem(item, dir, mods),
-          activateItem: (item) => this._activateFocusItem(item),
-          onBack: () => this._action('back'),
-        });
-      },
-      settings: (e) => {
-        const items = this._settingsItems();
-        handleFormListKey(e, {
-          mode: 'settings',
-          items,
-          index: this.settingsIndex,
-          setIndex: (i) => { this.settingsIndex = i; },
-          highlight: () => this._highlightSettings(),
-          adjustItem: (item, dir, mods) => this._adjustFocusItem(item, dir, mods),
-          activateItem: (item) => this._activateFocusItem(item),
-          onBack: () => {
-            this.binding = null;
-            document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
-            this._action('back');
-          },
-        });
-      },
+      practice: (e) => handleFormScreen(e, {
+        mode: 'practice',
+        getItems: () => this._practiceItems(),
+        index: this.practiceIndex,
+        setIndex: (i) => { this.practiceIndex = i; },
+        highlight: () => this._highlightPractice(),
+        adjustItem: (item, dir, mods) => this._adjustFocusItem(item, dir, mods),
+        activateItem: (item) => this._activateFocusItem(item),
+        onBack: () => this._action('back'),
+      }),
+      settings: (e) => handleFormScreen(e, {
+        mode: 'settings',
+        getItems: () => this._settingsItems(),
+        index: this.settingsIndex,
+        setIndex: (i) => { this.settingsIndex = i; },
+        highlight: () => this._highlightSettings(),
+        adjustItem: (item, dir, mods) => this._adjustFocusItem(item, dir, mods),
+        activateItem: (item) => this._activateFocusItem(item),
+        onBack: () => {
+          this.binding = null;
+          document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
+          this._action('back');
+        },
+      }),
       manual: (e) => {
         const items = this._manualItems();
         handleManualKey(e, {
@@ -220,7 +206,7 @@ export class UI {
         <div class="diff-rank" style="color:${d.color}">${d.rank}</div>
         <div class="diff-name">${d.name}</div>
         <div class="diff-desc">${d.desc}</div>
-        <div class="diff-meta">残机 ${d.startLives} · Bomb ${d.startBombs} · 得分×${d.scoreMul}</div>
+        <div class="diff-meta">残机 ${BALANCE.startLives} · Bomb ${BALANCE.startBombs} · 得分×${d.scoreMul}</div>
       `;
       btn.addEventListener('click', () => {
         this._sfx('ok');

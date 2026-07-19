@@ -2,6 +2,9 @@
  * Three.js 左侧关卡印象图 — 按剧情主题差异化
  * 严禁人形；仅几何 / 粒子 / 线框 / 文字平面
  * mode 登记：js/bgModes.js；场景 builder 见 STAGE_BG_BUILDERS
+ *
+ * 新 mode 优先：_atmosphere 定色/雾/光 → _scatter 铺几何 → _labelPlane / _points
+ * 特殊构图（左右对称、齿轮等）再手写；勿复制 bg+fog+lights 样板
  */
 import * as THREE from 'three';
 import { resolveBgMode } from './bgModes.js';
@@ -112,6 +115,64 @@ export class StageBackground {
     this.root.add(a, dir, fill);
   }
 
+  /**
+   * 统一氛围：背景色 + 指数雾 + 三点光（各 mode 参数表入口）
+   * @param {{ bg?: number, fog?: number, fogColor?: number, light?: number, intensity?: number, amb?: number }} p
+   */
+  _atmosphere({
+    bg = 0x0a0c10, fog = 0.03, fogColor, light = 0x88aaff, intensity = 1.2, amb = 0.55,
+  } = {}) {
+    this.scene.background = new THREE.Color(bg);
+    this.scene.fog = fog > 0 ? new THREE.FogExp2(fogColor ?? bg, fog) : null;
+    this._addLights(light, intensity, amb);
+  }
+
+  /**
+   * 批量散布几何：默认 (rand-0.5)*spread 落位并 extras
+   * @param {number} count
+   * @param {(i: number) => THREE.Object3D | null | undefined} factory
+   * @param {{
+   *   spread?: [number, number, number],
+   *   place?: (mesh: THREE.Object3D, i: number) => void,
+   *   skipAdd?: boolean,
+   * }} [opts]
+   * @returns {THREE.Object3D[]}
+   */
+  _scatter(count, factory, opts = {}) {
+    const spread = opts.spread || [10, 10, 8];
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const mesh = factory(i);
+      if (!mesh) continue;
+      if (opts.place) {
+        opts.place(mesh, i);
+      } else if (!mesh.userData.fixed) {
+        mesh.position.set(
+          (Math.random() - 0.5) * spread[0],
+          (Math.random() - 0.5) * spread[1],
+          (Math.random() - 0.5) * spread[2],
+        );
+      }
+      if (!opts.skipAdd) {
+        this.root.add(mesh);
+        this.extras.push(mesh);
+      }
+      out.push(mesh);
+    }
+    return out;
+  }
+
+  /** 环上放齿/钉等子网格 */
+  _ringTeeth(parent, n, radius, geo, mat, { rotFollow = true } = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const tooth = new THREE.Mesh(geo, mat);
+      tooth.position.set(Math.cos(a) * radius, Math.sin(a) * radius, 0);
+      if (rotFollow) tooth.rotation.z = a;
+      parent.add(tooth);
+    }
+  }
+
   _points(count, color, spread = 12, size = 0.08) {
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
@@ -157,41 +218,40 @@ export class StageBackground {
 
   /** 1面道中：维基外围 · 零散草稿 — 深绿代码隧道 */
   _s1mid() {
-    this.scene.background = new THREE.Color(0x07140e);
-    this.scene.fog = new THREE.FogExp2(0x07140e, 0.035);
-    this._addLights(0x66ffaa, 1.1, 0.5);
+    this._atmosphere({ bg: 0x07140e, fog: 0.035, light: 0x66ffaa, intensity: 1.1, amb: 0.5 });
     const chars = '草稿OTTO#[]{}<>wiki编辑';
-    for (let i = 0; i < 48; i++) {
-      const geo = new THREE.BoxGeometry(0.06, 0.06, 2.2 + Math.random() * 5);
-      const mat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color().setHSL(0.33 + Math.random() * 0.06, 0.55, 0.28 + Math.random() * 0.35),
-        transparent: true,
-        opacity: 0.55 + Math.random() * 0.35,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      const r = 2.2 + Math.random() * 5;
-      const a = Math.random() * Math.PI * 2;
-      mesh.position.set(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.7, (Math.random() - 0.5) * 22);
+    this._scatter(48, () => {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.06, 2.2 + Math.random() * 5),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color().setHSL(0.33 + Math.random() * 0.06, 0.55, 0.28 + Math.random() * 0.35),
+          transparent: true,
+          opacity: 0.55 + Math.random() * 0.35,
+        }),
+      );
       mesh.userData.speed = 2.5 + Math.random() * 5;
       mesh.userData.tunnel = true;
-      this.root.add(mesh);
-      this.extras.push(mesh);
-    }
-    for (let i = 0; i < 10; i++) {
+      return mesh;
+    }, {
+      place: (mesh) => {
+        const r = 2.2 + Math.random() * 5;
+        const a = Math.random() * Math.PI * 2;
+        mesh.position.set(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.7, (Math.random() - 0.5) * 22);
+      },
+    });
+    this._scatter(10, (i) => {
       const ch = chars[i % chars.length];
       const tex = makeTextTexture(ch, {
         w: 64, h: 64, fill: '#9dffc0', font: 'bold 36px monospace', bg: 'rgba(10,40,24,0.5)',
       });
       const p = new THREE.Mesh(
         new THREE.PlaneGeometry(0.55, 0.55),
-        new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
       );
-      p.position.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 14);
       p.userData.speed = 1.5 + Math.random() * 2;
       p.userData.tunnel = true;
-      this.root.add(p);
-      this.extras.push(p);
-    }
+      return p;
+    }, { spread: [8, 9, 14] });
     this._labelPlane(['维基外围', '零散草稿'], {
       color: '#a8ffc8', pos: [0, 5.2, -2], scale: [4.2, 1.35],
     });
@@ -200,9 +260,7 @@ export class StageBackground {
 
   /** 1面Boss：爱丽丝 — 粉青齿轮法阵 */
   _s1boss() {
-    this.scene.background = new THREE.Color(0x1a0a16);
-    this.scene.fog = new THREE.FogExp2(0x1a0a16, 0.028);
-    this._addLights(0xff88cc, 1.6, 0.45);
+    this._atmosphere({ bg: 0x1a0a16, fog: 0.028, light: 0xff88cc, intensity: 1.6, amb: 0.45 });
     const gearMat = (c, e) => new THREE.MeshStandardMaterial({
       color: c, emissive: e, metalness: 0.75, roughness: 0.28,
     });
@@ -210,29 +268,10 @@ export class StageBackground {
     const t2 = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.28, 12, 44), gearMat(0x67e8f9, 0x226666));
     const t3 = new THREE.Mesh(
       new THREE.TorusGeometry(1.4, 0.12, 10, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffe4f0, transparent: true, opacity: 0.85 })
+      new THREE.MeshBasicMaterial({ color: 0xffe4f0, transparent: true, opacity: 0.85 }),
     );
-    // 齿轮齿
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2;
-      const tooth = new THREE.Mesh(
-        new THREE.BoxGeometry(0.35, 0.55, 0.35),
-        gearMat(0xfbcfe8, 0x6b1d3a)
-      );
-      tooth.position.set(Math.cos(a) * 4.55, Math.sin(a) * 4.55, 0);
-      tooth.rotation.z = a;
-      t1.add(tooth);
-    }
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const tooth = new THREE.Mesh(
-        new THREE.BoxGeometry(0.22, 0.4, 0.22),
-        gearMat(0xa5f3fc, 0x155e75)
-      );
-      tooth.position.set(Math.cos(a) * 3.0, Math.sin(a) * 3.0, 0);
-      tooth.rotation.z = a;
-      t2.add(tooth);
-    }
+    this._ringTeeth(t1, 16, 4.55, new THREE.BoxGeometry(0.35, 0.55, 0.35), gearMat(0xfbcfe8, 0x6b1d3a));
+    this._ringTeeth(t2, 12, 3.0, new THREE.BoxGeometry(0.22, 0.4, 0.22), gearMat(0xa5f3fc, 0x155e75));
     t1.userData.rot = 0.55;
     t2.userData.rot = -1.05;
     t3.userData.rot = 0.9;
@@ -250,56 +289,47 @@ export class StageBackground {
 
   /** 2面道中：编辑日常 — 深蓝六角数据断裂带 */
   _s2mid() {
-    this.scene.background = new THREE.Color(0x050e1c);
-    this.scene.fog = new THREE.FogExp2(0x050e1c, 0.032);
-    this._addLights(0x4488ff, 1.25);
-    for (let i = 0; i < 28; i++) {
-      const geo = new THREE.CylinderGeometry(0.35, 0.35, 1.1 + Math.random() * 0.8, 6);
+    this._atmosphere({ bg: 0x050e1c, fog: 0.032, light: 0x4488ff, intensity: 1.25 });
+    this._scatter(28, () => {
       const warn = Math.random() < 0.22;
-      const mat = new THREE.MeshStandardMaterial({
-        color: warn ? 0x7f1d1d : 0x1e3a5f,
-        emissive: warn ? 0xff2222 : 0x112244,
-        emissiveIntensity: warn ? 0.9 : 0.35,
-        flatShading: true,
-        metalness: 0.4,
-        roughness: 0.55,
-      });
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set((Math.random() - 0.5) * 11, (Math.random() - 0.5) * 11, (Math.random() - 0.5) * 9);
+      const m = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35, 0.35, 1.1 + Math.random() * 0.8, 6),
+        new THREE.MeshStandardMaterial({
+          color: warn ? 0x7f1d1d : 0x1e3a5f,
+          emissive: warn ? 0xff2222 : 0x112244,
+          emissiveIntensity: warn ? 0.9 : 0.35,
+          flatShading: true,
+          metalness: 0.4,
+          roughness: 0.55,
+        }),
+      );
       m.rotation.set(Math.random(), Math.random(), Math.random());
       m.userData.drift = 0.3 + Math.random() * 0.5;
       m.userData.phase = Math.random() * 10;
-      this.root.add(m);
-      this.extras.push(m);
-    }
-    // 红色警告三角
-    for (let i = 0; i < 8; i++) {
+      return m;
+    }, { spread: [11, 11, 9] });
+    this._scatter(8, () => {
       const tri = new THREE.Mesh(
         new THREE.ConeGeometry(0.45, 0.7, 3),
-        new THREE.MeshBasicMaterial({ color: 0xff3344, transparent: true, opacity: 0.85 })
+        new THREE.MeshBasicMaterial({ color: 0xff3344, transparent: true, opacity: 0.85 }),
       );
-      tri.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 6);
       tri.userData.spin = 1 + Math.random();
       tri.userData.blink = true;
-      this.root.add(tri);
-      this.extras.push(tri);
-    }
-    // 二进制飘带
-    for (let i = 0; i < 6; i++) {
+      return tri;
+    }, { spread: [10, 8, 6] });
+    this._scatter(6, (i) => {
       const bits = Array.from({ length: 8 }, () => (Math.random() > 0.5 ? '1' : '0')).join('');
       const tex = makeTextTexture(bits, {
         w: 200, h: 40, fill: '#7dd3fc', font: '18px monospace', bg: 'rgba(8,20,40,0.4)',
       });
       const p = new THREE.Mesh(
         new THREE.PlaneGeometry(2.8, 0.45),
-        new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
       );
-      p.position.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 5);
       p.userData.floatY = true;
       p.userData.phase = i;
-      this.root.add(p);
-      this.extras.push(p);
-    }
+      return p;
+    }, { spread: [8, 8, 5] });
     this._labelPlane(['编辑日常', '审核冲突'], {
       color: '#93c5fd', pos: [0, 5.4, -1], scale: [4.0, 1.3],
     });
@@ -308,9 +338,7 @@ export class StageBackground {
 
   /** 2面Boss：Icebin — 六角冰晶矩阵 */
   _s2boss() {
-    this.scene.background = new THREE.Color(0x030a16);
-    this.scene.fog = new THREE.FogExp2(0x030a16, 0.03);
-    this._addLights(0xaaddff, 1.55, 0.4);
+    this._atmosphere({ bg: 0x030a16, fog: 0.03, light: 0xaaddff, intensity: 1.55, amb: 0.4 });
     const crystal = new THREE.Group();
     for (let ring = 0; ring < 4; ring++) {
       const n = 6;
@@ -358,9 +386,7 @@ export class StageBackground {
 
   /** 3面道中：分歧十字路口 — 左铬右暖 */
   _s3mid() {
-    this.scene.background = new THREE.Color(0x0c0a08);
-    this.scene.fog = new THREE.FogExp2(0x0c0a08, 0.028);
-    this._addLights(0xffcc88, 1.2);
+    this._atmosphere({ bg: 0x0c0a08, fog: 0.028, light: 0xffcc88, intensity: 1.2 });
     // 左：门构皮蒂娅 铬科技网格
     const left = new THREE.Group();
     const grid = new THREE.GridHelper(9, 14, 0xa8c4e0, 0x4a6078);
@@ -412,40 +438,37 @@ export class StageBackground {
 
   /** 3面Boss：大宗关 — 金橙防火墙多边形 */
   _s3boss() {
-    this.scene.background = new THREE.Color(0x1a1008);
-    this.scene.fog = new THREE.FogExp2(0x1a1008, 0.025);
-    this._addLights(0xffaa44, 1.7, 0.45);
+    this._atmosphere({ bg: 0x1a1008, fog: 0.025, light: 0xffaa44, intensity: 1.7, amb: 0.45 });
     const outer = new THREE.Mesh(
       new THREE.IcosahedronGeometry(4.2, 0),
-      new THREE.MeshBasicMaterial({ color: 0xfbbf24, wireframe: true })
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24, wireframe: true }),
     );
     const mid = new THREE.Mesh(
       new THREE.OctahedronGeometry(3.0, 0),
-      new THREE.MeshBasicMaterial({ color: 0xfb923c, wireframe: true })
+      new THREE.MeshBasicMaterial({ color: 0xfb923c, wireframe: true }),
     );
     const inner = new THREE.Mesh(
       new THREE.IcosahedronGeometry(1.8, 0),
       new THREE.MeshStandardMaterial({
         color: 0xfde68a, emissive: 0xb45309, emissiveIntensity: 0.7, wireframe: true,
-      })
+      }),
     );
     outer.userData.rot = 0.48;
     mid.userData.rot = -0.72;
     inner.userData.rot = 1.1;
     this.root.add(outer, mid, inner);
     this.extras.push(outer, mid, inner);
-    // 火焰粒子环
-    for (let i = 0; i < 18; i++) {
+    this._scatter(18, (i) => {
       const a = (i / 18) * Math.PI * 2;
       const spark = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 6, 6),
-        new THREE.MeshBasicMaterial({ color: 0xff6b1a })
+        new THREE.MeshBasicMaterial({ color: 0xff6b1a }),
       );
+      spark.userData.fixed = true;
       spark.position.set(Math.cos(a) * 5, Math.sin(a) * 5, 0);
       spark.userData.orbit = { r: 5, a, speed: 0.8 };
-      this.root.add(spark);
-      this.extras.push(spark);
-    }
+      return spark;
+    });
     this._labelPlane(['【大宗关不是】', '互然雏'], {
       color: '#fde68a', pos: [0, 0, 0.5], scale: [4.0, 1.4], blink: true,
       font: 'bold 28px "Microsoft YaHei", sans-serif',
@@ -458,24 +481,22 @@ export class StageBackground {
 
   /** 巡查姬 404 — 红色警告条纹 + 扫描 */
   _patrol() {
-    this.scene.background = new THREE.Color(0x0a0004);
-    this.scene.fog = new THREE.FogExp2(0x0a0004, 0.04);
-    this._addLights(0xff2244, 1.3, 0.35);
-    for (let i = 0; i < 22; i++) {
+    this._atmosphere({ bg: 0x0a0004, fog: 0.04, light: 0xff2244, intensity: 1.3, amb: 0.35 });
+    this._scatter(22, (i) => {
       const b = new THREE.Mesh(
         new THREE.BoxGeometry(10, 0.18, 0.45),
         new THREE.MeshBasicMaterial({
           color: i % 2 ? 0xff2244 : 0xaa0030,
           transparent: true,
           opacity: 0.45,
-        })
+        }),
       );
+      b.userData.fixed = true;
       b.position.set(0, (i - 11) * 0.85, -2 + (i % 3) * 0.3);
       b.userData.phase = i;
       b.userData.stripe = true;
-      this.root.add(b);
-      this.extras.push(b);
-    }
+      return b;
+    });
     // 品红/青错位故障层
     const glitchC = new THREE.Mesh(
       new THREE.PlaneGeometry(12, 14),
@@ -511,11 +532,13 @@ export class StageBackground {
 
   /** A4 门百梁 — 推销方尖碑 */
   _a4(boss) {
-    this.scene.background = new THREE.Color(boss ? 0x2a0808 : 0x1a1408);
-    this.scene.fog = new THREE.FogExp2(boss ? 0x2a0808 : 0x1a1408, 0.03);
-    this._addLights(boss ? 0xff6644 : 0xffd700, boss ? 1.6 : 1.3);
-    const n = boss ? 14 : 9;
-    for (let i = 0; i < n; i++) {
+    this._atmosphere({
+      bg: boss ? 0x2a0808 : 0x1a1408,
+      fog: 0.03,
+      light: boss ? 0xff6644 : 0xffd700,
+      intensity: boss ? 1.6 : 1.3,
+    });
+    this._scatter(boss ? 14 : 9, () => {
       const h = 2.2 + Math.random() * 4.5;
       const m = new THREE.Mesh(
         new THREE.ConeGeometry(0.35 + Math.random() * 0.15, h, 4),
@@ -524,8 +547,9 @@ export class StageBackground {
           emissive: boss ? 0x7f1d1d : 0x92400e,
           metalness: 0.65,
           roughness: 0.3,
-        })
+        }),
       );
+      m.userData.fixed = true;
       m.position.set((Math.random() - 0.5) * 10, h / 2 - 3.2, (Math.random() - 0.5) * 6);
       if (boss) {
         m.rotation.z = (Math.random() - 0.5) * 1.8;
@@ -534,12 +558,10 @@ export class StageBackground {
       } else {
         m.userData.rot = 0.15;
       }
-      this.root.add(m);
-      this.extras.push(m);
-    }
+      return m;
+    });
     if (boss) {
-      // 购买按钮碎片射出感
-      for (let i = 0; i < 10; i++) {
+      this._scatter(10, (i) => {
         const btn = new THREE.Mesh(
           new THREE.PlaneGeometry(1.2, 0.45),
           new THREE.MeshBasicMaterial({
@@ -549,14 +571,12 @@ export class StageBackground {
             transparent: true,
             opacity: 0.9,
             side: THREE.DoubleSide,
-          })
+          }),
         );
-        btn.position.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4);
         btn.userData.speed = 3 + Math.random() * 4;
         btn.userData.tunnel = true;
-        this.root.add(btn);
-        this.extras.push(btn);
-      }
+        return btn;
+      }, { spread: [8, 6, 4] });
       this._labelPlane('【门百梁】', {
         color: '#fecaca', pos: [0, 4.8, 0], scale: [3.4, 1.0], blink: true,
       });
@@ -579,9 +599,12 @@ export class StageBackground {
 
   /** A5 主角冲突 — 蓝白 vs 粉红 */
   _a5(boss) {
-    this.scene.background = new THREE.Color(boss ? 0x14081a : 0x0a0a14);
-    this.scene.fog = new THREE.FogExp2(boss ? 0x14081a : 0x0a0a14, 0.03);
-    this._addLights(0xaaccff, 1.2);
+    this._atmosphere({
+      bg: boss ? 0x14081a : 0x0a0a14,
+      fog: 0.03,
+      light: 0xaaccff,
+      intensity: 1.2,
+    });
     const b1 = new THREE.Mesh(
       new THREE.SphereGeometry(1.55, 28, 28),
       new THREE.MeshStandardMaterial({
@@ -609,17 +632,17 @@ export class StageBackground {
       spiral.userData.rot = 1.5;
       this.root.add(spiral);
       this.extras.push(spiral);
-      for (let i = 0; i < 20; i++) {
+      this._scatter(20, (i) => {
+        const a = (i / 20) * Math.PI * 2;
         const tri = new THREE.Mesh(
           new THREE.ConeGeometry(0.15, 0.45, 3),
-          new THREE.MeshBasicMaterial({ color: i % 2 ? 0x7dd3fc : 0xf9a8d4 })
+          new THREE.MeshBasicMaterial({ color: i % 2 ? 0x7dd3fc : 0xf9a8d4 }),
         );
-        const a = (i / 20) * Math.PI * 2;
+        tri.userData.fixed = true;
         tri.position.set(Math.cos(a) * 3.5, Math.sin(a * 2) * 2, Math.sin(a) * 3.5);
         tri.userData.orbit = { r: 3.5, a, speed: 1.2, yAmp: 2 };
-        this.root.add(tri);
-        this.extras.push(tri);
-      }
+        return tri;
+      });
       this._labelPlane('署名权争议', {
         color: '#e9d5ff', pos: [0, 5.0, 0], scale: [3.6, 0.9], blink: true,
       });
@@ -657,11 +680,13 @@ export class StageBackground {
 
   /** A6 一美个 — 哈机密乐园 / 崩坏 */
   _a6(boss) {
-    this.scene.background = new THREE.Color(boss ? 0x1a0010 : 0x180820);
-    this.scene.fog = new THREE.FogExp2(boss ? 0x1a0010 : 0x180820, 0.028);
-    this._addLights(0xff88cc, boss ? 1.5 : 1.15);
-    const n = boss ? 22 : 16;
-    for (let i = 0; i < n; i++) {
+    this._atmosphere({
+      bg: boss ? 0x1a0010 : 0x180820,
+      fog: 0.028,
+      light: 0xff88cc,
+      intensity: boss ? 1.5 : 1.15,
+    });
+    this._scatter(boss ? 22 : 16, (i) => {
       let mesh;
       if (i % 3 === 0) {
         mesh = new THREE.Mesh(
@@ -670,7 +695,7 @@ export class StageBackground {
             color: new THREE.Color().setHSL(0.85 + Math.random() * 0.12, 0.75, 0.55),
             emissive: 0x440033,
             emissiveIntensity: 0.5,
-          })
+          }),
         );
       } else if (i % 3 === 1) {
         mesh = new THREE.Mesh(
@@ -678,19 +703,17 @@ export class StageBackground {
           new THREE.MeshStandardMaterial({
             color: new THREE.Color().setHSL(0.15 + Math.random() * 0.05, 0.9, 0.55),
             emissive: 0x663300,
-          })
+          }),
         );
       } else {
-        // 星形近似
         mesh = new THREE.Mesh(
           new THREE.ConeGeometry(0.35, 0.7, 5),
           new THREE.MeshStandardMaterial({
             color: new THREE.Color().setHSL(0.9, 0.6, 0.6),
             emissive: 0x550044,
-          })
+          }),
         );
       }
-      mesh.position.set((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 7);
       mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random());
       if (boss) {
         mesh.userData.rot = 1.5 + Math.random() * 2;
@@ -700,9 +723,8 @@ export class StageBackground {
         mesh.userData.floatY = true;
         mesh.userData.phase = i;
       }
-      this.root.add(mesh);
-      this.extras.push(mesh);
-    }
+      return mesh;
+    }, { spread: [9, 9, 7] });
     if (boss) {
       // 服务器欠费弹窗
       const popup = new THREE.Mesh(
@@ -761,21 +783,22 @@ export class StageBackground {
 
   /** B4 赌人时尚 — 独轮创车 */
   _b4(boss) {
-    this.scene.background = new THREE.Color(boss ? 0x180606 : 0x140808);
-    this.scene.fog = new THREE.FogExp2(0x140808, 0.032);
-    this._addLights(0xff4444, 1.35);
+    this._atmosphere({
+      bg: boss ? 0x180606 : 0x140808,
+      fog: 0.032,
+      light: 0xff4444,
+      intensity: 1.35,
+    });
     const makeWheel = (r, spikes, rotSpd) => {
       const wheel = new THREE.Mesh(
         new THREE.TorusGeometry(r, 0.35, 12, 36),
         new THREE.MeshStandardMaterial({
           color: 0xfb7185, emissive: 0x7f1d1d, metalness: 0.55, roughness: 0.35,
-        })
+        }),
       );
+      const spikeMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
       for (let i = 0; i < spikes; i++) {
-        const spike = new THREE.Mesh(
-          new THREE.ConeGeometry(0.14, 0.75, 6),
-          new THREE.MeshBasicMaterial({ color: 0xff2222 })
-        );
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.75, 6), spikeMat);
         const a = (i / spikes) * Math.PI * 2;
         spike.position.set(Math.cos(a) * (r + 0.4), Math.sin(a) * (r + 0.4), 0);
         spike.rotation.z = a - Math.PI / 2;
@@ -828,9 +851,12 @@ export class StageBackground {
 
   /** B5 棍电噢哆 — 破皮鞋 / 推退 */
   _b5(boss) {
-    this.scene.background = new THREE.Color(boss ? 0x100810 : 0x0a0810);
-    this.scene.fog = new THREE.FogExp2(0x0a0810, 0.035);
-    this._addLights(0xff8844, 1.3);
+    this._atmosphere({
+      bg: boss ? 0x100810 : 0x0a0810,
+      fog: 0.035,
+      light: 0xff8844,
+      intensity: 1.3,
+    });
     const makeShoe = () => {
       const shoe = new THREE.Group();
       const sole = new THREE.Mesh(
@@ -908,9 +934,14 @@ export class StageBackground {
 
   /** B6 拉斯特神炫 — 炫妈迷雾 / 虾油风油精 */
   _b6(boss) {
-    this.scene.background = new THREE.Color(boss ? 0x102000 : 0x0a1208);
-    this.scene.fog = new THREE.FogExp2(boss ? 0x1a3008 : 0x0a1208, boss ? 0.045 : 0.04);
-    this._addLights(0xa3e635, boss ? 1.5 : 1.15, 0.5);
+    this._atmosphere({
+      bg: boss ? 0x102000 : 0x0a1208,
+      fog: boss ? 0.045 : 0.04,
+      fogColor: boss ? 0x1a3008 : 0x0a1208,
+      light: 0xa3e635,
+      intensity: boss ? 1.5 : 1.15,
+      amb: 0.5,
+    });
     // 防御塔线框
     for (let i = 0; i < (boss ? 7 : 5); i++) {
       const tower = new THREE.Group();

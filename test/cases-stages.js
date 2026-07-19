@@ -182,15 +182,24 @@ test('installMidWave：continuous 先于 spawn 门控', () => {
   assertEqual(order.join(''), 'ccw'); // continuous + wave
 });
 
-test('第1面章节表经工厂后字段完整（T14 试点）', () => {
-  const s1 = buildChapterList().filter((c) => String(c.stageKey) === '1');
-  assertEqual(s1.length, 6);
-  assertEqual(s1[0].id, 1);
-  assertEqual(s1[0].music, 's1_mid');
-  assertEqual(s1[4].kind, 'boss');
-  assertEqual(s1[4].letterTime, 40);
-  assertEqual(s1[5].id, 6);
-  for (const c of s1) {
-    assert(typeof c.build === 'function', `s1 #${c.id} build`);
+test('第1–3面章节表经工厂后字段完整（T14）', () => {
+  const faces = [
+    { key: '1', n: 6, firstId: 1, musicMid: 's1_mid', firstBossIdx: 4, letterTime: 40, lastId: 6 },
+    { key: '2', n: 8, firstId: 7, musicMid: 's2_mid', firstBossIdx: 5, letterTime: 42, lastId: 14 },
+    { key: '3', n: 8, firstId: 15, musicMid: 's3_mid', firstBossIdx: 6, letterTime: 45, lastId: 22 },
+  ];
+  for (const f of faces) {
+    const list = buildChapterList().filter((c) => String(c.stageKey) === f.key);
+    assertEqual(list.length, f.n, `stage ${f.key} count`);
+    assertEqual(list[0].id, f.firstId);
+    assertEqual(list[0].music, f.musicMid);
+    assertEqual(list[f.firstBossIdx].kind, 'boss');
+    assertEqual(list[f.firstBossIdx].letterTime, f.letterTime);
+    assertEqual(list[list.length - 1].id, f.lastId);
+    for (const c of list) {
+      assert(typeof c.build === 'function', `s${f.key} #${c.id} build`);
+    }
   }
+  const s3last = buildChapterList().find((c) => c.id === 22);
+  assertEqual(s3last?.onClear, 'routeCheck');
 });

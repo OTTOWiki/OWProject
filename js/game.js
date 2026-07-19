@@ -1,5 +1,5 @@
 import {
-  LOGICAL_W, PLAYER_DEFS,
+  LOGICAL_W, PLAYER_DEFS, BALANCE,
   getDifficulty,
 } from './config.js';
 import { Player } from './entities.js';
@@ -151,13 +151,13 @@ export class Game {
     this.dialogues = getDialogues(playerId);
 
     this.player = new Player(PLAYER_DEFS[playerId]);
-    this.player.lives = lives != null ? lives : this.diff.startLives;
-    this.player.bombs = this.diff.startBombs;
-    this.deathBombWindow = this.diff.deathBombWindow;
-    this.playerAtkMul = this.diff.playerAtk;
+    this.player.lives = lives != null ? lives : BALANCE.startLives;
+    this.player.bombs = BALANCE.startBombs;
+    this.deathBombWindow = BALANCE.deathBombWindow;
+    this.playerAtkMul = 1;
     this.diffScoreMul = this.diff.scoreMul;
     this.grazeMul = this.diff.grazeMul;
-    this.enemyHpMul = this.diff.enemyHp;
+    this.enemyHpMul = 1;
     this.bulletSpeedMul = this.diff.bulletSpeed;
     this.fireIntervalMul = this.diff.fireInterval;
     this.spawnMul = this.diff.spawnMul;
@@ -366,15 +366,19 @@ export class Game {
         }
         debugTick();
 
-        const bgMul = this.paused ? 0
-          : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
-            : 1;
-        this.playBg?.update(dt * bgMul);
-        this.background?.setTendency(this.totalTendency);
-        this.background?.update();
-
-        // 仅逻辑帧清边沿；纯描画 rAF 不清，避免 justPressed 被提前抹掉
-        this.input.endFrame();
+        try {
+          const bgMul = this.paused ? 0
+            : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
+              : 1;
+          this.playBg?.update(dt * bgMul);
+          this.background?.setTendency(this.totalTendency);
+          this.background?.update();
+        } catch (err) {
+          console.error('[game bg]', err);
+        } finally {
+          // 仅逻辑帧清边沿；失败也必须清，否则 justPressed 卡死 → 暂停连闪
+          this.input.endFrame();
+        }
       }
 
       // ---- 描画：跟 rAF / 设置上限，与逻辑 60 完全独立 ----
@@ -388,7 +392,11 @@ export class Game {
         }
       }
       if (shouldDraw) {
-        this._draw();
+        try {
+          this._draw();
+        } catch (err) {
+          console.error('[game draw]', err);
+        }
         if (this._fpsLastDrawT != null) {
           const rawDt = Math.max(1e-4, (t - this._fpsLastDrawT) / 1000);
           this._fpsFrames += 1;
@@ -412,6 +420,8 @@ export class Game {
           this._drawFps(this.ctx);
         }
       } catch (_) { /* ignore */ }
+      // 外层 catch 时逻辑帧可能未 endFrame
+      try { this.input.endFrame(); } catch (_) { /* ignore */ }
     }
   }
 

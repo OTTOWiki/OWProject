@@ -375,7 +375,7 @@ export function miss(game) {
     game._gameOver();
     return;
   }
-  const floor = game.diff.missBombFloor ?? BALANCE.resource.missBombFloor ?? 2;
+  const floor = BALANCE.resource.missBombFloor ?? 2;
   p.bombs = Math.max(p.bombs, floor);
   p.invuln = 3;
   p.resetPos();
@@ -437,7 +437,7 @@ export function defaultKillDrop(game, e) {
   if (!ch) return null;
   if (
     ch.kind === 'midboss'
-    && game.diff.midbossDrop !== false
+    && BALANCE.resource.midbossDrop !== false
     && (e.type === 'boss' || e.type === 'elite')
   ) {
     return 'bomb';
@@ -491,7 +491,7 @@ export function grantLetterResource(game, ch, perfect, success) {
     return;
   }
 
-  const chance = game.diff.letterNmnbBombChance ?? res.letterNmnbBombChance ?? 0.4;
+  const chance = res.letterNmnbBombChance ?? 0.4;
   if (Math.random() < chance) {
     spawnItem(game, bx + (Math.random() - 0.5) * 30, by + 18, 'bomb');
   }

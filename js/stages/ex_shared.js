@@ -1,5 +1,5 @@
 /** Extra 共用：强度 ×0.8、章时 ×0.5 */
-import { elite, boss, timer } from './_shared.js';
+import { elite, boss, timer, pushBossRef } from './_shared.js';
 import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain,
@@ -71,11 +71,10 @@ export function pushMidboss(g, opts = {}) {
     color = C.pink,
     tier = 1,
   } = opts;
-  const e = elite({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: exHp(hp), kind: 'ex_mid',
     color, label, enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 0.7) * (40 + tier * 8);
     timer(en, 'aim', exFire(0.75 - tier * 0.05), d, () => {
       spawnAimed(game, en, game.player, {
@@ -91,9 +90,7 @@ export function pushMidboss(g, opts = {}) {
         spawnAimedLaser(game, en, game.player, color);
       });
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  }, 'elite');
 }
 
 /**
@@ -109,12 +106,11 @@ export function pushBossLetter(g, opts = {}) {
     style = 'aim',
     tier = 1,
   } = opts;
-  const e = boss({
+  const tMul = 1 + (tier - 1) * 0.08;
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 95, hp: exHp(hp), kind: 'van',
     color, color2, label, enterY: 95,
-  });
-  const tMul = 1 + (tier - 1) * 0.08;
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 0.65) * (50 + tier * 4);
     en.y = 95 + Math.cos(en.age * 0.5) * 12;
     const frenzy = en.hp / en.maxHp < 0.35;
@@ -233,9 +229,7 @@ export function pushBossLetter(g, opts = {}) {
         });
       }
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 export {

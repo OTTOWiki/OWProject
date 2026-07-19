@@ -1,120 +1,125 @@
-import { mob, elite, boss, timer, faceDefaults, midChapter, letterChapter } from './_shared.js';
+/**
+ * B5 棍电噢哆 — mid/midboss 走 installMidWave + pushBossRef；Letter 脚本不变
+ */
+import {
+  mob, elite, timer, faceDefaults, midChapter, letterChapter,
+  installMidWave, pushBossRef,
+} from './_shared.js';
 import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
 import { Bullet } from '../entities.js';
 
-/* === B5 棍电噢哆 — 17 chapters (mid x8 + midboss x1 + boss x8) === */
+const BOSS_B5 = {
+  x: LOGICAL_W / 2, y: 95, kind: 'gundian',
+  color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
+};
 
 function chapter_b5_mid_1(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.5) {
-      g.rainT = 0;
-      g.spawnBullet(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 2.0,
-        type: 'rice', color: '#fdba74', from: 'enemy', gravity: 0.015,
-      }));
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.8) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 12) return;
-    const x = 40 + (g.waveCount * 35) % (LOGICAL_W - 80);
-    const e = mob(x, -20, 32, '#fb923c');
-    e.vy = 0.8 + (g.waveCount % 3) * 0.3;
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.7, d, () => {
-        spawnAimed(game, en, game.player, { n: 1, parity: 'odd', type: 'dot', speed: 2.6, color: '#fb923c' });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.8,
+    maxWaves: 12,
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.5) {
+        game.rainT = 0;
+        game.spawnBullet(new Bullet({
+          x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 2.0,
+          type: 'rice', color: '#fdba74', from: 'enemy', gravity: 0.015,
+        }));
+      }
+    },
+    onWave: (game, wave) => {
+      const x = 40 + (wave * 35) % (LOGICAL_W - 80);
+      const e = mob(x, -20, 32, '#fb923c');
+      e.vy = 0.8 + (wave % 3) * 0.3;
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.7, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 1, parity: 'odd', type: 'dot', speed: 2.6, color: '#fb923c' });
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_b5_mid_2(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.55) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    const e = mob(50 + Math.random() * (LOGICAL_W - 100), -20, 36, '#f97316');
-    e.vy = 1.0;
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.6, d, () => {
-        spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'talisman', speed: 2.5, color: '#fb923c' });
-      });
-      timer(en, 'ring', 1.6, d, () => {
-        spawnRingAt(game, en.x, en.y, 8, 1.4, 'dot', '#fdba74', (g.waveCount || 0) * 0.5);
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.55,
+    maxWaves: 14,
+    onWave: (game, wave) => {
+      const e = mob(50 + Math.random() * (LOGICAL_W - 100), -20, 36, '#f97316');
+      e.vy = 1.0;
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.6, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'talisman', speed: 2.5, color: '#fb923c' });
+        });
+        timer(en, 'ring', 1.6, d, () => {
+          spawnRingAt(gm, en.x, en.y, 8, 1.4, 'dot', '#fdba74', wave * 0.5);
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_b5_mid_3(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.7) {
-      g.laserT = 0;
-      const dummy = { x: LOGICAL_W / 2, y: 30 };
-      spawnAimedLaser(g, dummy, g.player, '#fb923c');
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.65) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 13) return;
-    const side = g.waveCount % 2 ? 38 : LOGICAL_W - 38;
-    const e = mob(side, 50 + (g.waveCount % 3) * 40, 34, '#f97316');
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.55, d, () => {
-        spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'rice', speed: 2.5, spread: 0.2, color: '#fdba74' });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.65,
+    maxWaves: 13,
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.7) {
+        game.laserT = 0;
+        spawnAimedLaser(game, { x: LOGICAL_W / 2, y: 30 }, game.player, '#fb923c');
+      }
+    },
+    onWave: (game, wave) => {
+      const side = wave % 2 ? 38 : LOGICAL_W - 38;
+      const e = mob(side, 50 + (wave % 3) * 40, 34, '#f97316');
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.55, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'rice', speed: 2.5, spread: 0.2, color: '#fdba74' });
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_b5_mid_4(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.3) {
-      g.rainT = 0;
-      spawnGravityRain(g, 1, 'rice', '#fdba74', 1.4);
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.7) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    const e = elite({
-      x: 50 + Math.random() * (LOGICAL_W - 100), y: 75, hp: 230, kind: 'generic', color: '#f97316',
-    });
-    e.vy = 0.3;
-    e.script = (en, d, game) => {
-      timer(en, 'aim', 0.6, d, () => {
-        spawnAimed(game, en, game.player, { n: 3, parity: 'even', type: 'talisman', speed: 2.6, spread: 0.18, color: '#fdba74' });
+  installMidWave(g, {
+    interval: 0.7,
+    maxWaves: 14,
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.3) {
+        game.rainT = 0;
+        spawnGravityRain(game, 1, 'rice', '#fdba74', 1.4);
+      }
+    },
+    onWave: (game) => {
+      const e = elite({
+        x: 50 + Math.random() * (LOGICAL_W - 100), y: 75, hp: 230, kind: 'generic', color: '#f97316',
       });
-      timer(en, 'ring', 1.6, d, () => spawnRingAt(game, en.x, en.y, 8, 1.5, 'dot', '#fb923c', en.age));
-    };
-    g.spawnEnemy(e);
-  };
+      e.vy = 0.3;
+      e.script = (en, d, gm) => {
+        timer(en, 'aim', 0.6, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 3, parity: 'even', type: 'talisman', speed: 2.6, spread: 0.18, color: '#fdba74' });
+        });
+        timer(en, 'ring', 1.6, d, () => spawnRingAt(gm, en.x, en.y, 8, 1.5, 'dot', '#fb923c', en.age));
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_b5_midboss(g) {
-  const e = elite({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 2000, kind: 'gundian', color: '#fb923c', color2: '#fdba74',
     label: '中单影卫', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     timer(en, 'ring', 1.4, d, () => {
       spawnRingAt(game, en.x, en.y, 12, 1.8, 'talisman', '#fb923c', en.age);
     });
@@ -131,78 +136,72 @@ function chapter_b5_midboss(g) {
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 6, 1.4, 'dot', '#fdba74'),
       }));
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  }, 'elite');
 }
 
 function chapter_b5_mid_5(g) {
-  g.waveFn = (dt) => {
-    g.waveTimer = (g.waveTimer || 0) + dt;
-    if (g.waveTimer < 0.85) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 16) return;
-
-    const side = g.waveCount % 2 ? 1 : -1;
-    const y = 60 + (g.waveCount * 23) % 380;
-    const e = mob(side > 0 ? -20 : LOGICAL_W + 20, y, 30, side > 0 ? '#fb923c' : '#fdba74');
-    e.hp = 30;
-    e.vx = -side * 2.2;
-    e.vy = Math.sin(g.waveCount * 1.3) * 0.6;
-    e.script = (en, d, game) => {
-      timer(en, 'aim', 0.35, d, () => {
-        spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'rice', speed: 2.4, spread: 0.15, color: '#f97316' });
-      });
-      timer(en, 'ring', 0.7, d, () => {
-        spawnRingAt(game, en.x, en.y, { n: 8, speed: 1.6 + Math.random() * 0.4, color: '#fdba74', type: 'dot' });
-      });
-      timer(en, 'reverse', 1.2, d, () => {
-        en.vx = -en.vx;
-      });
-    };
-    g.spawnEnemy(e);
-
-    if (g.waveCount % 2 === 0) {
-      const filler = mob(side > 0 ? -20 : LOGICAL_W + 20, 60 + Math.random() * 380, 15, '#fda4af');
-      filler.hp = 12;
-      filler.vx = -side * 3.0;
-      filler.script = (en, d2, game) => {
-        timer(en, 'f', 0.5, d2, () => {
-          spawnAimed(game, en, game.player, { n: 2, type: 'talisman', speed: 2.8, color: '#fda4af' });
+  installMidWave(g, {
+    interval: 0.85,
+    maxWaves: 16,
+    onWave: (game, wave) => {
+      const side = wave % 2 ? 1 : -1;
+      const y = 60 + (wave * 23) % 380;
+      const e = mob(side > 0 ? -20 : LOGICAL_W + 20, y, 30, side > 0 ? '#fb923c' : '#fdba74');
+      e.hp = 30;
+      e.vx = -side * 2.2;
+      e.vy = Math.sin(wave * 1.3) * 0.6;
+      e.script = (en, d, gm) => {
+        timer(en, 'aim', 0.35, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'rice', speed: 2.4, spread: 0.15, color: '#f97316' });
+        });
+        timer(en, 'ring', 0.7, d, () => {
+          spawnRingAt(gm, en.x, en.y, { n: 8, speed: 1.6 + Math.random() * 0.4, color: '#fdba74', type: 'dot' });
+        });
+        timer(en, 'reverse', 1.2, d, () => {
+          en.vx = -en.vx;
         });
       };
-      g.spawnEnemy(filler);
-    }
-  };
+      game.spawnEnemy(e);
+      if (wave % 2 === 0) {
+        const filler = mob(side > 0 ? -20 : LOGICAL_W + 20, 60 + Math.random() * 380, 15, '#fda4af');
+        filler.hp = 12;
+        filler.vx = -side * 3.0;
+        filler.script = (en, d2, gm) => {
+          timer(en, 'f', 0.5, d2, () => {
+            spawnAimed(gm, en, gm.player, { n: 2, type: 'talisman', speed: 2.8, color: '#fda4af' });
+          });
+        };
+        game.spawnEnemy(filler);
+      }
+    },
+  });
 }
 
 function chapter_b5_mid_6(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.6) {
-      g.laserT = 0;
-      // 用当前 waveCount 定轨（刷怪前也可能为 0）
-      spawnHLaser(g, 80 + ((g.waveCount || 0) * 35) % 380, (g.waveCount || 0) % 3 === 0 ? 1 : -1, '#f97316');
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.7) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 13) return;
-    for (const side of [-1, 1]) {
-      const x = LOGICAL_W / 2 + side * 80;
-      const e = mob(x, -15, 36, side === -1 ? '#fb923c' : '#fdba74');
-      e.vy = 1.2;
-      e.script = (en, d, game) => {
-        timer(en, 's', 0.5, d, () => {
-          spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'rice', speed: 2.6, spread: 0.2, color: en.color });
-        });
-      };
-      g.spawnEnemy(e);
-    }
-  };
+  installMidWave(g, {
+    interval: 0.7,
+    maxWaves: 13,
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.6) {
+        game.laserT = 0;
+        spawnHLaser(game, 80 + ((game.waveCount || 0) * 35) % 380, (game.waveCount || 0) % 3 === 0 ? 1 : -1, '#f97316');
+      }
+    },
+    onWave: (game) => {
+      for (const side of [-1, 1]) {
+        const x = LOGICAL_W / 2 + side * 80;
+        const e = mob(x, -15, 36, side === -1 ? '#fb923c' : '#fdba74');
+        e.vy = 1.2;
+        e.script = (en, d, gm) => {
+          timer(en, 's', 0.5, d, () => {
+            spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'rice', speed: 2.6, spread: 0.2, color: en.color });
+          });
+        };
+        game.spawnEnemy(e);
+      }
+    },
+  });
 }
 
 function chapter_b5_mid_7(g) {
@@ -257,11 +256,7 @@ function chapter_b5_mid_8(g) {
 }
 
 function chapter_gundian_1(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3200, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 3200 }, (en, d, game) => {
     timer(en, 'a', 0.25, d, () => {
       const a = Math.atan2(game.player.y - en.y, game.player.x - en.x);
       game.spawnBullet(new Bullet({
@@ -274,17 +269,11 @@ function chapter_gundian_1(g) {
     timer(en, 'slide', 0.8, d, () => {
       spawnAimed(game, en, game.player, { n: 5, parity: 'even', type: 'dot', speed: 2.5, color: '#f97316' });
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_2(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3400, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 3400 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.5) * 60;
     en.y = 95 + Math.cos(en.age * 0.8) * 15;
     timer(en, 'aim', 0.3, d, () => {
@@ -299,17 +288,11 @@ function chapter_gundian_2(g) {
       }
     });
     timer(en, 'ring', 1.4, d, () => spawnRingAt(game, en.x, en.y, 12, 1.6, 'dot', '#fdba74', en.age));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_3(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3600, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 3600 }, (en, d, game) => {
     timer(en, 'laser', 0.35, d, () => {
       const side = en.data.side ? 1 : -1;
       en.data.side = !en.data.side;
@@ -321,17 +304,11 @@ function chapter_gundian_3(g) {
     timer(en, 'ring', 1.2, d, () => {
       spawnRingAt(game, en.x, en.y, 14, 2.0, 'medium', '#fdba74', en.age);
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_4(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 3800, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 3800 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (hpRatio < 0.5 ? 2.2 : 1.5)) * 90;
     en.y = 95 + Math.cos(en.age * 1.2) * 20;
@@ -341,17 +318,11 @@ function chapter_gundian_4(g) {
     timer(en, 'ring', 1.1, d, () => spawnRingAt(game, en.x, en.y, 16, 2.2, 'talisman', '#fdba74', en.age));
     timer(en, 'laser', 0.8, d, () => spawnAimedLaser(game, en, game.player, '#fb923c', 45));
     timer(en, 'rain', 0.18, d, () => spawnGravityRain(game, 2, 'rice', '#fdba74', 1.6));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_5(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 4000, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 4000 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (hpRatio < 0.4 ? 2.5 : 1.8)) * 105;
     en.y = 95 + Math.cos(en.age * (hpRatio < 0.4 ? 1.8 : 1.3)) * 25;
@@ -372,17 +343,11 @@ function chapter_gundian_5(g) {
       }
     });
     timer(en, 'ring', 1.3, d, () => spawnRingAt(game, en.x, en.y, 18, 2.2, 'dot', '#fdba74', en.age * 0.6));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_6(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 4200, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 4200 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const fast = hpRatio < 0.35;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (fast ? 3 : 2)) * (fast ? 120 : 100);
@@ -404,17 +369,11 @@ function chapter_gundian_6(g) {
         }
       });
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_7(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 4600, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 4600 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const frenzy = hpRatio < 0.25;
     timer(en, 'a', frenzy ? 0.12 : 0.25, d, () => {
@@ -434,17 +393,11 @@ function chapter_gundian_7(g) {
     if (frenzy) {
       timer(en, 'rain', 0.2, d, () => spawnGravityRain(game, 3, 'rice', '#fb923c', 2.0));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_gundian_last(g) {
-  const e = boss({
-    x: LOGICAL_W / 2, y: 95, hp: 5400, kind: 'gundian',
-    color: '#fb923c', color2: '#fdba74', label: '棍电噢哆', enterY: 95,
-  });
-  e.script = (en, d, game) => {
+  pushBossRef(g, { ...BOSS_B5, y: 95, enterY: 95, hp: 5400 }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const frenzy = hpRatio < 0.2;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (frenzy ? 3.5 : 2.5)) * (frenzy ? 140 : 115);
@@ -477,9 +430,7 @@ function chapter_gundian_last(g) {
       });
       timer(en, 'rain', 0.15, d, () => spawnGravityRain(game, 3, 'medium', '#fb923c', 2.4));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 const FACE = faceDefaults('B5');

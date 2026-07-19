@@ -25,31 +25,49 @@ test('四个难度齐全且 Normal 倍率为 1', () => {
   for (const id of DIFFICULTY_ORDER) {
     const d = getDifficulty(id);
     assert(d && d.id === id, `missing difficulty ${id}`);
-    assert(d.enemyHp > 0 && d.bulletSpeed > 0, `${id} mul invalid`);
-    assert(d.startLives >= 0 && d.startBombs >= 0, `${id} resources`);
+    assert(d.bulletSpeed > 0 && d.bulletCount > 0, `${id} mul invalid`);
+    assert(d.fireInterval > 0 && d.spawnMul > 0, `${id} rhythm invalid`);
   }
   const n = getDifficulty('normal');
-  assertEqual(n.enemyHp, 1);
   assertEqual(n.bulletSpeed, 1);
   assertEqual(n.bulletCount, 1);
   assertEqual(n.scoreMul, 1);
+  assertEqual(n.fireInterval, 1);
+  assertEqual(n.spawnMul, 1);
 });
 
 test('extra 难度与 lunatic 战斗参数同源且文案独立', () => {
   const l = getDifficulty('lunatic');
   const e = getDifficulty('extra');
   assertEqual(e.id, 'extra');
-  assertEqual(e.enemyHp, l.enemyHp);
   assertEqual(e.bulletSpeed, l.bulletSpeed);
   assertEqual(e.fireInterval, l.fireInterval);
   assertEqual(e.spawnMul, l.spawnMul);
   assertEqual(e.bulletCount, l.bulletCount);
-  assertEqual(e.startLives, l.startLives);
-  assertEqual(e.startBombs, l.startBombs);
+  assertEqual(e.grazeMul, l.grazeMul);
   assertEqual(e.scoreMul, l.scoreMul);
   assert(e.name !== l.name, 'extra 应有独立 UI 名');
   assert(e.rank === 'EXTRA');
   assert(!DIFFICULTY_ORDER.includes('extra'), 'Story 难度列表不含 extra');
+});
+
+test('资源与决死窗在 BALANCE 统一，不按难度配置', () => {
+  assertEqual(BALANCE.startLives, 4);
+  assertEqual(BALANCE.startBombs, 4);
+  assertEqual(BALANCE.deathBombWindow, 0.28);
+  assertEqual(BALANCE.resource.missBombFloor, 3);
+  assertEqual(BALANCE.resource.midbossDrop, true);
+  assertEqual(BALANCE.resource.letterNmnbBombChance, 0.55);
+  for (const id of Object.keys(DIFFICULTIES)) {
+    const d = DIFFICULTIES[id];
+    assert(d.startLives === undefined, `${id} should not set startLives`);
+    assert(d.enemyHp === undefined, `${id} should not set enemyHp`);
+    assert(d.playerAtk === undefined, `${id} should not set playerAtk`);
+    assert(d.deathBombWindow === undefined, `${id} should not set deathBombWindow`);
+    assert(d.missBombFloor === undefined, `${id} should not set missBombFloor`);
+    assert(d.midbossDrop === undefined, `${id} should not set midbossDrop`);
+    assert(d.letterNmnbBombChance === undefined, `${id} should not set letterNmnb`);
+  }
 });
 
 test('未知难度回退 Normal', () => {
@@ -57,14 +75,11 @@ test('未知难度回退 Normal', () => {
   assertEqual(getDifficulty(undefined).id, 'normal');
 });
 
-test('Easy 比 Lunatic 更宽松（速/发数/血/资源）', () => {
+test('Easy 比 Lunatic 更宽松（速/发数）', () => {
   const e = getDifficulty('easy');
   const l = getDifficulty('lunatic');
   assert(e.bulletSpeed < l.bulletSpeed);
   assert(e.bulletCount < l.bulletCount);
-  assert(e.enemyHp < l.enemyHp);
-  assert(e.startLives > l.startLives);
-  assert(e.deathBombWindow > l.deathBombWindow);
 });
 
 test('BALANCE 关键字段存在', () => {

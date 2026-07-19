@@ -45,10 +45,10 @@ export const DEFAULT_SETTINGS = {
   fpsLimit: 0,
 };
 
-/** 基础平衡（以 Normal 为基准） */
+/** 基础平衡；资源对齐 Easy（全难度共用） */
 export const BALANCE = {
-  startLives: 2,
-  startBombs: 3,
+  startLives: 4,
+  startBombs: 4,
   maxLives: 8,
   maxBombs: 8,
 
@@ -66,7 +66,7 @@ export const BALANCE = {
 
   bombDuration: 1.6,
   bombInvuln: 2.2,
-  deathBombWindow: 0.18,
+  deathBombWindow: 0.28,
   /** Bomb 释放的巨型追踪弹 */
   bombOrbCount: 8,
   bombOrbDamage: 22,
@@ -119,15 +119,17 @@ export const BALANCE = {
    * Extend 用 baseScore（不含难度 scoreMul，含 Unstable 实时 scoreMul）
    */
   resource: {
-    /** 分数 Extend 阈值（基础分，与 score×10 对齐）；超出表后每 extendStep 再 1UP */
-    extendThresholds: [8000000, 20000000, 40000000, 70000000],
-    extendStep: 40000000,
-    /** Letter NMNB 捕获掉 Bomb 概率 */
-    letterNmnbBombChance: 0.4,
+    /** 分数 Extend 阈值（基础分）；超出表后每 extendStep 再 1UP */
+    extendThresholds: [800000, 2000000, 4000000, 7000000],
+    extendStep: 4000000,
+    /** Letter NMNB 捕获掉 Bomb 概率（Easy 档，全难度共用） */
+    letterNmnbBombChance: 0.55,
     /** 负面 Unstable NMNB 且补偿倍率 ≥ 此值时额外 +1 Bomb */
     unstableCompBombMin: 1.15,
-    /** Miss 后 Bomb 至少补到的数量（难度可覆盖 missBombFloor） */
-    missBombFloor: 2,
+    /** Miss 后 Bomb 至少补到的数量（Easy 档，全难度共用） */
+    missBombFloor: 3,
+    /** 道中精英（midboss）击破是否掉 Bomb */
+    midbossDrop: true,
   },
 };
 
@@ -161,9 +163,9 @@ export function calcLetterBonus(stageKey, timeLeft, timeMax) {
 }
 
 /**
- * 难度：Easy / Normal / Hard / Lunatic
+ * 难度：Easy / Normal / Hard / Lunatic（+ Extra 专用 extra）
  * 中文名：这么菜啊 / 白银 / S6第一个王者 / 职业选手
- * 弹幕以 Normal≈1.0 为基准；Easy 减密减速，Hard/Lunatic 加密加速。
+ * 仅缩放弹幕节奏与得分/擦弹；残机、Bomb、决死窗、血量、资源掉落见 BALANCE（全难度共用）。
  * bulletCount：环/扇/雨等发数倍率（patterns.scaleBulletCount）
  */
 export const DIFFICULTIES = {
@@ -174,20 +176,12 @@ export const DIFFICULTIES = {
     rank: 'EASY',
     color: '#60a5fa',
     desc: '弹速慢 · 密度低 · 适合熟悉操作',
-    enemyHp: 0.6,
     bulletSpeed: 0.78,
     fireInterval: 1.45,   // >1 开火更慢
     spawnMul: 1.35,       // >1 刷怪更慢
     bulletCount: 0.65,
-    startLives: 4,
-    startBombs: 4,
-    deathBombWindow: 0.28,
     grazeMul: 1.35,
     scoreMul: 0.5,
-    playerAtk: 1.15,
-    missBombFloor: 3,
-    midbossDrop: true,
-    letterNmnbBombChance: 0.55,
   },
   normal: {
     id: 'normal',
@@ -196,20 +190,12 @@ export const DIFFICULTIES = {
     rank: 'NORMAL',
     color: '#4ade80',
     desc: '标准曲线 · 推荐首次通关',
-    enemyHp: 1.0,
     bulletSpeed: 1.0,
     fireInterval: 1.0,
     spawnMul: 1.0,
     bulletCount: 1.0,
-    startLives: 2,
-    startBombs: 3,
-    deathBombWindow: 0.18,
     grazeMul: 1.0,
     scoreMul: 1.0,
-    playerAtk: 1.0,
-    missBombFloor: 2,
-    midbossDrop: true,
-    letterNmnbBombChance: 0.4,
   },
   hard: {
     id: 'hard',
@@ -217,21 +203,13 @@ export const DIFFICULTIES = {
     name: 'S6第一个王者',
     rank: 'HARD',
     color: '#fbbf24',
-    desc: '弹幕加密 · 血量提升 · 资源偏紧',
-    enemyHp: 1.4,
+    desc: '弹幕加密 · 弹速提升',
     bulletSpeed: 1.28,
     fireInterval: 0.72,
     spawnMul: 0.78,
     bulletCount: 1.25,
-    startLives: 2,
-    startBombs: 2,
-    deathBombWindow: 0.15,
     grazeMul: 0.9,
     scoreMul: 1.5,
-    playerAtk: 0.95,
-    missBombFloor: 2,
-    midbossDrop: true,
-    letterNmnbBombChance: 0.35,
   },
   lunatic: {
     id: 'lunatic',
@@ -240,20 +218,12 @@ export const DIFFICULTIES = {
     rank: 'LUNATIC',
     color: '#f87171',
     desc: '极限弹速与密度 · 仅限高手',
-    enemyHp: 1.85,
     bulletSpeed: 1.55,
     fireInterval: 0.55,
     spawnMul: 0.62,
     bulletCount: 1.5,
-    startLives: 1,
-    startBombs: 2,
-    deathBombWindow: 0.12,
     grazeMul: 0.8,
     scoreMul: 2.0,
-    playerAtk: 0.9,
-    missBombFloor: 1,
-    midbossDrop: false,
-    letterNmnbBombChance: 0.3,
   },
 };
 
@@ -444,12 +414,12 @@ export const MANUAL_CHAPTERS = [
   },
   {
     title: '三、难度等级',
-    body: `· Easy「这么菜啊」：弹速慢、密度低、资源多。
+    body: `· Easy「这么菜啊」：弹速慢、密度低。
 · Normal「白银」：标准弹幕与曲线，推荐首次通关。
-· Hard「S6第一个王者」：弹幕加密加速，资源偏紧。
+· Hard「S6第一个王者」：弹幕加密加速。
 · Lunatic「职业选手」：极限密度与弹速。
 
-默认资源约 2 残 3 Bomb（难度可覆盖）。难度会缩放弹速、开火间隔、刷怪节奏与发数密度。`,
+默认资源 4 残 4 Bomb（对齐 Easy，各难度相同）。敌机血量、资源获取与决死窗不随难度变化；难度只缩放弹速、开火间隔、刷怪节奏与发数密度。`,
   },
   {
     title: '四、系统指南',
@@ -458,14 +428,14 @@ export const MANUAL_CHAPTERS = [
 · 审核中（决死）：被弹后有极短「审核中」窗口，此时按 Bomb 可免死并全清弹幕。
 · 编辑度：判定点靠近子弹（擦弹）积攒编辑度；满槽按 Item 触发编辑战。
 · 收点线：版面上方浅色虚线。自机越过收点线后，场上得分道具永久被吸引。
-· Unstable Machine：道中章节附加随机效果（攻击/分数加减、迷雾、Bomb 禁用或双倍消耗等）。负面效果不实时加分，仅在章节 NMNB（无Miss无Bomb）结算时给予补偿倍率；正面不加惩罚。后三面（A/B 线 4–6 面）一般叠加 2–3 个效果。练习模式可单独关闭。
+· 系统异常（原 Unstable Machine）：道中章节附加随机异常（攻击/分数加减、迷雾、Bomb 禁用或双倍消耗等）。负面效果不实时加分，仅在章节 NMNB（无Miss无Bomb）结算时给予补偿倍率；正面不加惩罚。后三面（A/B 线 4–6 面）一般叠加 2–3 个效果。练习模式可单独关闭。
 · 阵营偏移：前三面在左半场积累 A 线倾向，右半场积累 B 线倾向；摇摆不定者将面临中立拦截。
 · 资源获取：
-  — 分数 Extend：累计基础分（不含难度得分倍率）达阈值 1UP（8M / 20M / 40M / 70M / 其后每 +40M；与 score×10 对齐）。
-  — 道中精英（midboss）击破常掉 Bomb（高难可关闭）。
+  — 分数 Extend：累计基础分（不含难度得分倍率）达阈值 1UP（0.8M / 2M / 4M / 7M / 其后每 +4M）。
+  — 道中精英（midboss）击破常掉 Bomb。
   — Letter NMNB 捕获：概率掉 Bomb；每面最后一张 Letter NMNB 掉 Life。
-  — 负面 Unstable 且补偿较高时，NMNB 结算额外 +1 Bomb。
-  — Miss 后 Bomb 仅补到难度下限（非一律补满 3）。`,
+  — 负面系统异常且补偿较高时，NMNB 结算额外 +1 Bomb。
+  — Miss 后 Bomb 补到下限 3（各难度相同）。`,
   },
   {
     title: '五、故事背景',

@@ -2,145 +2,134 @@
  * 伪 3D 前推场景背景 + 阶段转场 + 主题侧景装饰
  * Mode-7 地面 + 侧柱/标线/掠过物/剪影（纯 Canvas 几何）
  * mode 登记 / 贴图路径：js/bgModes.js
+ * 新 mode：只改 MODE_THEME 一行（sky + accent + 侧景），贴图仍走 bgModes.PLAYFIELD_BG_TEX
  */
 import { LOGICAL_W, LOGICAL_H } from './config.js';
 import { PLAYFIELD_BG_TEX, resolveBgMode, getAllBgModes } from './bgModes.js';
 
-const SKY = {
-  s1_mid: ['#06140e', '#0f2e20'],
-  s1_boss: ['#1c0814', '#4a1a38'],
-  s2_mid: ['#040c18', '#0a2440'],
-  s2_boss: ['#020814', '#0c3858'],
-  s3_mid: ['#0e0a08', '#2a2018'],
-  s3_boss: ['#1c1206', '#5a3810'],
-  patrol: ['#120004', '#480810'],
-  a4_mid: ['#1c1608', '#4a3a0c'],
-  a4_boss: ['#2e0606', '#5c1414'],
-  a5_mid: ['#080a16', '#182050'],
-  a5_boss: ['#16081c', '#481850'],
-  a6_mid: ['#16081c', '#481438'],
-  a6_boss: ['#1e0014', '#500830'],
-  b4_mid: ['#160808', '#481018'],
-  b4_boss: ['#1c0404', '#581018'],
-  b5_mid: ['#0a0812', '#2a1824'],
-  b5_boss: ['#120810', '#402018'],
-  b6_mid: ['#081208', '#1c3014'],
-  b6_boss: ['#0e1c00', '#2c4810'],
-  ex_mid: ['#080a16', '#182050'],
-  ex_boss: ['#1e0014', '#500830'],
-};
-
-const ACCENT = {
-  s1_mid: 'rgba(100,220,150,0.18)',
-  s1_boss: 'rgba(255,140,200,0.22)',
-  s2_mid: 'rgba(70,140,255,0.16)',
-  s2_boss: 'rgba(140,220,255,0.22)',
-  s3_mid: 'rgba(255,200,120,0.16)',
-  s3_boss: 'rgba(255,180,60,0.24)',
-  patrol: 'rgba(255,40,70,0.28)',
-  a4_mid: 'rgba(255,210,60,0.18)',
-  a4_boss: 'rgba(255,90,70,0.22)',
-  a5_mid: 'rgba(160,180,255,0.16)',
-  a5_boss: 'rgba(220,140,255,0.22)',
-  a6_mid: 'rgba(255,140,200,0.18)',
-  a6_boss: 'rgba(255,80,140,0.24)',
-  b4_mid: 'rgba(255,90,120,0.18)',
-  b4_boss: 'rgba(255,50,80,0.24)',
-  b5_mid: 'rgba(255,150,80,0.16)',
-  b5_boss: 'rgba(255,130,60,0.22)',
-  b6_mid: 'rgba(160,230,80,0.16)',
-  b6_boss: 'rgba(140,220,40,0.26)',
-  ex_mid: 'rgba(160,180,255,0.16)',
-  ex_boss: 'rgba(255,80,140,0.24)',
-};
-
-/** 各关侧景/符号主题 */
-const THEME = {
+/**
+ * mode → 版面主题（单一入口）
+ * @type {Record<string, {
+ *   sky: [string, string],
+ *   accent: string,
+ *   pillar: string, pillar2: string, float: string,
+ *   kind: string, sil: string, scan: boolean, symbols: string[],
+ * }>}
+ */
+const MODE_THEME = {
   s1_mid: {
+    sky: ['#06140e', '#0f2e20'], accent: 'rgba(100,220,150,0.18)',
     pillar: '#3d8f6a', pillar2: '#1a4a32', float: '#88ffaa',
     kind: 'code', sil: 'blocks', scan: false, symbols: ['#', '{}', '草稿', 'wiki'],
   },
   s1_boss: {
+    sky: ['#1c0814', '#4a1a38'], accent: 'rgba(255,140,200,0.22)',
     pillar: '#c46a9a', pillar2: '#6b2a4a', float: '#ffaadd',
     kind: 'gear', sil: 'gears', scan: false, symbols: ['齿轮', '编辑', '◇'],
   },
   s2_mid: {
+    sky: ['#040c18', '#0a2440'], accent: 'rgba(70,140,255,0.16)',
     pillar: '#2a5a8a', pillar2: '#143050', float: '#66aaff',
     kind: 'hex', sil: 'hex', scan: false, symbols: ['01', '审核', '!!'],
   },
   s2_boss: {
+    sky: ['#020814', '#0c3858'], accent: 'rgba(140,220,255,0.22)',
     pillar: '#4a90b0', pillar2: '#1a4058', float: '#aaf0ff',
     kind: 'crystal', sil: 'hex', scan: false, symbols: ['Ice', '//', '[]'],
   },
   s3_mid: {
+    sky: ['#0e0a08', '#2a2018'], accent: 'rgba(255,200,120,0.16)',
     pillar: '#8a9bb0', pillar2: '#ea580c', float: '#ffddaa',
     kind: 'split', sil: 'split', scan: false, symbols: ['A', 'B', '分叉'],
   },
   s3_boss: {
+    sky: ['#1c1206', '#5a3810'], accent: 'rgba(255,180,60,0.24)',
     pillar: '#d4a020', pillar2: '#8a5010', float: '#ffcc66',
     kind: 'fire', sil: 'poly', scan: false, symbols: ['防火墙', '合并', '◇'],
   },
   patrol: {
+    sky: ['#120004', '#480810'], accent: 'rgba(255,40,70,0.28)',
     pillar: '#c02040', pillar2: '#601020', float: '#ff4466',
     kind: 'warn', sil: 'bars', scan: true, symbols: ['404', 'NOT', 'FOUND'],
   },
   a4_mid: {
+    sky: ['#1c1608', '#4a3a0c'], accent: 'rgba(255,210,60,0.18)',
     pillar: '#c9a227', pillar2: '#6b5010', float: '#ffe066',
     kind: 'obelisk', sil: 'spires', scan: false, symbols: ['特惠', '¥', '购'],
   },
   a4_boss: {
+    sky: ['#2e0606', '#5c1414'], accent: 'rgba(255,90,70,0.22)',
     pillar: '#d04040', pillar2: '#701818', float: '#ff8866',
     kind: 'obelisk', sil: 'spires', scan: false, symbols: ['VIP', '买!', '套'],
   },
   a5_mid: {
+    sky: ['#080a16', '#182050'], accent: 'rgba(160,180,255,0.16)',
     pillar: '#5a8acc', pillar2: '#c06090', float: '#ddaaff',
     kind: 'dual', sil: 'orbs', scan: false, symbols: ['蓝', '粉', '署名'],
   },
   a5_boss: {
+    sky: ['#16081c', '#481850'], accent: 'rgba(220,140,255,0.22)',
     pillar: '#7a60b0', pillar2: '#a04070', float: '#e9d5ff',
     kind: 'dual', sil: 'orbs', scan: false, symbols: ['冲突', 'VS', '权'],
   },
   a6_mid: {
+    sky: ['#16081c', '#481438'], accent: 'rgba(255,140,200,0.18)',
     pillar: '#c060a0', pillar2: '#803060', float: '#ff99dd',
     kind: 'candy', sil: 'rings', scan: false, symbols: ['♡', '哈', '~'],
   },
   a6_boss: {
+    sky: ['#1e0014', '#500830'], accent: 'rgba(255,80,140,0.24)',
     pillar: '#a03060', pillar2: '#501028', float: '#fda4af',
     kind: 'candy', sil: 'rings', scan: true, symbols: ['欠费', '回收', '⚠'],
   },
   ex_mid: {
+    sky: ['#080a16', '#182050'], accent: 'rgba(160,180,255,0.16)',
     pillar: '#5a8acc', pillar2: '#c06090', float: '#ddaaff',
     kind: 'dual', sil: 'orbs', scan: false, symbols: ['键政', 'van', '覆写'],
   },
   ex_boss: {
+    sky: ['#1e0014', '#500830'], accent: 'rgba(255,80,140,0.24)',
     pillar: '#a03060', pillar2: '#501028', float: '#fda4af',
     kind: 'candy', sil: 'rings', scan: true, symbols: ['键政', '站队', '⚠'],
   },
   b4_mid: {
+    sky: ['#160808', '#481018'], accent: 'rgba(255,90,120,0.18)',
     pillar: '#a04050', pillar2: '#501820', float: '#ff6688',
     kind: 'spike', sil: 'wheel', scan: false, symbols: ['创', '!', '轮'],
   },
   b4_boss: {
+    sky: ['#1c0404', '#581018'], accent: 'rgba(255,50,80,0.24)',
     pillar: '#c03040', pillar2: '#601018', float: '#ff4466',
     kind: 'spike', sil: 'wheel', scan: false, symbols: ['创!', '击', '!!'],
   },
   b5_mid: {
+    sky: ['#0a0812', '#2a1824'], accent: 'rgba(255,150,80,0.16)',
     pillar: '#8a6040', pillar2: '#403020', float: '#ffaa66',
     kind: 'neon', sil: 'street', scan: false, symbols: ['中单', '推', '退'],
   },
   b5_boss: {
+    sky: ['#120810', '#402018'], accent: 'rgba(255,130,60,0.22)',
     pillar: '#a05030', pillar2: '#502818', float: '#fb923c',
     kind: 'neon', sil: 'street', scan: false, symbols: ['素质', '说', '锅'],
   },
   b6_mid: {
+    sky: ['#081208', '#1c3014'], accent: 'rgba(160,230,80,0.16)',
     pillar: '#4a7020', pillar2: '#203010', float: '#a3e635',
     kind: 'mist', sil: 'towers', scan: false, symbols: ['雾', '瓶', '塔'],
   },
   b6_boss: {
+    sky: ['#0e1c00', '#2c4810'], accent: 'rgba(140,220,40,0.26)',
     pillar: '#5a9020', pillar2: '#284010', float: '#84cc16',
     kind: 'mist', sil: 'towers', scan: true, symbols: ['炫妈', '油', '雾'],
   },
 };
+
+const FALLBACK_THEME = MODE_THEME.s1_mid;
+
+/** @param {string} mode */
+function themeFor(mode) {
+  return MODE_THEME[mode] || FALLBACK_THEME;
+}
 
 const imgCache = new Map();
 
@@ -213,7 +202,7 @@ export class PlayfieldBackground {
 
   _propsFor(mode) {
     if (this._propsCache.has(mode)) return this._propsCache.get(mode);
-    const th = THEME[mode] || THEME.s1_mid;
+    const th = themeFor(mode);
     const seed = mode.length * 97 + (mode.charCodeAt(0) || 0) * 13;
     const props = [];
     for (let i = 0; i < 14; i++) {
@@ -289,10 +278,9 @@ export class PlayfieldBackground {
   _drawMode(ctx, mode, alpha, scrollOff = 0) {
     const W = LOGICAL_W;
     const H = LOGICAL_H;
-    const sky = SKY[mode] || SKY.s1_mid;
+    const th = themeFor(mode);
     const path = PLAYFIELD_BG_TEX[mode] || PLAYFIELD_BG_TEX.s1_mid;
     const tex = loadTex(path);
-    const th = THEME[mode] || THEME.s1_mid;
     const z = this.scrollZ + scrollOff;
     const horizonY = H * this.horizon;
 
@@ -301,8 +289,8 @@ export class PlayfieldBackground {
 
     // 天空渐变
     const g = ctx.createLinearGradient(0, 0, 0, horizonY + 20);
-    g.addColorStop(0, sky[0]);
-    g.addColorStop(1, sky[1]);
+    g.addColorStop(0, th.sky[0]);
+    g.addColorStop(1, th.sky[1]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, horizonY + 4);
 
@@ -324,7 +312,7 @@ export class PlayfieldBackground {
     this._drawSilhouette(ctx, mode, th, alpha, horizonY, W);
 
     // 地平线光带
-    const accent = ACCENT[mode] || 'rgba(255,240,200,0.22)';
+    const accent = th.accent || 'rgba(255,240,200,0.22)';
     const hg = ctx.createLinearGradient(0, horizonY - 8, 0, horizonY + 12);
     hg.addColorStop(0, 'transparent');
     hg.addColorStop(0.5, accent);
@@ -359,18 +347,18 @@ export class PlayfieldBackground {
           const sy = Math.floor(sampleY) % thTex;
           ctx.drawImage(tex, 0, sy, tw, 2, x0 - roadW * 0.05, y, roadW * 1.1, sliceH + 1);
         } catch {
-          ctx.fillStyle = sky[1];
+          ctx.fillStyle = th.sky[1];
           ctx.fillRect(x0, y, roadW, 2);
         }
       } else {
-        ctx.fillStyle = sky[1];
+        ctx.fillStyle = th.sky[1];
         ctx.globalAlpha = alpha * (0.3 + perspective * 0.4);
         ctx.fillRect(x0, y, roadW, 2);
       }
 
       if (y % 4 === 0) {
         ctx.globalAlpha = alpha * (0.15 + (1 - perspective) * 0.35);
-        ctx.fillStyle = sky[0];
+        ctx.fillStyle = th.sky[0];
         ctx.fillRect(0, y, x0, 4);
         ctx.fillRect(x0 + roadW, y, W - x0 - roadW, 4);
       }

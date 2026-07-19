@@ -11,6 +11,8 @@
  *   owDebug.clear()        仅清弹
  *
  * 游戏中：F8 开关面板 · F9 循环加速
+ *
+ * 面板 UI：Tweakpane（首次开启时 CDN 动态 import，正常游玩零请求）
  */
 
 import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
@@ -32,7 +34,23 @@ const state = {
   showOverlay: true,
 };
 
+/** 跳章输入（与 state 分离，避免污染 flag） */
+const jumpParams = { chapterId: 1 };
+
 const TIME_STEPS = [1, 1.5, 2, 3, 5, 8];
+
+const TIME_SCALE_OPTIONS = {
+  '1×': 1,
+  '1.5×': 1.5,
+  '2×': 2,
+  '3×': 3,
+  '5×': 5,
+  '8×': 8,
+};
+
+/** bare 名走 index.html importmap；失败时回退直链 CDN */
+const TWEAKPANE_SPEC = 'tweakpane';
+const TWEAKPANE_CDN = 'https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpane.js';
 
 function clampScale(v) {
   const n = Number(v);
@@ -81,10 +99,9 @@ export function debugShowOverlay() {
 
 export function installDebug(game) {
   gameRef = game;
-  ensurePanel();
+  ensureHud();
   bindHotkeys();
   exposeConsoleApi();
-  // 不在启动时打 console 提示；需要说明时用 owDebug.help()
 }
 
 function g() {
@@ -98,18 +115,17 @@ function applyLocksAfterFrame() {
   if (!state.enabled || !game?.player) return;
   const p = game.player;
   if (state.lockLives) {
-    const floor = Math.max(0, game.diff?.startLives ?? 2);
+    const floor = Math.max(0, BALANCE.startLives);
     if (p.lives < floor) p.lives = floor;
   }
   if (state.lockBombs) {
-    const floor = Math.max(0, game.diff?.startBombs ?? 3);
+    const floor = Math.max(0, BALANCE.startBombs);
     if (p.bombs < floor) p.bombs = floor;
   }
   if (state.autoEdit) {
     p.edit = BALANCE.editMax;
   }
   if (state.invincible) {
-    // 保持短无敌，避免仲裁窗卡死；被弹直接不进 _hitPlayer
     if (p.arbitration > 0) p.arbitration = 0;
   }
 }
@@ -210,7 +226,6 @@ export function debugNextChapter() {
   if (!game?.running) return false;
   game._cancelAdvance?.();
   game.chapterDone = false;
-  // Debug：精确 +1，不按路线过滤（方便扫表）
   game.chapterIndex += 1;
   if (game.chapterIndex >= game.chapters.length) {
     game._gameClear();
@@ -246,203 +261,153 @@ export function debugSkipDialogueNow() {
   return true;
 }
 
-/* ---------- 面板 ---------- */
+/* ---------- Tweakpane 面板（懒加载） ---------- */
 
-let panelEl = null;
+/** @type {import('tweakpane').Pane | null} */
+let pane = null;
+/** @type {Promise<import('tweakpane').Pane> | null} */
+let paneLoad = null;
 let hudEl = null;
 
-function ensurePanel() {
-  if (panelEl) return panelEl;
-  if (typeof document === 'undefined') return null;
-  panelEl = document.createElement('div');
-  panelEl.id = 'debug-panel';
-  panelEl.className = 'debug-panel hidden';
-  panelEl.innerHTML = `
-    <div class="debug-panel-head">
-      <strong>OW Debug</strong>
-      <span class="debug-panel-sub">F8 面板 · F9 加速</span>
-      <button type="button" class="debug-x" data-dbg="close" title="隐藏面板">×</button>
-    </div>
-    <div class="debug-panel-body">
-      <section>
-        <h4>作弊</h4>
-        <label class="debug-check"><input type="checkbox" data-dbg-flag="lockLives" /> 锁残机</label>
-        <label class="debug-check"><input type="checkbox" data-dbg-flag="lockBombs" /> 锁 Bomb</label>
-        <label class="debug-check"><input type="checkbox" data-dbg-flag="invincible" /> 不受伤</label>
-        <label class="debug-check"><input type="checkbox" data-dbg-flag="autoEdit" /> Edit 常满</label>
-        <label class="debug-check"><input type="checkbox" data-dbg-flag="skipDialogue" /> 跳过对话</label>
-        <label class="debug-check"><input type="checkbox" data-dbg-flag="showOverlay" /> 版面信息</label>
-      </section>
-      <section>
-        <h4>整体加速 <span id="debug-speed-label">1×</span></h4>
-        <input type="range" id="debug-speed" min="0" max="5" step="1" value="0" />
-        <div class="debug-speed-marks">1× · 1.5× · 2× · 3× · 5× · 8×</div>
-      </section>
-      <section>
-        <h4>局内工具</h4>
-        <div class="debug-btn-row">
-          <button type="button" data-dbg="clear">清弹</button>
-          <button type="button" data-dbg="kill">清敌</button>
-          <button type="button" data-dbg="win">通关本章</button>
-        </div>
-        <div class="debug-btn-row">
-          <button type="button" data-dbg="life">+残</button>
-          <button type="button" data-dbg="bomb">+B</button>
-          <button type="button" data-dbg="edit">满 Edit</button>
-        </div>
-        <div class="debug-btn-row">
-          <button type="button" data-dbg="next">下一章</button>
-          <button type="button" data-dbg="skip-transit">跳过场</button>
-          <button type="button" data-dbg="skip-dlg">跳对话</button>
-        </div>
-        <div class="debug-btn-row">
-          <button type="button" data-dbg="route-a">路线 A</button>
-          <button type="button" data-dbg="route-b">路线 B</button>
-        </div>
-        <div class="debug-jump">
-          <input type="number" id="debug-chapter-id" placeholder="章节 id" />
-          <button type="button" data-dbg="jump">跳转</button>
-          <button type="button" data-dbg="soft-jump">软跳</button>
-        </div>
-        <p class="debug-hint">软跳：保留分数/资源只换章。硬跳：等价 restart 到该章。</p>
-      </section>
-      <section>
-        <button type="button" class="debug-disable" data-dbg="disable">关闭 Debug 模式</button>
-      </section>
-    </div>
-  `;
-  document.body.appendChild(panelEl);
-
-  // 避免点面板时触屏/键盘冒泡进游戏
-  panelEl.addEventListener('pointerdown', (e) => e.stopPropagation());
-  panelEl.addEventListener('keydown', (e) => e.stopPropagation());
-  panelEl.addEventListener('keyup', (e) => e.stopPropagation());
-
-  panelEl.addEventListener('change', (e) => {
-    const t = e.target;
-    if (!(t instanceof HTMLInputElement)) return;
-    if (t.dataset.dbgFlag) {
-      const key = t.dataset.dbgFlag;
-      if (key in state && key !== 'enabled' && key !== 'panelOpen' && key !== 'timeScale') {
-        state[key] = t.checked;
-        syncPanel();
-      }
-    }
-  });
-
-  panelEl.querySelector('#debug-speed')?.addEventListener('input', (e) => {
-    const i = Number(e.target.value) || 0;
-    state.timeScale = TIME_STEPS[i] ?? 1;
-    syncPanel();
-  });
-
-  panelEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-dbg]');
-    if (!btn) return;
-    const act = btn.getAttribute('data-dbg');
-    runPanelAction(act);
-  });
-
+function ensureHud() {
+  if (hudEl || typeof document === 'undefined') return hudEl;
   hudEl = document.createElement('div');
   hudEl.id = 'debug-hud';
   hudEl.className = 'debug-hud hidden';
   document.body.appendChild(hudEl);
-
-  return panelEl;
+  return hudEl;
 }
 
-function runPanelAction(act) {
-  switch (act) {
-    case 'close':
-      state.panelOpen = false;
-      syncPanel();
-      break;
-    case 'disable':
-      setDebugEnabled(false);
-      break;
-    case 'clear':
-      debugClearBullets();
-      break;
-    case 'kill':
-      debugKillEnemies({ finish: false });
-      break;
-    case 'win':
-      debugKillEnemies({ finish: true });
-      break;
-    case 'life':
-      debugAddLife(1);
-      break;
-    case 'bomb':
-      debugAddBomb(1);
-      break;
-    case 'edit':
-      debugFillEdit();
-      break;
-    case 'next':
-      debugNextChapter();
-      break;
-    case 'skip-transit':
-      debugSkipTransit();
-      break;
-    case 'skip-dlg':
-      debugSkipDialogueNow();
-      break;
-    case 'route-a':
-      debugChooseRoute('A');
-      break;
-    case 'route-b':
-      debugChooseRoute('B');
-      break;
-    case 'jump': {
-      const id = document.getElementById('debug-chapter-id')?.value;
-      debugJumpChapter(id);
-      break;
+/**
+ * 首次调用才拉 Tweakpane CDN。
+ * @returns {Promise<import('tweakpane').Pane | null>}
+ */
+async function ensurePane() {
+  if (pane) return pane;
+  if (typeof document === 'undefined') return null;
+  if (paneLoad) return paneLoad;
+
+  paneLoad = (async () => {
+    let Pane;
+    try {
+      let mod;
+      try {
+        mod = await import(TWEAKPANE_SPEC);
+      } catch {
+        mod = await import(TWEAKPANE_CDN);
+      }
+      Pane = mod.Pane;
+    } catch (e) {
+      console.warn('[debug] Tweakpane load failed', e);
+      paneLoad = null;
+      return null;
     }
-    case 'soft-jump': {
-      const id = document.getElementById('debug-chapter-id')?.value;
-      debugSoftJumpChapter(id);
-      break;
+    if (!Pane) {
+      console.warn('[debug] Tweakpane.Pane missing');
+      paneLoad = null;
+      return null;
     }
-    default:
-      break;
-  }
+
+    const p = new Pane({
+      title: 'OW Debug · F8/F9',
+      expanded: true,
+    });
+    p.element.id = 'debug-panel';
+    Object.assign(p.element.style, {
+      position: 'fixed',
+      top: '12px',
+      right: '12px',
+      zIndex: '10050',
+      width: 'min(300px, calc(100vw - 24px))',
+      maxHeight: 'calc(100vh - 24px)',
+      overflow: 'auto',
+    });
+
+    // 避免点面板时触屏/键盘冒泡进游戏
+    p.element.addEventListener('pointerdown', (e) => e.stopPropagation());
+    p.element.addEventListener('keydown', (e) => e.stopPropagation());
+    p.element.addEventListener('keyup', (e) => e.stopPropagation());
+    p.element.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
+
+    buildPane(p);
+    pane = p;
+    applyPaneVisibility();
+    return p;
+  })();
+
+  return paneLoad;
 }
 
-function speedIndex() {
-  const i = TIME_STEPS.indexOf(state.timeScale);
-  if (i >= 0) return i;
-  // 最近值
-  let best = 0;
-  let bestD = Infinity;
-  TIME_STEPS.forEach((s, idx) => {
-    const d = Math.abs(s - state.timeScale);
-    if (d < bestD) { bestD = d; best = idx; }
+/** @param {import('tweakpane').Pane} p */
+function buildPane(p) {
+  const cheat = p.addFolder({ title: '作弊', expanded: true });
+  cheat.addBinding(state, 'lockLives', { label: '锁残机' });
+  cheat.addBinding(state, 'lockBombs', { label: '锁 Bomb' });
+  cheat.addBinding(state, 'invincible', { label: '不受伤' });
+  cheat.addBinding(state, 'autoEdit', { label: 'Edit 常满' });
+  cheat.addBinding(state, 'skipDialogue', { label: '跳过对话' });
+  cheat.addBinding(state, 'showOverlay', { label: '版面信息' });
+
+  p.addBinding(state, 'timeScale', {
+    label: '整体加速',
+    options: TIME_SCALE_OPTIONS,
   });
-  return best;
+
+  const tools = p.addFolder({ title: '局内工具', expanded: true });
+  const btn = (title, fn) => {
+    tools.addButton({ title }).on('click', fn);
+  };
+  btn('清弹', () => debugClearBullets());
+  btn('清敌', () => debugKillEnemies({ finish: false }));
+  btn('通关本章', () => debugKillEnemies({ finish: true }));
+  btn('+残', () => debugAddLife(1));
+  btn('+B', () => debugAddBomb(1));
+  btn('满 Edit', () => debugFillEdit());
+  btn('下一章', () => debugNextChapter());
+  btn('跳过场', () => debugSkipTransit());
+  btn('跳对话', () => debugSkipDialogueNow());
+  btn('路线 A', () => debugChooseRoute('A'));
+  btn('路线 B', () => debugChooseRoute('B'));
+
+  tools.addBinding(jumpParams, 'chapterId', {
+    label: '章节 id',
+    step: 1,
+  });
+  btn('硬跳（重开）', () => debugJumpChapter(jumpParams.chapterId));
+  btn('软跳（保资源）', () => debugSoftJumpChapter(jumpParams.chapterId));
+
+  p.addButton({ title: '关闭 Debug 模式' }).on('click', () => {
+    setDebugEnabled(false);
+  });
+}
+
+function applyPaneVisibility() {
+  if (!pane) return;
+  const show = state.enabled && state.panelOpen;
+  pane.hidden = !show;
+  // 部分版本用 element 更稳
+  pane.element.style.display = show ? '' : 'none';
+}
+
+function refreshPaneBindings() {
+  try {
+    pane?.refresh?.();
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function syncPanel() {
-  const el = ensurePanel();
-  if (!el) return;
-  if (!state.enabled || !state.panelOpen) {
-    el.classList.add('hidden');
-  } else {
-    el.classList.remove('hidden');
-  }
-  for (const key of ['lockLives', 'lockBombs', 'invincible', 'autoEdit', 'skipDialogue', 'showOverlay']) {
-    const box = el.querySelector(`[data-dbg-flag="${key}"]`);
-    if (box) box.checked = !!state[key];
-  }
-  const range = el.querySelector('#debug-speed');
-  if (range) range.value = String(speedIndex());
-  const lab = el.querySelector('#debug-speed-label');
-  if (lab) lab.textContent = `${state.timeScale}×`;
+  ensureHud();
+  applyPaneVisibility();
+  refreshPaneBindings();
   if (!state.enabled || !state.showOverlay) {
     hudEl?.classList.add('hidden');
   }
 }
 
 function refreshHudLine() {
+  ensureHud();
   if (!hudEl || !state.enabled || !state.showOverlay) {
     hudEl?.classList.add('hidden');
     return;
@@ -473,7 +438,6 @@ export function drawDebugOverlay(ctx) {
   if (!debugShowOverlay()) return;
   const game = g();
   if (!game?.running) return;
-  // DOM hud 已显示；此处仅在无 DOM 时兜底，保持轻量
   void ctx;
   void LOGICAL_W;
   void LOGICAL_H;
@@ -485,13 +449,28 @@ export function setDebugEnabled(on, { openPanel = true } = {}) {
   state.enabled = !!on;
   if (state.enabled) {
     if (openPanel) state.panelOpen = true;
+    // 懒加载面板；不阻塞 API 返回
+    void ensurePane().then(() => {
+      syncPanel();
+    });
   } else {
     state.panelOpen = false;
-    // 关闭时重置加速，避免忘关
     state.timeScale = 1;
   }
   syncPanel();
   return state;
+}
+
+function speedIndex() {
+  const i = TIME_STEPS.indexOf(state.timeScale);
+  if (i >= 0) return i;
+  let best = 0;
+  let bestD = Infinity;
+  TIME_STEPS.forEach((s, idx) => {
+    const d = Math.abs(s - state.timeScale);
+    if (d < bestD) { bestD = d; best = idx; }
+  });
+  return best;
 }
 
 function cycleSpeed() {
@@ -507,7 +486,6 @@ function bindHotkeys() {
   bindHotkeys._done = true;
   window.addEventListener('keydown', (e) => {
     if (!state.enabled && e.code !== 'F8') return;
-    // 输入框内不抢 F 键以外的
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
       if (e.code === 'F8' || e.code === 'F9') {
@@ -522,7 +500,11 @@ function bindHotkeys() {
         setDebugEnabled(true);
       } else {
         state.panelOpen = !state.panelOpen;
-        syncPanel();
+        if (state.panelOpen && !pane) {
+          void ensurePane().then(() => syncPanel());
+        } else {
+          syncPanel();
+        }
       }
     } else if (e.code === 'F9' && state.enabled) {
       e.preventDefault();
@@ -542,7 +524,7 @@ function exposeConsoleApi() {
   api.help = () => {
     console.log(`
 OW Debug 用法
-  owDebug()                 开启 + 打开面板
+  owDebug()                 开启 + 打开面板（首次会拉 Tweakpane CDN）
   owDebug(false)            关闭
   owDebug.set({ invincible:true, timeScale:3, lockLives:true, lockBombs:true,
                 autoEdit:true, skipDialogue:true, showOverlay:true })
@@ -566,6 +548,11 @@ EX 起点：stageSelectEntries 中 id=EX 的 startChapter
     if (opts.showOverlay != null) state.showOverlay = !!opts.showOverlay;
     if (opts.timeScale != null) state.timeScale = clampScale(opts.timeScale);
     if (opts.panelOpen != null) state.panelOpen = !!opts.panelOpen;
+    if (opts.chapterId != null) {
+      const n = Number(opts.chapterId);
+      if (Number.isFinite(n)) jumpParams.chapterId = n;
+    }
+    void ensurePane().then(() => syncPanel());
     syncPanel();
     return { ...state };
   };
@@ -581,6 +568,5 @@ EX 起点：stageSelectEntries 中 id=EX 的 startChapter
   api.route = (r) => debugChooseRoute(r);
 
   window.owDebug = api;
-  // 别名
   window.__owDebug = api;
 }

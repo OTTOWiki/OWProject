@@ -1,116 +1,113 @@
-import { mob, elite, boss, timer, faceDefaults, midChapter, letterChapter } from './_shared.js';
+/**
+ * A5 主角冲突 — mid/midboss 走 installMidWave + pushBossRef；Letter 脚本不变
+ */
+import {
+  mob, elite, timer, faceDefaults, midChapter, letterChapter,
+  installMidWave, pushBossRef,
+} from './_shared.js';
 import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
 import { Bullet } from '../entities.js';
 
-/* === A5 主角组间冲突 — 17 chapters (mid x8 + midboss x1 + boss x8) === */
-
 function chapter_a5_mid_1(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 1.0) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 11) return;
-    const side = g.waveCount % 2 ? 50 : LOGICAL_W - 50;
-    const color = g.waveCount % 2 ? '#7dd3fc' : '#f9a8d4';
-    const e = elite({ x: side, y: 70, hp: 200, color, kind: 'generic' });
-    e.vy = 0.4;
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.9, d, () => {
-        spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'dot', speed: 2.4, spread: 0.25, color: en.color });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 1.0,
+    maxWaves: 11,
+    onWave: (game, wave) => {
+      const side = wave % 2 ? 50 : LOGICAL_W - 50;
+      const color = wave % 2 ? '#7dd3fc' : '#f9a8d4';
+      const e = elite({ x: side, y: 70, hp: 200, color, kind: 'generic' });
+      e.vy = 0.4;
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.9, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'dot', speed: 2.4, spread: 0.25, color: en.color });
+        });
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_a5_mid_2(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.6) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    for (const side of [-1, 1]) {
-      const x = LOGICAL_W / 2 + side * 80;
-      const color = side === -1 ? '#7dd3fc' : '#f9a8d4';
-      const e = mob(x, -20, 35, color);
-      e.vy = 1.2;
-      e.script = (en, d, game) => {
-        timer(en, 's', 0.5, d, () => {
-          spawnAimed(game, en, game.player, { n: 3, parity: 'even', type: 'rice', speed: 2.6, spread: 0.14, color: en.color });
-        });
-      };
-      g.spawnEnemy(e);
-    }
-  };
+  installMidWave(g, {
+    interval: 0.6,
+    maxWaves: 14,
+    onWave: (game) => {
+      for (const side of [-1, 1]) {
+        const x = LOGICAL_W / 2 + side * 80;
+        const color = side === -1 ? '#7dd3fc' : '#f9a8d4';
+        const e = mob(x, -20, 35, color);
+        e.vy = 1.2;
+        e.script = (en, d, gm) => {
+          timer(en, 's', 0.5, d, () => {
+            spawnAimed(gm, en, gm.player, { n: 3, parity: 'even', type: 'rice', speed: 2.6, spread: 0.14, color: en.color });
+          });
+        };
+        game.spawnEnemy(e);
+      }
+    },
+  });
 }
 
 function chapter_a5_mid_3(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.7) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 13) return;
-    const x = 40 + (g.waveCount * 35) % (LOGICAL_W - 80);
-    const col = g.waveCount % 3 === 0 ? '#c4b5fd' : (g.waveCount % 2 ? '#7dd3fc' : '#f9a8d4');
-    const e = mob(x, -20, 36, col);
-    e.vy = 1.0;
-    e.script = (en, d, game) => {
-      timer(en, 's', 0.65, d, () => {
-        spawnAimed(game, en, game.player, { n: 2, parity: 'odd', type: 'talisman', speed: 2.5, color: col });
-      });
-      if (g.waveCount % 3 === 0) {
-        timer(en, 'ring', 1.5, d, () => spawnRingAt(game, en.x, en.y, 6, 1.4, 'dot', '#c4b5fd'));
-      }
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.7,
+    maxWaves: 13,
+    onWave: (game, wave) => {
+      const x = 40 + (wave * 35) % (LOGICAL_W - 80);
+      const col = wave % 3 === 0 ? '#c4b5fd' : (wave % 2 ? '#7dd3fc' : '#f9a8d4');
+      const e = mob(x, -20, 36, col);
+      e.vy = 1.0;
+      e.script = (en, d, gm) => {
+        timer(en, 's', 0.65, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 2, parity: 'odd', type: 'talisman', speed: 2.5, color: col });
+        });
+        if (wave % 3 === 0) {
+          timer(en, 'ring', 1.5, d, () => spawnRingAt(gm, en.x, en.y, 6, 1.4, 'dot', '#c4b5fd'));
+        }
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_a5_mid_4(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.32) {
-      g.rainT = 0;
-      g.spawnBullet(new Bullet({
-        x: Math.random() * LOGICAL_W, y: -10, vx: 0, vy: 1.5,
-        type: 'dot', color: '#a78bfa', from: 'enemy',
-      }));
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.65) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 14) return;
-    const side = g.waveCount % 2 ? 45 : LOGICAL_W - 45;
-    const color = g.waveCount % 2 ? '#7dd3fc' : '#f9a8d4';
-    const e = elite({ x: side, y: 70, hp: 220, color, kind: 'generic' });
-    e.vy = 0.35;
-    e.script = (en, d, game) => {
-      timer(en, 'aim', 0.55, d, () => {
-        spawnAimed(game, en, game.player, { n: 3, parity: 'even', type: 'rice', speed: 2.7, spread: 0.16, color: en.color });
-      });
-      timer(en, 'ring', 1.6, d, () => spawnRingAt(game, en.x, en.y, 8, 1.5, 'talisman', '#c4b5fd', en.age));
-    };
-    g.spawnEnemy(e);
-  };
+  installMidWave(g, {
+    interval: 0.65,
+    maxWaves: 14,
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.32) {
+        game.rainT = 0;
+        game.spawnBullet(new Bullet({
+          x: Math.random() * LOGICAL_W, y: -10, vx: 0, vy: 1.5,
+          type: 'dot', color: '#a78bfa', from: 'enemy',
+        }));
+      }
+    },
+    onWave: (game, wave) => {
+      const side = wave % 2 ? 45 : LOGICAL_W - 45;
+      const color = wave % 2 ? '#7dd3fc' : '#f9a8d4';
+      const e = elite({ x: side, y: 70, hp: 220, color, kind: 'generic' });
+      e.vy = 0.35;
+      e.script = (en, d, gm) => {
+        timer(en, 'aim', 0.55, d, () => {
+          spawnAimed(gm, en, gm.player, { n: 3, parity: 'even', type: 'rice', speed: 2.7, spread: 0.16, color: en.color });
+        });
+        timer(en, 'ring', 1.6, d, () => spawnRingAt(gm, en.x, en.y, 8, 1.5, 'talisman', '#c4b5fd', en.age));
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 function chapter_a5_midboss(g) {
-  const e = elite({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 2100, kind: 'rival', color: '#c4b5fd', color2: '#e0f2fe',
     label: '编辑伦理审查', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     timer(en, 'ring', 1.8, d, () => {
       spawnRingAt(game, en.x, en.y, 18, 1.6, 'medium', '#c4b5fd', en.age * 0.3);
     });
@@ -126,9 +123,7 @@ function chapter_a5_midboss(g) {
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.5, 'dot', '#c4b5fd'),
       }));
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  }, 'elite');
 }
 
 function chapter_a5_mid_5(g) {
@@ -181,32 +176,32 @@ function chapter_a5_mid_6(g) {
 }
 
 function chapter_a5_mid_7(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.6) {
-      g.laserT = 0;
-      spawnAimedLaser(g, { x: LOGICAL_W / 2, y: 50 }, g.player, '#a78bfa');
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < 0.8) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    if (g.waveCount > 13) return;
-    for (const side of [-1, 1]) {
-      const x = LOGICAL_W / 2 + side * 100;
-      const color = side === -1 ? '#7dd3fc' : '#f9a8d4';
-      const e = mob(x, -15, 38, color);
-      e.vy = 1.1;
-      e.script = (en, d, game) => {
-        timer(en, 's', 0.55, d, () => {
-          spawnAimed(game, en, game.player, { n: 2, parity: 'even', type: 'dot', speed: 2.6, spread: 0.28, color: en.color });
-        });
-        timer(en, 'ring', 1.8, d, () => spawnRingAt(game, en.x, en.y, 8, 1.4, 'talisman', '#c4b5fd'));
-      };
-      g.spawnEnemy(e);
-    }
-  };
+  installMidWave(g, {
+    interval: 0.8,
+    maxWaves: 13,
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.6) {
+        game.laserT = 0;
+        spawnAimedLaser(game, { x: LOGICAL_W / 2, y: 50 }, game.player, '#a78bfa');
+      }
+    },
+    onWave: (game) => {
+      for (const side of [-1, 1]) {
+        const x = LOGICAL_W / 2 + side * 100;
+        const color = side === -1 ? '#7dd3fc' : '#f9a8d4';
+        const e = mob(x, -15, 38, color);
+        e.vy = 1.1;
+        e.script = (en, d, gm) => {
+          timer(en, 's', 0.55, d, () => {
+            spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'dot', speed: 2.6, spread: 0.28, color: en.color });
+          });
+          timer(en, 'ring', 1.8, d, () => spawnRingAt(gm, en.x, en.y, 8, 1.4, 'talisman', '#c4b5fd'));
+        };
+        game.spawnEnemy(e);
+      }
+    },
+  });
 }
 
 function chapter_a5_mid_8(g) {
@@ -239,12 +234,11 @@ function chapter_a5_mid_8(g) {
 
 function chapter_rival_1(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 3200, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     timer(en, 'a', 0.35, d, () => {
       spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'dot', speed: 3.0, color: en.color });
     });
@@ -261,19 +255,16 @@ function chapter_rival_1(g) {
         }));
       }
     });
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_2(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 3300, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 0.9) * 60;
     timer(en, 'aim', 0.4, d, () => {
       spawnAimed(game, en, game.player, { n: 4, parity: 'even', type: 'rice', speed: 2.8, spread: 0.2, color: en.color });
@@ -287,19 +278,16 @@ function chapter_rival_2(g) {
       }
     });
     timer(en, 'ring', 1.5, d, () => spawnRingAt(game, en.x, en.y, 12, 1.8, 'medium', en.color, en.age * 0.5));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_3(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 3400, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.2) * 75;
     en.y = 100 + Math.cos(en.age * 0.8) * 20;
     timer(en, 'aim', 0.35, d, () => {
@@ -308,19 +296,16 @@ function chapter_rival_3(g) {
     timer(en, 'laser', 0.55, d, () => spawnAimedLaser(game, en, game.player, en.color2, 45));
     timer(en, 'ring', 1.3, d, () => spawnRingAt(game, en.x, en.y, 14, 2.0, 'rice', en.color, en.age));
     timer(en, 'rain', 1.8, d, () => spawnGravityRain(game, 1, 'dot', en.color2, 1.3));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_4(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 3600, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     timer(en, 'laser', 0.5, d, () => spawnAimedLaser(game, en, game.player, en.color, 45));
     timer(en, 'aim', 0.35, d, () => {
@@ -328,19 +313,16 @@ function chapter_rival_4(g) {
       spawnAimed(game, en, game.player, { n, parity: 'odd', type: 'talisman', speed: 3.2, color: en.color2 });
     });
     timer(en, 'ring', 1.0, d, () => spawnRingAt(game, en.x, en.y, 16, 2.4, 'medium', en.color, en.age));
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_5(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 3800, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (hpRatio < 0.5 ? 3.5 : 2.625)) * 90;
     en.y = 100 + Math.cos(en.age * 2.275) * 25;
@@ -359,19 +341,16 @@ function chapter_rival_5(g) {
     if (hpRatio < 0.5) {
       timer(en, 'rain', 0.4, d, () => spawnGravityRain(game, 1, 'medium', en.color2, 1.5));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_6(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 4000, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const fast = hpRatio < 0.35;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (fast ? 2.5 : 1.8)) * (fast ? 120 : 100);
@@ -393,19 +372,16 @@ function chapter_rival_6(g) {
         }
       });
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_7(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 4500, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const frenzy = hpRatio < 0.3;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.8) * 110;
@@ -429,19 +405,16 @@ function chapter_rival_7(g) {
     if (frenzy) {
       timer(en, 'rain', 0.25, d, () => spawnGravityRain(game, 2, 'medium', en.color2, 1.8));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 function chapter_rival_last(g) {
   const isShama = g.player.def.id === 'shama';
-  const e = boss({
+  pushBossRef(g, {
     x: LOGICAL_W / 2, y: 100, hp: 5200, kind: 'rival',
     color: isShama ? '#7dd3fc' : '#f9a8d4', color2: isShama ? '#e0f2fe' : '#fce7f3',
     label: isShama ? '饮泉思源' : '誓约沙玛', enterY: 100,
-  });
-  e.script = (en, d, game) => {
+  }, (en, d, game) => {
     const hpRatio = en.hp / en.maxHp;
     const frenzy = hpRatio < 0.25;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (frenzy ? 3.5 : 2.2)) * (frenzy ? 140 : 110);
@@ -465,9 +438,7 @@ function chapter_rival_last(g) {
     if (frenzy) {
       timer(en, 'rain', 0.2, d, () => spawnGravityRain(game, 3, 'rice', en.color, 2.2));
     }
-  };
-  g.spawnEnemy(e);
-  g.bossRef = e;
+  });
 }
 
 const FACE = faceDefaults('A5');
