@@ -9,7 +9,7 @@ import {
 import { rebuildBulletLists } from './collision.js';
 import { drawChapterBanner } from './hud.js';
 
-/** 版面左上角：描画帧率（非逻辑 60 步进） */
+/** 版面左上角：描画帧率（rAF/设置上限；与固定 60 逻辑步进无关） */
 export function drawFps(game, ctx) {
   const fps = game._fps || 0;
   ctx.save();

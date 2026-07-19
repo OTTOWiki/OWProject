@@ -9,7 +9,7 @@
  */
 import { DEPLOY_GIT_HASH } from './git-hash.js';
 
-export const VERSION = 85;
+export const VERSION = 86;
 
 /** 展示用语义版本段（无 v 前缀），如 0.4.1 */
 export const VERSION_NAME = '0.4.2';

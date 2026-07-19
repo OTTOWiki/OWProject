@@ -336,7 +336,7 @@ export class Game {
     const elapsedMs = Math.max(0, t - this.lastT);
     this.lastT = t;
 
-    // ---- 逻辑推进：固定 60fps（判定/碰撞/刷怪/物理） ----
+    // ---- 逻辑：固定 60Hz 步进（与显示器刷新无关）----
     const LOGIC_FRAME_MS = 1000 / 60;
     this._fpsBankMs += elapsedMs;
     if (this._fpsBankMs > LOGIC_FRAME_MS * 4) this._fpsBankMs = LOGIC_FRAME_MS * 4;
@@ -347,38 +347,38 @@ export class Game {
       steps++;
     }
 
-    if (steps <= 0) return;
-
-    let dt = (1 / 60) * steps;
-
-    const dbgScale = getDebugTimeScale();
-    if (dbgScale !== 1) {
-      dt *= dbgScale;
-      const capDt = 0.05 * Math.max(1, dbgScale);
-      if (dt > capDt) dt = capDt;
-    }
-
     try {
-      this._handleGlobalInput();
-      // 章间推进用游戏时间；暂停冻结
-      if (!this.paused) this._tickAdvance(dt);
-      if (this.state === 'stageTransit' && !this.paused) {
-        this._updateStageTransit(dt);
-      } else if (this.state === 'playing' && !this.paused) {
-        this._update(dt);
+      if (steps > 0) {
+        let dt = (1 / 60) * steps;
+        const dbgScale = getDebugTimeScale();
+        if (dbgScale !== 1) {
+          dt *= dbgScale;
+          const capDt = 0.05 * Math.max(1, dbgScale);
+          if (dt > capDt) dt = capDt;
+        }
+
+        this._handleGlobalInput();
+        if (!this.paused) this._tickAdvance(dt);
+        if (this.state === 'stageTransit' && !this.paused) {
+          this._updateStageTransit(dt);
+        } else if (this.state === 'playing' && !this.paused) {
+          this._update(dt);
+        }
+        debugTick();
+
+        const bgMul = this.paused ? 0
+          : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
+            : 1;
+        this.playBg?.update(dt * bgMul);
+        this.background?.setTendency(this.totalTendency);
+        this.background?.update();
+
+        // 仅逻辑帧清边沿；纯描画 rAF 不清，避免 justPressed 被提前抹掉
+        this.input.endFrame();
       }
-      debugTick();
 
-      // 背景滚动跟逻辑时间（对话/过渡时也缓慢前推）
-      const bgMul = this.paused ? 0
-        : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
-          : 1;
-      this.playBg?.update(dt * bgMul);
-      this.background?.setTendency(this.totalTendency);
-      this.background?.update();
-
-      // ---- 描画节流（墙钟）：与逻辑 dt 脱钩，设置 30 时角标应≈30 ----
-      // 无限制时每逻辑步进出一帧（≈60，受 rAF/屏刷限制，不是逻辑计数器伪装）
+      // ---- 描画：跟 rAF / 设置上限，与逻辑 60 完全独立 ----
+      // 无限制 → 每个 rAF 都画（180Hz 屏上角标≈180）；有 cap → 墙钟节流
       let shouldDraw = true;
       const cap = this.fpsLimit > 0 ? Math.max(24, Math.min(240, this.fpsLimit)) : 0;
       if (cap > 0) {
@@ -389,7 +389,6 @@ export class Game {
       }
       if (shouldDraw) {
         this._draw();
-        // 描画帧率：只按实际 _draw 的墙钟间隔统计
         if (this._fpsLastDrawT != null) {
           const rawDt = Math.max(1e-4, (t - this._fpsLastDrawT) / 1000);
           this._fpsFrames += 1;
@@ -405,7 +404,6 @@ export class Game {
       }
     } catch (err) {
       console.error('[game loop]', err);
-      // 保底：避免异常后版面永久黑屏
       try {
         if (this.ctx) {
           this.ctx.fillStyle = '#0c1018';
@@ -415,9 +413,6 @@ export class Game {
         }
       } catch (_) { /* ignore */ }
     }
-
-    // 每个逻辑步进帧都清边沿，避免描画跳帧时 shot/bomb/对话连触发
-    this.input.endFrame();
   }
 
   _drawFps(ctx) {
