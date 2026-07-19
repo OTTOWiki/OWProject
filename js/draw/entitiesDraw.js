@@ -81,160 +81,65 @@ function softGlow(ctx, r, color, color2) {
 }
 
 /**
- * 激光弹绘制：多层辉光 + 色带 + 白芯 + 端点球（东方弹幕风）
+ * 激光弹绘制：通体等宽胶囊光束（两端对称，无头尾大小差）
  * 局部坐标已旋转，段从 (0,0) 沿 -Y 方向延伸 laserLen
  */
 function drawLaserBeam(ctx, b, col, col2, a, grazeFx) {
   const len = Math.max(8, b.laserLen || 200);
-  const baseW = Math.max(4, b.w || 10);
-  const t = performance.now();
-  const pulse = 0.92 + 0.08 * Math.sin(t * 0.012 + (b.id || 0) * 1.7);
+  const w = Math.max(4, b.w || 10);
   const tipY = -len;
-  // 尾端稍收、头端略宽的胶囊感
-  const headW = baseW * 1.05 * pulse;
-  const midW = baseW * 0.95 * pulse;
-  const tipW = baseW * 0.55 * pulse;
+  // 轻微整体闪烁，不改变粗细形态
+  const pulse = 0.96 + 0.04 * Math.sin(performance.now() * 0.014 + (b.id || 0) * 1.7);
+  const bodyW = w * pulse;
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.shadowBlur = 0;
 
-  // 1) 外层宽漫射光晕（柔边，沿长度衰减）
-  {
-    const glowW = headW * 3.2;
-    const g = ctx.createLinearGradient(0, 0, 0, tipY);
-    g.addColorStop(0, withAlpha(col, 0.22));
-    g.addColorStop(0.35, withAlpha(col, 0.16));
-    g.addColorStop(0.75, withAlpha(col, 0.07));
-    g.addColorStop(1, withAlpha(col, 0));
-    ctx.strokeStyle = g;
-    ctx.lineWidth = glowW;
-    ctx.globalAlpha = (grazeFx ? 0.55 : 0.42) * a;
-    ctx.beginPath();
-    ctx.moveTo(0, 2);
-    ctx.lineTo(0, tipY);
-    ctx.stroke();
-  }
+  // 1) 外层柔光（全长等宽）
+  ctx.strokeStyle = withAlpha(col, grazeFx ? 0.38 : 0.28);
+  ctx.lineWidth = bodyW * 2.6;
+  ctx.globalAlpha = a;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, tipY);
+  ctx.stroke();
 
-  // 2) 次外层色晕
-  {
-    const g = ctx.createLinearGradient(0, 0, 0, tipY);
-    g.addColorStop(0, withAlpha(col2, 0.55));
-    g.addColorStop(0.2, withAlpha(col, 0.75));
-    g.addColorStop(0.7, withAlpha(col, 0.35));
-    g.addColorStop(1, withAlpha(col, 0));
-    ctx.strokeStyle = g;
-    ctx.lineWidth = headW * 1.85;
-    ctx.globalAlpha = (grazeFx ? 0.7 : 0.55) * a;
-    ctx.beginPath();
-    ctx.moveTo(0, 1);
-    ctx.lineTo(0, tipY * 0.98);
-    ctx.stroke();
-  }
+  // 2) 色晕层（全长等宽）
+  ctx.strokeStyle = withAlpha(col, 0.7);
+  ctx.lineWidth = bodyW * 1.55;
+  ctx.globalAlpha = (grazeFx ? 0.85 : 0.72) * a;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, tipY);
+  ctx.stroke();
 
-  // 3) 主色实体带（略带横向渐变的模拟：双描边）
-  {
-    const g = ctx.createLinearGradient(0, 0, 0, tipY);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.08, col2);
-    g.addColorStop(0.45, col);
-    g.addColorStop(0.85, withAlpha(col, 0.85));
-    g.addColorStop(1, withAlpha(col, 0.15));
-    ctx.strokeStyle = g;
-    ctx.lineWidth = midW;
-    ctx.globalAlpha = 0.92 * a;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, tipY * 0.97);
-    ctx.stroke();
-  }
+  // 3) 主色实体（col2 稍亮，全长等宽）
+  ctx.strokeStyle = col2;
+  ctx.lineWidth = bodyW;
+  ctx.globalAlpha = 0.95 * a;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, tipY);
+  ctx.stroke();
 
-  // 4) 亮色边沿线（两侧细线感）
-  {
-    ctx.globalAlpha = 0.35 * a;
-    ctx.strokeStyle = withAlpha(col2, 0.9);
-    ctx.lineWidth = Math.max(1.2, midW * 0.22);
-    const side = midW * 0.28;
-    for (const sx of [-side, side]) {
-      ctx.beginPath();
-      ctx.moveTo(sx, 0);
-      ctx.lineTo(sx * 0.4, tipY * 0.9);
-      ctx.stroke();
-    }
-  }
+  // 4) 白芯（细、亮、全长等宽）
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = Math.max(1.5, bodyW * 0.38);
+  ctx.globalAlpha = 0.95 * a;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, tipY);
+  ctx.stroke();
 
-  // 5) 白芯高亮（细而亮，尾端渐隐）
-  {
-    const g = ctx.createLinearGradient(0, 0, 0, tipY);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.25, 'rgba(255,255,255,0.95)');
-    g.addColorStop(0.7, 'rgba(255,255,255,0.55)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.strokeStyle = g;
-    ctx.lineWidth = Math.max(1.4, tipW * 0.55);
-    ctx.globalAlpha = 0.95 * a;
-    ctx.beginPath();
-    ctx.moveTo(0, 1);
-    ctx.lineTo(0, tipY * 0.88);
-    ctx.stroke();
-  }
-
-  // 6) 最内层针芯
-  {
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.lineWidth = Math.max(0.8, tipW * 0.22);
-    ctx.globalAlpha = 0.75 * a;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, tipY * 0.72);
-    ctx.stroke();
-  }
-
-  // 7) 起点能量核
-  {
-    ctx.globalAlpha = a;
-    const coreR = headW * 0.72;
-    const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR * 1.9);
-    rg.addColorStop(0, 'rgba(255,255,255,0.95)');
-    rg.addColorStop(0.25, withAlpha(col2, 0.9));
-    rg.addColorStop(0.55, withAlpha(col, 0.55));
-    rg.addColorStop(1, 'transparent');
-    ctx.fillStyle = rg;
-    ctx.beginPath();
-    ctx.arc(0, 0, coreR * 1.9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.beginPath();
-    ctx.arc(0, 0, Math.max(1.5, coreR * 0.35), 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // 8) 尖端微光 + 少量火花粒子（按 id 相位，廉价装饰）
-  {
-    ctx.globalAlpha = 0.55 * a;
-    const tipG = ctx.createRadialGradient(0, tipY * 0.92, 0, 0, tipY * 0.92, tipW * 1.6);
-    tipG.addColorStop(0, withAlpha(col2, 0.7));
-    tipG.addColorStop(0.5, withAlpha(col, 0.25));
-    tipG.addColorStop(1, 'transparent');
-    ctx.fillStyle = tipG;
-    ctx.beginPath();
-    ctx.arc(0, tipY * 0.92, tipW * 1.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.4 * a;
-    const seed = (b.id || 0) * 2.17;
-    for (let i = 0; i < 3; i++) {
-      const u = (i + 1) / 4;
-      const py = tipY * (0.15 + u * 0.7);
-      const phase = t * 0.008 + seed + i * 2.1;
-      const px = Math.sin(phase) * midW * 0.55;
-      const pr = 0.8 + (Math.sin(phase * 1.3) * 0.5 + 0.5) * 1.2;
-      ctx.fillStyle = i % 2 === 0 ? withAlpha(col2, 0.7) : 'rgba(255,255,255,0.65)';
-      ctx.beginPath();
-      ctx.arc(px, py, pr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
+  // 5) 针芯
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = Math.max(0.8, bodyW * 0.14);
+  ctx.globalAlpha = 0.7 * a;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, tipY);
+  ctx.stroke();
 
   ctx.globalAlpha = a;
   ctx.lineCap = 'butt';
