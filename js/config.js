@@ -21,12 +21,14 @@ export const STORAGE_KEYS = {
 export const PLAYER_BULLET_OPACITY_MIN = 0.1;
 
 /**
- * 帧率限制滑条
- * - 有限：24–240 FPS（键盘可超过 120，最高 240）
- * - 最右一格：无限制（仅鼠标拖到 / Z·Enter 切换，键盘加减到不了）
+ * 描画帧率上限滑条（逻辑固定 60fps，与此项无关）
+ * - 有限：24–240 FPS
+ * - 最右一格：无限制（仅鼠标拖到 / Z·Enter 切换；键盘加减到不了无限制）
  */
 export const FPS_LIMIT_MIN = 24;
-export const FPS_LIMIT_CAP = 60;
+export const FPS_LIMIT_CAP = 240;
+/** 滑条 DOM 最大值：表示描画无限制（存档 fpsLimit=0） */
+export const FPS_SLIDER_UNLIMITED = 241;
 
 /** 玩家设置默认值 */
 export const DEFAULT_SETTINGS = {
@@ -37,8 +39,8 @@ export const DEFAULT_SETTINGS = {
   /** 单击 Shot 键切换发射/停止（默认关闭，按住发射） */
   shotToggle: false,
   /**
-   * 逻辑/绘制帧率上限：0 = 不限制；否则 24–240
-   * ←→ 调数值（永不到无限制）；Z/Enter 切换无限制/有限制；鼠标拖最右=无限制
+   * 描画帧率上限：0 = 不限制；否则 24–240
+   * 逻辑步进始终锁定 60fps。←→ 调数值（到不了无限制）；Z/Enter 切换无限制；拖最右=无限制
    */
   fpsLimit: 0,
 };
@@ -117,9 +119,9 @@ export const BALANCE = {
    * Extend 用 baseScore（不含难度 scoreMul，含 Unstable 实时 scoreMul）
    */
   resource: {
-    /** 分数 Extend 阈值（基础分）；超出表后每 extendStep 再 1UP */
-    extendThresholds: [800000, 2000000, 4000000, 7000000],
-    extendStep: 4000000,
+    /** 分数 Extend 阈值（基础分，与 score×10 对齐）；超出表后每 extendStep 再 1UP */
+    extendThresholds: [8000000, 20000000, 40000000, 70000000],
+    extendStep: 40000000,
     /** Letter NMNB 捕获掉 Bomb 概率 */
     letterNmnbBombChance: 0.4,
     /** 负面 Unstable NMNB 且补偿倍率 ≥ 此值时额外 +1 Bomb */
@@ -172,13 +174,13 @@ export const DIFFICULTIES = {
     rank: 'EASY',
     color: '#60a5fa',
     desc: '弹速慢 · 密度低 · 适合熟悉操作',
-    enemyHp: 1.0,
+    enemyHp: 0.6,
     bulletSpeed: 0.78,
     fireInterval: 1.45,   // >1 开火更慢
     spawnMul: 1.35,       // >1 刷怪更慢
     bulletCount: 0.65,
-    startLives: 2,
-    startBombs: 3,
+    startLives: 4,
+    startBombs: 4,
     deathBombWindow: 0.28,
     grazeMul: 1.35,
     scoreMul: 0.5,
@@ -216,13 +218,13 @@ export const DIFFICULTIES = {
     rank: 'HARD',
     color: '#fbbf24',
     desc: '弹幕加密 · 血量提升 · 资源偏紧',
-    enemyHp: 1.0,
+    enemyHp: 1.4,
     bulletSpeed: 1.28,
     fireInterval: 0.72,
     spawnMul: 0.78,
     bulletCount: 1.25,
     startLives: 2,
-    startBombs: 3,
+    startBombs: 2,
     deathBombWindow: 0.15,
     grazeMul: 0.9,
     scoreMul: 1.5,
@@ -238,13 +240,13 @@ export const DIFFICULTIES = {
     rank: 'LUNATIC',
     color: '#f87171',
     desc: '极限弹速与密度 · 仅限高手',
-    enemyHp: 1.0,
+    enemyHp: 1.85,
     bulletSpeed: 1.55,
     fireInterval: 0.55,
     spawnMul: 0.62,
     bulletCount: 1.5,
-    startLives: 2,
-    startBombs: 3,
+    startLives: 1,
+    startBombs: 2,
     deathBombWindow: 0.12,
     grazeMul: 0.8,
     scoreMul: 2.0,
@@ -253,28 +255,17 @@ export const DIFFICULTIES = {
     midbossDrop: false,
     letterNmnbBombChance: 0.3,
   },
-  extra: {
-    id: 'extra',
-    key: 'EXTRA',
-    name: '被吓到眩晕瘫坐，那一刻就像看到原子弹爆炸',
-    rank: 'EXTRA',
-    color: '#a78bfa',
-    desc: '极限弹速与密度 · 仅限高手',
-    enemyHp: 1.0,
-    bulletSpeed: 1.55,
-    fireInterval: 0.55,
-    spawnMul: 0.62,
-    bulletCount: 1.5,
-    startLives: 2,
-    startBombs: 3,
-    deathBombWindow: 0.12,
-    grazeMul: 0.8,
-    scoreMul: 2.0,
-    playerAtk: 0.9,
-    missBombFloor: 1,
-    midbossDrop: false,
-    letterNmnbBombChance: 0.3,
-  },
+};
+
+/** Extra 模式独占难度：战斗参数与 Lunatic 同源，仅 UI 文案不同（避免双份漂移） */
+DIFFICULTIES.extra = {
+  ...DIFFICULTIES.lunatic,
+  id: 'extra',
+  key: 'EXTRA',
+  name: '被吓到眩晕瘫坐，那一刻就像看到原子弹爆炸',
+  rank: 'EXTRA',
+  color: '#a78bfa',
+  desc: '与 Lunatic 同参 · 仅 Extra / EX 可选',
 };
 
 /** 当前 baseScore 应对应的下一个 Extend 阈值 */
@@ -470,7 +461,7 @@ export const MANUAL_CHAPTERS = [
 · 系统异常（原 Unstable Machine）：道中章节附加随机异常（攻击/分数加减、迷雾、Bomb 禁用或双倍消耗等）。负面效果不实时加分，仅在章节 NMNB（无Miss无Bomb）结算时给予补偿倍率；正面不加惩罚。后三面（A/B 线 4–6 面）一般叠加 2–3 个效果。练习模式可单独关闭。
 · 阵营偏移：前三面在左半场积累 A 线倾向，右半场积累 B 线倾向；摇摆不定者将面临中立拦截。
 · 资源获取：
-  — 分数 Extend：累计基础分（不含难度得分倍率）达阈值 1UP（0.8M / 2M / 4M / 7M / 其后每 +4M）。
+  — 分数 Extend：累计基础分（不含难度得分倍率）达阈值 1UP（8M / 20M / 40M / 70M / 其后每 +40M；与 score×10 对齐）。
   — 道中精英（midboss）击破常掉 Bomb（高难可关闭）。
   — Letter NMNB 捕获：概率掉 Bomb；每面最后一张 Letter NMNB 掉 Life。
   — 负面系统异常且补偿较高时，NMNB 结算额外 +1 Bomb。

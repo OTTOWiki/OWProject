@@ -10,6 +10,8 @@ export const AUDIO_FILE_MAP = {
   s2_boss: 'assets/bgm/イントゥ・バックドア.ogg',
   s3_mid: 'assets/bgm/プレステ・ジョアンの黄金境.ogg',
   s3_boss: 'assets/bgm/どうせなら命を賭けて謎を解け.ogg',
+  // 巡查姬章节 music id 为 'patrol'（见 s_patrol faceDefaults）
+  patrol: 'assets/bgm/妖怪裏参道.ogg',
   a4_mid: 'assets/bgm/Dr.レイテンシーの眠れなくなる瞳.ogg',
   a4_boss: 'assets/bgm/摘苹果.ogg',
   a5_mid: 'assets/bgm/進まねばならぬ道.ogg',
@@ -103,6 +105,15 @@ export class AudioEngine {
     dlp.connect(this.comp);
   }
 
+  /**
+   * 将预载 decode 的 AudioBuffer 写入缓存（path 与 AUDIO_FILE_MAP 值一致）
+   * @param {string} path
+   * @param {AudioBuffer} buf
+   */
+  cacheAudioBuffer(path, buf) {
+    if (path && buf) this._audioBufferCache.set(path, buf);
+  }
+
   async loadAudioBuffer(musicId) {
     const path = AUDIO_FILE_MAP[musicId];
     if (!path) return null;
@@ -110,10 +121,13 @@ export class AudioEngine {
     if (this._audioBufferLoading.has(path)) return this._audioBufferLoading.get(path);
 
     const p = (async () => {
-      const res = await fetch(path);
+      await this.ensure();
+      // 路径含日文/全角符号时用分段 encode，避免部分环境 fetch 失败
+      const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`Audio file load fail: ${path}`);
       const arrayBuf = await res.arrayBuffer();
-      const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
+      const audioBuf = await this.ctx.decodeAudioData(arrayBuf.slice(0));
       this._audioBufferCache.set(path, audioBuf);
       return audioBuf;
     })();
@@ -123,6 +137,29 @@ export class AudioEngine {
     } finally {
       this._audioBufferLoading.delete(path);
     }
+  }
+
+  /**
+   * 用户手势后调用：resume AudioContext，并对预载失败的曲目补 decode。
+   * 移动端常见 boot 时 context suspended 导致预载静默失败。
+   */
+  async unlockAndRetryPreload() {
+    await this.ensure();
+    const missing = [];
+    for (const path of Object.values(AUDIO_FILE_MAP)) {
+      if (path && !this._audioBufferCache.has(path)) missing.push(path);
+    }
+    if (!missing.length) return;
+    await Promise.all(missing.map(async (path) => {
+      try {
+        const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const arrayBuf = await res.arrayBuffer();
+        const decoded = await this.ctx.decodeAudioData(arrayBuf.slice(0));
+        this.cacheAudioBuffer(path, decoded);
+      } catch (_) { /* 单曲失败不阻塞 */ }
+    }));
   }
 
   stopMusic(fade = 0.4) {

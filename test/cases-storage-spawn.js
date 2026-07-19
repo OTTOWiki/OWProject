@@ -1,7 +1,7 @@
 /**
  * storage clamp / spawnScale
  */
-import { FPS_LIMIT_MIN, FPS_LIMIT_CAP } from '../js/config.js';
+import { FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED } from '../js/config.js';
 import {
   normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
 } from '../js/storage.js';
@@ -33,17 +33,17 @@ test('applyEnemyBulletDifficulty：仅敌弹乘速', () => {
   assertEqual(player.speed, 15);
 });
 
-test('normalizeFpsLimit / 滑条 round-trip（24–60）', () => {
-  assertEqual(normalizeFpsLimit(0), FPS_LIMIT_CAP);
-  assertEqual(normalizeFpsLimit('unlimited'), FPS_LIMIT_CAP);
+test('normalizeFpsLimit / 滑条 round-trip（0=无限制，有限 24–240）', () => {
+  assertEqual(normalizeFpsLimit(0), 0);
+  assertEqual(normalizeFpsLimit('unlimited'), 0);
   assertEqual(normalizeFpsLimit(60), 60);
   assertEqual(normalizeFpsLimit(10), FPS_LIMIT_MIN);
   assertEqual(normalizeFpsLimit(999), FPS_LIMIT_CAP);
-  assertEqual(sliderToFpsLimit(60), 60);
-  assertEqual(sliderToFpsLimit(0), FPS_LIMIT_CAP);
-  assertEqual(fpsLimitToSlider(0), FPS_LIMIT_CAP);
+  assertEqual(sliderToFpsLimit(FPS_SLIDER_UNLIMITED), 0);
+  assertEqual(sliderToFpsLimit(0), 0);
+  assertEqual(fpsLimitToSlider(0), FPS_SLIDER_UNLIMITED);
   assertEqual(fpsLimitToSlider(60), 60);
-  for (const v of [24, 30, 60]) {
+  for (const v of [24, 30, 60, 120, 240]) {
     assertEqual(fpsLimitToSlider(sliderToFpsLimit(v)), v);
   }
 });

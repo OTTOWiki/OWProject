@@ -52,6 +52,12 @@ export function exDur(mainlineSec) {
   return Math.max(8, Math.round(mainlineSec * EX.time));
 }
 
+/**
+ * EX Boss Letter 时限。
+ * 道中章时 = 主线 × EX.time（默认半时）；Letter 在此基础上再 ×2，
+ * 即约等于主线 letterTime（半时减半后再翻倍），给符卡足够读取窗口。
+ * 勿再对返回值额外 ×2。
+ */
 export function exLetter(mainlineSec) {
   return Math.max(14, Math.round(mainlineSec * EX.time * 2));
 }

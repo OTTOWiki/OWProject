@@ -200,20 +200,30 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.stroke();
   }
 
-  // 擦弹范围红色提示
+  // 擦弹邻域：子弹外沿紫色辉光（非红圈；半径跟判定 hitR）
   if (player && b.from === 'enemy' && b.delay <= 0) {
     const dx = b.x - player.x;
     const dy = b.y - player.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : b.r;
+    const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
     if (dist < BALANCE.grazeRadius + hitR + 6) {
-      const pulse = 0.45 + Math.sin(performance.now() / 90) * 0.25;
-      ctx.strokeStyle = `rgba(255,40,40,${pulse * (dist < player.r + hitR ? 0.2 : 0.7)})`;
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = '#ff0000';
-      ctx.shadowBlur = 12;
+      const nearHit = dist < player.r + hitR;
+      const pulse = 0.4 + Math.sin(performance.now() / 110) * 0.2;
+      const glowR = hitR + 4 + pulse * 2;
+      const g = ctx.createRadialGradient(0, 0, hitR * 0.35, 0, 0, glowR);
+      g.addColorStop(0, `rgba(232, 180, 255, ${nearHit ? 0.08 : 0.35})`);
+      g.addColorStop(0.55, `rgba(168, 85, 247, ${nearHit ? 0.12 : 0.45})`);
+      g.addColorStop(1, 'rgba(120, 40, 200, 0)');
+      ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(0, 0, (b.w || 10) * 0.5 + 5, 0, Math.PI * 2);
+      ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(216, 180, 254, ${pulse * (nearHit ? 0.25 : 0.75)})`;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#c084fc';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(0, 0, hitR + 2.5, 0, Math.PI * 2);
       ctx.stroke();
       ctx.shadowBlur = 0;
     }

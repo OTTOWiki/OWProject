@@ -35,16 +35,35 @@ test('四个难度齐全且 Normal 倍率为 1', () => {
   assertEqual(n.scoreMul, 1);
 });
 
+test('extra 难度与 lunatic 战斗参数同源且文案独立', () => {
+  const l = getDifficulty('lunatic');
+  const e = getDifficulty('extra');
+  assertEqual(e.id, 'extra');
+  assertEqual(e.enemyHp, l.enemyHp);
+  assertEqual(e.bulletSpeed, l.bulletSpeed);
+  assertEqual(e.fireInterval, l.fireInterval);
+  assertEqual(e.spawnMul, l.spawnMul);
+  assertEqual(e.bulletCount, l.bulletCount);
+  assertEqual(e.startLives, l.startLives);
+  assertEqual(e.startBombs, l.startBombs);
+  assertEqual(e.scoreMul, l.scoreMul);
+  assert(e.name !== l.name, 'extra 应有独立 UI 名');
+  assert(e.rank === 'EXTRA');
+  assert(!DIFFICULTY_ORDER.includes('extra'), 'Story 难度列表不含 extra');
+});
+
 test('未知难度回退 Normal', () => {
   assertEqual(getDifficulty('nope').id, 'normal');
   assertEqual(getDifficulty(undefined).id, 'normal');
 });
 
-test('Easy 比 Lunatic 更宽松（速/发数）', () => {
+test('Easy 比 Lunatic 更宽松（速/发数/血/资源）', () => {
   const e = getDifficulty('easy');
   const l = getDifficulty('lunatic');
   assert(e.bulletSpeed < l.bulletSpeed);
   assert(e.bulletCount < l.bulletCount);
+  assert(e.enemyHp < l.enemyHp);
+  assert(e.startLives > l.startLives);
   assert(e.deathBombWindow > l.deathBombWindow);
 });
 

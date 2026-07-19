@@ -411,6 +411,10 @@ export function adjustFocusItem(item, dir, mods = {}, hooks = {}) {
     item.el.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   }
+  if (item.type === 'fps') {
+    hooks.adjustFps?.(dir, mods);
+    return true;
+  }
   if (item.type === 'checkbox') {
     item.el.checked = !item.el.checked;
     item.el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -434,6 +438,10 @@ export function activateFocusItem(item, hooks = {}) {
     item.el.checked = !item.el.checked;
     item.el.dispatchEvent(new Event('change', { bubbles: true }));
     sfx('ok');
+    return;
+  }
+  if (item.type === 'fps') {
+    hooks.toggleFps?.();
     return;
   }
   sfx('ok');

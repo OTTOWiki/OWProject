@@ -83,7 +83,7 @@ async function preloadAll(audio) {
     }));
   }
 
-  // 预载音频文件（OGG）
+  // 预载音频文件（OGG）；路径含日文时分段 encode
   for (const path of audioFilePaths) {
     const ac = new AbortController();
     let audioDone = false;
@@ -94,14 +94,20 @@ async function preloadAll(audio) {
       step();
     };
     const audioTimer = setTimeout(() => { ac.abort(); stepAudio(); }, 10000);
+    const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
     tasks.push(
-      fetch(path, { signal: ac.signal })
+      fetch(url, { signal: ac.signal })
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
-        .then((buf) => audio?.ctx?.decodeAudioData(buf))
-        .then((decoded) => {
-          if (decoded && audio) {
-            audio._audioBufferCache.set(path, decoded);
+        .then(async (buf) => {
+          if (!audio?.ctx) return null;
+          try {
+            return await audio.ctx.decodeAudioData(buf.slice(0));
+          } catch {
+            return null;
           }
+        })
+        .then((decoded) => {
+          if (decoded && audio) audio.cacheAudioBuffer(path, decoded);
           stepAudio();
         }, () => stepAudio())
     );
@@ -123,11 +129,15 @@ async function boot() {
   setLoadProgress(0, PRAYING);
 
   // Audio 先于预载创建，使 OGG Buffer 直接进引擎缓存
+  // ensure() 在部分移动端可能保持 suspended；失败曲目在首次手势后补 decode
   const audio = new AudioEngine();
   const input = new Input();
 
-  // 初始化 AudioContext 以供后续预载 decodeAudioData 使用
-  await audio.ensure();
+  try {
+    await audio.ensure();
+  } catch (e) {
+    console.warn('AudioContext init:', e);
+  }
 
   try {
     await preloadAll(audio);
@@ -149,6 +159,16 @@ async function boot() {
 
   dismissLoadScreen();
   applyVersionToDom();
+
+  // 首次用户手势：resume + 补预载失败的 BGM（移动端 suspended 时常见）
+  let audioUnlocked = false;
+  const unlockAudio = () => {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    audio.unlockAndRetryPreload().catch(() => {});
+  };
+  window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
+  window.addEventListener('keydown', unlockAudio, { once: true });
 
   try {
     let background = null;
@@ -172,6 +192,7 @@ async function boot() {
     const ui = new UI({
       audio,
       onStartGame(opts) {
+        unlockAudio();
         input.reloadKeys();
         game.start(opts);
       },

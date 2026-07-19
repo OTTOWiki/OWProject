@@ -1,7 +1,7 @@
 # 可维护性改造队列（按性价比）
 
-> 来源：`main` 全库严格代码审查（2026-07-18）  
-> 原则见下文「工作方式」。本文件只排**当前阶段**任务；大重构（拆 `game.js` / 主线表驱动关卡等）排在后面，不抢性价比窗口。
+> 来源：`main` 全库严格代码审查（2026-07-18 Phase A–D；2026-07-19 Phase E）  
+> 原则见下文「工作方式」。一次只做一个任务；**未接到用户开工指令前只改本队列文档、不动产品代码**。
 
 ---
 
@@ -313,9 +313,184 @@ T12（拆 game，可分步提交）
 ```
 [已完成] T01…T11 · T12a–d · T13 · T14 · T15 · T16 · T17 · T18
   → Phase D 收尾完成
+
+[规划中] Phase E（2026-07-19 全库审查）
+  E01 → E02 → E03a → E03b → E03c → E04 → E05 → E06（可选）
 ```
 
-当前：**Phase D 队列已全部完成**。后续按产品需求另开任务即可。
+当前：**Phase D 完成**；**Phase E 已规划、待用户指令后逐项开工**（一次一个、测绿等手测）。
+
+---
+
+## 阶段 E — 收束门面 / 推广 mid 脚手架 / 降 1k 文件（2026-07-19 审查）
+
+> 来源：`main` 全库严格代码审查（第二轮，T18 之后）  
+> 原则同上文「工作方式」：**一次一个 Exx**、不改手感、`npm test` 绿 → 等手测 → 再开下一项。  
+> 目标：删 indirection、消灭 mid 双系统、把唯一 >1k 的 JS 拆下去。
+
+### 推荐顺序（锁定）
+
+```
+E01（Game 转发壳 + 死代码）
+  → E02（settlement / stageIntro 双轨）
+  → E03a（installMidWave 能力补齐 + s2/s3 试点）
+  → E03b（A 线 mid 迁移）
+  → E03c（B 线 mid）
+  → E03d（EX mid 拆分 / helper——优先：ex_mid.js ~1954 行）
+  → E04（拆 backgrounds.js）
+  → E05（章结束条件纯函数）
+  → E06（可选：settings 表单抽离 / Letter 目录化，另开再做）
+```
+
+说明：E01/E02 低风险先清债；E03 是最大收益、按面分批。  
+**2026-07-19 远端提交后**：`js/stages/ex_mid.js` 已扩到 **~1954 行 / 62 独立 mid**，从原 E03c 中**拆出 E03d 并提权**——内容先不动，架构债必须进队列，勿再往该文件堆。  
+E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
+
+---
+
+### E01 收束 `Game` 门面：删薄转发 + 修死代码
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **审查对应** | Issue 1（门面 indirection）、Issue 4（`_showOverlay` 未 import 且无调用方） |
+| **目标** | `game.js` 不再充当「每个私有方法转发一次」的双 API；模块内直调；公开 API 变薄 |
+| **范围** | |
+| | 1. **删除** `_showOverlay`（`showOverlay` 未导入，且全库无调用） |
+| | 2. 审计仅 `combat.*` / `chapterFlow.*` / overlay / hud 的**纯转发**私有方法：若调用方全在同类模块内，改为模块 `import` 直调，并删 `Game` 上对应方法 |
+| | 3. 保留对外/跨层必要入口：`start` / `stop` / `spawnEnemy` / `spawnBullet` / `addScore` / `applySettings`、主循环、以及 debug/UI 仍经 `game` 调用的路径 |
+| | 4. `chapterFlow` ↔ `gameCombat` 互调改为直接 import（避免 `game._finishChapter` → `chapterFlow.finishChapter` 绕圈） |
+| **不做** | 不改状态机语义、数值、章节表；不拆 `backgrounds`；不迁 stages mid |
+| **目标体量** | `game.js` 明显变短（期望 ~250–400 行量级，以删干净为准，不硬砍行数） |
+| **验收（自动）** | `npm test` 全绿 |
+| **验收（手测）** | 开局→一章→暂停/继续/回标题；章间推进；GameOver/练习结束 overlay；对话确认 |
+| **风险** | 中——漏改调用点会 runtime 炸；每步可先 grep 引用再删 |
+| **手测要点** | 暂停设置进出；决死 Bomb；通关一章自动进下一章 |
+
+---
+
+### E02 去掉 `settlement` / `stageIntro` 兼容双轨
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **审查对应** | Issue 4（兼容字段双读） |
+| **目标** | 绘制与章节流只认单一真源 |
+| **范围** | |
+| | - 真源：`chapterBanner`（章标题/结算条）、`stageTransit`（面间过渡） |
+| | - `gameDraw.js`：去掉 `chapterBanner \|\| settlement`、`stageIntro` 旧分支（确认无写入后再删） |
+| | - `game.js` / `chapterFlow.js`：停写 `settlement` / `stageIntro`；删重置与注释「兼容旧引用」 |
+| **不做** | 不改 banner/过渡的时长与文案；不改 Three 背景 |
+| **验收（自动）** | 全绿 |
+| **验收（手测）** | 换面过渡页文案仍出；章开始标题条 + 章结束结算条动画正常 |
+| **风险** | 低；改前 grep 全库 `settlement`/`stageIntro` 确认无外部依赖 |
+
+---
+
+### E03 主线 mid 全面 `installMidWave`（T14 收尾，分三步）
+
+> 现状：`installMidWave` **仅 s1 使用**；a4–b6 / s2–s3 / ex_mid 仍有 ~80 处手写 `waveTimer`/`waveCount` 壳。  
+> 成功标准：新 mid **默认**走 helper；手写 wave 壳仅允许有注释的特例。
+
+#### E03a helper 补齐 + s2 / s3 试点
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **审查对应** | Issue 2（mid 双系统） |
+| **范围** | |
+| | 1. 视需要扩展 `_shared.js`：`installMidWave` 的 `continuous` 已够用则不扩；若多章同构「雨弹 + 刷怪」，可加薄封装（如 `rainContinuous(opts)`）**但禁止为封装而封装** |
+| | 2. 将 **s2_icebin / s3_dazong** 全部 mid 的手写 wave 迁到 `installMidWave`（行为/间隔/发数不变） |
+| | 3. 可选：测试侧加「s2/s3 mid 的 build 后存在 waveFn」类冒烟（已有全章 build 则可只依赖现网） |
+| **不做** | 不改 A/B/EX；不改编弹幕数值；不重写 Letter |
+| **验收（自动）** | 全绿；全章 build 冒烟 |
+| **验收（手测）** | 2 面、3 面道中密度与辅压「一直有」；midboss/Boss 可进 |
+| **风险** | 中——迁移时勿把 continuous 再塞进 spawn 门后 |
+
+#### E03b A 线 mid（a4 / a5 / a6）
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **范围** | `a4_menbailiang.js` / `a5_rival.js` / `a6_yimeige.js` 中全部 mid（及 mid 形态 wave）迁 `installMidWave`；Letter/`pushBossRef` 可不动 |
+| **不做** | 不调 hp/间隔/颜色；不改对话与章节 id |
+| **验收（自动）** | 全绿 |
+| **验收（手测）** | A4 抽 2 个 mid + midboss；A5/A6 各抽查；辅压与刷怪并存 |
+| **风险** | 中；a6 文件大，可按 mid_1…mid_n 分段改、一次提交 |
+
+#### E03c B 线 mid（b4 / b5 / b6）
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **范围** | b4–b6 mid 同 E03b 迁 `installMidWave` |
+| **不做** | 不改 EX（见 E03d）；不改 van Letter |
+| **验收（自动）** | 全绿 |
+| **验收（手测）** | B4 或 B5 一道中面 |
+| **风险** | 中 |
+
+#### E03d EX mid 拆分 / helper（`ex_mid.js` 优先）
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **审查对应** | 2026-07-19 远端：`ex_mid.js` ~559→**~1954** 行、62 独立 `mid_*`；Issue 10 |
+| **目标** | 降单文件体量 + wave 壳与主线 helper 对齐；**不改弹幕数值与章顺序** |
+| **建议路径（任选或组合）** | |
+| | 1. 拆文件：`ex_mid_patterns_0_31.js` / `32_61.js` + `ex_mid.js` 只保留 `MID_PATTERNS` 表与 `buildExMid` |
+| | 2. 壳层：手写 `waveTimer/waveCount` 迁 `installMidWave`（`exFire` 间隔仍由调用方传入） |
+| | 3. 可选：按索引段目录 `stages/ex/mid/` |
+| **不做** | 本任务不重设计 62 章内容；不改 `ex_shared` 强度公式（除非纯注释） |
+| **验收（自动）** | 全绿；`MID_PATTERNS.length === 62` 且均可 build 冒烟 |
+| **验收（手测）** | Extra 道中→道中 Boss→van；抽查 mid 前后半段密度 |
+| **风险** | 中高——文件大、易漏 export；宜独立提交、可分步 |
+| **完成定义** | 单文件显著 <1k **或** 分卷后每文件可浏览；grep 主线+EX 手写 wave 壳仅剩特例 |
+
+---
+
+### E04 拆 `backgrounds.js`（降 1k）
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **审查对应** | Issue 3（1081 行） |
+| **目标** | 单一 JS 文件不再 >1000 行；场景 builder 可按面浏览 |
+| **建议结构** | |
+| | `js/backgrounds/StageBackground.js` — 类：构造 / resize / setMode / update / `_clear` / lights / points / label |
+| | `js/backgrounds/scenes/*.js` — 各 mode 的 `export function buildXxx(bg)`（或按 s1/s2/… 聚合） |
+| | `js/backgrounds/index.js` 或根 `backgrounds.js` re-export — `STAGE_BG_BUILDERS` + 对外 `StageBackground` |
+| **范围** | 只搬迁，不改 Three 视觉与 mode 名；`main.js` import 路径保持或薄 re-export 兼容 |
+| **不做** | 不重做美术；不合并 playfield 调色板（可另开）；不改 `bgModes.js` 登记表语义 |
+| **验收（自动）** | 全绿；语法扫描含新路径 |
+| **验收（手测）** | 抽查 1 面 / 3 面 / A5 / B6 / EX：左栏 Three 主题切换正常、无 WebGL 报错 |
+| **风险** | 中——`this` 与 builder 闭包；dispose 路径勿丢 |
+
+---
+
+### E05 章结束条件收成纯函数
+
+| | |
+|--|--|
+| **状态** | 待做 |
+| **审查对应** | Issue 5（`updateCombat` 内四套结束分支） |
+| **目标** | `evaluateChapterEnd(game, ch, ctx) → null \| { success: boolean, reason: string }`；`updateCombat` 只消费 |
+| **范围** | `gameCombat.js`（或新 `chapterEnd.js`）；覆盖：Letter 超时、duration±bossRef、bossRef.dead、mid+wavesExhausted |
+| **不做** | 不改判定阈值与成功/失败语义；不改 collision |
+| **验收（自动）** | 全绿；**建议**为纯函数加单元测（超时失败 / 击破成功 / 道中耗尽） |
+| **验收（手测）** | Letter 拖满超时失败；击破 boss 成功；纯道中清完提前结束；有 duration 的 midboss 到时 |
+| **风险** | 中——时序（dead 与 purge 先后）必须与现网一致 |
+
+---
+
+### E06 可选 backlog（不默认开工）
+
+| ID | 题 | 说明 | 状态 |
+|----|----|------|------|
+| E06a | `ui` 设置表单抽离 | `_initSettings` FPS 指针规则 → `settingsForm.js`；UI 只编排 | 待做（可选） |
+| E06b | Letter 内容目录化 | 大面 letter script 迁 `stages/patterns/` 或按 boss 拆文件；**不动数值** | 待做（可选） |
+| E06c | `playfieldBg` 调色板数据外置 | SKY/THEME/ACCENT 按 mode 数据文件；绘制逻辑不动 | 待做（可选） |
+
+E06* 不阻塞 E01–E05；有产品/内容扩张需求时再拆任务卡。
 
 ---
 
@@ -331,6 +506,8 @@ T12（拆 game，可分步提交）
 | 2026-07-19 | T16 | 40/40 | 完成 | `5357e4d` runCollisions 事件化 + applyCollisionEvents |
 | 2026-07-19 | T17 | 40/40 | 完成 | `1fe3017` 焦点 CSS 变量；去掉 #d4af37 漂移 |
 | 2026-07-19 | T18 | 44/44 | 完成 | `d90192d` 立绘 HIDDEN_OK；Boss 占位表；未知→几何 |
+| 2026-07-19 | Phase E 规划 | — | — | 审查写入 E01–E06；**未开工** |
+| 2026-07-19 | 热修+规划修订 | 45/45 | 等手测 | endFrame/描画 24–240/patrol BGM/难度与 Extend/擦弹紫辉+白粒子；E03d 提权 ex_mid；VERSION 手改 76（commit 后 hook→77） |
 
 ---
 
@@ -342,5 +519,8 @@ T12（拆 game，可分步提交）
 2. 暂停 / 继续 / 回标题  
 3. 练习模式一章结束 → 重试  
 4. Stage Select 任意 A/B 面进关  
-5. Extra 进关（与 T01/T03/T11 相关时必做）  
+5. Extra 进关（与 T01/T03/T11 / E03c 相关时必做）  
 6. 设置改键 / 音量后进关仍有效  
+7. （E02）换面过渡 + 章结算条  
+8. （E04）左栏 Three 换面主题  
+9. （E05）Letter 超时失败 vs 击破成功

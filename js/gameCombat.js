@@ -34,6 +34,12 @@ export function applyCollisionEvents(game, events) {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
       game.addScore(BALANCE.score.graze);
+      // 自机附近白色擦弹粒子（稀疏，避免弹幕墙时粒子爆炸）
+      const gx = p.x + (Math.random() - 0.5) * 18;
+      const gy = p.y + (Math.random() - 0.5) * 18;
+      for (let i = 0; i < 3; i++) {
+        game.particles.push(new Particle(gx, gy, '#ffffff', 0.22 + Math.random() * 0.12));
+      }
       if (Math.random() < 0.2) game.audio.sfx('graze');
     } else if (ev.type === 'playerHit') {
       game._hitPlayer();
