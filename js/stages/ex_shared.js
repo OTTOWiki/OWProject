@@ -200,17 +200,17 @@ export function pushBossLetter(g, opts = {}) {
       timer(en, 'sp', exFire(frenzy ? 0.12 : 0.18), d, () => {
         en.data.a = (en.data.a || 0) + 0.35;
         const a = en.data.a;
-        for (let i = 0; i < exN(3); i++) {
-          const ang = a + (i / 3) * Math.PI * 2;
+        for (let i = 0; i < exN(27); i++) {
+          const ang = a + (i / 27) * Math.PI * 2;
           game.spawnBullet(new Bullet({
-            x: en.x, y: en.y, angle: ang, speed: exSp(2.4),
+            x: en.x, y: en.y, angle: ang, speed: exSp(7.2),
             type: 'dot', color: i % 2 ? color : color2, from: 'enemy',
           }));
         }
       });
       timer(en, 'aim', exFire(0.8), d, () => {
         spawnAimed(game, en, game.player, {
-          n: exN(2, 'even'), parity: 'even', type: 'rice', speed: exSp(2.6), color,
+          n: exN(18, 'even'), parity: 'even', type: 'rice', speed: exSp(7.8), color,
         });
       });
     }
