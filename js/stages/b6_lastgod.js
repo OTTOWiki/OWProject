@@ -113,34 +113,36 @@ function chapter_b6_midboss(g) {
 }
 
 function chapter_b6_mid_5(g) {
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.45) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const y = 60 + (g.waveCount * 28) % 400;
-      spawnHLaser(g, y, g.waveCount % 3 === 0 ? 1 : -1, '#65a30d');
-    }
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.16) {
-      g.rainT = 0;
-      g.spawnBullet(acquireBullet({
-        x: Math.random() * LOGICAL_W, y: -10,
-        vx: (Math.random() - 0.5) * 0.6, vy: 1.8,
-        type: 'rice', color: '#84cc16', from: 'enemy', gravity: 0.01,
-      }));
-    }
-    g.aimT = (g.aimT || 0) + dt;
-    if (g.aimT > 0.6) {
-      g.aimT = 0;
-      for (const side of [-1, 1]) {
-        const src = { x: LOGICAL_W / 2 + side * 80, y: 40 };
-        spawnAimedLaser(g, src, g.player, '#a3e635');
+  // 纯辅压：横扫 + 雨 + 双侧狙激光
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.45) {
+        game.laserT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const y = 60 + (game.waveCount * 28) % 400;
+        spawnHLaser(game, y, game.waveCount % 3 === 0 ? 1 : -1, '#65a30d');
       }
-    }
-  };
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.16) {
+        game.rainT = 0;
+        game.spawnBullet(acquireBullet({
+          x: Math.random() * LOGICAL_W, y: -10,
+          vx: (Math.random() - 0.5) * 0.6, vy: 1.8,
+          type: 'rice', color: '#84cc16', from: 'enemy', gravity: 0.01,
+        }));
+      }
+      game.aimT = (game.aimT || 0) + dt;
+      if (game.aimT > 0.6) {
+        game.aimT = 0;
+        for (const side of [-1, 1]) {
+          const src = { x: LOGICAL_W / 2 + side * 80, y: 40 };
+          spawnAimedLaser(game, src, game.player, '#a3e635');
+        }
+      }
+    },
+  });
 }
-
 function chapter_b6_mid_6(g) {
   installMidWave(g, {
     interval: 0.55, maxWaves: 14,
@@ -196,32 +198,34 @@ function chapter_b6_mid_7(g) {
 }
 
 function chapter_b6_mid_8(g) {
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.35) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const y = 50 + (g.waveCount * 25) % 430;
-      spawnHLaser(g, y, g.waveCount % 3 === 0 ? 1 : -1, '#4d7c0f');
-    }
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.12) {
-      g.rainT = 0;
-      for (let i = 0; i < 2; i++) {
-        g.spawnBullet(acquireBullet({
-          x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8, vy: 1.8 + Math.random() * 0.5,
-          type: 'talisman', color: '#bef264', from: 'enemy', gravity: 0.008,
-        }));
+  // 纯辅压：横扫 + 双符雨 + 十字落
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.35) {
+        game.laserT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const y = 50 + (game.waveCount * 25) % 430;
+        spawnHLaser(game, y, game.waveCount % 3 === 0 ? 1 : -1, '#4d7c0f');
       }
-    }
-    g.crossT = (g.crossT || 0) + dt;
-    if (g.crossT > 1.3) {
-      g.crossT = 0;
-      spawnCrossFall(g, { type: 'rice', color: '#84cc16', speed: 1.7, lanes: 6 });
-    }
-  };
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.12) {
+        game.rainT = 0;
+        for (let i = 0; i < 2; i++) {
+          game.spawnBullet(acquireBullet({
+            x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8, vy: 1.8 + Math.random() * 0.5,
+            type: 'talisman', color: '#bef264', from: 'enemy', gravity: 0.008,
+          }));
+        }
+      }
+      game.crossT = (game.crossT || 0) + dt;
+      if (game.crossT > 1.3) {
+        game.crossT = 0;
+        spawnCrossFall(game, { type: 'rice', color: '#84cc16', speed: 1.7, columns: 6 });
+      }
+    },
+  });
 }
-
 function chapter_b6_mid_9(g) {
   installMidWave(g, {
     interval: 0.65, maxWaves: 14,
@@ -249,35 +253,37 @@ function chapter_b6_mid_9(g) {
 }
 
 function chapter_b6_mid_10(g) {
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > 0.08) {
-      g.rainT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      for (let i = 0; i < 3; i++) {
-        g.spawnBullet(acquireBullet({
-          x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.9, vy: 2.0 + Math.random() * 0.7,
-          type: 'talisman', color: ['#a3e635', '#bef264', '#65a30d'][g.waveCount % 3], from: 'enemy', gravity: 0.008,
-        }));
+  // 纯辅压：三色符雨 + 双横扫 + 双侧狙激光
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > 0.08) {
+        game.rainT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        for (let i = 0; i < 3; i++) {
+          game.spawnBullet(acquireBullet({
+            x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.9, vy: 2.0 + Math.random() * 0.7,
+            type: 'talisman', color: ['#a3e635', '#bef264', '#65a30d'][game.waveCount % 3], from: 'enemy', gravity: 0.008,
+          }));
+        }
       }
-    }
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > 0.35) {
-      g.laserT = 0;
-      for (const side of [-1, 1]) {
-        spawnHLaser(g, 80 + (g.waveCount * 32) % 380, side, side === -1 ? '#65a30d' : '#4d7c0f');
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > 0.35) {
+        game.laserT = 0;
+        for (const side of [-1, 1]) {
+          spawnHLaser(game, 80 + (game.waveCount * 32) % 380, side, side === -1 ? '#65a30d' : '#4d7c0f');
+        }
       }
-    }
-    g.aimT = (g.aimT || 0) + dt;
-    if (g.aimT > 0.45) {
-      g.aimT = 0;
-      for (const side of [-1, 1]) {
-        spawnAimedLaser(g, { x: LOGICAL_W / 2 + side * 75, y: 45 }, g.player, '#84cc16');
+      game.aimT = (game.aimT || 0) + dt;
+      if (game.aimT > 0.45) {
+        game.aimT = 0;
+        for (const side of [-1, 1]) {
+          spawnAimedLaser(game, { x: LOGICAL_W / 2 + side * 75, y: 45 }, game.player, '#84cc16');
+        }
       }
-    }
-  };
+    },
+  });
 }
-
 function chapter_lastgod_1(g) {
   pushBossRef(g, { ...BOSS_B6, y: 100, enterY: 100, hp: 3800 }, (en, d, game) => {
     timer(en, 'fog', 0.2, d, () => {

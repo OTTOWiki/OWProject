@@ -319,8 +319,9 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**E02 / E03a 完成**；**E03b 等手测**；手测 OK 后下一项 = **E03c**。  
-原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。
+当前：**Phase D 完成**；**E02 / E03a / E03b 完成**；**E03c 等手测（本地 commit，未 push）**；OK 后下一项 = **E03d1**。  
+原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
+**提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
 ---
 
@@ -339,8 +340,8 @@ T12（拆 game，可分步提交）
 |----|------|----------|--------------|
 | 0 | **E02 手测收口** | ~~完成~~ | 代码已合，清掉「等手测」再动刀 |
 | 1 | **E03a** | ~~完成~~ | 最小试点，验证 helper 够用 |
-| 2 | **E03b** | **等手测**：A4/A5/A6 抽查 | 主线 A 一气迁完 |
-| 3 | **E03c** | B4–B6 mid | 主线 B 同上 |
+| 2 | **E03b** | ~~完成~~（+A 线激光无时限寿命已 push） | 主线 A 一气迁完 |
+| 3 | **E03c** | **等手测**：B4/B5/B6 抽查 | 主线 B 同上 |
 | 4 | **E03d1** | EX 只拆文件、不改编数值 | 先降 `ex_mid` 体量，diff 安全 |
 | 5 | **E03d2** | EX 手写 wave → `installMidWave` | 壳与主线对齐 |
 | 6 | **E07** | 薄 StageContext + **仅 s1 试点** | mid 已统一后再收窄 `g` 契约 |
@@ -452,7 +453,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测 |
+| **状态** | 完成 |
 | **改动清单** | a4 mid_4/6；a5 mid_5/6/8；a6 mid_6/8/10 → continuous-only `installMidWave`；其余 mid 原本已是 helper |
 | **范围** | `a4_menbailiang.js` / `a5_rival.js` / `a6_yimeige.js` 中全部 mid（及 mid 形态 wave）迁 `installMidWave`；Letter/`pushBossRef` 不动 |
 | **不做** | 不调 hp/间隔/颜色；不改对话与章节 id |
@@ -465,12 +466,14 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 等手测（本地 commit，未 push） |
+| **改动清单** | b4 mid_4/6；b5 mid_7/8；b6 mid_5/8/10 → continuous-only `installMidWave`；其余 mid 原本已是 helper |
 | **范围** | b4–b6 mid 同 E03b 迁 `installMidWave` |
 | **不做** | 不改 EX（见 E03d）；不改 van Letter |
 | **验收（自动）** | 全绿 |
-| **验收（手测）** | B4 或 B5 一道中面 |
+| **验收（手测）** | B4 或 B5 一道中面；B6 抽 mid_5/10 辅压密度 |
 | **风险** | 中 |
+| **手测要点** | B4 mid_4 雨+狙、mid_6 横扫+雨+十字；B5 mid_7/8 纯弹幕持续；B6 mid_5/8/10 不提前结束 |
 
 #### E03d1 EX mid 拆文件（内容不动）
 
@@ -583,7 +586,8 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | Phase E 重排拍板 | — | — | 关卡主线优先：E02手测→E03*→E07→E01→E05→E04；E03d 拆 d1/d2；新增 E07 StageContext；**未开工代码** |
 | 2026-07-20 | E02 | — | 完成 | 用户确认手测 OK |
 | 2026-07-20 | E03a | 全绿 | 完成 | installMidWave continuous-only；s3 mid 手写壳清完；s2 已是 helper |
-| 2026-07-20 | E03b | 全绿 | 等手测 | A4/A5/A6 剩余手写 pure-continuous mid 全迁 installMidWave |
+| 2026-07-20 | E03b | 全绿 | 完成 | A4/A5/A6 pure-continuous mid；同提交去掉 H/aimed 激光默认 life（已 push） |
+| 2026-07-20 | E03c | 全绿 | 等手测 | B4/B5/B6 pure-continuous mid → installMidWave；**仅本地 commit** |
 
 ---
 
