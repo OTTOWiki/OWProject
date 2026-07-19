@@ -34,15 +34,19 @@ export function applyCollisionEvents(game, events) {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
       game.addScore(BALANCE.score.graze);
-      // 自机附近白色擦弹粒子：密、中等大小、全程 100% 不透明
-      for (let i = 0; i < 10; i++) {
-        const gx = p.x + (Math.random() - 0.5) * 24;
-        const gy = p.y + (Math.random() - 0.5) * 24;
-        const pt = new Particle(gx, gy, '#ffffff', 0.18 + Math.random() * 0.12);
-        pt.r = 1.35 + Math.random() * 1.1;
-        pt.vx *= 0.4 + Math.random() * 0.3;
-        pt.vy *= 0.4 + Math.random() * 0.3;
-        pt.fullAlpha = true;
+      // 擦弹白粒子：自机附近较大范围、正圆；出生 100% 不透明，飞出后非线性淡出
+      for (let i = 0; i < 12; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spread = 6 + Math.random() * 22;
+        const gx = p.x + Math.cos(ang) * spread * 0.35;
+        const gy = p.y + Math.sin(ang) * spread * 0.35;
+        const pt = new Particle(gx, gy, '#ffffff', 0.28 + Math.random() * 0.16);
+        // 正圆半径（绘制仅用 arc，禁止非等比缩放）
+        pt.r = 2.0 + Math.random() * 1.6;
+        const spd = 1.4 + Math.random() * 2.4;
+        pt.vx = Math.cos(ang) * spd;
+        pt.vy = Math.sin(ang) * spd;
+        pt.grazeFade = true;
         game.particles.push(pt);
       }
       if (Math.random() < 0.2) game.audio.sfx('graze');

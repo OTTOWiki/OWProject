@@ -249,14 +249,19 @@ export function drawGameFrame(game) {
   for (const b of game.playerBullets) drawBullet(ctx, b, pAlpha);
 
   for (const pt of game.particles) {
-    if (pt.fullAlpha) ctx.globalAlpha = 1;
-    else {
+    const t = pt.max > 0 ? Math.max(0, Math.min(1, pt.life / pt.max)) : 0;
+    if (pt.grazeFade) {
+      // 出生 100% 不透明；剩余寿命 t 上 ease-out 三次方 → 先几乎不透明，后半加速到 0
+      ctx.globalAlpha = 1 - (1 - t) ** 3;
+    } else {
       const mul = pt.alphaMul != null ? pt.alphaMul : 1;
-      ctx.globalAlpha = Math.min(1, (pt.life / pt.max) * mul);
+      ctx.globalAlpha = Math.min(1, t * mul);
     }
     ctx.fillStyle = pt.color;
+    // 正圆（逻辑坐标下等半径 arc，避免 ellipse）
+    const rr = Math.max(0.5, pt.r);
     ctx.beginPath();
-    ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+    ctx.arc(pt.x, pt.y, rr, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
