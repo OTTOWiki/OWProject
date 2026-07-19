@@ -265,7 +265,7 @@ DIFFICULTIES.extra = {
   name: '被吓到眩晕瘫坐，那一刻就像看到原子弹爆炸',
   rank: 'EXTRA',
   color: '#a78bfa',
-  desc: '与 Lunatic 同参 · 仅 Extra / EX 可选',
+  desc: '极限弹速与密度 · Extra / EX 专用',
 };
 
 /** 当前 baseScore 应对应的下一个 Extend 阈值 */

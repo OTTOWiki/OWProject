@@ -67,10 +67,11 @@ export class Game {
     this.enemyBullets = [];
     this._homeList = null;
     this._homeTarget = null;
-    /** 版面左上角帧率（约 0.5s 平滑，统计逻辑/绘制帧） */
+    /** 版面左上角：描画帧率（约 0.5s 平滑，仅统计实际 _draw 次数） */
     this._fps = 0;
     this._fpsFrames = 0;
     this._fpsAccum = 0;
+    this._fpsLastT = null;
 
     this._bindUI();
   }
@@ -355,19 +356,6 @@ export class Game {
       if (dt > capDt) dt = capDt;
     }
 
-    // 帧率统计（按实际推进的逻辑帧）
-    if (this._fpsLastT != null) {
-      const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
-      this._fpsFrames += 1;
-      this._fpsAccum += rawDt;
-      if (this._fpsAccum >= 0.5) {
-        this._fps = Math.round(this._fpsFrames / this._fpsAccum);
-        this._fpsFrames = 0;
-        this._fpsAccum = 0;
-      }
-    }
-    this._fpsLastT = t;
-
     try {
       this._handleGlobalInput();
       // 章间推进用游戏时间；暂停冻结
@@ -403,7 +391,21 @@ export class Game {
       } else {
         this._drawAccum = 0;
       }
-      if (shouldDraw) this._draw();
+      if (shouldDraw) {
+        this._draw();
+        // 描画帧率：只统计实际出帧
+        if (this._fpsLastT != null) {
+          const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
+          this._fpsFrames += 1;
+          this._fpsAccum += rawDt;
+          if (this._fpsAccum >= 0.5) {
+            this._fps = Math.round(this._fpsFrames / this._fpsAccum);
+            this._fpsFrames = 0;
+            this._fpsAccum = 0;
+          }
+        }
+        this._fpsLastT = t;
+      }
     } catch (err) {
       console.error('[game loop]', err);
       // 保底：避免异常后版面永久黑屏

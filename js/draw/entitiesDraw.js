@@ -25,6 +25,109 @@ function withAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+/** 敌弹擦弹邻域：仅靠近自机的一侧，按弹体形状描边发光（非整圆盖在弹上） */
+function drawGrazeProximityGlow(ctx, b, player) {
+  if (!player || b.from !== 'enemy' || b.delay > 0) return;
+
+  const dxW = player.x - b.x;
+  const dyW = player.y - b.y;
+  const dist = Math.hypot(dxW, dyW);
+
+  // 与 drawBullet 一致：部分弹种会 rotate(angle+π/2)
+  const rotated = b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large'
+    && b.type !== 'option' && b.type !== 'bomb';
+  let localX;
+  let localY;
+  if (rotated) {
+    const cosA = Math.cos(b.angle);
+    const sinA = Math.sin(b.angle);
+    // 世界偏移 → 当前 canvas 本地（已含 angle+π/2）
+    localX = -dxW * sinA + dyW * cosA;
+    localY = -dxW * cosA - dyW * sinA;
+  } else {
+    localX = dxW;
+    localY = dyW;
+  }
+
+  const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
+  let reach = hitR;
+  if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 200) * 0.55);
+  else if (b.type === 'rice') reach = Math.max(b.w || 8, b.h || 8) * 0.55;
+  else if (b.type === 'talisman') reach = Math.hypot((b.w || 10) / 2, (b.h || 14) / 2);
+  if (dist > BALANCE.grazeRadius + reach + 10) return;
+
+  const pulse = 0.5 + Math.sin(performance.now() / 100) * 0.22;
+  const nearHit = dist < player.r + hitR + 2;
+  const strokeA = pulse * (nearHit ? 0.35 : 0.9);
+  const glowA = nearHit ? 0.2 : 0.55;
+
+  ctx.save();
+  ctx.shadowColor = '#c084fc';
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = `rgba(216, 180, 254, ${strokeA})`;
+  ctx.fillStyle = `rgba(168, 85, 247, ${glowA * 0.4})`;
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // clip：只保留朝向自机的半平面（本地坐标）
+  const len = Math.hypot(localX, localY) || 1;
+  const nx = localX / len;
+  const ny = localY / len;
+  const pad = 2;
+  const big = 500;
+  const px = -ny;
+  const py = nx;
+  ctx.beginPath();
+  ctx.moveTo(nx * (-pad) + px * big, ny * (-pad) + py * big);
+  ctx.lineTo(nx * (-pad) - px * big, ny * (-pad) - py * big);
+  ctx.lineTo(nx * big - px * big, ny * big - py * big);
+  ctx.lineTo(nx * big + px * big, ny * big + py * big);
+  ctx.closePath();
+  ctx.clip();
+
+  if (b.type === 'laser') {
+    const lenL = b.laserLen || 200;
+    const hw = (b.w || 10) * 0.5 + 3.5;
+    // 整条激光体填充淡紫 + 两侧描边（clip 后只显示靠近自机的一段）
+    ctx.beginPath();
+    ctx.moveTo(-hw, 4);
+    ctx.lineTo(-hw, -lenL);
+    ctx.lineTo(hw, -lenL);
+    ctx.lineTo(hw, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(-hw, 2);
+    ctx.lineTo(-hw, -lenL);
+    ctx.lineTo(hw, -lenL);
+    ctx.lineTo(hw, 2);
+    ctx.stroke();
+  } else if (b.type === 'talisman') {
+    const w = (b.w || 10) + 6;
+    const h = (b.h || 16) + 6;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, 3);
+    else ctx.rect(-w / 2, -h / 2, w, h);
+    ctx.stroke();
+  } else if (b.type === 'rice') {
+    const rx = (b.h || 8) / 2 + 3.5;
+    const ry = (b.w || 12) / 2 + 3.5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    // 圆弹：圆环弧（clip 后只剩朝向自机一侧）
+    const rr = (b.w || hitR * 2) / 2 + 3.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, rr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 function softGlow(ctx, r, color, color2) {
   // 外层光晕
   const outer = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.85);
@@ -200,34 +303,8 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.stroke();
   }
 
-  // 擦弹邻域：子弹外沿紫色辉光（非红圈；半径跟判定 hitR）
-  if (player && b.from === 'enemy' && b.delay <= 0) {
-    const dx = b.x - player.x;
-    const dy = b.y - player.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
-    if (dist < BALANCE.grazeRadius + hitR + 6) {
-      const nearHit = dist < player.r + hitR;
-      const pulse = 0.4 + Math.sin(performance.now() / 110) * 0.2;
-      const glowR = hitR + 4 + pulse * 2;
-      const g = ctx.createRadialGradient(0, 0, hitR * 0.35, 0, 0, glowR);
-      g.addColorStop(0, `rgba(232, 180, 255, ${nearHit ? 0.08 : 0.35})`);
-      g.addColorStop(0.55, `rgba(168, 85, 247, ${nearHit ? 0.12 : 0.45})`);
-      g.addColorStop(1, 'rgba(120, 40, 200, 0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(0, 0, glowR, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = `rgba(216, 180, 254, ${pulse * (nearHit ? 0.25 : 0.75)})`;
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = '#c084fc';
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(0, 0, hitR + 2.5, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
-  }
+  // 擦弹邻域：弹体轮廓上靠近自机的一侧紫色描边（方形/激光跟形状，非整圆）
+  drawGrazeProximityGlow(ctx, b, player);
   ctx.restore();
 }
 

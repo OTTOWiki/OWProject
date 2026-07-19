@@ -9,7 +9,7 @@ import {
 import { rebuildBulletLists } from './collision.js';
 import { drawChapterBanner } from './hud.js';
 
-/** 版面左上角帧率（描画帧） */
+/** 版面左上角：描画帧率（非逻辑 60 步进） */
 export function drawFps(game, ctx) {
   const fps = game._fps || 0;
   ctx.save();
@@ -249,7 +249,8 @@ export function drawGameFrame(game) {
   for (const b of game.playerBullets) drawBullet(ctx, b, pAlpha);
 
   for (const pt of game.particles) {
-    ctx.globalAlpha = pt.life / pt.max;
+    const mul = pt.alphaMul != null ? pt.alphaMul : 1;
+    ctx.globalAlpha = Math.min(1, (pt.life / pt.max) * mul);
     ctx.fillStyle = pt.color;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
