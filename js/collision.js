@@ -4,6 +4,8 @@
  *
  * runCollisions 只做几何命中与实体状态（dead / grazed / hurt）；
  * 得分、掉落、SFX、onDeath 由 apply 侧（gameCombat）消费事件。
+ *
+ * 分表 playerBullets / enemyBullets 为权威存活列表（spawn 直写，帧末 purge）。
  */
 import { BALANCE } from './config.js';
 
@@ -19,11 +21,35 @@ export function distPointSeg(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len2 = dx * dx + dy * dy;
-  if (len2 < 1e-8) return Math.hypot(px - x1, py - y1);
+  if (len2 < 1e-8) {
+    const ex = px - x1;
+    const ey = py - y1;
+    return Math.sqrt(ex * ex + ey * ey);
+  }
   let t = ((px - x1) * dx + (py - y1) * dy) / len2;
   if (t < 0) t = 0;
   else if (t > 1) t = 1;
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+  const qx = px - (x1 + t * dx);
+  const qy = py - (y1 + t * dy);
+  return Math.sqrt(qx * qx + qy * qy);
+}
+
+/** 点到线段最短距离的平方（避免热路径 sqrt，仅圆弹粗/精筛用） */
+export function distPointSeg2(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1e-8) {
+    const ex = px - x1;
+    const ey = py - y1;
+    return ex * ex + ey * ey;
+  }
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  if (t < 0) t = 0;
+  else if (t > 1) t = 1;
+  const qx = px - (x1 + t * dx);
+  const qy = py - (y1 + t * dy);
+  return qx * qx + qy * qy;
 }
 
 /** 敌弹相对自机的有效距离（圆弹=圆心；激光=当前长度线段） */
@@ -36,8 +62,15 @@ export function bulletDistToPlayer(b, p) {
     const y2 = b.y + Math.sin(ang) * len;
     return distPointSeg(p.x, p.y, b.x, b.y, x2, y2);
   }
-  return Math.hypot(b.x - p.x, b.y - p.y);
+  const dx = b.x - p.x;
+  const dy = b.y - p.y;
+  return Math.sqrt(dx * dx + dy * dy);
 }
+
+// ---- 可复用网格（避免每帧 new Map / 新桶）----
+const _gridMap = new Map();
+const _gridFreeBuckets = [];
+let _gridActiveKeys = [];
 
 /**
  * 将存活敌机放入网格（cell -> Enemy[]）
@@ -45,21 +78,32 @@ export function bulletDistToPlayer(b, p) {
  * @param {number} [cell=GRID_CELL]
  */
 export function buildEnemyGrid(enemies, cell = GRID_CELL) {
-  const grid = new Map();
+  // 回收上一帧桶
+  for (let i = 0; i < _gridActiveKeys.length; i++) {
+    const bucket = _gridMap.get(_gridActiveKeys[i]);
+    if (bucket) {
+      bucket.length = 0;
+      _gridFreeBuckets.push(bucket);
+    }
+  }
+  _gridMap.clear();
+  _gridActiveKeys = [];
+
   const inv = 1 / cell;
   for (const e of enemies) {
     if (e.dead || e.isSpawning) continue;
     const cx = Math.floor(e.x * inv);
     const cy = Math.floor(e.y * inv);
     const key = cx * 73856093 ^ cy * 19349663;
-    let bucket = grid.get(key);
+    let bucket = _gridMap.get(key);
     if (!bucket) {
-      bucket = [];
-      grid.set(key, bucket);
+      bucket = _gridFreeBuckets.length > 0 ? _gridFreeBuckets.pop() : [];
+      _gridMap.set(key, bucket);
+      _gridActiveKeys.push(key);
     }
     bucket.push(e);
   }
-  return { grid, cell, inv };
+  return { grid: _gridMap, cell, inv };
 }
 
 /**
@@ -80,24 +124,32 @@ export function forEnemiesNear(g, x, y, radius, visit) {
       const key = (cx + dx) * 73856093 ^ (cy + dy) * 19349663;
       const bucket = grid.get(key);
       if (!bucket) continue;
-      for (const e of bucket) visit(e);
+      for (let i = 0; i < bucket.length; i++) visit(bucket[i]);
     }
   }
 }
 
 /**
- * 维护自机弹 / 敌弹分表（与 game.bullets 同步，供碰撞与绘制）
- * push 仍走 game.bullets（带难度缩放钩子）
+ * 兼容：若仍传入合并 bullets，按 from 填充分表。
+ * 正常路径分表已是权威，无需每帧调用。
  */
 export function rebuildBulletLists(game) {
   const player = game.playerBullets || (game.playerBullets = []);
   const enemy = game.enemyBullets || (game.enemyBullets = []);
-  player.length = 0;
-  enemy.length = 0;
-  for (const b of game.bullets) {
-    if (b.dead) continue;
-    if (b.from === 'player') player.push(b);
-    else enemy.push(b);
+  // 分表已有存活弹且无合并表 → 已是权威
+  if ((!game.bullets || game.bullets.length === 0)
+    && (player.length > 0 || enemy.length > 0)) {
+    return;
+  }
+  // 从合并表重建（测试 / 旧路径）
+  if (game.bullets && game.bullets.length) {
+    player.length = 0;
+    enemy.length = 0;
+    for (const b of game.bullets) {
+      if (b.dead) continue;
+      if (b.from === 'player') player.push(b);
+      else enemy.push(b);
+    }
   }
 }
 
@@ -108,15 +160,20 @@ export function rebuildBulletLists(game) {
  */
 export function runCollisions(game) {
   /** @type {CollisionEvent[]} */
-  const events = [];
+  const events = game._colEvents || (game._colEvents = []);
+  events.length = 0;
+
   const p = game.player;
   if (!p) return events;
 
-  rebuildBulletLists(game);
-  const playerBullets = game.playerBullets;
-  const enemyBullets = game.enemyBullets;
+  // 兼容：仅 bullets 有数据时补分表
+  if ((!game.playerBullets?.length && !game.enemyBullets?.length) && game.bullets?.length) {
+    rebuildBulletLists(game);
+  }
 
-  // 存活敌机（复用本帧 homeList）
+  const playerBullets = game.playerBullets || (game.playerBullets = []);
+  const enemyBullets = game.enemyBullets || (game.enemyBullets = []);
+
   let living = game._homeList;
   if (!living) {
     living = [];
@@ -128,19 +185,29 @@ export function runCollisions(game) {
   const useGrid = living.length >= 4 && playerBullets.length >= 12;
   const gridWrap = useGrid ? buildEnemyGrid(living) : null;
   let maxEnemyR = 24;
-  for (const e of living) {
-    if (e.r > maxEnemyR) maxEnemyR = e.r;
+  for (let i = 0; i < living.length; i++) {
+    const er = living[i].r;
+    if (er > maxEnemyR) maxEnemyR = er;
   }
 
-  // player bullets vs enemies（bomb 巨弹可穿透并分摊伤害）
-  for (const b of playerBullets) {
+  // player bullets vs enemies
+  for (let bi = 0; bi < playerBullets.length; bi++) {
+    const b = playerBullets[bi];
     if (b.dead) continue;
-    const hitR = b.r + maxEnemyR;
+    const br = b.r;
+    const hitR = br + maxEnemyR;
+    const hitR2 = hitR * hitR;
+    const bx = b.x;
+    const by = b.y;
+    const isBomb = b.type === 'bomb';
 
     const applyHit = (e) => {
       if (e.dead || e.isSpawning) return false;
-      if (Math.hypot(b.x - e.x, b.y - e.y) >= b.r + e.r) return false;
-      if (b.type === 'bomb') {
+      const dx = bx - e.x;
+      const dy = by - e.y;
+      const rr = br + e.r;
+      if (dx * dx + dy * dy >= rr * rr) return false;
+      if (isBomb) {
         if (!b._hitIds) b._hitIds = new Set();
         if (b._hitIds.has(e.id)) return false;
         b._hitIds.add(e.id);
@@ -149,7 +216,6 @@ export function runCollisions(game) {
       }
       const killed = e.hurt(b.damage);
       if (killed) {
-        // 击杀在碰撞阶段发生；onDeath 须由消费方在 purge 前触发
         events.push({ type: 'kill', enemy: e });
       }
       return true;
@@ -157,40 +223,97 @@ export function runCollisions(game) {
 
     if (gridWrap) {
       let done = false;
-      forEnemiesNear(gridWrap, b.x, b.y, hitR, (e) => {
+      forEnemiesNear(gridWrap, bx, by, hitR, (e) => {
         if (done || b.dead) return;
-        if (applyHit(e) && b.type !== 'bomb') done = true;
+        // 粗筛：hitR 平方（含 maxEnemyR 裕量，applyHit 再精算）
+        const dx = bx - e.x;
+        const dy = by - e.y;
+        if (dx * dx + dy * dy >= hitR2) return;
+        if (applyHit(e) && !isBomb) done = true;
       });
     } else {
-      for (const e of living) {
+      for (let ei = 0; ei < living.length; ei++) {
         if (b.dead) break;
-        if (applyHit(e) && b.type !== 'bomb') break;
+        if (applyHit(living[ei]) && !isBomb) break;
       }
     }
   }
 
   // enemy bullets vs player
-  for (const b of enemyBullets) {
-    if (b.dead || b.delay > 0) continue;
+  const px = p.x;
+  const py = p.y;
+  const pr = p.r;
+  const grazeR = BALANCE.grazeRadius;
 
-    const dist = bulletDistToPlayer(b, p);
-    const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : b.r;
-
-    if (!b.grazed && dist < BALANCE.grazeRadius + hitR && dist > p.r + hitR) {
-      b.grazed = true;
-      events.push({ type: 'graze', bullet: b });
+  for (let i = 0; i < enemyBullets.length; i++) {
+    const b = enemyBullets[i];
+    if (b.dead || b.delay > 0) {
+      if (b) b._grazeNear = false;
+      continue;
     }
 
-    if (dist < p.r + hitR) {
-      b.dead = true;
-      events.push({ type: 'playerHit', source: 'bullet', bullet: b });
+    if (b.type === 'laser') {
+      const len = b.laserLen || 0;
+      if (len <= 0) {
+        b._grazeNear = false;
+        continue;
+      }
+      const hitR = (b.w || 10) * 0.5;
+      const ang = b.angle || 0;
+      const x2 = b.x + Math.cos(ang) * len;
+      const y2 = b.y + Math.sin(ang) * len;
+      const dist2 = distPointSeg2(px, py, b.x, b.y, x2, y2);
+      const hitSum = pr + hitR;
+      const grazeSum = grazeR + hitR;
+      const hitSum2 = hitSum * hitSum;
+      const grazeSum2 = grazeSum * grazeSum;
+      b._grazeNear = dist2 < grazeSum2;
+
+      if (!b.grazed && dist2 < grazeSum2 && dist2 > hitSum2) {
+        b.grazed = true;
+        events.push({ type: 'graze', bullet: b });
+      }
+      if (dist2 < hitSum2) {
+        b.dead = true;
+        events.push({ type: 'playerHit', source: 'bullet', bullet: b });
+      }
+    } else {
+      const dx = b.x - px;
+      const dy = b.y - py;
+      const hitR = b.r;
+      const dist2 = dx * dx + dy * dy;
+      const hitSum = pr + hitR;
+      const grazeSum = grazeR + hitR;
+
+      // 轴对齐粗筛
+      if (dx > grazeSum || dx < -grazeSum || dy > grazeSum || dy < -grazeSum) {
+        b._grazeNear = false;
+        continue;
+      }
+
+      const hitSum2 = hitSum * hitSum;
+      const grazeSum2 = grazeSum * grazeSum;
+      b._grazeNear = dist2 < grazeSum2;
+
+      if (!b.grazed && dist2 < grazeSum2 && dist2 > hitSum2) {
+        b.grazed = true;
+        events.push({ type: 'graze', bullet: b });
+      }
+      if (dist2 < hitSum2) {
+        b.dead = true;
+        events.push({ type: 'playerHit', source: 'bullet', bullet: b });
+      }
     }
   }
 
   // body collision with enemies
-  for (const e of living) {
+  for (let i = 0; i < living.length; i++) {
+    const e = living[i];
     if (e.dead || e.isSpawning) continue;
-    if (Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.r * 0.5) {
+    const dx = e.x - px;
+    const dy = e.y - py;
+    const rr = pr + e.r * 0.5;
+    if (dx * dx + dy * dy < rr * rr) {
       events.push({ type: 'playerHit', source: 'body', enemy: e });
     }
   }

@@ -1,13 +1,22 @@
 /**
  * Entity drawing (split from entities.js — T13)
  */
-import { BALANCE } from '../config.js';
+import { BALANCE, LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   loadSprite, spriteKeyForEnemy, spriteKeyForPlayer,
   drawSpriteCirc, drawSprite,
 } from '../sprites.js';
 
 /* ========== Drawing helpers — 梦幻弹幕 + 贴图 ========== */
+/** 本帧统一时间（ms）；由 drawGameFrame 注入，避免每弹 performance.now */
+let _frameT = 0;
+export function setDrawFrameTime(t) {
+  _frameT = t || 0;
+}
+function frameNow() {
+  return _frameT || performance.now();
+}
+
 function withAlpha(hex, a) {
   if (!hex || hex[0] !== '#' || (hex.length !== 7 && hex.length !== 4)) {
     return `rgba(255,255,255,${a})`;
@@ -28,9 +37,19 @@ function withAlpha(hex, a) {
 const GRAZE_PURPLE = '#c084fc';
 const GRAZE_PURPLE_HI = '#f0abfc';
 
+/** softGlow 离屏缓存：key = r|color|color2 → canvas（局部 0,0 绘制，可平移复用） */
+const _glowCache = new Map();
+const GLOW_CACHE_MAX = 96;
+
 /** 敌弹是否进入自机擦弹范围（中心距 ≤ grazeR + 判定外包） */
 function isEnemyInGrazeRange(b, player) {
   if (!player || b.from !== 'enemy' || b.delay > 0) return false;
+  // 碰撞写的 _grazeNear：true 可直接用；false 时 rice/talisman/laser 视觉外包可能更大，仍需精算
+  if (b._grazeNear) return true;
+  if (b._grazeNear === false
+    && b.type !== 'rice' && b.type !== 'talisman' && b.type !== 'laser') {
+    return false;
+  }
   const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
   let reach = hitR;
   if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 0) * 0.5);
@@ -42,7 +61,7 @@ function isEnemyInGrazeRange(b, player) {
 
 /** 擦弹时视觉微抖：小幅度、高频率，相位跟子弹 id 绑定 */
 function grazeJitterOffset(b) {
-  const t = performance.now();
+  const t = frameNow();
   const seed = (b.id || 0) * 12.9898;
   // ~0.7px 量级，约 25–40Hz 观感
   const jx = Math.sin(t * 0.085 + seed) * 0.75
@@ -52,8 +71,8 @@ function grazeJitterOffset(b) {
   return { jx, jy };
 }
 
-function softGlow(ctx, r, color, color2) {
-  // 外层光晕
+/** 直接在 ctx 上画 softGlow（无缓存路径 / 构建缓存用） */
+function softGlowPaint(ctx, r, color, color2) {
   const outer = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.85);
   outer.addColorStop(0, withAlpha(color2 || '#ffffff', 0.7));
   outer.addColorStop(0.35, withAlpha(color, 0.4));
@@ -73,12 +92,47 @@ function softGlow(ctx, r, color, color2) {
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
 
-  // 高光点
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.beginPath();
   ctx.arc(-r * 0.25, -r * 0.28, Math.max(1.2, r * 0.22), 0, Math.PI * 2);
   ctx.fill();
 }
+
+function softGlow(ctx, r, color, color2) {
+  const c2 = color2 || '#fff';
+  const key = `${r}|${color}|${c2}`;
+  let entry = _glowCache.get(key);
+  if (!entry && typeof document !== 'undefined' && document.createElement) {
+    const pad = Math.ceil(r * 1.85) + 2;
+    const size = pad * 2;
+    try {
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      const gctx = c.getContext('2d');
+      if (gctx) {
+        gctx.translate(pad, pad);
+        softGlowPaint(gctx, r, color, c2);
+        entry = { canvas: c, pad };
+        if (_glowCache.size >= GLOW_CACHE_MAX) {
+          const first = _glowCache.keys().next().value;
+          _glowCache.delete(first);
+        }
+        _glowCache.set(key, entry);
+      }
+    } catch (_) {
+      entry = null;
+    }
+  }
+  if (entry) {
+    ctx.drawImage(entry.canvas, -entry.pad, -entry.pad);
+    return;
+  }
+  softGlowPaint(ctx, r, color, c2);
+}
+
+/** 屏外裁剪 margin（与实体 OFF 略小，避免边缘弹突然消失） */
+const DRAW_CULL_M = 36;
 
 /**
  * 激光弹绘制：细光束，中间略粗、两头略细（纺锤形）
@@ -173,6 +227,29 @@ function drawLaserBeam(ctx, b, col, col2, a, grazeFx) {
  */
 export function drawBullet(ctx, b, alphaMul = 1, player = null) {
   const a = Math.max(0, Math.min(1, alphaMul));
+  // 屏外不画（激光用当前段外包粗略判断）
+  if (b.type === 'laser') {
+    const len = b.laserLen || 0;
+    if (len > 0) {
+      const ang = b.angle || 0;
+      const hx = b.x + Math.cos(ang) * len;
+      const hy = b.y + Math.sin(ang) * len;
+      const minX = b.x < hx ? b.x : hx;
+      const maxX = b.x > hx ? b.x : hx;
+      const minY = b.y < hy ? b.y : hy;
+      const maxY = b.y > hy ? b.y : hy;
+      if (maxX < -DRAW_CULL_M || minX > LOGICAL_W + DRAW_CULL_M
+        || maxY < -DRAW_CULL_M || minY > LOGICAL_H + DRAW_CULL_M) {
+        return;
+      }
+    }
+  } else if (
+    b.x < -DRAW_CULL_M || b.x > LOGICAL_W + DRAW_CULL_M
+    || b.y < -DRAW_CULL_M || b.y > LOGICAL_H + DRAW_CULL_M
+  ) {
+    return;
+  }
+
   if (b.delay > 0) {
     // 预显环
     ctx.save();
@@ -180,7 +257,7 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.strokeStyle = b.color;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, 6 + Math.sin(performance.now() / 80) * 2, 0, Math.PI * 2);
+    ctx.arc(b.x, b.y, 6 + Math.sin(frameNow() / 80) * 2, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
     return;
@@ -222,7 +299,7 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.arc(0, 0, rr * 1.35, 0, Math.PI * 2);
     ctx.stroke();
     // 旋转十字
-    ctx.rotate(performance.now() / 280);
+    ctx.rotate(frameNow() / 280);
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
@@ -297,7 +374,7 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i < 4; i++) {
-      const ang = (i / 4) * Math.PI * 2 + performance.now() / 400;
+      const ang = (i / 4) * Math.PI * 2 + frameNow() / 400;
       ctx.moveTo(0, 0);
       ctx.lineTo(Math.cos(ang) * r * 1.1, Math.sin(ang) * r * 1.1);
     }
@@ -312,7 +389,7 @@ export function drawPlayer(ctx, p) {
   const alpha = inv && p.arbitration <= 0 ? 0.35 : 1;
 
   // 子机
-  const t = performance.now() / 1000;
+  const t = frameNow() / 1000;
   const ox = p.slow ? 16 : 22;
   const oy = p.slow ? -6 : 2;
   const bob = Math.sin(t * 6) * 1.5;
@@ -366,7 +443,7 @@ export function drawPlayer(ctx, p) {
     ctx.strokeStyle = 'rgba(248,113,113,.85)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 20 + Math.sin(performance.now() / 30) * 3, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 20 + Math.sin(frameNow() / 30) * 3, 0, Math.PI * 2);
     ctx.stroke();
   }
 }

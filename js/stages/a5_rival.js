@@ -9,7 +9,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 function chapter_a5_mid_1(g) {
   installMidWave(g, {
@@ -81,7 +81,7 @@ function chapter_a5_mid_4(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.32) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: 0, vy: 1.5,
           type: 'dot', color: '#a78bfa', from: 'enemy',
         }));
@@ -117,7 +117,7 @@ function chapter_a5_midboss(g) {
       }
     });
     timer(en, 'drop', 2.0, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x + (Math.random() - 0.5) * 80, y: en.y, vx: 0, vy: 1.2,
         type: 'large', color: '#a78bfa', from: 'enemy', gravity: 0.006, life: 5,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.5, 'dot', '#c4b5fd'),
@@ -139,7 +139,7 @@ function chapter_a5_mid_5(g) {
     if (g.rainT > 0.16) {
       g.rainT = 0;
       const col = Math.random() < 0.5 ? '#7dd3fc' : '#f9a8d4';
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.5, vy: 1.8,
         type: 'rice', color: col, from: 'enemy', gravity: 0.01,
@@ -160,7 +160,7 @@ function chapter_a5_mid_6(g) {
       g.rainT = 0;
       g.waveCount = (g.waveCount || 0) + 1;
       const col = g.waveCount % 2 === 0 ? '#7dd3fc' : '#f9a8d4';
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.8, vy: 1.8 + Math.random(),
         type: 'rice', color: col, from: 'enemy', gravity: 0.008,
@@ -211,7 +211,7 @@ function chapter_a5_mid_8(g) {
       g.rainT = 0;
       g.waveCount = (g.waveCount || 0) + 1;
       const col = ['#7dd3fc', '#f9a8d4', '#c4b5fd'][g.waveCount % 3];
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.7, vy: 2.0 + Math.random() * 0.5,
         type: 'talisman', color: col, from: 'enemy', gravity: 0.01,
@@ -249,7 +249,7 @@ function chapter_rival_1(g) {
       const rx = 30 + Math.random() * (LOGICAL_W - 60);
       const ry = 30 + Math.random() * 150;
       for (let i = 0; i < 3; i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: rx, y: ry, angle: Math.random() * Math.PI * 2, speed: 1.8 + Math.random() * 0.8,
           type: 'talisman', color: en.color2, from: 'enemy',
         }));
@@ -272,7 +272,7 @@ function chapter_rival_2(g) {
     timer(en, 'spin', 0.14, d, () => {
       en.data.a = (en.data.a || 0) + 0.35;
       for (const side of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a * side, speed: 2.0, type: 'talisman', color: en.color2, from: 'enemy',
         }));
       }
@@ -332,7 +332,7 @@ function chapter_rival_5(g) {
     timer(en, 'spin', 0.1, d, () => {
       en.data.a = (en.data.a || 0) + 0.4;
       for (const side of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a * side, speed: 2.4, type: 'talisman', color: en.color2, from: 'enemy',
         }));
       }
@@ -366,7 +366,7 @@ function chapter_rival_6(g) {
       timer(en, 'spin', 0.1, d, () => {
         en.data.a = (en.data.a || 0) + 0.55;
         for (const side of [-1, 1]) {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: en.data.a * side, speed: 2.8, type: 'dot', color: '#f472b6', from: 'enemy',
           }));
         }
@@ -390,7 +390,7 @@ function chapter_rival_7(g) {
       en.data.a = (en.data.a || 0) + 0.5;
       for (let i = 0; i < (frenzy ? 4 : 3); i++) {
         const ang = en.data.a + (i / (frenzy ? 4 : 3)) * Math.PI * 2;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: ang, speed: frenzy ? 3.0 : 2.2,
           type: 'talisman', color: en.color, from: 'enemy',
         }));
@@ -430,7 +430,7 @@ function chapter_rival_last(g) {
     timer(en, 'spin', frenzy ? 0.06 : 0.12, d, () => {
       en.data.a = (en.data.a || 0) + (frenzy ? 0.7 : 0.45);
       for (let i = 0; i < (frenzy ? 4 : 2); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a + (i * Math.PI * 2) / (frenzy ? 4 : 2), speed: frenzy ? 3.2 : 2.4, type: 'talisman', color: '#c4b5fd', from: 'enemy',
         }));
       }

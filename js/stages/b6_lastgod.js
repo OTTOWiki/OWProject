@@ -9,7 +9,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const BOSS_B6 = {
   x: LOGICAL_W / 2, y: 100, kind: 'lastgod',
@@ -23,7 +23,7 @@ function chapter_b6_mid_1(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.4) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, angle: Math.PI / 2, speed: 1.0,
           type: 'medium', color: '#bef264', from: 'enemy', gravity: 0.004,
         }));
@@ -64,7 +64,7 @@ function chapter_b6_mid_3(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.35) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({ x: Math.random() * LOGICAL_W, y: -8, vx: 0, vy: 1.3, type: 'rice', color: '#65a30d', from: 'enemy' }));
+        game.spawnBullet(acquireBullet({ x: Math.random() * LOGICAL_W, y: -8, vx: 0, vy: 1.3, type: 'rice', color: '#65a30d', from: 'enemy' }));
       }
     },
     onWave: (game) => {
@@ -102,7 +102,7 @@ function chapter_b6_midboss(g) {
     timer(en, 'ring', 1.2, d, () => spawnRingAt(game, en.x, en.y, 14, 1.6, 'medium', '#bef264', en.age * 0.4));
     timer(en, 'aim', 0.6, d, () => spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.6, color: '#84cc16' }));
     timer(en, 'big', 1.8, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x + (Math.random() - 0.5) * 60, y: en.y, vx: 0, vy: 1.2,
         type: 'large', color: '#65a30d', from: 'enemy', gravity: 0.006, life: 8,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 10, 1.8, 'dot', '#a3e635'),
@@ -124,7 +124,7 @@ function chapter_b6_mid_5(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.16) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.6, vy: 1.8,
         type: 'rice', color: '#84cc16', from: 'enemy', gravity: 0.01,
@@ -148,7 +148,7 @@ function chapter_b6_mid_6(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.1) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8,
           vy: 2.2 + Math.random(), type: 'dot', color: '#65a30d', from: 'enemy', gravity: 0.008,
         }));
@@ -174,7 +174,7 @@ function chapter_b6_mid_7(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.22) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 1.5,
           type: 'large', color: '#4d7c0f', from: 'enemy', gravity: 0.004, life: 7,
           onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.4, 'dot', '#a3e635'),
@@ -208,7 +208,7 @@ function chapter_b6_mid_8(g) {
     if (g.rainT > 0.12) {
       g.rainT = 0;
       for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8, vy: 1.8 + Math.random() * 0.5,
           type: 'talisman', color: '#bef264', from: 'enemy', gravity: 0.008,
         }));
@@ -255,7 +255,7 @@ function chapter_b6_mid_10(g) {
       g.rainT = 0;
       g.waveCount = (g.waveCount || 0) + 1;
       for (let i = 0; i < 3; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.9, vy: 2.0 + Math.random() * 0.7,
           type: 'talisman', color: ['#a3e635', '#bef264', '#65a30d'][g.waveCount % 3], from: 'enemy', gravity: 0.008,
         }));
@@ -281,7 +281,7 @@ function chapter_b6_mid_10(g) {
 function chapter_lastgod_1(g) {
   pushBossRef(g, { ...BOSS_B6, y: 100, enterY: 100, hp: 3800 }, (en, d, game) => {
     timer(en, 'fog', 0.2, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5), vy: 1.2,
         type: 'medium', color: '#bef264', from: 'enemy',
       }));
@@ -299,7 +299,7 @@ function chapter_lastgod_2(g) {
   pushBossRef(g, { ...BOSS_B6, y: 100, enterY: 100, hp: 3900 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.0) * 60;
     timer(en, 'fog', 0.18, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.7, vy: 1.1,
         type: 'medium', color: '#bef264', from: 'enemy',
       }));
@@ -310,7 +310,7 @@ function chapter_lastgod_2(g) {
     timer(en, 'spin', 0.15, d, () => {
       en.data.a = (en.data.a || 0) + 0.3;
       for (const side of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a * side, speed: 1.5, type: 'talisman', color: '#65a30d', from: 'enemy',
         }));
       }
@@ -325,7 +325,7 @@ function chapter_lastgod_3(g) {
     en.y = 100 + Math.cos(en.age * 0.7) * 18;
     timer(en, 'fog', 0.15, d, () => {
       for (let i = 0; i < 2; i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.6, vy: 1.0 + Math.random(),
           type: 'medium', color: '#bef264', from: 'enemy',
         }));
@@ -345,7 +345,7 @@ function chapter_lastgod_4(g) {
     en.y = 100 + Math.cos(en.age * 0.9) * 22;
     timer(en, 'fog', 0.14, d, () => {
       for (let i = 0; i < 2; i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8, vy: 1.0 + Math.random(),
           type: 'medium', color: '#bef264', from: 'enemy',
         }));
@@ -364,7 +364,7 @@ function chapter_lastgod_5(g) {
     const hpRatio = en.hp / en.maxHp;
     timer(en, 'fog', 0.15, d, () => {
       for (let i = 0; i < (hpRatio < 0.5 ? 3 : 2); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.8, vy: 1.0 + Math.random(),
           type: 'medium', color: '#bef264', from: 'enemy',
         }));
@@ -388,7 +388,7 @@ function chapter_lastgod_6(g) {
     en.y = 100 + Math.cos(en.age * (fast ? 1.8 : 1.2)) * (fast ? 28 : 22);
     timer(en, 'fog', fast ? 0.1 : 0.15, d, () => {
       for (let i = 0; i < (fast ? 4 : 2); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.9, vy: 1.0 + Math.random(),
           type: 'medium', color: '#bef264', from: 'enemy',
         }));
@@ -412,7 +412,7 @@ function chapter_lastgod_7(g) {
     en.y = 100 + Math.cos(en.age * (fast ? 2.2 : 1.4)) * (fast ? 32 : 25);
     timer(en, 'storm', fast ? 0.08 : 0.15, d, () => {
       for (let i = 0; i < (fast ? 3 : 1); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: Math.random() * Math.PI * 2, speed: 1.8 + Math.random() * (fast ? 2.5 : 1.8),
           type: Math.random() < 0.3 ? 'large' : 'dot', color: Math.random() < 0.5 ? '#a3e635' : '#4d7c0f', from: 'enemy',
         }));
@@ -434,7 +434,7 @@ function chapter_lastgod_8(g) {
     const frenzy = hpRatio < 0.2;
     timer(en, 'storm', frenzy ? 0.04 : 0.1, d, () => {
       for (let i = 0; i < (frenzy ? 4 : 2); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: Math.random() * Math.PI * 2,
           speed: 2 + Math.random() * (frenzy ? 3.5 : 2.5),
           type: Math.random() < (frenzy ? 0.4 : 0.3) ? 'large' : 'dot',
@@ -462,7 +462,7 @@ function chapter_lastgod_last(g) {
     en.y = 100 + Math.cos(en.age * (frenzy ? 3.2 : 2.0)) * (frenzy ? 40 : 30);
     timer(en, 'storm', frenzy ? 0.03 : 0.08, d, () => {
       for (let i = 0; i < (frenzy ? 6 : 3); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: Math.random() * Math.PI * 2,
           speed: 2 + Math.random() * (frenzy ? 4 : 3),
           type: ['dot', 'rice', 'talisman', 'medium', 'large'][Math.floor(Math.random() * (frenzy ? 5 : 4))],
@@ -481,7 +481,7 @@ function chapter_lastgod_last(g) {
         en.data.a = (en.data.a || 0) + 0.8;
         for (const side of [-1, 1]) {
           for (const off of [-1, 1]) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x + side * 25, y: en.y + off * 15, angle: en.data.a * side * off, speed: 3.5, type: 'large', color: '#4d7c0f', from: 'enemy',
             }));
           }

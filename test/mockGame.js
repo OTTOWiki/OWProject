@@ -15,6 +15,8 @@ export function createMockGame(opts = {}) {
   const g = {
     enemies: [],
     bullets: [],
+    playerBullets: [],
+    enemyBullets: [],
     items: [],
     particles: [],
     player: {
@@ -61,6 +63,9 @@ export function createMockGame(opts = {}) {
     spawnBullet(b) {
       if (!b) return b;
       applyEnemyBulletDifficulty(b, this.bulletSpeedMul);
+      if (b.from === 'player') this.playerBullets.push(b);
+      else this.enemyBullets.push(b);
+      // 兼容旧断言
       this.bullets.push(b);
       return b;
     },

@@ -14,6 +14,9 @@ import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
 import { unstableHintFor } from './hud.js';
 import { debugSkipDialogue } from './debug.js';
+import { releaseBulletList } from './bulletPool.js';
+import { releaseItemList } from './itemPool.js';
+import { releaseParticleList } from './particlePool.js';
 
 export function wrapWaveFn(game, raw) {
   return (dt) => {
@@ -38,22 +41,14 @@ export function wrapWaveFn(game, raw) {
 
 export function softClearForNextChapter(game, { convert = true } = {}) {
   if (convert) {
+    // 敌弹变点 + 吸道具；随后清空敌弹表并归还池
     game._bulletsToPointsAndAttract();
-  } else if (game.bullets?.length) {
-    for (let i = game.bullets.length - 1; i >= 0; i--) {
-      const b = game.bullets[i];
-      if (b.from !== 'player' || b.dead) game.bullets.splice(i, 1);
-    }
   }
+  releaseBulletList(game.enemyBullets);
+  game._purgeDeadBullets?.();
   if (game.enemies) game.enemies.length = 0;
   else game.enemies = [];
   game.bossRef = null;
-  if (convert && game.bullets?.length) {
-    for (let i = game.bullets.length - 1; i >= 0; i--) {
-      const b = game.bullets[i];
-      if (b.from !== 'player' || b.dead) game.bullets.splice(i, 1);
-    }
-  }
 }
 
 export function startChapter(game) {
@@ -503,11 +498,11 @@ export function setEndingCinematic(game, on) {
   if (on) {
     game.el.letterBanner?.classList.add('hidden');
     game.enemies.length = 0;
-    game.bullets.length = 0;
-    game.playerBullets.length = 0;
-    game.enemyBullets.length = 0;
-    game.items = [];
-    game.particles = [];
+    releaseBulletList(game.playerBullets);
+    releaseBulletList(game.enemyBullets);
+    releaseItemList(game.items);
+    releaseParticleList(game.particles);
+    game._grazeParticleCount = 0;
     game.bossRef = null;
     game.waveFn = null;
     game.chapterDone = true;

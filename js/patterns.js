@@ -2,8 +2,8 @@
  * 弹幕模式工具
  * 奇数狙 / 偶数狙：奇数路数中心对准自机，偶数路数中心夹在两侧对称
  */
-import { Bullet } from './entities.js';
 import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
+import { acquireBullet } from './bulletPool.js';
 
 export function aimAngle(from, to) {
   return Math.atan2(to.y - from.y, to.x - from.x);
@@ -122,14 +122,14 @@ export function spawnAimed(game, from, player, opts) {
     // 非激光保持原默认寿命 12；激光未传 life → 仅出屏销毁
     if (life != null) bopts.life = life;
     else if (type !== 'laser') bopts.life = 12;
-    game.spawnBullet(new Bullet(bopts));
+    game.spawnBullet(acquireBullet(bopts));
   }
 }
 
 export function spawnRingAt(game, x, y, n, speed, type, color, base = 0) {
   const nn = Math.max(3, scaleBulletCount(game, n));
   for (const ang of ring(nn, base)) {
-    game.spawnBullet(new Bullet({
+    game.spawnBullet(acquireBullet({
       x, y, angle: ang, speed, type, color, color2: '#fff', from: 'enemy',
     }));
   }
@@ -148,7 +148,7 @@ export function spawnCrossFall(game, opts = {}) {
   const step = LOGICAL_W / (nn + 1);
   for (let i = 1; i <= nn; i++) {
     const x = step * i + (evenOffset && i % 2 === 0 ? step * 0.25 : 0);
-    game.spawnBullet(new Bullet({
+    game.spawnBullet(acquireBullet({
       x, y,
       vx: (i % 2 === 0 ? 0.4 : -0.4),
       vy: speed,
@@ -161,7 +161,7 @@ export function spawnCrossFall(game, opts = {}) {
 export function spawnGravityRain(game, count, type = 'medium', color = '#38bdf8', speed = 1.2) {
   const nn = Math.max(1, scaleBulletCount(game, count));
   for (let i = 0; i < nn; i++) {
-    game.spawnBullet(new Bullet({
+    game.spawnBullet(acquireBullet({
       x: Math.random() * LOGICAL_W,
       y: -20 - Math.random() * 40,
       vx: (Math.random() - 0.5) * 0.8,
@@ -197,7 +197,7 @@ export function spawnPlayerShot(game, player, dmgMul = 1) {
       ];
 
   for (const s of shots) {
-    game.spawnBullet(new Bullet({
+    game.spawnBullet(acquireBullet({
       x: player.x + s.ox,
       y: player.y + s.oy,
       angle: s.ang,
@@ -223,7 +223,7 @@ export function spawnPlayerShot(game, player, dmgMul = 1) {
   // 初始略向侧前方射出，随后自动转向最近敌人
   for (const side of [-1, 1]) {
     const launchAng = -Math.PI / 2 + side * (player.slow ? 0.55 : 0.95);
-    game.spawnBullet(new Bullet({
+    game.spawnBullet(acquireBullet({
       x: player.x + side * ox,
       y: player.y + oy,
       angle: launchAng,
@@ -244,14 +244,26 @@ export function spawnPlayerShot(game, player, dmgMul = 1) {
 
 export function clearBulletsToItems(game, cx, cy, radius) {
   let n = 0;
-  for (const b of game.bullets) {
-    if (b.from !== 'enemy' || b.dead) continue;
-    const d = Math.hypot(b.x - cx, b.y - cy);
-    if (radius < 0 || d <= radius) {
+  const list = game.enemyBullets;
+  if (!list) return 0;
+  const r2 = radius < 0 ? -1 : radius * radius;
+  for (let i = 0; i < list.length; i++) {
+    const b = list[i];
+    if (b.dead) continue;
+    if (r2 < 0) {
       b.dead = true;
       n++;
       game.spawnItem(b.x, b.y, Math.random() < 0.15 ? 'scoreL' : 'score');
       game.addScore(BALANCE.score.clearBullet ?? 10);
+    } else {
+      const dx = b.x - cx;
+      const dy = b.y - cy;
+      if (dx * dx + dy * dy <= r2) {
+        b.dead = true;
+        n++;
+        game.spawnItem(b.x, b.y, Math.random() < 0.15 ? 'scoreL' : 'score');
+        game.addScore(BALANCE.score.clearBullet ?? 10);
+      }
     }
   }
   return n;
@@ -279,7 +291,7 @@ export function spawnBombOrbs(game, player) {
 
   for (let i = 0; i < n; i++) {
     const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
-    game.spawnBullet(new Bullet({
+    game.spawnBullet(acquireBullet({
       x: player.x + Math.cos(ang) * 22,
       y: player.y + Math.sin(ang) * 22,
       angle: ang,
@@ -302,7 +314,7 @@ export function spawnBombOrbs(game, player) {
 /** 横向激光墙 */
 export function spawnHLaser(game, y, dir = 1, color = '#f87171', laserLen = 60) {
   const x = dir > 0 ? -20 : LOGICAL_W + 20;
-  game.spawnBullet(new Bullet({
+  game.spawnBullet(acquireBullet({
     x, y,
     vx: dir * 3.5,
     vy: 0,
@@ -320,7 +332,7 @@ export function spawnHLaser(game, y, dir = 1, color = '#f87171', laserLen = 60) 
 /** 固定指向激光（短促） */
 export function spawnAimedLaser(game, from, player, color = '#fbbf24', laserLen = 180, speed = 6) {
   const ang = aimAngle(from, player);
-  game.spawnBullet(new Bullet({
+  game.spawnBullet(acquireBullet({
     x: from.x,
     y: from.y,
     angle: ang,

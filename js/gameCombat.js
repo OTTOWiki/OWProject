@@ -3,14 +3,15 @@
  * @param {import('./game.js').Game} game
  */
 import { BALANCE, LOGICAL_W, nextExtendThreshold } from './config.js';
-import { Item, Particle } from './entities.js';
 import {
   spawnPlayerShot, fullScreenClear, clearBulletsToItems, spawnBombOrbs,
 } from './patterns.js';
-import { runCollisions, rebuildBulletLists } from './collision.js';
+import { runCollisions } from './collision.js';
 import {
   debugBlocksHit, debugLocksLives, debugLocksBombs, debugAutoEdit,
 } from './debug.js';
+import { acquireParticle } from './particlePool.js';
+import { acquireItem } from './itemPool.js';
 
 /**
  * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
@@ -23,17 +24,9 @@ const GRAZE_PARTICLES_PER = 8;
 const GRAZE_PARTICLE_MAX = 48;
 const GRAZE_PARTICLE_R = 1.55;
 
-function countGrazeParticles(game) {
-  let n = 0;
-  for (const pt of game.particles) {
-    if (!pt.dead && pt.grazeFade) n++;
-  }
-  return n;
-}
-
 /** 自机旁白粒子：统一正圆半径；出生不透明、飞出 ease-out 淡出；受场上上限约束 */
 function spawnGrazeParticles(game, p) {
-  let room = GRAZE_PARTICLE_MAX - countGrazeParticles(game);
+  let room = GRAZE_PARTICLE_MAX - (game._grazeParticleCount || 0);
   if (room <= 0) return;
   const n = Math.min(GRAZE_PARTICLES_PER, room);
   for (let i = 0; i < n; i++) {
@@ -42,13 +35,14 @@ function spawnGrazeParticles(game, p) {
     const gx = p.x + Math.cos(ang) * spread * 0.45;
     const gy = p.y + Math.sin(ang) * spread * 0.45;
     // 寿命略长 → 整体消失更慢
-    const pt = new Particle(gx, gy, '#ffffff', 0.38 + Math.random() * 0.14);
+    const pt = acquireParticle(gx, gy, '#ffffff', 0.38 + Math.random() * 0.14);
     pt.r = GRAZE_PARTICLE_R;
     const spd = 0.85 + Math.random() * 1.25;
     pt.vx = Math.cos(ang) * spd;
     pt.vy = Math.sin(ang) * spd;
     pt.grazeFade = true;
     game.particles.push(pt);
+    game._grazeParticleCount = (game._grazeParticleCount || 0) + 1;
   }
 }
 
@@ -106,13 +100,11 @@ export function updateStageTransit(game, dt) {
         collectItem(game, it);
       }
     }
-    for (const b of game.bullets) {
-      if (b.from === 'player') b.update(dt, p, null);
-    }
+    for (const b of game.playerBullets) b.update(dt, p, null);
     for (const pt of game.particles) pt.update(dt);
-    game._purgeDead(game.bullets);
-    game.items = game.items.filter((i) => !i.dead);
-    game.particles = game.particles.filter((pt) => !pt.dead);
+    game._purgeDeadBullets();
+    game._purgeDeadItems();
+    game._purgeDeadParticles();
   }
 
   tickChapterBanner(game, dt);
@@ -231,8 +223,7 @@ export function updateCombat(game, dt) {
   game._homeList = homeList;
   game._homeTarget = homeTarget;
 
-  // bullets：分表更新，避免每发扫 from
-  rebuildBulletLists(game);
+  // bullets：分表权威，直接更新
   for (const b of game.playerBullets) {
     let ht = null;
     if (b.homing) {
@@ -313,11 +304,11 @@ export function updateCombat(game, dt) {
   // 非阻塞章标题/结算条
   tickChapterBanner(game, dt);
 
-  // cleanup（原地 splice，避免每帧重建大数组）
-  game._purgeDead(game.bullets);
+  // cleanup：分表 swap-remove + 对象池归还
+  game._purgeDeadBullets();
   game._purgeDead(game.enemies);
-  game.items = game.items.filter((i) => !i.dead);
-  game.particles = game.particles.filter((pt) => !pt.dead);
+  game._purgeDeadItems();
+  game._purgeDeadParticles();
 
   game._updateHUD();
 }
@@ -498,10 +489,10 @@ export function grantLetterResource(game, ch, perfect, success) {
 }
 
 export function spawnItem(game, x, y, kind = 'score') {
-  game.items.push(new Item(x, y, kind));
+  game.items.push(acquireItem(x, y, kind));
 }
 
 export function burst(game, x, y, color, n) {
-  for (let i = 0; i < n; i++) game.particles.push(new Particle(x, y, color));
+  for (let i = 0; i < n; i++) game.particles.push(acquireParticle(x, y, color));
 }
 

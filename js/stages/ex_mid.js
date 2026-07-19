@@ -7,7 +7,7 @@ import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 import { C, exHp, exSp, exN, exFire, EX } from './ex_shared.js';
 
 const SI = (s) => s * EX.spawn;
@@ -212,7 +212,7 @@ export function mid_hLaserRain(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > exFire(0.35)) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.35, vy: exSp(1.55 + Math.random() * 0.4),
         type: 'rice', color: C.orange, from: 'enemy', gravity: 0.012,
@@ -282,7 +282,7 @@ export function mid_splitLarge(g) {
       e.vy = 0.2;
       e.script = (en, d, game) => {
         timer(en, 'big', exFire(1.9), d, () => {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, vx: 0, vy: exSp(1.2),
             type: 'large', color: C.orange, from: 'enemy', gravity: 0.01, life: 5,
             onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(8), exSp(1.5), 'dot', C.gold),
@@ -313,7 +313,7 @@ export function mid_diagCross(g) {
       e.script = (en, d, game) => {
         timer(en, 's', exFire(0.8), d, () => {
           const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: ang, speed: exSp(2.35),
             type: 'dot', color: C.cyan, from: 'enemy',
           }));
@@ -428,7 +428,7 @@ export function mid_fixedFan(g) {
           en.data.a = (en.data.a || Math.PI * 0.55) + 0.12;
           const base = en.data.a;
           for (let i = -1; i <= 1; i++) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: base + i * 0.2, speed: exSp(2.1),
               type: 'rice', color: C.blue, from: 'enemy',
             }));
@@ -453,7 +453,7 @@ export function mid_gapWall(g) {
     const gapX = 70 + Math.random() * (LOGICAL_W - 140);
     for (let x = 16; x < LOGICAL_W - 16; x += 20) {
       if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x, y: -12, vx: 0, vy: exSp(1.9),
         type: 'rice', color: C.dark, from: 'enemy',
       }));
@@ -486,7 +486,7 @@ export function mid_sideBarrage(g) {
           timer(en, 's', exFire(0.65), d, () => {
             const dir = en.x < LOGICAL_W / 2 ? 1 : -1;
             for (let i = -1; i <= 1; i++) {
-              game.spawnBullet(new Bullet({
+              game.spawnBullet(acquireBullet({
                 x: en.x, y: en.y,
                 vx: dir * exSp(2.3), vy: i * exSp(0.55),
                 type: 'dot', color: C.orange, from: 'enemy',
@@ -515,7 +515,7 @@ export function mid_spiralLite(g) {
       e.script = (en, d, game) => {
         timer(en, 'sp', exFire(0.22), d, () => {
           en.data.a = (en.data.a || 0) + 0.45;
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: en.data.a, speed: exSp(2.0),
             type: 'dot', color: C.pink, from: 'enemy',
           }));
@@ -575,7 +575,7 @@ export function mid_randomGap(g) {
     const gapX = g.gapX;
     for (let x = 16; x < LOGICAL_W - 16; x += 20) {
       if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x, y: -12, vx: 0, vy: exSp(1.9),
         type: 'rice', color: C.dark, from: 'enemy',
       }));
@@ -614,7 +614,7 @@ export function mid_dualColor(g) {
           timer(en, 'f', exFire(idx ? 0.7 : 0.9), d, () => {
             const base = Math.atan2(LOGICAL_H / 2 - en.y, LOGICAL_W / 2 - en.x);
             for (let i = -1; i <= 1; i++) {
-              game.spawnBullet(new Bullet({
+              game.spawnBullet(acquireBullet({
                 x: en.x, y: en.y, angle: base + i * 0.18, speed: exSp(2.2),
                 type, color, from: 'enemy',
               }));
@@ -695,7 +695,7 @@ export function mid_columnLane(g) {
     if (g.aimTimer > exFire(0.8)) {
       g.aimTimer = 0;
       const rx = 30 + Math.random() * (LOGICAL_W - 60);
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: rx, y: -10, vx: 0, vy: exSp(2.3),
         type: 'dot', color: C.red, from: 'enemy',
       }));
@@ -709,7 +709,7 @@ export function mid_columnLane(g) {
     const cols = [40 + offset, 225, LOGICAL_W - 40 - offset];
     for (const x of cols) {
       for (let i = 0; i < 4; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x, y: -12 - i * 28, vx: 0, vy: exSp(1.9),
           type: 'rice', color: C.blue, from: 'enemy',
         }));
@@ -735,7 +735,7 @@ export function mid_eliteFan(g) {
           en.data.a = (en.data.a || Math.PI * 0.25) + 0.12;
           const base = en.data.a;
           for (let i = -2; i <= 2; i++) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: base + i * 0.15, speed: exSp(2.0),
               type: 'rice', color: C.gold, from: 'enemy',
             }));
@@ -762,7 +762,7 @@ export function mid_laserDot(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > exFire(0.2)) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: (Math.random() - 0.5) * 0.4, vy: exSp(1.6 + Math.random() * 0.5),
         type: 'dot', color: C.cyan, from: 'enemy', gravity: 0.01,
@@ -804,7 +804,7 @@ export function mid_wallRain(g) {
     const gapX = 80 + Math.random() * (LOGICAL_W - 160);
     for (let x = 16; x < LOGICAL_W - 16; x += 20) {
       if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x, y: -12, vx: 0, vy: exSp(1.9),
         type: 'rice', color: C.dark, from: 'enemy',
       }));
@@ -897,7 +897,7 @@ export function mid_splitRing(g) {
       e.vy = 0.2;
       e.script = (en, d, game) => {
         timer(en, 'big', exFire(2.0), d, () => {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, vx: 0, vy: exSp(1.2),
             type: 'large', color: C.cyan, from: 'enemy', gravity: 0.01, life: 5,
             onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(10), exSp(1.6), 'dot', C.white),
@@ -964,7 +964,7 @@ export function mid_ringGap(g) {
       const gapX = 70 + Math.random() * (LOGICAL_W - 140);
       for (let x = 16; x < LOGICAL_W - 16; x += 20) {
         if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x, y: -12, vx: 0, vy: exSp(1.9),
           type: 'rice', color: C.dark, from: 'enemy',
         }));
@@ -1057,7 +1057,7 @@ export function mid_fanEcho(g) {
         timer(en, 'f', exFire(0.7), d, () => {
           const base = Math.atan2(game.player.y - en.y, game.player.x - en.x);
           for (let i = -2; i <= 2; i++) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: base + i * 0.18, speed: exSp(2.1),
               type: 'rice', color: C.pink, from: 'enemy',
             }));
@@ -1085,7 +1085,7 @@ export function mid_wallRebuild(g) {
     const gapX = 70 + Math.random() * (LOGICAL_W - 140);
     for (let x = 16; x < LOGICAL_W - 16; x += 22) {
       if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x, y: -12, vx: 0, vy: exSp(1.9),
         type: 'medium', color: C.dark, from: 'enemy',
       }));
@@ -1116,7 +1116,7 @@ export function mid_barrageRing(g) {
       left.vy = 0.25;
       left.script = (en, d, game) => {
         timer(en, 's', exFire(0.55), d, () => {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y,
             vx: exSp(2.6), vy: (yR - en.y) * 0.008,
             type: 'rice', color: C.red, from: 'enemy',
@@ -1128,7 +1128,7 @@ export function mid_barrageRing(g) {
       right.vy = 0.25;
       right.script = (en, d, game) => {
         timer(en, 's', exFire(0.55), d, () => {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y,
             vx: -exSp(2.6), vy: (yL - en.y) * 0.008,
             type: 'rice', color: C.blue, from: 'enemy',
@@ -1159,7 +1159,7 @@ export function mid_spiralAfter(g) {
         timer(en, 'sp', exFire(0.18), d, () => {
           en.data.a = (en.data.a || 0) + 0.4;
           for (let i = 0; i < 2; i++) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: en.data.a + i * Math.PI, speed: exSp(2.1),
               type: 'dot', color: i ? C.white : C.violet, from: 'enemy',
             }));
@@ -1246,7 +1246,7 @@ export function mid_dualAfter(g) {
         const e = mob(LOGICAL_W / 2 + side * 100, -15, exHp(30), side < 0 ? C.blue : C.orange);
         e.vy = 1.1;
         e.script = (en, d, game) => {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: Math.PI / 2, speed: exSp(1.5),
             type: 'dot', color: C.gold, from: 'enemy',
           }));
@@ -1409,7 +1409,7 @@ export function mid_hLaserAfter(g) {
     if (g.rainT > exFire(0.25)) {
       g.rainT = 0;
       for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10,
           vx: (Math.random() - 0.5) * 0.35, vy: exSp(1.6 + Math.random() * 0.4),
           type: 'rice', color: C.orange, from: 'enemy', gravity: 0.012,
@@ -1494,7 +1494,7 @@ export function mid_splitAfter(g) {
       e.vy = 0.2;
       e.script = (en, d, game) => {
         timer(en, 'big', exFire(1.9), d, () => {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, vx: 0, vy: exSp(1.2),
             type: 'large', color: C.orange, from: 'enemy', gravity: 0.01, life: 5,
             onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(12), exSp(1.5), 'dot', C.gold),
@@ -1515,7 +1515,7 @@ export function mid_splitAfter(g) {
         e2.vy = 0.2;
         e2.script = (en, d, game) => {
           timer(en, 'big', exFire(1.6), d, () => {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, vx: 0, vy: exSp(1.0),
               type: 'large', color: C.gold, from: 'enemy', gravity: 0.01, life: 5,
               onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(10), exSp(1.8), 'dot', C.orange),
@@ -1543,7 +1543,7 @@ export function mid_diagAfter(g) {
         timer(en, 's', exFire(0.8), d, () => {
           const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
           for (let i = 0; i < 4; i++) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y,
               angle: ang + (i * Math.PI / 2) + Math.PI / 4,
               speed: exSp(2.0), type: 'dot', color: C.cyan, from: 'enemy',
@@ -1663,7 +1663,7 @@ export function mid_fanAfter(g) {
           en.data.a = (en.data.a || Math.PI * 0.55) + 0.12;
           const base = en.data.a;
           for (let i = -2; i <= 1; i++) {
-            game.spawnBullet(new Bullet({
+            game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: base + i * 0.28, speed: exSp(2.1),
               type: 'rice', color: C.blue, from: 'enemy',
             }));
@@ -1694,7 +1694,7 @@ export function mid_wallAfter(g) {
     const gapX = positions[(g.waveCount - 1) % 3];
     for (let x = 16; x < LOGICAL_W - 16; x += 20) {
       if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x, y: -12, vx: 0, vy: exSp(1.9),
         type: 'rice', color: C.dark, from: 'enemy',
       }));
@@ -1727,7 +1727,7 @@ export function mid_barrageAfter(g) {
           timer(en, 's', exFire(0.65), d, () => {
             const dir = en.x < LOGICAL_W / 2 ? 1 : -1;
             for (let i = -2; i <= 2; i++) {
-              game.spawnBullet(new Bullet({
+              game.spawnBullet(acquireBullet({
                 x: en.x, y: en.y,
                 vx: dir * exSp(2.3), vy: i * exSp(0.5),
                 type: 'dot', color: C.orange, from: 'enemy',
@@ -1765,11 +1765,11 @@ export function mid_spiralFinale(g) {
         timer(en, 'sp', exFire(0.15), d, () => {
           en.data.a = (en.data.a || 0) + 0.5;
           const a = en.data.a;
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: a, speed: exSp(2.0),
             type: 'dot', color: C.pink, from: 'enemy',
           }));
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: a + Math.PI / 2, speed: exSp(2.0),
             type: 'dot', color: C.gold, from: 'enemy',
           }));
@@ -1804,7 +1804,7 @@ export function mid_sanctuary(g) {
       const gapX = 60 + Math.random() * (LOGICAL_W - 120);
       for (let x = 16; x < LOGICAL_W - 16; x += 20) {
         if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x, y: -12, vx: 0, vy: exSp(2.2),
           type: 'rice', color: C.dark, from: 'enemy',
         }));
@@ -1852,7 +1852,7 @@ export function mid_overwriteEve(g) {
       const gapX = 60 + Math.random() * (LOGICAL_W - 120);
       for (let x = 16; x < LOGICAL_W - 16; x += 20) {
         if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x, y: -12, vx: 0, vy: exSp(2.5),
           type: 'rice', color: C.dark, from: 'enemy',
         }));

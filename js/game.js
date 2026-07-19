@@ -20,6 +20,9 @@ import {
 } from './hud.js';
 import { getDebugTimeScale, debugTick } from './debug.js';
 import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from './spawnScale.js';
+import { purgeDeadBullets, releaseBulletList } from './bulletPool.js';
+import { releaseParticleList, releaseParticle } from './particlePool.js';
+import { purgeDeadItems, releaseItemList } from './itemPool.js';
 
 export class Game {
   constructor({ canvas, input, audio, background, ui }) {
@@ -171,10 +174,12 @@ export class Game {
     this.chapterTendency = 0;
     this._flashTimer = 0;
 
-    this.bullets = [];
+    releaseItemList(this.items);
+    releaseParticleList(this.particles);
     this.enemies = [];
-    this.items = [];
-    this.particles = [];
+    this.items = this.items || [];
+    this.particles = this.particles || [];
+    this._grazeParticleCount = 0;
 
     this.bossRef = null;
     this.waveFn = null;
@@ -185,10 +190,13 @@ export class Game {
 
     this.chapterIndex = this._indexForChapterId(startChapter);
     this._hudCache = createHudCache();
-    this.playerBullets = [];
-    this.enemyBullets = [];
+    releaseBulletList(this.playerBullets);
+    releaseBulletList(this.enemyBullets);
+    this.playerBullets = this.playerBullets || [];
+    this.enemyBullets = this.enemyBullets || [];
     this._homeList = null;
     this._homeTarget = null;
+    this._colEvents = [];
 
     this.chapterTime = 0;
     this.chapterScore = 0;
@@ -270,12 +278,13 @@ export class Game {
 
   /**
    * 子弹入场：敌弹乘 bulletSpeedMul；自机弹原样。
-   * 关卡与 patterns 应走此 API，勿直接 bullets.push。
+   * 写入 playerBullets / enemyBullets 分表（权威）；勿直接 push 数组。
    */
   spawnBullet(b) {
     if (!b) return b;
     applyEnemyBulletDifficulty(b, this.bulletSpeedMul ?? 1);
-    this.bullets.push(b);
+    if (b.from === 'player') this.playerBullets.push(b);
+    else this.enemyBullets.push(b);
     return b;
   }
 
@@ -283,10 +292,43 @@ export class Game {
     return chapterFlow.wrapWaveFn(this, raw);
   }
 
+  /** 敌机等：swap-remove 删 dead（O(n)，无中间 splice） */
   _purgeDead(arr) {
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if (arr[i].dead) arr.splice(i, 1);
+    let w = 0;
+    for (let i = 0; i < arr.length; i++) {
+      if (!arr[i].dead) arr[w++] = arr[i];
     }
+    arr.length = w;
+  }
+
+  /** 子弹分表：dead → 归还对象池 */
+  _purgeDeadBullets() {
+    purgeDeadBullets(this.playerBullets);
+    purgeDeadBullets(this.enemyBullets);
+  }
+
+  /** 道具：dead → 归还对象池 */
+  _purgeDeadItems() {
+    purgeDeadItems(this.items);
+  }
+
+  /** 粒子：dead → 归还对象池；同步擦弹粒子计数 */
+  _purgeDeadParticles() {
+    const arr = this.particles;
+    if (!arr) return;
+    let grazeN = 0;
+    let w = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const pt = arr[i];
+      if (pt.dead) {
+        releaseParticle(pt);
+      } else {
+        if (pt.grazeFade) grazeN++;
+        arr[w++] = pt;
+      }
+    }
+    arr.length = w;
+    this._grazeParticleCount = grazeN;
   }
 
   stop() {

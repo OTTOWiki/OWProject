@@ -10,7 +10,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnHLaser,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const FACE = faceDefaults(3);
 
@@ -26,7 +26,7 @@ function chapter_s3_1(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.9) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -20,
         vx: (Math.random() - 0.5) * 1.5, vy: 0.8,
         type: 'large', color: '#fdba74', from: 'enemy', life: 10,
@@ -76,7 +76,7 @@ function chapter_s3_4(g) {
   }, (en, d, game) => {
     timer(en, 'drop', 1.6, d, () => {
       for (let i = -2; i <= 2; i++) {
-        const b = new Bullet({
+        const b = acquireBullet({
           x: en.x + i * 30, y: en.y, vx: i * 0.15, vy: 1.8,
           type: 'large', color: '#f59e0b', from: 'enemy', life: 1.1,
           onSplit: (self) => {
@@ -116,7 +116,7 @@ function chapter_s3_6(g) {
     g.rainT = (g.rainT || 0) + dt;
     if (g.rainT > 0.12) {
       g.rainT = 0;
-      g.spawnBullet(new Bullet({
+      g.spawnBullet(acquireBullet({
         x: Math.random() * LOGICAL_W, y: -10,
         vx: 0, vy: 2.2 + Math.random(),
         type: 'dot', color: '#fdba74', from: 'enemy', gravity: 0.01,
@@ -135,7 +135,7 @@ function chapter_dazong_1(g) {
       const n = Math.max(3, scaleN(game, 4));
       for (let i = 0; i < n; i++) {
         const ang = en.data.la + (i / n) * Math.PI * 2;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: ang, speed: 3.5, type: 'laser',
           color: '#fbbf24', laserLen: 160, w: 10, r: 5, from: 'enemy',
         }));
@@ -157,7 +157,7 @@ function chapter_dazong_2(g) {
       const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + ang;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: a, speed: 2.0, type: 'dot', color: '#f59e0b', from: 'enemy', delay: 0.3,
         }));
       }
@@ -166,11 +166,11 @@ function chapter_dazong_2(g) {
       const n = Math.max(4, scaleN(game, 10));
       for (let i = 0; i < n; i++) {
         const x = 20 + i * (220 / n);
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x, y: -10, vx: 0.15 * (i % 2 === 0 ? 1 : -1), vy: 2.0,
           type: 'rice', color: '#fb923c', from: 'enemy', angle: Math.PI / 2,
         }));
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: LOGICAL_W - 20 - i * (180 / n), y: -15, vx: 0, vy: 1.8,
           type: 'rice', color: '#fbbf24', from: 'enemy',
         }));

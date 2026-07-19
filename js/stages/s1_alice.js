@@ -10,7 +10,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnCrossFall,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const FACE = faceDefaults(1);
 
@@ -56,7 +56,7 @@ function chapter_s1_3(g) {
     label: '草稿精英', enterY: 100,
   }, (en, d, game) => {
     timer(en, 'big', 2.2, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x, y: en.y, vx: 0, vy: 1.6, type: 'large', color: '#f472b6', from: 'enemy', gravity: 0.015,
       }));
     });
@@ -106,7 +106,7 @@ function chapter_alice_2(g) {
     color: '#f9a8d4', color2: '#67e8f9', label: '爱丽丝', enterY: 100,
   }, (en, d, game) => {
     timer(en, 'big', 2.5, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x, y: en.y, vx: 0, vy: 1.1, type: 'large', color: '#f472b6', from: 'enemy',
       }));
     });
@@ -120,7 +120,7 @@ function chapter_alice_2(g) {
       });
       const a = Math.atan2(game.player.y - en.y, game.player.x - en.x);
       for (const off of [-0.35, 0.35]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: a + off, speed: 3.0, type: 'talisman',
           color: '#e879f9', from: 'enemy',
         }));

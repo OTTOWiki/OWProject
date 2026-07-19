@@ -9,7 +9,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const PINK = '#e879f9';
 const PINK_L = '#f0abfc';
@@ -49,7 +49,7 @@ function chapter_a6_mid_2(g) {
       if (game.rainT > 0.3) {
         game.rainT = 0;
         for (let i = 0; i < 2; i++) {
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: Math.random() * LOGICAL_W, y: -10, vx: (Math.random() - 0.5) * 0.4, vy: 2.4,
             type: 'talisman', color: PINK_D, from: 'enemy',
           }));
@@ -116,7 +116,7 @@ function chapter_a6_midboss(g) {
     });
     timer(en, 'ring', 1.4, d, () => spawnRingAt(game, en.x, en.y, 12, 1.6, 'dot', PINK_L, en.age));
     timer(en, 'split', 1.8, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x, y: en.y + 10, vx: 0, vy: 1.0, type: 'large', color: PINK, from: 'enemy', gravity: 0.008, life: 4,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.6, 'dot', PINK_L),
       }));
@@ -132,7 +132,7 @@ function chapter_a6_mid_5(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.12) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10, vx: 0, vy: 2.2 + Math.random(),
           type: 'dot', color: PINK, from: 'enemy', gravity: 0.006,
         }));
@@ -180,7 +180,7 @@ function chapter_a6_mid_7(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.28) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -5, vx: 0, vy: 1.6,
           type: 'rice', color: PINK_L, from: 'enemy', gravity: 0.012, life: 8,
           onSplit: (self) => spawnRingAt(game, self.x, self.y, 6, 1.25, 'dot', PINK),
@@ -219,7 +219,7 @@ function chapter_a6_mid_8(g) {
     if (g.rainT > 0.16) {
       g.rainT = 0;
       for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -8,
           vx: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random(),
           type: 'talisman', color: PINK, from: 'enemy', gravity: 0.01,
@@ -262,7 +262,7 @@ function chapter_a6_mid_10(g) {
       g.waveCount = (g.waveCount || 0) + 1;
       const col = [PINK, VIOLET, PINK_L][g.waveCount % 3];
       for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10,
           vx: (Math.random() - 0.5) * 0.8, vy: 2.0 + Math.random() * 0.6,
           type: 'talisman', color: col, from: 'enemy', gravity: 0.01,
@@ -318,7 +318,7 @@ function chapter_yimeige_2(g) {
     timer(en, 'spin', 0.12, d, () => {
       en.data.a = (en.data.a || 0) + 0.38;
       for (const side of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a * side, speed: 1.8,
           type: 'talisman', color: PINK, from: 'enemy',
         }));
@@ -360,7 +360,7 @@ function chapter_yimeige_4(g) {
     timer(en, 'spin', 0.1, d, () => {
       en.data.a = (en.data.a || 0) + 0.45;
       for (const s of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x + s * 20, y: en.y, angle: en.data.a * s, speed: 2.2,
           type: 'talisman', color: VIOLET, from: 'enemy',
         }));
@@ -439,7 +439,7 @@ function chapter_yimeige_7(g) {
       en.data.a = (en.data.a || 0) + (fast ? 0.52 : 0.4);
       const arms = fast ? 3 : 2;
       for (let i = 0; i < arms; i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y,
           angle: en.data.a + (i * Math.PI * 2) / arms,
           speed: fast ? 2.4 : 1.85,
@@ -460,7 +460,7 @@ function chapter_yimeige_8(g) {
     const frenzy = hpRatio < 0.3;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.4) * 75;
     timer(en, 'chaos', frenzy ? 0.08 : 0.16, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x, y: en.y,
         angle: Math.random() * Math.PI * 2,
         speed: 1.5 + Math.random() * (frenzy ? 2.8 : 2.0),
@@ -493,7 +493,7 @@ function chapter_yimeige_last(g) {
     timer(en, 'storm', frenzy ? 0.055 : 0.1, d, () => {
       const n = frenzy ? 4 : 2;
       for (let i = 0; i < n; i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y,
           angle: Math.random() * Math.PI * 2,
           speed: 2.0 + Math.random() * (frenzy ? 3.2 : 2.5),

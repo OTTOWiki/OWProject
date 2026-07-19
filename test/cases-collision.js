@@ -33,13 +33,21 @@ test('bulletDistToPlayer：圆弹与激光', () => {
 
 /** 最小 mock：碰撞只读实体字段 + hurt，不碰 audio/score */
 function mockGame({ player, enemies = [], bullets = [] } = {}) {
+  const playerBullets = [];
+  const enemyBullets = [];
+  for (const b of bullets) {
+    if (b.dead) continue;
+    if (b.from === 'player') playerBullets.push(b);
+    else enemyBullets.push(b);
+  }
   const g = {
     player,
     enemies,
     bullets,
-    playerBullets: [],
-    enemyBullets: [],
+    playerBullets,
+    enemyBullets,
     _homeList: null,
+    _colEvents: [],
     addScore() { throw new Error('runCollisions must not call addScore'); },
     _burst() { throw new Error('runCollisions must not call _burst'); },
     spawnItem() { throw new Error('runCollisions must not call spawnItem'); },
@@ -139,16 +147,79 @@ test('runCollisions：体术碰撞吐 body playerHit', () => {
   assert(!enemy.dead, 'body collision must not kill enemy');
 });
 
-test('rebuildBulletLists 按 from 分表', () => {
-  const g = mockGame({
+test('rebuildBulletLists 从合并表按 from 分表', () => {
+  const g = {
     player: { x: 0, y: 0, r: 3 },
+    enemies: [],
     bullets: [
       mockBullet({ from: 'player', x: 1, y: 1 }),
       mockBullet({ from: 'enemy', x: 2, y: 2 }),
       { ...mockBullet({ from: 'player' }), dead: true },
     ],
-  });
+    playerBullets: [],
+    enemyBullets: [],
+  };
   rebuildBulletLists(g);
   assertEqual(g.playerBullets.length, 1);
   assertEqual(g.enemyBullets.length, 1);
+});
+
+test('runCollisions：激光 graze/hit 用 dist² 且写 _grazeNear', () => {
+  const p = { x: 100, y: 100, r: 3, edit: 0 };
+  // 水平激光 y=100，长度 200，自机在线上 → hit
+  const hitLaser = mockBullet({
+    from: 'enemy',
+    type: 'laser',
+    x: 0,
+    y: 100,
+    angle: 0,
+    laserLen: 200,
+    w: 10,
+    r: 5,
+  });
+  // 自机在 graze 环：距线段约 grazeR*0.6
+  const grazeR = BALANCE.grazeRadius;
+  const grazeLaser = mockBullet({
+    from: 'enemy',
+    type: 'laser',
+    x: 0,
+    y: 100 + grazeR * 0.6,
+    angle: 0,
+    laserLen: 200,
+    w: 10,
+    r: 5,
+  });
+  // 远处
+  const farLaser = mockBullet({
+    from: 'enemy',
+    type: 'laser',
+    x: 0,
+    y: 100 + grazeR * 3,
+    angle: 0,
+    laserLen: 200,
+    w: 10,
+    r: 5,
+  });
+  const g = mockGame({
+    player: p,
+    enemies: [],
+    bullets: [hitLaser, grazeLaser, farLaser],
+  });
+  const events = runCollisions(g);
+  const types = events.map((e) => e.type);
+  assert(types.includes('playerHit'), `expected playerHit, got ${types.join(',')}`);
+  assert(types.includes('graze'), `expected graze, got ${types.join(',')}`);
+  assert(hitLaser.dead, 'laser on player should die');
+  assert(grazeLaser.grazed, 'near laser grazed');
+  assert(hitLaser._grazeNear === true, 'hit laser _grazeNear');
+  assert(grazeLaser._grazeNear === true, 'graze laser _grazeNear');
+  assert(farLaser._grazeNear === false, 'far laser not near');
+});
+
+test('runCollisions：圆弹 AABB 外 _grazeNear=false', () => {
+  const p = { x: 100, y: 100, r: 3, edit: 0 };
+  const far = mockBullet({ from: 'enemy', x: 300, y: 300, r: 4 });
+  const g = mockGame({ player: p, enemies: [], bullets: [far] });
+  runCollisions(g);
+  assertEqual(far._grazeNear, false);
 });

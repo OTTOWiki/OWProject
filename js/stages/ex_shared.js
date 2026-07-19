@@ -4,7 +4,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 export const EX = {
   hp: 0.8,
@@ -185,7 +185,7 @@ export function pushBossLetter(g, opts = {}) {
         const gapX = 80 + Math.random() * (LOGICAL_W - 160);
         for (let x = 20; x < LOGICAL_W - 20; x += 18) {
           if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x, y: -10, vx: 0, vy: exSp(2.0 + Math.random() * 0.4),
             type: 'rice', color, from: 'enemy',
           }));
@@ -204,7 +204,7 @@ export function pushBossLetter(g, opts = {}) {
         const a = en.data.a;
         for (let i = 0; i < exN(27); i++) {
           const ang = a + (i / 27) * Math.PI * 2;
-          game.spawnBullet(new Bullet({
+          game.spawnBullet(acquireBullet({
             x: en.x, y: en.y, angle: ang, speed: exSp(7.2),
             type: 'dot', color: i % 2 ? color : color2, from: 'enemy',
           }));
@@ -234,5 +234,5 @@ export function pushBossLetter(g, opts = {}) {
 
 export {
   elite, boss, timer, LOGICAL_W,
-  spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, Bullet,
+  spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, acquireBullet,
 };

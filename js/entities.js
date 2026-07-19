@@ -4,8 +4,24 @@ let _id = 1;
 const nid = () => _id++;
 
 /* ========== Bullets ========== */
+const OFF_MARGIN = 40;
+const LASER_OFF_MARGIN = 80;
+const OFF_MIN_X = -OFF_MARGIN;
+const OFF_MAX_X = LOGICAL_W + OFF_MARGIN;
+const OFF_MIN_Y = -OFF_MARGIN;
+const OFF_MAX_Y = LOGICAL_H + OFF_MARGIN;
+const LASER_OFF_MIN_X = -LASER_OFF_MARGIN;
+const LASER_OFF_MAX_X = LOGICAL_W + LASER_OFF_MARGIN;
+const LASER_OFF_MIN_Y = -LASER_OFF_MARGIN;
+const LASER_OFF_MAX_Y = LOGICAL_H + LASER_OFF_MARGIN;
+
 export class Bullet {
   constructor(opts) {
+    this.reset(opts);
+  }
+
+  /** 池化复用：与 constructor 语义一致 */
+  reset(opts) {
     this.id = nid();
     this.x = opts.x;
     this.y = opts.y;
@@ -13,15 +29,16 @@ export class Bullet {
     this.vy = opts.vy || 0;
     this.speed = opts.speed ?? 0;
     this.angle = opts.angle ?? 0;
-    this.type = opts.type || 'dot'; // dot, rice, talisman, medium, large, laser
-    this.from = opts.from || 'enemy'; // enemy | player
+    this.type = opts.type || 'dot';
+    this.from = opts.from || 'enemy';
     this.damage = opts.damage || 1;
     this.r = opts.r ?? hitR(this.type);
-    this.w = opts.w || visualSize(this.type).w;
-    this.h = opts.h || visualSize(this.type).h;
+    const vs = visualSize(this.type);
+    this.w = opts.w || vs.w;
+    this.h = opts.h || vs.h;
     this.color = opts.color || '#f472b6';
     this.color2 = opts.color2 || '#fff';
-    // 敌方激光：未显式传 life 时不按时间销毁（Infinity，只靠出屏）；硬编码 life 的短促激光仍计时
+    // 敌方激光：未显式传 life 时不按时间销毁（Infinity，只靠出屏）
     if (opts.life != null) {
       this.life = opts.life;
     } else if (this.type === 'laser' && this.from === 'enemy') {
@@ -35,7 +52,6 @@ export class Bullet {
     this.spin = opts.spin || 0;
     this.homing = opts.homing || 0;
     this.delay = opts.delay || 0;
-    // 激光：laserLenMax 为满长；敌弹默认从 0 伸长，尾在 (x,y)、头沿 angle
     this.laserLenMax = opts.laserLenMax ?? opts.laserLen ?? 0;
     this.laserLen = opts.laserLenCur ?? (
       (this.type === 'laser' && this.from === 'enemy' && this.laserLenMax > 0)
@@ -51,10 +67,15 @@ export class Bullet {
     this.gravity = opts.gravity || 0;
     this.onSplit = opts.onSplit || null;
     this.age = 0;
+    this._hitIds = null;
+    this._homeSlot = opts._homeSlot;
+    this._diffScaled = false;
+    this._grazeNear = false;
     if (this.speed && !opts.vx && !opts.vy) {
       this.vx = Math.cos(this.angle) * this.speed;
       this.vy = Math.sin(this.angle) * this.speed;
     }
+    return this;
   }
 
   /**
@@ -68,24 +89,54 @@ export class Bullet {
       return;
     }
     this.age += dt;
-    // 激光伸展期不扣 life（计时从满长后开始）
-    if (!(this.type === 'laser' && this.laserExtending)) {
+
+    const isLaser = this.type === 'laser';
+    const extending = isLaser && this.laserExtending;
+    const spin = this.spin;
+    const accel = this.accel;
+    const gravity = this.gravity;
+    const homing = this.homing;
+
+    // 直飞快路径：无 spin/accel/homing/gravity/激光
+    if (!isLaser && !spin && !accel && !gravity && !homing) {
       this.life -= dt;
-    }
-    if (this.life <= 0) {
-      if (this.onSplit) this.onSplit(this);
-      this.dead = true;
+      if (this.life <= 0) {
+        if (this.onSplit) this.onSplit(this);
+        this.dead = true;
+        return;
+      }
+      const step = dt * 60;
+      this.x += this.vx * step;
+      this.y += this.vy * step;
+      if (
+        this.x < OFF_MIN_X || this.x > OFF_MAX_X
+        || this.y < OFF_MIN_Y || this.y > OFF_MAX_Y
+      ) {
+        this.dead = true;
+      }
       return;
     }
-    if (this.spin) this.angle += this.spin * dt;
-    if (this.accel) {
-      const sp = Math.hypot(this.vx, this.vy) + this.accel * dt;
-      const a = Math.atan2(this.vy, this.vx);
+
+    if (!extending) {
+      this.life -= dt;
+      if (this.life <= 0) {
+        if (this.onSplit) this.onSplit(this);
+        this.dead = true;
+        return;
+      }
+    }
+
+    if (spin) this.angle += spin * dt;
+    if (accel) {
+      const vx = this.vx;
+      const vy = this.vy;
+      const sp = Math.sqrt(vx * vx + vy * vy) + accel * dt;
+      const a = Math.atan2(vy, vx);
       this.vx = Math.cos(a) * sp;
       this.vy = Math.sin(a) * sp;
     }
-    if (this.gravity) this.vy += this.gravity * dt;
-    if (this.homing) {
+    if (gravity) this.vy += gravity * dt;
+    if (homing) {
       const target = this.from === 'player' ? homeTarget : player;
       if (target) {
         const ta = Math.atan2(target.y - this.y, target.x - this.x);
@@ -93,44 +144,50 @@ export class Bullet {
         let da = ta - ca;
         while (da > Math.PI) da -= Math.PI * 2;
         while (da < -Math.PI) da += Math.PI * 2;
-        const na = ca + Math.sign(da) * Math.min(Math.abs(da), this.homing * dt);
-        const sp = Math.hypot(this.vx, this.vy) || this.speed || 2;
+        const na = ca + Math.sign(da) * Math.min(Math.abs(da), homing * dt);
+        const vx = this.vx;
+        const vy = this.vy;
+        const sp = Math.sqrt(vx * vx + vy * vy) || this.speed || 2;
         this.vx = Math.cos(na) * sp;
         this.vy = Math.sin(na) * sp;
         this.angle = na;
       }
     }
 
-    if (this.type === 'laser' && this.laserExtending) {
-      // 伸展期：尾固定在发射点，头沿 angle 伸出；未满长前非线性加速
+    if (extending) {
       const maxL = this.laserLenMax || 200;
-      const baseSp = this.speed || Math.hypot(this.vx, this.vy) || 4;
+      const baseSp = this.speed || Math.sqrt(this.vx * this.vx + this.vy * this.vy) || 4;
       const p = Math.min(1, this.laserLen / maxL);
-      // ease-in：起速慢，接近满长时更快（二次）
       const mul = 0.4 + 2.2 * p * p;
       this.laserLen = Math.min(maxL, this.laserLen + baseSp * mul * dt * 60);
       if (this.laserLen >= maxL) {
         this.laserLen = maxL;
         this.laserExtending = false;
       }
-      // 伸展中不平移整段（头靠变长前进，尾仍在敌机处）
     } else {
-      this.x += this.vx * dt * 60;
-      this.y += this.vy * dt * 60;
+      const step = dt * 60;
+      this.x += this.vx * step;
+      this.y += this.vy * step;
     }
 
-    if (this.type === 'laser') {
-      // 段 [尾(x,y) → 头 along angle]；头出屏也可再飞一会儿，用尾+外包
+    if (isLaser) {
       const len = this.laserLen || 0;
-      const hx = this.x + Math.cos(this.angle || 0) * len;
-      const hy = this.y + Math.sin(this.angle || 0) * len;
-      const minX = Math.min(this.x, hx);
-      const maxX = Math.max(this.x, hx);
-      const minY = Math.min(this.y, hy);
-      const maxY = Math.max(this.y, hy);
-      if (maxX < -80 || minX > LOGICAL_W + 80 || maxY < -80 || minY > LOGICAL_H + 80) this.dead = true;
-    } else {
-      if (this.x < -40 || this.x > LOGICAL_W + 40 || this.y < -40 || this.y > LOGICAL_H + 40) this.dead = true;
+      const ang = this.angle || 0;
+      const hx = this.x + Math.cos(ang) * len;
+      const hy = this.y + Math.sin(ang) * len;
+      const minX = this.x < hx ? this.x : hx;
+      const maxX = this.x > hx ? this.x : hx;
+      const minY = this.y < hy ? this.y : hy;
+      const maxY = this.y > hy ? this.y : hy;
+      if (maxX < LASER_OFF_MIN_X || minX > LASER_OFF_MAX_X
+        || maxY < LASER_OFF_MIN_Y || minY > LASER_OFF_MAX_Y) {
+        this.dead = true;
+      }
+    } else if (
+      this.x < OFF_MIN_X || this.x > OFF_MAX_X
+      || this.y < OFF_MIN_Y || this.y > OFF_MAX_Y
+    ) {
+      this.dead = true;
     }
   }
 }
@@ -364,6 +421,11 @@ export class Enemy {
 /* ========== Item drops ========== */
 export class Item {
   constructor(x, y, kind = 'score') {
+    this.reset(x, y, kind);
+  }
+
+  /** 池化复用 */
+  reset(x, y, kind = 'score') {
     this.id = nid();
     this.x = x;
     this.y = y;
@@ -373,6 +435,7 @@ export class Item {
     this.r = kind === 'scoreL' ? 10 : 8;
     this.dead = false;
     this.attract = false; // 永久吸引标记：一旦为 true 不会再下落
+    return this;
   }
 
   update(dt, player, autoAttract) {
@@ -406,6 +469,11 @@ export class Item {
 /* ========== Particles ========== */
 export class Particle {
   constructor(x, y, color, life = 0.4) {
+    this.reset(x, y, color, life);
+  }
+
+  /** 池化复用 */
+  reset(x, y, color, life = 0.4) {
     this.x = x;
     this.y = y;
     const a = Math.random() * Math.PI * 2;
@@ -417,7 +485,11 @@ export class Particle {
     this.color = color;
     this.r = 2 + Math.random() * 3;
     this.dead = false;
+    this.grazeFade = false;
+    this.alphaMul = undefined;
+    return this;
   }
+
   update(dt) {
     this.life -= dt;
     this.x += this.vx * dt * 60;

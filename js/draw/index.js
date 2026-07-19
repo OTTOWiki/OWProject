@@ -7,4 +7,5 @@ export {
   drawEnemy,
   drawItem,
   drawCollectLine,
+  setDrawFrameTime,
 } from './entitiesDraw.js';

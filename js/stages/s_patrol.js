@@ -8,7 +8,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const FACE = faceDefaults('patrol', {
   musicMid: 'patrol', musicBoss: 'patrol', bgMid: 'patrol', bgBoss: 'patrol',
@@ -22,7 +22,7 @@ const BOSS_PATROL = {
 function chapter_patrol_1(g) {
   pushBossRef(g, { ...BOSS_PATROL, y: 90, enterY: 90, hp: 3800 }, (en, d, game) => {
     timer(en, 'grid', 0.08, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: (en.data.gx || 0) % LOGICAL_W, y: -10,
         vx: 0, vy: 1.1, type: 'dot', color: '#fca5a5', from: 'enemy',
       }));
@@ -40,7 +40,7 @@ function chapter_patrol_2(g) {
       for (let i = 0; i < 2; i++) {
         const bx = 40 + Math.random() * (LOGICAL_W - 80);
         const by = 80 + Math.random() * 200;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: bx, y: by, vx: 0, vy: 0, type: 'large', color: '#f87171', from: 'enemy',
           life: 0.9, r: 14,
           onSplit: (self) => {

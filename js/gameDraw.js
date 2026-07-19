@@ -4,9 +4,9 @@
  */
 import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
 import {
-  drawBullet, drawPlayer, drawEnemy, drawItem, drawCollectLine,
+  drawBullet, drawPlayer, drawEnemy, drawItem, drawCollectLine, setDrawFrameTime,
 } from './draw/index.js';
-import { rebuildBulletLists } from './collision.js';
+
 import { drawChapterBanner } from './hud.js';
 
 /** 版面左上角：描画帧率（rAF/设置上限；与固定 60 逻辑步进无关） */
@@ -187,7 +187,7 @@ export function drawStageTransit(game, ctx, W, H) {
     lineY += 24;
   }
 
-  const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 700));
+  const pulse = 0.55 + 0.45 * Math.abs(Math.sin((game._drawFrameT || performance.now()) / 700));
   ctx.globalAlpha = alpha * pulse;
   ctx.fillStyle = '#c9b896';
   ctx.font = '13px "Songti SC","SimSun",serif';
@@ -202,6 +202,9 @@ export function drawGameFrame(game) {
   const ctx = game.ctx;
   const W = LOGICAL_W;
   const H = LOGICAL_H;
+  const frameT = performance.now();
+  game._drawFrameT = frameT;
+  setDrawFrameTime(frameT);
 
   if (game.endingCinematic) {
     ctx.fillStyle = '#000000';
@@ -240,7 +243,6 @@ export function drawGameFrame(game) {
     ctx.globalAlpha = 1;
   }
 
-  rebuildBulletLists(game);
   for (const b of game.enemyBullets) drawBullet(ctx, b, 1, game.player);
 
   if (game.player) drawPlayer(ctx, game.player);

@@ -10,7 +10,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnGravityRain, spawnAimedLaser,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const FACE = faceDefaults(2);
 
@@ -43,7 +43,7 @@ function chapter_s2_2(g) {
       game.rainT = (game.rainT || 0) + dt;
       if (game.rainT > 0.35) {
         game.rainT = 0;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10,
           vx: (Math.random() - 0.5) * 0.6, vy: 1.4 + Math.random(),
           type: 'dot', color: '#93c5fd', from: 'enemy',
@@ -121,7 +121,7 @@ function chapter_ice_1(g) {
     timer(en, 'spiral', 0.12, d, () => {
       en.data.a = (en.data.a || 0) + 0.35;
       for (const side of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y,
           angle: en.data.a * side, speed: 1.8, type: 'talisman', color: '#67e8f9', from: 'enemy',
         }));
@@ -143,7 +143,7 @@ function chapter_ice_2(g) {
       const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + ang;
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: a, speed: 2.2,
           type: 'dot', color: '#38bdf8', from: 'enemy', delay: 0.35,
         }));

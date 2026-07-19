@@ -9,7 +9,7 @@ import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnRingAt, spawnHLaser, spawnGravityRain, spawnAimedLaser, spawnCrossFall,
 } from '../patterns.js';
-import { Bullet } from '../entities.js';
+import { acquireBullet } from '../bulletPool.js';
 
 const BOSS_A4 = {
   x: LOGICAL_W / 2, y: 95, kind: 'menbailiang',
@@ -85,7 +85,7 @@ function chapter_a4_midboss(g) {
       spawnRingAt(game, en.x, en.y, 12, 1.8, 'medium', '#fcd34d', en.age);
     });
     timer(en, 'big', 1.8, d, () => {
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: en.x + (Math.random() - 0.5) * 60, y: en.y, vx: 0, vy: 1.3,
         type: 'large', color: '#f59e0b', from: 'enemy', gravity: 0.008, life: 6,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 8, 1.6, 'dot', '#fde68a'),
@@ -110,7 +110,7 @@ function chapter_a4_mid_4(g) {
     if (g.rainT > interval) {
       g.rainT = 0;
       for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -10,
           vx: (Math.random() - 0.5) * 0.3, vy: 1.6 + Math.random(),
           type: 'rice', color: '#fde68a', from: 'enemy', gravity: 0.012,
@@ -156,7 +156,7 @@ function chapter_a4_mid_6(g) {
       g.rainT = 0;
       g.waveCount = (g.waveCount || 0) + 1;
       for (let i = 0; i < 2; i++) {
-        g.spawnBullet(new Bullet({
+        g.spawnBullet(acquireBullet({
           x: Math.random() * LOGICAL_W, y: -5,
           vx: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random() * 0.5,
           type: 'talisman', color: '#fde68a', from: 'enemy', gravity: 0.01,
@@ -200,7 +200,7 @@ function chapter_menbailiang_2(g) {
     timer(en, 'spin', 0.12, d, () => {
       en.data.a = (en.data.a || 0) + 0.4;
       for (const side of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a * side, speed: 1.8, type: 'dot', color: '#f59e0b', from: 'enemy',
         }));
       }
@@ -209,7 +209,7 @@ function chapter_menbailiang_2(g) {
     timer(en, 'bloom', 1.2, d, () => {
       const bx = 30 + Math.random() * (LOGICAL_W - 60);
       const by = 60 + Math.random() * 150;
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: bx, y: by, vx: 0, vy: 0, type: 'large', color: '#f59e0b', from: 'enemy',
         life: 0.8, r: 12,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 12, 1.8, 'talisman', '#fde68a'),
@@ -228,7 +228,7 @@ function chapter_menbailiang_3(g) {
     timer(en, 'ring', 1.3, d, () => spawnRingAt(game, en.x, en.y, 16, 2.0, 'talisman', '#fde68a', en.age * 0.5));
     timer(en, 'drop', 1.6, d, () => {
       const bx = 30 + Math.random() * (LOGICAL_W - 60);
-      game.spawnBullet(new Bullet({
+      game.spawnBullet(acquireBullet({
         x: bx, y: -10, vx: 0, vy: 1.4, type: 'large', color: '#f59e0b', from: 'enemy', gravity: 0.01, life: 10,
         onSplit: (self) => spawnRingAt(game, self.x, self.y, 10, 1.8, 'dot', '#fde68a'),
       }));
@@ -283,7 +283,7 @@ function chapter_menbailiang_6(g) {
     timer(en, 'spin', 0.1, d, () => {
       en.data.a = (en.data.a || 0) + 0.45;
       for (const s of [-1, 1]) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x + s * 20, y: en.y, angle: en.data.a * s, speed: 2.2, type: 'talisman', color: '#f59e0b', from: 'enemy',
         }));
       }
@@ -323,7 +323,7 @@ function chapter_menbailiang_last(g) {
     timer(en, 'spin', frenzy ? 0.06 : 0.12, d, () => {
       en.data.a = (en.data.a || 0) + (frenzy ? 0.7 : 0.4);
       for (let i = 0; i < (frenzy ? 3 : 2); i++) {
-        game.spawnBullet(new Bullet({
+        game.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: en.data.a + (i * Math.PI * 2) / (frenzy ? 3 : 2), speed: frenzy ? 3.0 : 2.2, type: 'talisman', color: '#fbbf24', from: 'enemy',
         }));
       }
