@@ -236,7 +236,11 @@ export class AudioEngine {
       blip(120, 0.35, 0.12, 'sawtooth');
       blip(80, 0.4, 0.08, 'sine');
     } else if (type === 'hit') blip(200, 0.08, 0.05);
-    else if (type === 'graze') blip(1400 + Math.random() * 400, 0.03, 0.025, 'sine');
+    else if (type === 'graze') {
+      // 轻脆「擦」：短高音 + 轻微泛音，比旧版更可听
+      blip(1680 + Math.random() * 220, 0.045, 0.045, 'sine');
+      blip(2400 + Math.random() * 180, 0.03, 0.02, 'triangle');
+    }
     else if (type === 'dead') {
       blip(400, 0.25, 0.09, 'sawtooth');
       blip(200, 0.3, 0.08, 'sawtooth');

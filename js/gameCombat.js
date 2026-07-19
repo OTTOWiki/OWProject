@@ -18,6 +18,39 @@ import {
  * @param {import('./game.js').Game} game
  * @param {import('./collision.js').CollisionEvent[]} events
  */
+/** 单次擦弹生成粒子数 / 场上擦弹粒子上限 */
+const GRAZE_PARTICLES_PER = 4;
+const GRAZE_PARTICLE_MAX = 36;
+const GRAZE_PARTICLE_R = 1.25;
+
+function countGrazeParticles(game) {
+  let n = 0;
+  for (const pt of game.particles) {
+    if (!pt.dead && pt.grazeFade) n++;
+  }
+  return n;
+}
+
+/** 自机旁白粒子：统一正圆半径；出生不透明、飞出 ease-out 淡出；受场上上限约束 */
+function spawnGrazeParticles(game, p) {
+  let room = GRAZE_PARTICLE_MAX - countGrazeParticles(game);
+  if (room <= 0) return;
+  const n = Math.min(GRAZE_PARTICLES_PER, room);
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spread = 3 + Math.random() * 10;
+    const gx = p.x + Math.cos(ang) * spread * 0.4;
+    const gy = p.y + Math.sin(ang) * spread * 0.4;
+    const pt = new Particle(gx, gy, '#ffffff', 0.22 + Math.random() * 0.1);
+    pt.r = GRAZE_PARTICLE_R;
+    const spd = 1.0 + Math.random() * 1.6;
+    pt.vx = Math.cos(ang) * spd;
+    pt.vy = Math.sin(ang) * spd;
+    pt.grazeFade = true;
+    game.particles.push(pt);
+  }
+}
+
 export function applyCollisionEvents(game, events) {
   if (!events || !events.length) return;
   const p = game.player;
@@ -34,22 +67,13 @@ export function applyCollisionEvents(game, events) {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
       game.addScore(BALANCE.score.graze);
-      // 擦弹白粒子：自机附近较大范围、正圆；出生 100% 不透明，飞出后非线性淡出
-      for (let i = 0; i < 12; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const spread = 6 + Math.random() * 22;
-        const gx = p.x + Math.cos(ang) * spread * 0.35;
-        const gy = p.y + Math.sin(ang) * spread * 0.35;
-        const pt = new Particle(gx, gy, '#ffffff', 0.28 + Math.random() * 0.16);
-        // 正圆半径（绘制仅用 arc，禁止非等比缩放）
-        pt.r = 2.0 + Math.random() * 1.6;
-        const spd = 1.4 + Math.random() * 2.4;
-        pt.vx = Math.cos(ang) * spd;
-        pt.vy = Math.sin(ang) * spd;
-        pt.grazeFade = true;
-        game.particles.push(pt);
+      spawnGrazeParticles(game, p);
+      // 擦弹音：每帧最多一次，避免弹幕墙时叠成噪声
+      const now = performance.now();
+      if (!game._lastGrazeSfxT || now - game._lastGrazeSfxT > 45) {
+        game._lastGrazeSfxT = now;
+        game.audio.sfx('graze');
       }
-      if (Math.random() < 0.2) game.audio.sfx('graze');
     } else if (ev.type === 'playerHit') {
       game._hitPlayer();
     }
