@@ -60,8 +60,8 @@ export class Game {
     this.fpsLimit = Number(initSettings.fpsLimit) > 0 ? Math.round(Number(initSettings.fpsLimit)) : 0;
     /** 逻辑步进银行（ms），累加 rAF 间隔后按固定 60fps 扣款 */
     this._fpsBankMs = 0;
-    /** 描画节流累计时间（s）；有限 fpsLimit 时按 1/cap 扣款 */
-    this._drawAccum = 0;
+    /** 描画节流：上次实际出帧的 performance.now()；0 表示尚未出过帧 */
+    this._lastDrawT = 0;
     this._hudCache = createHudCache();
     this.playerBullets = [];
     this.enemyBullets = [];
@@ -71,7 +71,7 @@ export class Game {
     this._fps = 0;
     this._fpsFrames = 0;
     this._fpsAccum = 0;
-    this._fpsLastT = null;
+    this._fpsLastDrawT = null;
 
     this._bindUI();
   }
@@ -89,7 +89,7 @@ export class Game {
     const nextCap = Number(s.fpsLimit) > 0 ? Math.round(Number(s.fpsLimit)) : 0;
     if (nextCap !== this.fpsLimit) {
       this.fpsLimit = nextCap;
-      this._drawAccum = 0;
+      this._lastDrawT = 0;
     } else {
       this.fpsLimit = nextCap;
     }
@@ -244,9 +244,11 @@ export class Game {
     this._startChapter();
     this.lastT = performance.now();
     this._fpsBankMs = 0;
-    this._fpsLastT = null;
+    this._lastDrawT = 0;
+    this._fpsLastDrawT = null;
     this._fpsFrames = 0;
     this._fpsAccum = 0;
+    this._fps = 0;
     cancelAnimationFrame(this.raf);
     this.raf = requestAnimationFrame((t) => this._loop(t));
   }
@@ -375,27 +377,21 @@ export class Game {
       this.background?.setTendency(this.totalTendency);
       this.background?.update();
 
-      // ---- 描画节流：仅跳过 canvas 绘制；逻辑与输入边沿每逻辑帧清理 ----
+      // ---- 描画节流（墙钟）：与逻辑 dt 脱钩，设置 30 时角标应≈30 ----
+      // 无限制时每逻辑步进出一帧（≈60，受 rAF/屏刷限制，不是逻辑计数器伪装）
       let shouldDraw = true;
-      const cap = this.fpsLimit > 0 ? this.fpsLimit : 0;
+      const cap = this.fpsLimit > 0 ? Math.max(24, Math.min(240, this.fpsLimit)) : 0;
       if (cap > 0) {
-        this._drawAccum += dt;
-        const drawInt = 1 / Math.max(24, Math.min(240, cap));
-        if (this._drawAccum >= drawInt * 0.92) {
-          this._drawAccum -= drawInt;
-          if (this._drawAccum < 0) this._drawAccum = 0;
-          shouldDraw = true;
-        } else {
+        const minDrawMs = 1000 / cap;
+        if (this._lastDrawT > 0 && (t - this._lastDrawT) < minDrawMs * 0.92) {
           shouldDraw = false;
         }
-      } else {
-        this._drawAccum = 0;
       }
       if (shouldDraw) {
         this._draw();
-        // 描画帧率：只统计实际出帧
-        if (this._fpsLastT != null) {
-          const rawDt = Math.max(1e-4, (t - this._fpsLastT) / 1000);
+        // 描画帧率：只按实际 _draw 的墙钟间隔统计
+        if (this._fpsLastDrawT != null) {
+          const rawDt = Math.max(1e-4, (t - this._fpsLastDrawT) / 1000);
           this._fpsFrames += 1;
           this._fpsAccum += rawDt;
           if (this._fpsAccum >= 0.5) {
@@ -404,7 +400,8 @@ export class Game {
             this._fpsAccum = 0;
           }
         }
-        this._fpsLastT = t;
+        this._fpsLastDrawT = t;
+        this._lastDrawT = t;
       }
     } catch (err) {
       console.error('[game loop]', err);
