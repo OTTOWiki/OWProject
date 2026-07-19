@@ -457,8 +457,3 @@ OTTOWikiProject 原本只有「爱丽丝」「Icebin」「大宗关不是·互�
 两者操作与火力结构相同（主弹 + 侧方追踪子机）；剧情与 5 面对手随所选自机切换。`,
   },
 ];
-
-/** 兼容旧引用：纯文本拼接 */
-export const MANUAL_TEXT = MANUAL_CHAPTERS
-  .map((c) => `【${c.title.replace(/^[一二三四五六七八九十]+、/, '')}】\n\n${c.body}`)
-  .join('\n\n');

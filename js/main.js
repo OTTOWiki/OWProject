@@ -212,7 +212,7 @@ async function boot() {
 
     // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
     // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）
-    input.bindTouchButtons(itemBtn, bombBtn, null);
+    input.bindTouchButtons(itemBtn, bombBtn);
     if (pauseBtn) {
       let pauseLock = false;
       const togglePause = (e) => {

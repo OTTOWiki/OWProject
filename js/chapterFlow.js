@@ -83,9 +83,7 @@ export function startChapter(game) {
   game.chapterDone = false;
   game.chapterClearTimer = 0;
   game.chapterTendency = 0;
-  game.settlement = null;
   game.stageTransit = null;
-  game.stageIntro = null;
   game._pendingChapterBegin = null;
 
   game.unstableFx = null;
@@ -200,7 +198,7 @@ export function startChapter(game) {
       game.stageTransit = {
         arc: info.arc || '',
         label: info.label || '',
-        poem: info.poem || info.desc || '',
+        poem: info.poem || '',
         t: 0,
         duration: 3.6,
       };
@@ -336,7 +334,6 @@ export function finishChapter(game, success) {
     t: 0,
     duration: 2.1,
   };
-  game.settlement = game.chapterBanner;
 
   game.nextUnstableFx = null;
   let nextIdx = game.chapterIndex + 1;
@@ -514,8 +511,6 @@ export function setEndingCinematic(game, on) {
     game.bossRef = null;
     game.waveFn = null;
     game.chapterDone = true;
-    game.settlement = null;
-    game.stageIntro = null;
   }
 }
 

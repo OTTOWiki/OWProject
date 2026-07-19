@@ -181,7 +181,3 @@ export function getEndingDialogue(which, playerId) {
     { name: '旁白', text: '但大家都赞美着这来之不易的和平。' },
   ];
 }
-
-/** 兼容旧引用：纯文本拼接 */
-export const ENDING_A = getEndingDialogue('A', 'yinquan').map((l) => l.text).join('\n');
-export const ENDING_B = getEndingDialogue('B', 'yinquan').map((l) => l.text).join('\n');

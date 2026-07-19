@@ -86,7 +86,7 @@ js/
   gameCombat.js     # 战斗帧 update、Bomb/Miss/得分/道具（从 game 抽出）
   collision.js      # 碰撞与网格粗筛
   patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
-  entities.js       # Player / Enemy / Bullet / Item / Particle（update；绘制 re-export）
+  entities.js       # Player / Enemy / Bullet / Item / Particle（update）
   draw/             # 实体绘制 entitiesDraw.js + index
   stages/           # 章节表（index.js 聚合）+ 各面 build；_shared 含 mid/letter 工厂与 installMidWave
   dialogue.js       # 剧情对话与结局文本
@@ -130,7 +130,7 @@ tools/
 | `gameCombat.js` | 战斗帧、Bomb/Miss、消费 collision 事件 | 章节对话/路线 |
 | `stages/*` | 章节定义 + 刷怪时间轴（`stages/index.js` 聚合） | 全局状态机 |
 | `patterns.js` | 弹幕生成工具函数 | UI / 存档 |
-| `entities.js` | 实体数据与 Canvas 绘制 | 章节编排 |
+| `entities.js` | 实体数据与 update | 章节编排；绘制在 `draw/` |
 | `spawnScale.js` | 敌机/敌弹难度缩放纯函数 | 关卡编排 |
 
 关卡与 `patterns` 出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**（难度缩放与刷怪记账），勿直接 `enemies.push` / `bullets.push`。
@@ -306,7 +306,7 @@ node tools/inject-deploy-hash.mjs abcdef0
 ## 规格来源
 
 - **权威**：当前可运行代码（`js/` 等）+ 本 `AGENTS.md`
-- 玩家向说明：`README.md`、`config.js` 的 `MANUAL_TEXT`
+- 玩家向说明：`README.md`、`config.js` 的 `MANUAL_CHAPTERS`
 - **仅供参考（过时）**：`参考/需求.txt`（早期设计稿，数值/章节表/流程可能与现网不符；查意图时可翻，冲突时以代码为准）
 
 ## 常见任务速查

@@ -373,17 +373,19 @@ E04 默认可在 mid 迁移后；E05 依赖 combat 边界稳定。
 
 | | |
 |--|--|
-| **状态** | 待做 |
+| **状态** | 等手测 |
 | **审查对应** | Issue 4（兼容字段双读） |
 | **目标** | 绘制与章节流只认单一真源 |
 | **范围** | |
 | | - 真源：`chapterBanner`（章标题/结算条）、`stageTransit`（面间过渡） |
 | | - `gameDraw.js`：去掉 `chapterBanner \|\| settlement`、`stageIntro` 旧分支（确认无写入后再删） |
 | | - `game.js` / `chapterFlow.js`：停写 `settlement` / `stageIntro`；删重置与注释「兼容旧引用」 |
-| **不做** | 不改 banner/过渡的时长与文案；不改 Three 背景 |
+| | - 顺带：`MANUAL_TEXT` / `ENDING_A|B` / entities draw re-export / `_showOverlay` / `pausePressed` / `pauseTap` 与 `bindTouchButtons` 第三参 / `stageIntroFor.desc` |
+| **不做** | 不改 banner/过渡的时长与文案；不改 Three 背景；不做 E01 门面大拆 |
 | **验收（自动）** | 全绿 |
-| **验收（手测）** | 换面过渡页文案仍出；章开始标题条 + 章结束结算条动画正常 |
+| **验收（手测）** | 换面过渡页文案仍出；章开始标题条 + 章结束结算条动画正常；Esc/触屏暂停；说明书 |
 | **风险** | 低；改前 grep 全库 `settlement`/`stageIntro` 确认无外部依赖 |
+| **手测要点** | 面间过渡；章 banner；暂停；Manual 章节；结局对话 |
 
 ---
 

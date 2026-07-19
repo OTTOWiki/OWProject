@@ -425,12 +425,3 @@ export class Particle {
     if (this.life <= 0) this.dead = true;
   }
 }
-
-/* Drawing: js/draw/* — re-export for stable imports */
-export {
-  drawBullet,
-  drawPlayer,
-  drawEnemy,
-  drawItem,
-  drawCollectLine,
-} from './draw/index.js';

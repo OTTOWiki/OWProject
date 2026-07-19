@@ -210,11 +210,9 @@ export class Game {
     this.pendingAfterDialogue = null;
     this.routeChoice = null;
     this.resultPayload = null;
-    this.settlement = null; // 兼容旧引用
     this.chapterBanner = null; // 非阻塞章标题/结算条
     this._queuedStartTitle = null; // 结束条播完后显示的新章标题
     this.nextUnstableFx = null;
-    this.stageIntro = null; // 旧版兼容；现用 stageTransit
     this.stageTransit = null; // 关卡（面）间过渡页
     this._pendingChapterBegin = null;
     this._cancelAdvance();
@@ -445,10 +443,6 @@ export class Game {
 
   _highlightOverlay() {
     highlightOverlay(this);
-  }
-
-  _showOverlay(opts) {
-    showOverlay(this, opts);
   }
 
   _hideOverlay() {

@@ -29,7 +29,6 @@ export class Input {
     this.virtualMove = null; // {x,y} absolute target from relative drag
     this.bombTap = false;
     this.itemTap = false;
-    this.pauseTap = false;
     /** 版面轻触一次（逻辑坐标），仅当帧有效 */
     this.tap = null;
 
@@ -149,7 +148,8 @@ export class Input {
     canvas.addEventListener('touchcancel', this._onTouchEnd, { passive: false });
   }
 
-  bindTouchButtons(itemBtn, bombBtn, pauseBtn) {
+  /** Item / Bomb 触屏键；暂停键由 main.js pointer 直连 */
+  bindTouchButtons(itemBtn, bombBtn) {
     if (this._touchBtnsBound) return;
     this._touchBtnsBound = true;
     const bind = (el, flag) => {
@@ -172,15 +172,11 @@ export class Input {
     };
     bind(itemBtn, 'itemTap');
     bind(bombBtn, 'bombTap');
-    // 暂停键由 main.js 直连 pointerdown（此处仅兼容旧调用签名）
-    if (pauseBtn) bind(pauseBtn, 'pauseTap');
   }
 
   /** 消费暂停触发（键盘 Esc；触屏暂停键走 main 直连） */
   consumePause() {
-    const hit = this.justPressed('Escape') || this.pauseTap;
-    this.pauseTap = false;
-    return hit;
+    return this.justPressed('Escape');
   }
 
   endFrame() {
@@ -188,12 +184,7 @@ export class Input {
     this.released.clear();
     this.bombTap = false;
     this.itemTap = false;
-    this.pauseTap = false;
     this.tap = null;
-  }
-
-  pausePressed() {
-    return this.justPressed('Escape') || this.pauseTap;
   }
 
   isDown(code) { return this.down.has(code); }

@@ -118,7 +118,7 @@ export function drawTendencyGauge(game, ctx) {
 }
 
 export function drawGameChapterBanner(game, ctx, W, H) {
-  drawChapterBanner(ctx, game.chapterBanner || game.settlement, W, H);
+  drawChapterBanner(ctx, game.chapterBanner, W, H);
 }
 
 /** 关卡（面）过渡页：诗意文案 + 右下角「少女祈祷中...」 */
@@ -195,24 +195,6 @@ export function drawStageTransit(game, ctx, W, H) {
   ctx.fillText('少女祈祷中...', W - 18, H - 22);
 
   ctx.restore();
-}
-
-export function drawStageIntro(game, ctx, W, H) {
-  if (game.stageTransit) {
-    drawStageTransit(game, ctx, W, H);
-    return;
-  }
-  const si = game.stageIntro;
-  if (!si) return;
-  game.stageTransit = {
-    arc: si.arc,
-    label: si.label,
-    poem: si.poem || si.desc || '',
-    t: si.t,
-    duration: si.duration,
-  };
-  drawStageTransit(game, ctx, W, H);
-  game.stageTransit = null;
 }
 
 /** 主绘制入口（原 Game._draw） */
@@ -310,12 +292,10 @@ export function drawGameFrame(game) {
 
   if (game.stageTransit) {
     drawStageTransit(game, ctx, W, H);
-  } else if (game.stageIntro) {
-    drawStageIntro(game, ctx, W, H);
   }
 
-  if (game.chapterBanner || game.settlement) {
-    if (!game.stageTransit) drawGameChapterBanner(game, ctx, W, H);
+  if (game.chapterBanner && !game.stageTransit) {
+    drawGameChapterBanner(game, ctx, W, H);
   }
 
   drawFps(game, ctx);
