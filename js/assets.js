@@ -9,14 +9,14 @@
 
 /** 已有立绘文件的说话人 → 路径 */
 export const PORTRAIT_PATHS = {
-  饮泉思源: 'assets/portraits/yinquan.jpg',
-  誓约沙玛: 'assets/portraits/shama.jpg',
-  爱丽丝: 'assets/portraits/alice.jpg',
-  Icebin: 'assets/portraits/icebin.jpg',
-  '大宗关不是·互然雏': 'assets/portraits/dazong.jpg',
-  大宗关: 'assets/portraits/dazong.jpg',
-  '全域巡查姬·404': 'assets/portraits/patrol.jpg',
-  巡查姬: 'assets/portraits/patrol.jpg',
+  饮泉思源: 'assets/portraits/yinquan.avif',
+  誓约沙玛: 'assets/portraits/shama.avif',
+  爱丽丝: 'assets/portraits/alice.avif',
+  Icebin: 'assets/portraits/icebin.avif',
+  '大宗关不是·互然雏': 'assets/portraits/dazong.avif',
+  大宗关: 'assets/portraits/dazong.avif',
+  '全域巡查姬·404': 'assets/portraits/patrol.avif',
+  巡查姬: 'assets/portraits/patrol.avif',
 };
 
 /**
@@ -48,7 +48,7 @@ export function loadImage(src) {
 export function preloadArtAssets() {
   const list = [
     ...new Set(Object.values(PORTRAIT_PATHS)),
-    'assets/ui/title_banner.jpg',
+    'assets/ui/title_banner.avif',
   ];
   return Promise.all(list.map((src) => new Promise((resolve) => {
     const img = loadImage(src);
@@ -84,12 +84,12 @@ export function isPortraitPolicyOk(name) {
 }
 
 export function getTitleBanner() {
-  return loadImage('assets/ui/title_banner.jpg');
+  return loadImage('assets/ui/title_banner.avif');
 }
 
 export function getAssetPaths() {
   return [
     ...new Set(Object.values(PORTRAIT_PATHS)),
-    'assets/ui/title_banner.jpg',
+    'assets/ui/title_banner.avif',
   ];
 }

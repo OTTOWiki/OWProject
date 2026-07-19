@@ -106,8 +106,9 @@ assets/
   bg/ portraits/ sprites/ ui/   # 图片资源
   bgm/*.ogg                     # BGM 音频文件（运行时使用）
 tools/
-  parse_midi.py / parse_all_midis.py   # 将 参考/*.mid → 过时 MIDI JSON（已不启用）
-参考/               # 源 MIDI + 过时设计稿等（不直接在运行时加载）
+  inject-deploy-hash.mjs / install-git-hooks.mjs / bump-build-version.mjs
+  to-avif.sh / to-avif.mjs   # JPG/PNG → AVIF：$1 输入 $2 输出（无资源 fallback）
+参考/               # 过时设计稿等（不直接在运行时加载）
   需求.txt          # 早期产品/关卡草稿（已过时，仅供参考，非权威）
 ```
 
@@ -204,7 +205,7 @@ tools/
 | **Boss 显式占位** | `PLACEHOLDER_BOSS_SPRITES`：复用路径但注释标明「非本人」；值为 `null` = 纯几何 | 同上 |
 | **未知 boss kind** | `spriteKeyForEnemy` 返回 `null` → 几何绘制，**禁止**默认 `boss_alice` | 同上 + `draw/entitiesDraw.js` |
 
-补美术：新 jpg 进 `assets/portraits` 或 `assets/sprites` → 写入 PATHS / DEDICATED，并从 HIDDEN_OK 或 PLACEHOLDER 删除对应项。
+补美术：新 **AVIF** 进 `assets/portraits` 或 `assets/sprites` → 写入 PATHS / DEDICATED，并从 HIDDEN_OK 或 PLACEHOLDER 删除对应项（无 jpg/png fallback）。
 
 ### 存档（localStorage）
 

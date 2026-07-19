@@ -49,22 +49,22 @@ export const PLACEHOLDER_BOSS_SPRITES = {
 };
 
 const SPRITE_PATHS = {
-  player_yinquan: 'assets/sprites/player_yinquan.jpg',
-  player_shama: 'assets/sprites/player_shama.jpg',
-  enemy_mob: 'assets/sprites/enemy_mob.jpg',
-  enemy_elite: 'assets/sprites/enemy_elite.jpg',
-  enemy_mid1: 'assets/sprites/enemy_mid1.jpg',
-  boss_alice: 'assets/sprites/boss_alice.jpg',
-  boss_icebin: 'assets/sprites/boss_icebin.jpg',
-  boss_dazong: 'assets/sprites/boss_dazong.jpg',
-  boss_patrol: 'assets/sprites/boss_patrol.jpg',
+  player_yinquan: 'assets/sprites/player_yinquan.avif',
+  player_shama: 'assets/sprites/player_shama.avif',
+  enemy_mob: 'assets/sprites/enemy_mob.avif',
+  enemy_elite: 'assets/sprites/enemy_elite.avif',
+  enemy_mid1: 'assets/sprites/enemy_mid1.avif',
+  boss_alice: 'assets/sprites/boss_alice.avif',
+  boss_icebin: 'assets/sprites/boss_icebin.avif',
+  boss_dazong: 'assets/sprites/boss_dazong.avif',
+  boss_patrol: 'assets/sprites/boss_patrol.avif',
   // 以下 key 仅为 PLACEHOLDER 引用路径（文件仍是他角资源）
-  boss_menbailiang: 'assets/sprites/boss_dazong.jpg',
-  boss_rival: 'assets/sprites/player_shama.jpg',
-  boss_yimeige: 'assets/sprites/enemy_mid1.jpg',
-  boss_duren: 'assets/sprites/boss_patrol.jpg',
-  boss_gundian: 'assets/sprites/enemy_elite.jpg',
-  boss_lastgod: 'assets/sprites/boss_alice.jpg',
+  boss_menbailiang: 'assets/sprites/boss_dazong.avif',
+  boss_rival: 'assets/sprites/player_shama.avif',
+  boss_yimeige: 'assets/sprites/enemy_mid1.avif',
+  boss_duren: 'assets/sprites/boss_patrol.avif',
+  boss_gundian: 'assets/sprites/enemy_elite.avif',
+  boss_lastgod: 'assets/sprites/boss_alice.avif',
 };
 
 /** 占位 key 集合（测试 / 文档：这些 key 不代表角色真身） */

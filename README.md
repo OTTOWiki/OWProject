@@ -49,10 +49,10 @@ js/
   stages/          # 各面章节（index.js 聚合）
   ui.js audio.js backgrounds.js storage.js ...
 test/              # 零依赖自动化测试
-assets/            # 贴图 + OGG
-tools/             # MIDI 解析脚本
+assets/            # 贴图（AVIF）+ OGG
+tools/             # 部署 hash 注入、git hooks 等
 functions/api/     # Cloudflare Functions
-参考/              # 源 MIDI 与过时设计稿
+参考/              # 过时设计稿
   需求.txt         # 早期草稿（已过时，仅供参考）
 ```
 

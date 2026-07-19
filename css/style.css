@@ -153,7 +153,7 @@ input, select, textarea {
   inset: 0;
   background:
     linear-gradient(180deg, rgba(11,10,18,.55) 0%, rgba(11,10,18,.82) 100%),
-    url('../assets/ui/title_banner.jpg') center / cover no-repeat;
+    url('../assets/ui/title_banner.avif') center / cover no-repeat;
   opacity: 0.55;
   pointer-events: none;
   filter: saturate(0.95) contrast(1.05);

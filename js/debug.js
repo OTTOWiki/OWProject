@@ -419,7 +419,7 @@ function refreshHudLine() {
   }
   const ch = game.chapters?.[game.chapterIndex];
   const p = game.player;
-  const eb = game.enemyBullets?.length ?? game.bullets?.filter((b) => b.from === 'enemy' && !b.dead).length ?? 0;
+  const eb = game.enemyBullets?.length ?? 0;
   const en = game.enemies?.filter((e) => !e.dead).length ?? 0;
   hudEl.classList.remove('hidden');
   hudEl.textContent = [
