@@ -483,7 +483,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 41,
-    name: 'A5-2 系统异常 数据分歧',
+    name: 'A5-2 Unstable 数据分歧',
     kind: 'mid',
     unstable: true,
     duration: 26,

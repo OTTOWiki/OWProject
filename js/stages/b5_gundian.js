@@ -495,7 +495,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 93,
-    name: 'B5-2 系统异常 破皮鞋敲击',
+    name: 'B5-2 Unstable 破皮鞋敲击',
     kind: 'mid',
     unstable: true,
     duration: 26,

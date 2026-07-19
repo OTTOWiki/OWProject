@@ -634,7 +634,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 58,
-    name: 'A6-2 系统异常 糖衣炮弹',
+    name: 'A6-2 Unstable 糖衣炮弹',
     kind: 'mid',
     unstable: true,
     duration: 26,

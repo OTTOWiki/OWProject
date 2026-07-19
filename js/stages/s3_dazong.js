@@ -196,7 +196,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 16,
-    name: '3-2 系统异常 交叉网',
+    name: '3-2 Unstable 交叉网',
     kind: 'mid',
     unstable: true,
     duration: 26,

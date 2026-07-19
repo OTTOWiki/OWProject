@@ -400,7 +400,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 26,
-    name: 'A4-2 系统异常 强制推销',
+    name: 'A4-2 Unstable 强制推销',
     kind: 'mid',
     unstable: true,
     duration: 26,
