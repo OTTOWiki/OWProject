@@ -594,7 +594,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 110,
-    name: 'B6-2 Unstable 防御塔阵列',
+    name: 'B6-2 系统异常 防御塔阵列',
     kind: 'mid',
     unstable: true,
     duration: 28,

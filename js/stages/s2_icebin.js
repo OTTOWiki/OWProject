@@ -189,7 +189,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 8,
-    name: '2-2 Unstable 飘落',
+    name: '2-2 系统异常 飘落',
     kind: 'mid',
     unstable: true,
     duration: 26,

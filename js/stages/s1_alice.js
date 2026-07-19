@@ -135,7 +135,7 @@ export const chapters = [
     unstable: true, duration: 22, build: chapter_s1_1,
   }),
   midChapter(FACE, {
-    id: 2, name: '1-2 Unstable 定力', kind: 'mid',
+    id: 2, name: '1-2 系统异常 定力', kind: 'mid',
     unstable: true, duration: 24, build: chapter_s1_2,
   }),
   midChapter(FACE, {

@@ -424,7 +424,7 @@ export const chapters = [
   }),
   midChapter(FACE, {
     id: 78,
-    name: 'B4-2 Unstable 创车编队',
+    name: 'B4-2 系统异常 创车编队',
     kind: 'mid',
     unstable: true,
     duration: 26,
