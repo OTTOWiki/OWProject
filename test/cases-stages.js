@@ -11,6 +11,7 @@ import { getPlayfieldBgModes } from '../js/playfieldBg.js';
 import {
   faceDefaults, midChapter, letterChapter, installMidWave,
 } from '../js/stages/_shared.js';
+import { MID_PATTERNS, buildExMid } from '../js/stages/ex_mid.js';
 import { test, assert, assertEqual } from './assert.js';
 
 const REQUIRED_STAGE_KEYS = ['1', '2', '3', 'patrol', 'A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'EX'];
@@ -214,4 +215,12 @@ test('第1–3面章节表经工厂后字段完整（T14）', () => {
   }
   const s3last = buildChapterList().find((c) => c.id === 22);
   assertEqual(s3last?.onClear, 'routeCheck');
+});
+
+test('EX mid：MID_PATTERNS 长度 62 且均可调用（E03d1）', () => {
+  assertEqual(MID_PATTERNS.length, 62, 'MID_PATTERNS length');
+  for (let i = 0; i < MID_PATTERNS.length; i++) {
+    assert(typeof MID_PATTERNS[i] === 'function', `pattern ${i}`);
+  }
+  assert(typeof buildExMid === 'function');
 });
