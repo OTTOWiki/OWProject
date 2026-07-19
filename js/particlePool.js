@@ -10,6 +10,7 @@ const MAX_POOL = 512;
 export function acquireParticle(x, y, color, life = 0.4) {
   const pt = pool.length > 0 ? pool.pop() : null;
   if (pt) {
+    pt._pooled = false;
     pt.reset(x, y, color, life);
     return pt;
   }
@@ -18,11 +19,14 @@ export function acquireParticle(x, y, color, life = 0.4) {
 
 /** @param {object|null|undefined} pt */
 export function releaseParticle(pt) {
-  if (!pt) return;
+  if (!pt || pt._pooled) return;
   pt.dead = true;
   pt.grazeFade = false;
   pt.alphaMul = undefined;
-  if (pool.length < MAX_POOL) pool.push(pt);
+  if (pool.length < MAX_POOL) {
+    pt._pooled = true;
+    pool.push(pt);
+  }
 }
 
 /** 清空列表并全部归还池 */

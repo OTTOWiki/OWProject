@@ -5,6 +5,7 @@
 import './cases-config.js';
 import './cases-patterns.js';
 import './cases-collision.js';
+import './cases-pools.js';
 import './cases-stages.js';
 import './cases-storage-spawn.js';
 import './cases-assets.js';

@@ -10,6 +10,7 @@ const MAX_POOL = 256;
 export function acquireItem(x, y, kind = 'score') {
   const it = pool.length > 0 ? pool.pop() : null;
   if (it) {
+    it._pooled = false;
     it.reset(x, y, kind);
     return it;
   }
@@ -18,10 +19,13 @@ export function acquireItem(x, y, kind = 'score') {
 
 /** @param {object|null|undefined} it */
 export function releaseItem(it) {
-  if (!it) return;
+  if (!it || it._pooled) return;
   it.dead = true;
   it.attract = false;
-  if (pool.length < MAX_POOL) pool.push(it);
+  if (pool.length < MAX_POOL) {
+    it._pooled = true;
+    pool.push(it);
+  }
 }
 
 /** 清空列表并全部归还池 */

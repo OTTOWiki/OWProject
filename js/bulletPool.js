@@ -11,6 +11,7 @@ const MAX_POOL = 4096;
 export function acquireBullet(opts) {
   const b = pool.length > 0 ? pool.pop() : null;
   if (b) {
+    b._pooled = false;
     b.reset(opts);
     return b;
   }
@@ -19,12 +20,15 @@ export function acquireBullet(opts) {
 
 /** @param {object|null|undefined} b */
 export function releaseBullet(b) {
-  if (!b) return;
+  if (!b || b._pooled) return;
   b.onSplit = null;
   b.owner = null;
   b._hitIds = null;
   b.dead = true;
-  if (pool.length < MAX_POOL) pool.push(b);
+  if (pool.length < MAX_POOL) {
+    b._pooled = true;
+    pool.push(b);
+  }
 }
 
 /** 清空列表并全部归还池 */

@@ -22,6 +22,7 @@ export class Bullet {
 
   /** 池化复用：与 constructor 语义一致 */
   reset(opts) {
+    this._pooled = false;
     this.id = nid();
     this.x = opts.x;
     this.y = opts.y;
@@ -426,6 +427,7 @@ export class Item {
 
   /** 池化复用 */
   reset(x, y, kind = 'score') {
+    this._pooled = false;
     this.id = nid();
     this.x = x;
     this.y = y;
@@ -474,6 +476,7 @@ export class Particle {
 
   /** 池化复用 */
   reset(x, y, color, life = 0.4) {
+    this._pooled = false;
     this.x = x;
     this.y = y;
     const a = Math.random() * Math.PI * 2;
