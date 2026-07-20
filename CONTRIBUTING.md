@@ -14,6 +14,39 @@
 
 ---
 
+## 0. 分支策略（强制）
+
+**禁止向 `main` 直接推送代码。** 所有改动必须：
+
+1. 从最新 `main` 拉出功能分支  
+2. 在分支上 commit  
+3. 推送到远程分支并开 **Pull Request → `main`**  
+4. CI（`npm test`）通过后，由维护者 **Review** 再合并  
+
+```bash
+git fetch origin
+git checkout main
+git pull origin main
+git checkout -b feat/short-topic    # 或 fix/…、docs/…
+# … 修改、npm test、commit …
+git push -u origin HEAD
+# 在 GitHub 开 PR → base: main
+```
+
+| 允许 | 禁止 |
+|------|------|
+| 推送到 `feat/*`、`fix/*`、`docs/*` 等非 `main` 分支 | `git push origin main` |
+| 经 PR merge 进 `main` | 在 GitHub 网页上直接改 `main` 上的文件（除非紧急热修且双方知情） |
+| 维护者在 PR 上 Request changes / Approve | 未 Review 就自合入劣质改动 |
+
+**原因**：双人维护时，一方环境/工具链不稳时，PR 是拦劣质 diff 的最后关口；也便于对照 `AGENTS.md` / 本文件做检查。
+
+**合并权**：建议默认由**主维护者**合并；另一维护者可开 PR、改 PR，但合入前须有 Review（见下文 GitHub 设置）。
+
+仓库侧应用 **Branch protection / Rulesets** 强制本策略（文档 alone 挡不住 `git push`）。设置步骤见 **§5.1**。
+
+---
+
 ## 1. 环境与运行
 
 - **Node.js**（建议 20+；CI 用 26）：跑 `npm test` / hooks
@@ -146,25 +179,88 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - 跳过 hook：`git commit --no-verify`（仅在有理由时）  
 - **不要**把含真实部署 hash 的 `js/git-hash.js` 提交进仓库（仓库内应保持 `DEPLOY_GIT_HASH = ''`）
 
-### 推送约定（与队列一致）
+### 推送约定
 
-- 日常可本地多 commit 迭代  
-- 涉及玩法/UI 时：建议**手测 OK 后再** `git push`（队列维护流程）  
-- CI：push/PR 到 `main` 会跑 `npm test`
+- **禁止** `git push` 到 `main`（见 §0）  
+- 日常在功能分支上多 commit 迭代；推远程分支后开 PR  
+- 涉及玩法/UI：作者先手测，再在 PR 里写手测要点；Reviewer 抽查  
+- CI：PR / 推送到受保护分支会跑 `npm test`（见 `.github/workflows/test.yml`）  
+- 队列任务：测绿 → 等手测 → PR 合并后再开下一项  
 
-### PR 建议自检
+### PR 建议自检（作者）
 
+- [ ] 目标分支是 **`main`**，且分支基于较新的 `main`  
 - [ ] `npm test` 通过  
 - [ ] 未改 playfield 画布逻辑尺寸  
 - [ ] 出怪/出弹走 spawn API  
-- [ ] 有意行为变化已写在 PR/说明里  
-- [ ] `AGENTS.md` / `README.md` 如需已同步  
+- [ ] 有意行为变化已写在 PR 说明里  
+- [ ] `AGENTS.md` / `README.md` / `CONTRIBUTING.md` 如需已同步  
 - [ ] 手测：至少开局 → 一章 → 暂停；改弹幕则打相关章  
+
+### PR Review 要点（维护者）
+
+- [ ] diff 是否符合「一次一件事」、无无关大扫除  
+- [ ] 是否违反架构硬约束（spawn、config、不锁关、立绘策略等）  
+- [ ] 是否静默改手感/得分/流程却未说明  
+- [ ] 测试是否真覆盖改动面；仅「CI 绿」不够时要求补手测说明  
+- [ ] 劣质/糊弄式生成代码：直接 Request changes，要求缩小范围或重写  
+
+### 5.1 GitHub：禁止直推 `main`（推荐设置）
+
+文档是约定；**真正拦截**靠仓库设置（你有 admin 时可配）。
+
+**路径 A — Repository ruleset（推荐，组织仓）**
+
+1. 打开  
+   `https://github.com/OTTOWiki/OWProject/settings/rules`  
+2. **New ruleset** → **Branch ruleset**  
+3. Ruleset name：例如 `protect-main`  
+4. Enforcement：**Active**  
+5. Target branches：**Include** → `main`（或 default branch）  
+6. 勾选规则（建议）：  
+   - **Restrict deletions**  
+   - **Block force pushes**  
+   - **Require a pull request before merging**  
+     - Required approvals：**1**（双人维护时：对方改动必须有一人 Approve）  
+     - 可选：Dismiss stale pull request approvals when new commits are pushed  
+   - **Require status checks to pass**  
+     - 添加 CI 检查名（与 Actions 一致，常见为 job 名如 `npm test`；以 PR 页 Checks 显示为准）  
+     - Require branches to be up to date：按需  
+   - **Block branch updates** 中确保不能直推（Require PR 已覆盖直推）  
+7. **Bypass list**：默认**不要**把所有 admin 放进 bypass（否则仍可直推）。  
+   若主维护者需要紧急直推，可只加**你自己**为 bypass，另一维护者不要加。  
+8. Save。
+
+**路径 B — Classic branch protection**
+
+1. `Settings` → `Branches` → `Add branch protection rule`  
+2. Branch name pattern：`main`  
+3. 勾选：  
+   - **Require a pull request before merging**（+ 1 approval）  
+   - **Require status checks to pass before merging**（选中 test workflow）  
+   - **Do not allow bypassing the above settings**（若出现；对 admin 也生效）  
+   - **Do not allow force pushes** / **Do not allow deletions**  
+4. Save changes。
+
+**套餐注意**：本仓为 **private 组织仓**。部分 Branch protection / Rulesets 能力需要组织达到 **GitHub Team**（或更高）。若保存时报权限/套餐错误：
+
+- 升级组织计划，或  
+- 至少保持本文件的 **流程约定** + 收紧另一维护者的权限为 **Write**（不要 Admin），并约定只有主维护者点 Merge。
+
+**权限建议**
+
+| 角色 | 建议仓库角色 |
+|------|----------------|
+| 主维护者 | Admin |
+| 另一维护者 | **Write**（可推分支、开 PR；不能改 Settings / 绕过保护） |
+
+验证：用 Write 账号对 `main` 执行 `git push` 应被拒绝；开 PR 合并应要求检查通过。
 
 ---
 
 ## 6. 不要做的事
 
+- **向 `main` 直接 push 或绕过 PR 合入**  
 - 为 Stage Select / 剧情进度加锁关（除非产品明确改需求）  
 - 引入打包器、框架、运行时 npm 依赖「顺手现代化」  
 - 静默用错误角色立绘/Boss 脸顶替缺图  

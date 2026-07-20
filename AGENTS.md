@@ -1,6 +1,7 @@
 # AGENTS.md — OWProject
 
 > **贡献流程与红线**见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。  
+> **禁止直推 `main`**：一律功能分支 + **Pull Request**（详见 CONTRIBUTING §0 / §5.1）。  
 > 改造队列见 [`docs/refactor-queue.md`](./docs/refactor-queue.md)。玩家向说明见 [`README.md`](./README.md)。
 
 东方风弹幕 STG（纯前端 H5）。OTTOWiki / 维基梗二次创作；逻辑坐标系固定 **450×600**。
@@ -221,6 +222,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 营销升版只改 `VERSION_NAME`；勿手改 `VERSION`；勿提交带真实 hash 的 `git-hash.js`
 - 本地预览 hash：`npm run inject-hash`，预览完 `git checkout -- js/git-hash.js`
 - Tag：建议 `v` + `VERSION_NAME`
+- **合入 `main` 只走 PR**（见 `CONTRIBUTING.md`）；分支上 commit 时 hook 仍会 `VERSION+1`
 
 ---
 
@@ -235,6 +237,7 @@ docs/                  # 内部改造队列等（非运行时）
 7. 勿运行时改 playfield 的 `width`/`height`。
 8. Stage Select 保持全开放。
 9. **文档与代码同步**（见文首「文档对齐」）。
+10. **禁止直推 `main`**；开 PR 并 Review 后再合并（见 `CONTRIBUTING.md`）。
 
 ### 弹种
 

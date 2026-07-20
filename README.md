@@ -3,6 +3,7 @@
 基于 HTML5 Canvas 的东方风格弹幕 H5 小游戏（纯前端）。
 
 > **参与开发**请先读 [`CONTRIBUTING.md`](./CONTRIBUTING.md)（流程与红线）。  
+> **禁止直推 `main`**，请走功能分支 + Pull Request。  
 > 架构与 Agent 约定：[`AGENTS.md`](./AGENTS.md)。改造队列：[`docs/refactor-queue.md`](./docs/refactor-queue.md)。
 
 ## 运行方式
