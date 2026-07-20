@@ -2,9 +2,38 @@
 
 东方风弹幕 STG（纯前端 H5）。OTTOWiki / 维基梗二次创作；逻辑坐标系固定 **450×600**。
 
+**权威**：可运行代码（`js/` 等）+ 本文件。`README.md` 偏玩家向；`参考/需求.txt` **已过时**，勿当规格。
+
+## 文档对齐（必读）
+
+改代码时**同步**更新本文件与 `README.md`（若涉及玩家可见说明）。不要只改实现留文档。
+
+| 何时必须改文档 | 示例 |
+|----------------|------|
+| 新增/删除/重命名模块或目录 | 拆文件、抽 pool、新 `js/foo.js` |
+| 改 `Game.state` / mode / 菜单入口 | `stageTransit`、`extra`、主菜单按钮 |
+| 改平衡/流程契约 | `BALANCE` 阈值、章节 id 区间、路线条件 |
+| 改存档 key / 设置项 / 发版流程 | `STORAGE_KEYS`、hooks、CF 构建 |
+| 改测试入口或 CI 约定 | `test/cases*.js`、`npm test` |
+
+**给 Agent 的提示词（改完代码后执行）**：
+
+```
+对照本次 diff，检查 AGENTS.md / README.md 是否仍准确：
+1. 目录树与模块职责是否列了新路径、删了死路径
+2. 状态机 / mode / 难度 / 菜单是否与 index.html + js 一致
+3. 数值与流程是否仍写死了已变更的常量（应写「见 config.js」或改成现值）
+4. 常见任务速查表的「主要文件」是否指向现实现
+有漂移则就地改文档；不要另开「以后再写」的 TODO。不相关的长篇历史说明可删，保持文档可扫读。
+```
+
+冲突时以**代码**为准，并立刻把文档改到与代码一致。
+
+---
+
 ## 运行
 
-必须通过本地 HTTP 服务打开（ES Module + Three.js CDN），不要双击 `index.html`。
+必须通过本地 HTTP 打开（ES Module + Three.js CDN），不要双击 `index.html`。
 
 ```bash
 npx --yes serve .
@@ -12,7 +41,7 @@ npx --yes serve .
 python -m http.server 8080
 ```
 
-无构建步骤、无 npm 依赖包。改 JS/CSS/HTML 后刷新浏览器即可。
+无打包步骤、无 npm 运行时依赖。改 JS/CSS/HTML 后刷新即可。部署短哈希注入见下文「版本号」。
 
 ### 首次克隆 / 新电脑（Git hooks）
 
@@ -20,308 +49,214 @@ python -m http.server 8080
 npm run hooks:install
 ```
 
-- 设置 `core.hooksPath=.githooks`（**本机配置**，不会随 clone 自动带上，**每个工作副本要跑一次**）
-- 之后每次 `git commit`：pre-commit 将 `js/version.js` 的 **`VERSION` +1** 并 `git add` 进**同一次**提交
+- 设置 `core.hooksPath=.githooks`（本机配置，**每个工作副本跑一次**）
+- 每次 `git commit`：pre-commit 将 `js/version.js` 的 **`VERSION` +1** 并入**同一次**提交
 - 跳过：`git commit --no-verify`
 - 不自动 +1：`amend` / `rebase` / `merge` / `cherry-pick` 过程中
 
-### Debug 模式（自测）
-
-浏览器控制台：
+### Debug（自测）
 
 ```js
-owDebug()                 // 开启并打开面板
-owDebug(false)            // 关闭
-owDebug.help()            // 完整命令
+owDebug()                 // 开面板
+owDebug(false)            // 关
+owDebug.help()
 owDebug.set({ invincible: true, lockLives: true, lockBombs: true, timeScale: 3, skipDialogue: true })
-owDebug.softJump(129)     // 软跳章节 id（保留分数资源）
+owDebug.softJump(129)     // 软跳章节 id（EX 起 id）
 owDebug.kill()            // 清敌+清弹+本章成功
 ```
 
-- 面板：锁残 / 锁 B / 不受伤 / Edit 常满 / 跳过对话 / 整体加速 / 跳章 / 清弹清敌等
-- 热键：`F8` 开关面板（首次也可开启）、`F9` 循环加速
-- 实现：`js/debug.js` + **Tweakpane**（`importmap` / CDN；**首次** `owDebug()`/`F8` 才动态加载；不写 localStorage，刷新即关）
+- 热键：`F8` 面板、`F9` 循环加速
+- 实现：`js/debug.js` + Tweakpane（首次开启才加载 CDN；不写 localStorage）
 
-### 自动化测试（无 npm 依赖包）
+### 测试
 
 ```bash
-# 推荐（Node CLI）= 语法检查 + 单元/冒烟
-npm test
-# 仅用例 / 仅语法
+npm test              # 语法 + 单元/冒烟
 npm run test:unit
 npm run test:syntax
-
-# 浏览器结果页
-npx --yes serve .
-# 打开 http://localhost:3000/test/  （端口以 serve 输出为准）
+# 浏览器：serve 后打开 /test/
 ```
 
-- 入口：`test/check-syntax.mjs` + `test/run-node.mjs`（CLI）/ `test/index.html` → `run.js` + `cases.js`
-- 分文件：`cases-config|patterns|collision|stages|storage-spawn|smoke.js` + `mockGame.js`
-- **CLI runner**：`test/assert.js` 在 Node 下桥接 **`node:test` + `node:assert/strict`**（内置，零第三方）；`cases*.js` API 不变
-- **浏览器 runner**：仍用 `assert.js` 的 suite + `runAll`（零依赖）
-- **语法（CLI/CI）**：`node --check` 扫描 `js/**`、`test/**`（含 `game.js`，不执行）
-- **加载（浏览器 /test/）**：`cases-load.js` 动态 `import` 主路径模块（含 `game.js`），抓语法与坏依赖
-- 覆盖：配置/难度、章节表与 onClear、对话键、bg mode、`scaleBulletCount`、碰撞、spawnScale、startMode
-- **冒烟（mock Game）**：全章 `build` 不抛错；boss 有 bossRef；mid `waveFn` 固定步长 tick
-- **不**启动真实 Game 主循环（`main.js` 不自动 boot）；CLI 单元测不 import Three
-- 浏览器结果：`window.__TEST_RESULT__`
-- **CI**：GitHub Actions 跑 `npm test`（语法 + 用例；浏览器加载用例仅在 /test/ 页）
+- CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）
+- 浏览器：`test/index.html` → `run.js` + `cases.js`
+- 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|smoke|load.js` + `mockGame.js`
+- CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
+- CI：`.github/workflows/test.yml` → `npm test`
 
-## 目录结构
+---
+
+## 目录（要点）
 
 ```
-index.html          # 三栏 UI 壳 + 屏幕切换
-test/               # 自动化测试（Node: node:test 桥；浏览器: 自研 suite + 结果页）
-css/style.css       # 布局与东方风菜单样式
+index.html
+css/style.css
 js/
-  main.js           # 入口：组装 Input / Audio / Background / Game / UI
-  version.js        # VERSION 构建号；VERSION_LABEL=vX.Y.Z[.hash]
-  git-hash.js       # DEPLOY_GIT_HASH（仓库为空；CF 构建注入）
-  config.js         # 逻辑分辨率、BALANCE、难度、角色色、Unstable 池、说明书
-  game.js           # 主循环、状态机、章节推进、得分、A/B 线
-  gameDraw.js       # 版面绘制（从 game 抽出；FPS/倾向条/过渡页/主 draw）
-  gameOverlay.js    # 暂停/结果叠加层（从 game 抽出）
-  chapterFlow.js    # 章节开/结、对话、路线与结局（从 game 抽出）
-  gameCombat.js     # 战斗帧 update、Bomb/Miss/得分/道具（从 game 抽出）
-  collision.js      # 碰撞与网格粗筛
-  patterns.js       # 奇数/偶数狙、环弹、激光、自机射击、消弹
-  entities.js       # Player / Enemy / Bullet / Item / Particle（update）
-  draw/             # 实体绘制 entitiesDraw.js + index
-  stages/           # 章节表（index.js 聚合）+ 各面 build；_shared 含 mid/letter 工厂与 installMidWave
-  dialogue.js       # 剧情对话与结局文本
-  ui.js             # 菜单编排：难度/自机/关卡/练习/设置（含键位）
-  menuNav.js        # 菜单键盘导航：键位判定 + 列表/网格/表单通用处理
-  historyScreen.js  # History 构建列表：加载/渲染/焦点/键盘
-  historyVersions.js # /api/versions 客户端拉取
-  input.js          # 键盘 + 触屏相对滑动 + 虚拟键
-  audio.js          # Web Audio：OGG 播放 + SFX 合成
-  backgrounds.js    # 左侧 Three.js 关卡印象
-  playfieldBg.js    # 版面伪 3D / 贴图背景
-  sprites.js        # 角色/敌人贴图绘制
-  assets.js         # 立绘与标题图预加载
-  storage.js        # localStorage（键位、高分、进度记录、设置）
-functions/api/      # Cloudflare Pages Functions（History 版本列表等）
-assets/
-  bg/ portraits/ sprites/ ui/   # 图片资源
-  bgm/*.ogg                     # BGM 音频文件（运行时使用）
-tools/
-  inject-deploy-hash.mjs / install-git-hooks.mjs / bump-build-version.mjs
-  to-avif.sh / to-avif.mjs   # JPG/PNG → AVIF：$1 输入 $2 输出（无资源 fallback）
-参考/               # 过时设计稿等（不直接在运行时加载）
-  需求.txt          # 早期产品/关卡草稿（已过时，仅供参考，非权威）
+  main.js              # 组装 Input / Audio / Background / Game / UI
+  config.js            # LOGICAL_*、BALANCE、DIFFICULTIES、Unstable、说明书
+  version.js / git-hash.js
+  game.js              # Game 门面：主循环、spawn API、状态字段
+  gameDraw.js / gameOverlay.js / gameCombat.js / chapterFlow.js / chapterEnd.js / hud.js
+  collision.js / patterns.js / entities.js / spawnScale.js
+  draw/                # 实体绘制
+  stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_*；_shared + stageContext
+  ui.js / menuNav.js / settingsForm.js / startMode.js
+  historyScreen.js / historyVersions.js
+  input.js / audio.js / storage.js / debug.js
+  backgrounds.js       # re-export → backgrounds/*
+  backgrounds/         # StageBackground、builders、scenes
+  bgModes.js / playfieldBg.js / playfieldBgThemes.js
+  sprites.js / assets.js
+  bulletPool.js / itemPool.js / particlePool.js
+  dialogue.js
+test/                  # 零第三方自动化测试
+assets/                # bg portraits sprites ui + bgm/*.ogg
+tools/                 # inject-deploy-hash、hooks、bump-version、to-avif
+functions/api/         # CF Pages Functions（History 等）
+docs/                  # 内部改造队列等（非运行时）
+参考/                  # 过时设计稿
 ```
 
-## 架构要点
+兼容 re-export：`stages/a4_menbailiang.js` 等 → 对应 `a4/`… 子目录，新增内容改子目录。
+
+---
+
+## 架构
 
 ### 坐标系（硬约束）
 
-- 逻辑分辨率：`LOGICAL_W=450`, `LOGICAL_H=600`（`config.js`）
-- HTML：`<canvas id="playfield" width="450" height="600">` 固定，**禁止**在 JS 里改 `canvas.width/height`
-- 坐标、半径、速度、碰撞全部基于逻辑坐标系
-- 触屏坐标：`client * (canvas.width / rect.width)` 映射到逻辑坐标
+- `LOGICAL_W=450`, `LOGICAL_H=600`（`config.js`）
+- `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
+- 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标
 
 ### 模块职责
 
 | 模块 | 做什么 | 别在这里做 |
 |------|--------|------------|
-| `config.js` | 数值、难度倍率、文案常量 | 游戏逻辑 |
-| `game.js` | 状态、更新/渲染循环、章节切换 | 具体弹幕公式（应放 patterns/stages） |
-| `collision.js` | 碰撞几何 + 命中状态；`runCollisions` 返回事件 | 得分/SFX/掉落/`onDeath`（由 `gameCombat.applyCollisionEvents` 消费） |
-| `gameCombat.js` | 战斗帧、Bomb/Miss、消费 collision 事件 | 章节对话/路线 |
-| `stages/*` | 章节定义 + 刷怪时间轴（`stages/index.js` 聚合） | 全局状态机 |
-| `patterns.js` | 弹幕生成工具函数 | UI / 存档 |
-| `entities.js` | 实体数据与 update | 章节编排；绘制在 `draw/` |
-| `spawnScale.js` | 敌机/敌弹难度缩放纯函数 | 关卡编排 |
+| `config.js` | 数值、难度、文案常量 | 游戏逻辑 |
+| `game.js` | 门面、主循环、`spawnEnemy`/`spawnBullet` | 弹幕公式、章流程细节 |
+| `chapterFlow.js` | 章开/结、对话、路线、结局、面过渡 | 逐帧弹幕 |
+| `gameCombat.js` | 战斗帧、Bomb/Miss、得分、道具、collision 消费 | 对话/路线 |
+| `chapterEnd.js` | 章结束条件纯函数 | 改 game 状态 |
+| `collision.js` | 碰撞几何；`runCollisions` 返回事件 | 得分/掉落/SFX |
+| `stages/*` | 章节定义 + 刷怪 | 全局状态机 |
+| `patterns.js` | 弹幕工具 | UI / 存档 |
+| `entities.js` | 实体 update | 绘制（在 `draw/`） |
+| `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
+| `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
+| `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
+| `backgrounds/*` | 左侧 Three 场景 | 版面 Canvas |
+| `playfieldBgThemes.js` | `MODE_THEME` 一行表 | Three 场景 |
 
-关卡与 `patterns` 出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**（难度缩放与刷怪记账），勿直接 `enemies.push` / `bullets.push`。
-| `ui.js` | 菜单与屏幕切换 | 碰撞/得分 |
-| `audio.js` | BGM/SFX | 关卡内容 |
-| `bgModes.js` | stageKey→mode、版面贴图路径、mode allowlist | Three 场景几何 / Canvas 绘制 |
+出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**，勿直接 `enemies.push` / `bullets.push`。
 
-### 游戏状态（`Game.state`）
+### 状态与模式
 
-`playing` | `dialogue` | `routeSelect` | `gameover` | `ending` |（暂停用 `paused` 标志）
+**`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`  
+暂停：`paused` 标志（不是 state）。
 
-模式：`story` | `practice` | `stage`（单关/练习相关）
+**`Game.mode`**：`story` | `practice` | `stage` | `extra`  
+（Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。）
 
 ### 章节流
 
-1. 前三面：章节 id **1–22**（各面多段道中 + midboss + Boss Letter）
-2. 3 面结算：|A/B 倾向| ≥ `BALANCE.tendencyThreshold`（当前 **70**）进对应线；否则 **巡查姬 23–24** 拦截
-3. 拦截胜利 → `routeSelect` 手选 A/B
-4. A 线（门百梁 → 主角冲突 → 一美个）→ 结局 A；B 线（赌人时尚 → 棍电噢哆 → 拉斯特神炫）→ 结局 B；另有 EX
-5. 每面为多 mid + midboss + 多 Letter 的章节串；具体 id 以 `js/stages/*.js` 为准
+1. 前三面：章节 id **1–22**
+2. 3 面后：|倾向| ≥ `BALANCE.tendencyThreshold`（**70**）进 A/B；否则巡查 **23–24**
+3. 拦截胜 → `routeSelect` 手选 A/B
+4. A 线（门百梁 → 对手 → 一美个）/ B 线（赌人 → 棍电 → 拉斯特）→ 对应结局；**EX** 自 id **129**
+5. 每面多 mid + midboss + 多 Letter；以 `js/stages/` 为准
 
-章节对象字段（`js/stages/*`）：`id, name, stage, stageKey, kind, music, bg, duration?, unstable?, dialogue?, letter?, letterTime?, build(g)`
+章节字段：`id, name, stage, stageKey, kind, music, bg, duration?, unstable?, dialogue?, letter?, letterTime?, build(g)`  
+`kind`: `mid` | `midboss` | `boss`
 
-- `kind`: `mid` | `midboss` | `boss`
-- `build(g)` 向 `game` 注册敌人/刷怪逻辑
-- 难度通过敌人上的 `_fireMul` 等与 `DIFFICULTIES` 倍率注入
-- `duration`：纯道中存活保底成功；若章内有 `bossRef`（midboss 等）则到时未击破为失败
-- `letterTime`：Letter 限时，超时失败（不发 Perfect/NMNB）
+### 核心机制
 
-### 核心机制（实现位置）
+- 章节 Perfect × `BALANCE.chapterPerfectMul`（1.05）；超时失败不发
+- 擦弹 → edit；满 100 按 Item → 半径 `editClearRadius`（50）消弹
+- 决死窗：`BALANCE.deathBombWindow`
+- Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
+- 默认 **4 残 4B**；Stage Select **不锁关**
 
-- **章节 Perfect ×1.05**：成功通关且章内无 Miss/Bomb → `BALANCE.chapterPerfectMul`（超时失败不发）
-- **擦弹编辑度**：判定附近 graze → `edit` 槽；满 100 按 Item → 半径 50 消弹变分
-- **决死 Bomb**：被弹后 `deathBombWindow`（各难度相同，见 `BALANCE`）内按 Bomb 免死全清
-- **Unstable Machine**：道中 `unstable: true` 章节从 `UNSTABLE_POOL` 抽效果
-- **A/B 倾向**：自机在左/右半场累计；阈值见 `BALANCE.tendencyThreshold`
-- **默认资源**：4 残 4B（`BALANCE`，对齐 Easy，全难度相同）
-- **Stage Select**：**不锁关**；1–3 / 巡查 / A4–A6 / B4–B6 / EX 均可直接选
+### 自机 / 难度
 
-### 自机
+- `yinquan` 饮泉思源、`shama` 誓约沙玛（机制同；5 面对手随自机）
+- 常规：`easy` / `normal` / `hard` / `lunatic`（中文：这么菜啊 / 白银 / S6第一个王者 / 职业选手）
+- **Extra 专用**：`DIFFICULTIES.extra`（参数同 lunatic，文案独立）；仅 Extra Start / EX 路径
+- 难度只缩 `bulletSpeed` / `fireInterval` / `spawnMul` / `bulletCount` / `grazeMul` / `scoreMul`；资源与敌血等见 `BALANCE`
 
-- `yinquan` 饮泉思源（蓝白）、`shama` 誓约沙玛（粉红）
-- 机制相同：主弹 + 侧方追踪子机；剧情/5 面对手随自机切换
+### 音频 / 视觉
 
-### 难度
-
-`easy` / `normal` / `hard` / `lunatic` — 见 `DIFFICULTIES`：仅 `bulletSpeed` / `fireInterval` / `spawnMul` / `bulletCount` / `grazeMul` / `scoreMul`。残机、Bomb、决死窗、敌血、资源掉落等全难度共用 `BALANCE`。
-
-中文昵称：这么菜啊 / 白银 / S6第一个王者 / 职业选手。
-
-### 音频
-
-- 运行时读 OGG 文件（`assets/bgm/*.ogg`），用 Web Audio 解码播放
-- 映射：`AUDIO_FILE_MAP` / `trackForStage(stageId, isBoss)` in `audio.js`
-- 新增曲目：OGG 放 `assets/bgm/` → 更新 `AUDIO_FILE_MAP`
-
-### 视觉
-
-- 左侧：Three.js `StageBackground`（`backgrounds.js`），模式 id 与章节 `bg` 对应（如 `s1_mid`, `a6_boss`）
-- 中间：Canvas 版面 + 可选 `PlayfieldBackground` 贴图
-- 右侧：分数板 + 触屏 Item/Bomb
-- 立绘/精灵在 `assets/`，由 `assets.js` / `sprites.js` 加载；需求原文曾要求纯几何，**当前代码已支持贴图+几何混用**
-
-### 立绘 / Boss 贴图策略（T18）
-
-| 类型 | 规则 | 位置 |
-|------|------|------|
-| **对话立绘** | 仅 `PORTRAIT_PATHS` 有图才显示；无图则 **隐藏**，禁止把 A 的立绘挂到 B 名下 | `js/assets.js` |
-| **无立绘白名单** | `PORTRAIT_HIDDEN_OK`：系统/旁白/尚无美术 Boss 名等；新增对话角色必须进 PATHS 或本表 | 同上 |
-| **Boss 专用图** | `DEDICATED_BOSS_BY_KIND`（alice/icebin/dazong/patrol） | `js/sprites.js` |
-| **Boss 显式占位** | `PLACEHOLDER_BOSS_SPRITES`：复用路径但注释标明「非本人」；值为 `null` = 纯几何 | 同上 |
-| **未知 boss kind** | `spriteKeyForEnemy` 返回 `null` → 几何绘制，**禁止**默认 `boss_alice` | 同上 + `draw/entitiesDraw.js` |
-
-补美术：新 **AVIF** 进 `assets/portraits` 或 `assets/sprites` → 写入 PATHS / DEDICATED，并从 HIDDEN_OK 或 PLACEHOLDER 删除对应项（无 jpg/png fallback）。
+- OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
+- 左 Three / 中 Canvas 版面 / 右 HUD+触屏
+- 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）
+- Boss：`DEDICATED_BOSS_BY_KIND`；占位 `PLACEHOLDER_BOSS_SPRITES`（`null`=几何）；未知 kind **禁止**默认爱丽丝脸
 
 ### 存档（localStorage）
 
 | Key | 内容 |
 |-----|------|
-| `gunwei_keys` | Shot/Bomb/Item 键位 |
+| `gunwei_keys` | 键位 |
 | `gunwei_hiscore` | 高分 |
-| `gunwei_unlocked` | 进度记录（通关推进时写入 stage/route）；**Stage Select 不读取、不门禁** |
+| `gunwei_unlocked` | 进度记录（Stage Select **不门禁**） |
 | `gunwei_difficulty` | 上次难度 |
-| `gunwei_settings` | 音量、子弹不透明度、单击发射等 |
+| `gunwei_settings` | 音量、弹透明度、单击发射、FPS 上限等 |
 
-## 版本号与发版流程
+---
 
-### 约定
+## 版本号与发版
 
-| 字段 | 含义 | 示例 |
-|------|------|------|
-| **`VERSION`** | **真正的版本号**：纯自然数构建号 | `71` |
-| **`VERSION_NAME`** | 展示用语义段（无 `v`） | `0.4.1` |
-| **`DEPLOY_GIT_HASH`** | 部署短哈希（`js/git-hash.js`） | `''` 或 `a1b2c3d` |
-| **`VERSION_LABEL`** | **版本名**（界面） | `v0.4.1` 或 `v0.4.1.a1b2c3d` |
+| 字段 | 含义 |
+|------|------|
+| `VERSION` | 构建号（自然数，pre-commit +1） |
+| `VERSION_NAME` | 展示语义段（如 `0.4.4`） |
+| `DEPLOY_GIT_HASH` | 仓库恒 `''`；CF 构建注入 |
+| `VERSION_LABEL` | 有 hash → `v{NAME}.{hash}`，否则 `v{NAME}` |
 
-- **仓库**：**不**硬编码 commit 哈希；`js/git-hash.js` 中 `DEPLOY_GIT_HASH` 恒为 `''`
-- **显示**：有合法 hash → `v{NAME}.{hash}`；**空则只显示 `v{NAME}`**（本地默认如此）
-- **Cloudflare Pages 部署注入**（推荐）：
-  - Framework preset：**None**
-  - **Build command**：`npm run pages:build`（= `node tools/inject-deploy-hash.mjs`）
-  - **Build output directory**：**留空** 或 **`.`**（项目根）。**不要填 `/`**（会指错目录，注入无效）
-  - 脚本读取 **`CF_PAGES_COMMIT_SHA`** → 覆盖构建产物中的 `js/git-hash.js`
-  - 构建日志应出现：`[inject-deploy-hash] source=CF_PAGES_COMMIT_SHA short=xxxxxxx`
-  - **不会**把 hash commit 回 GitHub
-- **GitHub Actions**：仅 `test.yml` 跑 `npm test`；**无** stamp 回写
-- **构建号 `VERSION` 自动 +1**：由 **pre-commit hook** 在**同一次提交**里完成（不另开 commit）
-  - 启用一次：`npm run hooks:install`（= `git config core.hooksPath .githooks`）
-  - 跳过本次：`git commit --no-verify`
-  - amend / rebase / merge / cherry-pick 过程中 **不**自动 +1
-- **营销升版**：只改 `VERSION_NAME`（如 `0.4.0` → `0.4.1`）；**不必**手改 `VERSION`
-- **Git tag**：推荐 `v` + `VERSION_NAME`（如 `v0.4.1`）
+- CF：**Build** `npm run pages:build`；**Output** 留空或 `.`（不要 `/`）
+- 营销升版只改 `VERSION_NAME`；勿手改 `VERSION`；勿提交带真实 hash 的 `git-hash.js`
+- 本地预览 hash：`npm run inject-hash`，预览完 `git checkout -- js/git-hash.js`
+- Tag：建议 `v` + `VERSION_NAME`
 
-### 日常提交
-
-1. （新克隆后）`npm run hooks:install` 一次
-2. 需要营销升版时改 `VERSION_NAME`；**不要**为构建号手改 `VERSION`（hook 会 +1）
-3. 确认 `js/git-hash.js` 仍为 `DEPLOY_GIT_HASH = ''`（勿提交本地注入结果）
-4. `git commit` / `git push origin main` → 本次 commit 已含 `VERSION+1`
-5. CF 自动部署后，线上角标为 `vX.Y.Z.<shortSha>`
-
-### 本地预览带哈希（可选）
-
-```bash
-npm run inject-hash          # 用当前 git HEAD 写入 js/git-hash.js
-# 或
-node tools/inject-deploy-hash.mjs abcdef0
-```
-
-预览完请恢复空串再提交，或 `git checkout -- js/git-hash.js`。
-
-### 发版（打 tag）
-
-1. 测试通过、`VERSION` / `VERSION_NAME` 正确  
-2. 提交并 push → CF 部署  
-3. `git tag -a v0.4.0 -m "OWProject v0.4.0 (build N)"` → `git push origin v0.4.0`  
-4. 线上角标应含部署 commit 短哈希  
-
-### 注意
-
-- **不要**把含真实 hash 的 `js/git-hash.js` 提交进仓库（除非有意）。
-- **不要**移动已推送的历史 tag。
-- 构建号 `VERSION` **只增不改历史**。
+---
 
 ## 改代码约定
 
-1. **平衡数值**优先改 `js/config.js` 的 `BALANCE` / `DIFFICULTIES`，不要在 `game.js` 里散落魔法数。
-2. **新章节/弹幕**：在 `js/stages/` 对应面文件增加章节，并确保 `stages/index.js` 的 `buildChapterList` 已聚合；复用 `patterns.js` 的 `spawnAimed` / `oddAim` / `evenAim` / `spawnRingAt` 等。
-3. **新对话**：`dialogue.js` 的 `getDialogues(playerId)`；说话人颜色在 `SPEAKER_COLORS`。
-4. **新背景模式**：先在 `bgModes.js` 登记 mode + 贴图路径 + `BG_MODE_BY_STAGE`；再在 `backgrounds.js` 的 `STAGE_BG_BUILDERS` 与 `playfieldBg` 的 **`MODE_THEME`**（sky/accent/侧景一行表）补绘制。左侧 3D：优先 `_atmosphere` + `_scatter`（+ 必要手写构图），勿再复制 bg/fog/lights 样板。
-5. **保持 ES modules**：`import`/`export`，无打包器；浏览器原生加载。
-6. **语言**：UI/剧情以中文为主；代码标识符英文；注释可用中文。
-7. **规格冲突时**：以当前可运行代码与本文件为准。`参考/需求.txt` 是早期草稿、**已过时、仅供参考**，不要当作权威规格去“对齐”实现。
-8. **不要**引入构建工具/框架，除非用户明确要求；保持单页静态可托管。
-9. **不要**在运行时修改 playfield 的 `width`/`height` 属性。
-10. 大文件：`game.js`、`entities.js`、各 `stages/*` 已较大——新增内容优先按现有模式扩展，避免无关大重构。
-11. **Stage Select 保持全开放**；不要为关卡按钮加 unlock 门禁，除非产品明确改需求。
+1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
+2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`。
+3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
+4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）→ `playfieldBgThemes.js` 的 `MODE_THEME`。
+5. ES modules，无打包器；勿引入框架，除非用户明确要求。
+6. UI/剧情中文；标识符英文。
+7. 勿运行时改 playfield 的 `width`/`height`。
+8. Stage Select 保持全开放。
+9. **文档与代码同步**（见文首「文档对齐」）。
 
-## 弹种（`entities.js` / `patterns.js`）
+### 弹种
 
-大致类型：`dot` / `rice` / `talisman` / `medium` / `large` / 激光等。绘制半径与判定半径分离；改弹种时两处一起查。
+`dot` / `rice` / `talisman` / `medium` / `large` / `laser` 等；绘制半径与判定半径分离。
 
-## 操作（默认）
+### 操作（默认）
 
-| 输入 | 功能 |
-|------|------|
-| 方向 / WASD | 移动 |
-| Shift | 低速 + 判定点 |
-| Z / X / C | Shot / Bomb / Item（可改） |
-| Esc | 暂停 |
-| 触屏版面滑动 | 相对移动 + 按住自动射击 |
+方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏滑动移动+按住射击。
 
-## 规格来源
-
-- **权威**：当前可运行代码（`js/` 等）+ 本 `AGENTS.md`
-- 玩家向说明：`README.md`、`config.js` 的 `MANUAL_CHAPTERS`
-- **仅供参考（过时）**：`参考/需求.txt`（早期设计稿，数值/章节表/流程可能与现网不符；查意图时可翻，冲突时以代码为准）
-
-## 常见任务速查
+### 常见任务
 
 | 任务 | 主要文件 |
 |------|----------|
 | 调难度/手感 | `config.js` |
 | 改某一章弹幕 | `js/stages/*` + `patterns.js` |
-| 改碰撞/Bomb/擦弹 | `collision.js` / `game.js` |
-| 改菜单流程 | `ui.js` + `index.html` |
-| 改设置/键位 | `ui.js` + `storage.js` + `config.js` |
-| 改 BGM 映射 | `audio.js` |
-| 改左侧 3D 场景 | `backgrounds.js` |
-| 改立绘/精灵 | `assets.js`, `sprites.js`, `assets/`（见下「立绘/Boss 贴图策略」） |
-| 发版 / 升版本号 | `VERSION_NAME` + pre-commit 自动 `VERSION++`；CF `pages:build` 注入 hash；tag `vX.Y.Z` |
-| 启用 commit 自动构建号 | `npm run hooks:install`（见上文「首次克隆」） |
-| 跑自动化测试 | 本地 HTTP 打开 `/test/`（见上文） |
+| 改碰撞/Bomb/擦弹 | `collision.js` / `gameCombat.js` |
+| 改菜单 | `ui.js` + `index.html` |
+| 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
+| 改 BGM | `audio.js` |
+| 改左侧 3D | `backgrounds/*` + `bgModes.js` |
+| 改版面主题色 | `playfieldBgThemes.js` |
+| 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
+| 发版 | `VERSION_NAME` + hooks；CF `pages:build`；tag |
+| 测试 | `npm test` 或 `/test/` |
+
+---
+
+## Github
+
+- 鉴权使用环境变量 `OTTOWIKI_GITHUB_PAT`
+- GitHub MCP 已配置 token 时无需再配
