@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**E02–E03d1 完成（已 push）**；**E03d2 等手测（本地 commit，未 push）**；OK 后下一项 = **E07**。  
+当前：**Phase D 完成**；**E02–E03d2 完成（已 push）**；**E07 等手测（本地 commit，未 push）**；OK 后下一项 = **E01**。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -343,8 +343,8 @@ T12（拆 game，可分步提交）
 | 2 | **E03b** | ~~完成~~（+A 线激光无时限寿命已 push） | 主线 A 一气迁完 |
 | 3 | **E03c** | ~~完成~~（已 push） | 主线 B 同上 |
 | 4 | **E03d1** | ~~完成~~（已 push） | 先降 `ex_mid` 体量，diff 安全 |
-| 5 | **E03d2** | **等手测**：Extra 道中→Boss→van | 壳与主线对齐 |
-| 6 | **E07** | 薄 StageContext + **仅 s1 试点** | mid 已统一后再收窄 `g` 契约 |
+| 5 | **E03d2** | ~~完成~~（已 push） | 壳与主线对齐 |
+| 6 | **E07** | **等手测**：1 面完整 | mid 已统一后再收窄 `g` 契约 |
 | 7 | **E01** | 收 Game 转发门面 | 关卡线告一段落再清门面债 |
 | 8 | **E05** | 章结束纯函数 + 单测 | combat 边界稳后再抽 |
 | 9 | **E04** | 拆 `backgrounds.js` | 与关卡无关，放后；累了可穿插 |
@@ -494,7 +494,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测（本地 commit，未 push） |
+| **状态** | 完成 |
 | **改动清单** | 0–31：crossLanes/hLaserRain/centerSides/gapWall/randomGap/rainSniper/columnLane/laserDot/wallRain；32–61：coreSpin/wallRebuild/rainAfter/crossAfter/hLaserAfter/centerAfter/wallAfter/sanctuary/overwriteEve（共 18） |
 | **目标** | EX 与主线同一 wave 壳；grep 手写 `waveTimer` 壳仅剩有注释特例 |
 | **范围** | d1 拆出的 pattern 文件内：手写 `waveTimer/waveCount/waveFn` → `installMidWave`；`exFire` 间隔仍由调用方传入 |
@@ -511,18 +511,19 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 待做（**排在 E03d2 之后**） |
+| **状态** | 等手测（本地 commit，未 push） |
+| **改动清单** | 新增 `js/stages/stageContext.js`；`s1_alice.js` 全章 `asStageContext` + `installWave`/`setBoss`；单测窄 API 转发 |
 | **目标** | 关卡不再直接把完整 `Game` 当沙箱；经窄 API 出怪/出弹/挂波次/设 Boss |
 | **严格度** | 中等：包装现有能力，**不**做插件加载器 / 弹幕 DSL |
 | **范围** | |
-| | 1. 新增 `js/stages/stageContext.js`（或 `_shared` 旁）：`asStageContext(game)` → `{ spawnEnemy, spawnBullet, player, installWave, setBoss, raw? }` |
-| | 2. `installWave` 转调 `installMidWave`；`setBoss` 转调 `pushBossRef` / 写 `bossRef` |
-| | 3. **仅 s1** 的 `build` / script 改为用 ctx（`build(g)` 签名可保留：`const ctx = asStageContext(g)`） |
-| | 4. 可选：关卡内减少直接 `acquireBullet`——能走 `spawnAimed` 等则走 patterns；本任务不强行全库清 |
-| **不做** | 不迁 A/B/EX；不改数值；不删 `game.spawn*` 对外 API |
-| **验收（自动）** | 全绿；s1 全章 build 冒烟 |
+| | 1. `asStageContext(game)` → `{ spawnEnemy, spawnBullet, player, bulletCountMul, installWave, setBoss, raw }` |
+| | 2. `installWave` → `installMidWave`；`setBoss` → `pushBossRef`（script 收到 ctx） |
+| | 3. **仅 s1** 的 build 用 ctx；`build(g)` 签名保留 |
+| **不做** | 不迁 A/B/EX；不改数值；不删 `game.spawn*` 对外 API；不强行清 `acquireBullet` |
+| **验收（自动）** | 全绿；s1 全章 build 冒烟；asStageContext 单元测 |
 | **验收（手测）** | 1 面完整：道中密度、midboss、Alice Letter |
 | **风险** | 中——ctx 漏转发字段会导致 script 读不到 player 等；试点面要打穿 |
+| **手测要点** | Stage Select 1 面打穿；道中刷怪；草稿精英；两张 Alice Letter 弹幕正常 |
 | **后续（不本任务）** | E06b 或 Phase F 再把 A/B/EX 迁到 ctx；patterns 进一步只收 `spawnBullet`+倍率 |
 
 ---
@@ -593,7 +594,8 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | E03b | 全绿 | 完成 | A4/A5/A6 pure-continuous mid；同提交去掉 H/aimed 激光默认 life（已 push） |
 | 2026-07-20 | E03c | 全绿 | 完成 | B 线 mid；`eed6085` 已 push |
 | 2026-07-20 | E03d1 | 全绿 | 完成 | `1016b99` 已 push |
-| 2026-07-20 | E03d2 | 全绿 | 等手测 | EX 18 处手写 wave → installMidWave；**仅本地 commit** |
+| 2026-07-20 | E03d2 | 全绿 | 完成 | `c6f6334` 已 push；用户信任自动测、跳过细手测 |
+| 2026-07-20 | E07 | 全绿 | 等手测 | stageContext + s1 试点；**仅本地 commit** |
 
 ---
 

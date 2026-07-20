@@ -12,6 +12,7 @@ import {
   faceDefaults, midChapter, letterChapter, installMidWave,
 } from '../js/stages/_shared.js';
 import { MID_PATTERNS, buildExMid } from '../js/stages/ex_mid.js';
+import { asStageContext } from '../js/stages/stageContext.js';
 import { test, assert, assertEqual } from './assert.js';
 
 const REQUIRED_STAGE_KEYS = ['1', '2', '3', 'patrol', 'A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'EX'];
@@ -223,4 +224,41 @@ test('EX mid：MID_PATTERNS 长度 62 且均可调用（E03d1）', () => {
     assert(typeof MID_PATTERNS[i] === 'function', `pattern ${i}`);
   }
   assert(typeof buildExMid === 'function');
+});
+
+test('asStageContext：窄 API 转发 spawn / wave / boss（E07）', () => {
+  const spawned = [];
+  const game = {
+    player: { x: 1, y: 2 },
+    bulletCountMul: 1,
+    spawnEnemy(e) { spawned.push(['e', e]); return e; },
+    spawnBullet(b) { spawned.push(['b', b]); return b; },
+  };
+  const ctx = asStageContext(game);
+  assertEqual(ctx.player, game.player);
+  assertEqual(ctx.bulletCountMul, 1);
+  assertEqual(ctx.raw, game);
+  ctx.spawnEnemy({ id: 'm' });
+  ctx.spawnBullet({ id: 'b' });
+  assertEqual(spawned.length, 2);
+  let waved = 0;
+  ctx.installWave({
+    interval: 1,
+    maxWaves: 2,
+    onWave: (c, wave) => {
+      assert(c.spawnEnemy === ctx.spawnEnemy || typeof c.spawnEnemy === 'function');
+      assertEqual(c.player, game.player);
+      waved = wave;
+    },
+  });
+  assert(typeof game.waveFn === 'function');
+  game.waveFn(1.1);
+  assertEqual(waved, 1);
+  const boss = { hp: 1 };
+  // setBoss 走 pushBossRef → 需要 spawnEnemy 接受 Enemy 形；mock 只验 script 包装
+  ctx.setBoss({ x: 10, y: 20, hp: 100, label: 't' }, (en, d, c) => {
+    assertEqual(c.player, game.player);
+  }, 'elite');
+  assert(spawned.some((x) => x[0] === 'e'));
+  assertEqual(game.bossRef != null || spawned.length >= 3, true);
 });

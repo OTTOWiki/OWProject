@@ -1,11 +1,11 @@
 /**
- * 第1面 · 爱丽丝（T14 试点：章节元数据工厂 + installMidWave）
+ * 第1面 · 爱丽丝（E07 试点：StageContext + installMidWave / setBoss）
  */
 import {
-  mob, elite, timer,
+  mob, timer,
   faceDefaults, midChapter, letterChapter,
-  installMidWave, pushBossRef,
 } from './_shared.js';
+import { asStageContext } from './stageContext.js';
 import { LOGICAL_W } from '../config.js';
 import {
   spawnAimed, spawnCrossFall,
@@ -16,10 +16,11 @@ const FACE = faceDefaults(1);
 
 /* ========== s1 builds ========== */
 function chapter_s1_1(g) {
-  installMidWave(g, {
+  const ctx = asStageContext(g);
+  ctx.installWave({
     interval: 0.9,
     maxWaves: 12,
-    onWave: (game, wave) => {
+    onWave: (c, wave) => {
       const side = wave % 2 === 0 ? 80 : LOGICAL_W - 80;
       const e = mob(side, -20, 28);
       e.vy = 1.2;
@@ -28,16 +29,17 @@ function chapter_s1_1(g) {
           spawnAimed(gm, en, gm.player, { n: 1, parity: 'odd', type: 'dot', speed: 2.4, color: '#4ade80' });
         });
       };
-      game.spawnEnemy(e);
+      c.spawnEnemy(e);
     },
   });
 }
 
 function chapter_s1_2(g) {
-  installMidWave(g, {
+  const ctx = asStageContext(g);
+  ctx.installWave({
     interval: 1.0,
     maxWaves: 10,
-    onWave: (game) => {
+    onWave: (c) => {
       const e = mob(40 + Math.random() * (LOGICAL_W - 80), -20, 32, '#86efac');
       e.vy = 1.0;
       e.script = (en, d, gm) => {
@@ -45,32 +47,34 @@ function chapter_s1_2(g) {
           spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'rice', speed: 2.0, spread: 0.22, color: '#a3e635' });
         });
       };
-      game.spawnEnemy(e);
+      c.spawnEnemy(e);
     },
   });
 }
 
 function chapter_s1_3(g) {
-  pushBossRef(g, {
+  const ctx = asStageContext(g);
+  ctx.setBoss({
     x: LOGICAL_W / 2, y: 100, hp: 900, kind: 'mid1', color: '#f9a8d4',
     label: '草稿精英', enterY: 100,
-  }, (en, d, game) => {
+  }, (en, d, c) => {
     timer(en, 'big', 2.2, d, () => {
-      game.spawnBullet(acquireBullet({
+      c.spawnBullet(acquireBullet({
         x: en.x, y: en.y, vx: 0, vy: 1.6, type: 'large', color: '#f472b6', from: 'enemy', gravity: 0.015,
       }));
     });
     timer(en, 's', 0.7, d, () => {
-      spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.3, spread: 0.14, color: '#c084fc' });
+      spawnAimed(c, en, c.player, { n: 3, parity: 'odd', type: 'talisman', speed: 2.3, spread: 0.14, color: '#c084fc' });
     });
   }, 'elite');
 }
 
 function chapter_s1_4(g) {
-  installMidWave(g, {
+  const ctx = asStageContext(g);
+  ctx.installWave({
     interval: 0.7,
     maxWaves: 14,
-    onWave: (game) => {
+    onWave: (c) => {
       for (const x of [50, LOGICAL_W - 50]) {
         const e = mob(x, -15, 30, '#67e8f9');
         e.vy = 1.3;
@@ -79,34 +83,36 @@ function chapter_s1_4(g) {
             spawnAimed(gm, en, gm.player, { n: 4, parity: 'even', type: 'rice', speed: 2.1, spread: 0.12, color: '#22d3ee' });
           });
         };
-        game.spawnEnemy(e);
+        c.spawnEnemy(e);
       }
     },
   });
 }
 
 function chapter_alice_1(g) {
-  pushBossRef(g, {
+  const ctx = asStageContext(g);
+  ctx.setBoss({
     x: LOGICAL_W / 2, y: 90, hp: 2200, kind: 'alice',
     color: '#f9a8d4', color2: '#67e8f9', label: '爱丽丝', enterY: 90,
-  }, (en, d, game) => {
+  }, (en, d, c) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 0.8) * 60;
     timer(en, 'aim', 0.55, d, () => {
-      spawnAimed(game, en, game.player, { n: 3, parity: 'odd', type: 'dot', speed: 2.6, color: '#f9a8d4' });
+      spawnAimed(c, en, c.player, { n: 3, parity: 'odd', type: 'dot', speed: 2.6, color: '#f9a8d4' });
     });
     timer(en, 'cross', 1.4, d, () => {
-      spawnCrossFall(game, { type: 'rice', color: '#c084fc', speed: 1.7, lanes: 5 });
+      spawnCrossFall(c, { type: 'rice', color: '#c084fc', speed: 1.7, lanes: 5 });
     });
   });
 }
 
 function chapter_alice_2(g) {
-  pushBossRef(g, {
+  const ctx = asStageContext(g);
+  ctx.setBoss({
     x: LOGICAL_W / 2, y: 100, hp: 2500, kind: 'alice',
     color: '#f9a8d4', color2: '#67e8f9', label: '爱丽丝', enterY: 100,
-  }, (en, d, game) => {
+  }, (en, d, c) => {
     timer(en, 'big', 2.5, d, () => {
-      game.spawnBullet(acquireBullet({
+      c.spawnBullet(acquireBullet({
         x: en.x, y: en.y, vx: 0, vy: 1.1, type: 'large', color: '#f472b6', from: 'enemy',
       }));
     });
@@ -114,13 +120,13 @@ function chapter_alice_2(g) {
       en.data.flip = !en.data.flip;
       const side = en.data.flip ? -1 : 1;
       const ang = Math.PI / 2 + side * 0.55;
-      spawnAimed(game, en, game.player, {
+      spawnAimed(c, en, c.player, {
         n: 2, parity: 'even', type: 'talisman', speed: 2.8, spread: 0.2,
         color: '#e879f9', baseAngle: ang,
       });
-      const a = Math.atan2(game.player.y - en.y, game.player.x - en.x);
+      const a = Math.atan2(c.player.y - en.y, c.player.x - en.x);
       for (const off of [-0.35, 0.35]) {
-        game.spawnBullet(acquireBullet({
+        c.spawnBullet(acquireBullet({
           x: en.x, y: en.y, angle: a + off, speed: 3.0, type: 'talisman',
           color: '#e879f9', from: 'enemy',
         }));
