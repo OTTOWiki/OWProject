@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. CI（`npm test`）通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
+4. CI 检查 **`Test`** 通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
 
 ```bash
 git fetch origin
@@ -182,13 +182,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - **禁止** `git push` 到 `main`（见 §0）  
 - 日常在功能分支上多 commit 迭代；推远程分支后开 PR  
 - 涉及玩法/UI：作者先手测，再在 PR 里写手测要点；Reviewer 抽查  
-- CI：PR / 推送到受保护分支会跑 `npm test`（见 `.github/workflows/test.yml`）  
+- CI：PR 会跑 `.github/workflows/test.yml`（单一 job **`Test`** = 跑 `npm test`）；合并要求该 check 成功  
 - 队列任务：测绿 → 等手测 → PR 合并后再开下一项  
 
 ### PR 建议自检（作者）
 
 - [ ] 目标分支是 **`main`**，且分支基于较新的 `main`  
-- [ ] `npm test` 通过  
+- [ ] 本地 `npm test` 通过；PR 上 **`Test`** check 绿  
 - [ ] 未改 playfield 画布逻辑尺寸  
 - [ ] 出怪/出弹走 spawn API  
 - [ ] 有意行为变化已写在 PR 说明里  
@@ -220,7 +220,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
    - **Block force pushes**  
    - **Require a pull request before merging**  
      - Required approvals：**0**（允许自合，只拦直推）  
-   - **Require status checks to pass** → 检查名 **`npm test`**  
+   - **Require status checks to pass** → 检查名 **`Test`**（Actions job 名；内部跑 `npm test`）  
 7. **Bypass list**：保持空（admin 也不能直推 `main`）。  
 8. Save。
 
@@ -230,11 +230,37 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 2. Branch name pattern：`main`  
 3. 勾选：  
    - **Require a pull request before merging**（approvals 设 **0**）  
-   - **Require status checks to pass**（`npm test`）  
+   - **Require status checks to pass**（`Test`）  
    - **Do not allow force pushes** / **Do not allow deletions**  
 4. Save changes。
 
 验证：`git push origin main` 应被拒绝；开 PR 且 CI 绿后，作者可自行 Merge。
+
+### 5.2 把 CodeRabbit 设成合并门禁（可选）
+
+CodeRabbit 是 **GitHub App**，默认只评论/开 Review，**不会**自动挡合并。要挡合并需要两步：
+
+**A. 让 CodeRabbit 上报 Status / Check**
+
+1. 打开 [CodeRabbit 控制台](https://app.coderabbit.ai/) → 本仓库设置  
+2. 打开类似 **Status checks** / **Report review status** / **Fail the check on…** 的选项（名称因套餐 UI 而异）  
+3. 再开一个小 PR 或 push 触发一次审查  
+4. 在 PR → **Checks** 里找到 CodeRabbit 那一行，**记下准确名称**（常见为 `CodeRabbit`，以页面为准）
+
+若 Checks 列表始终没有 CodeRabbit，只有评论，则**无法**用 ruleset 硬拦，只能人工看。
+
+**B. 写入 `protect-main` required checks**
+
+在现有 **`Test`** 之外追加 CodeRabbit 的 context，例如：
+
+- required：`Test` + `CodeRabbit`（名称必须与 Checks 完全一致）
+
+之后合并条件变为：PR + **`Test` 绿** + **CodeRabbit check 绿** + 有写权限的人点 Merge（仍可不要求人类 Approve）。
+
+注意：
+
+- CodeRabbit 「有意见」是否 = check failure，取决于其「fail on findings」类开关  
+- 未配置 status 时，Required approvals 也**不会**把 bot 的 Request changes 算进人类 Approve（你们本来是 0 Approve）
 
 ---
 

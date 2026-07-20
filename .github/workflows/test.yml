@@ -1,6 +1,9 @@
 # 纯逻辑 + mock 冒烟（node test/run-node.mjs）
 # 无 npm 依赖安装；与本地 `npm test` 一致
 # 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
+#
+# 分支保护 required check 名：**Test**（本 job 的 name）。
+# 以后加测：在本 job 里加 step（或 matrix），保持 job name 仍为 Test，不必再拆并列 job。
 name: Test
 
 on:
@@ -14,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  unit:
-    name: npm test
+  test:
+    name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
