@@ -278,6 +278,8 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
   ctx.save();
   ctx.globalAlpha = a;
   ctx.translate(drawX, drawY);
+  const tNow = _frameT || performance.now();
+
   if (b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large' && b.type !== 'option' && b.type !== 'bomb') {
     ctx.rotate(b.angle + Math.PI / 2);
   }
@@ -299,7 +301,7 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     ctx.arc(0, 0, rr * 1.35, 0, Math.PI * 2);
     ctx.stroke();
     // 旋转十字
-    ctx.rotate(frameNow() / 280);
+    ctx.rotate(tNow / 280);
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
