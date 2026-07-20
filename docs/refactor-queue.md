@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**E02–E03d2 / E07 完成（已 push）**；**E01 等手测（本地 commit，未 push）**；OK 后下一项 = **E05**。  
+当前：**Phase D 完成**；**E02–E03 / E07 / E01 完成（已 push）**；**E05 等手测（本地 commit，未 push）**；OK 后下一项 = **E04**（或可选 E06）。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -345,8 +345,8 @@ T12（拆 game，可分步提交）
 | 4 | **E03d1** | ~~完成~~（已 push） | 先降 `ex_mid` 体量，diff 安全 |
 | 5 | **E03d2** | ~~完成~~（已 push） | 壳与主线对齐 |
 | 6 | **E07** | ~~完成~~（已 push） | mid 已统一后再收窄 `g` 契约 |
-| 7 | **E01** | **等手测**：开局/暂停/结算/换章 | 关卡线告一段落再清门面债 |
-| 8 | **E05** | 章结束纯函数 + 单测 | combat 边界稳后再抽 |
+| 7 | **E01** | ~~完成~~（已 push） | 关卡线告一段落再清门面债 |
+| 8 | **E05** | **等手测**：Letter 超时 / 击破 / 道中 | combat 边界稳后再抽 |
 | 9 | **E04** | 拆 `backgrounds.js` | 与关卡无关，放后；累了可穿插 |
 | — | **E06*** | 默认不做 | 需要扩内容时再开；优先 **E06b** Letter 目录化 |
 
@@ -390,7 +390,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测（本地 commit，未 push） |
+| **状态** | 完成 |
 | **审查对应** | Issue 1（门面 indirection） |
 | **改动清单** | `chapterFlow`/`gameCombat` 互调改 import 直调；主循环内直调；`game.js` 重写为门面+主循环；debug/main 仍用 `game._*` 薄入口 |
 | **目标** | 模块内不经 `game._xxx` 绕圈；公开 API 清晰 |
@@ -551,14 +551,16 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 待做（**排在 E01 之后**） |
+| **状态** | 等手测（本地 commit，未 push） |
 | **审查对应** | Issue 5（`updateCombat` 内四套结束分支） |
-| **目标** | `evaluateChapterEnd(game, ch, ctx) → null \| { success: boolean, reason: string }`；`updateCombat` 只消费 |
-| **范围** | `gameCombat.js`（或新 `chapterEnd.js`）；覆盖：Letter 超时、duration±bossRef、bossRef.dead、mid+wavesExhausted |
+| **改动清单** | 新增 `js/chapterEnd.js`（`evaluateChapterEnd` + snap）；`updateCombat` 只消费；单测覆盖超时/击破/duration/waves |
+| **目标** | `evaluateChapterEnd(snap) → null \| { success, reason, killBoss? }`；`updateCombat` 只消费 |
+| **范围** | `chapterEnd.js` + `gameCombat.js`；覆盖：Letter 超时、duration±bossRef、bossRef.dead、mid+wavesExhausted |
 | **不做** | 不改判定时机与成功/失败语义；不改 collision |
-| **验收（自动）** | 全绿；**建议**为纯函数加单元测（超时失败 / 击破成功 / 道中耗尽） |
+| **验收（自动）** | 全绿；纯函数单元测 |
 | **验收（手测）** | Letter 拖满超时失败；击破 boss 成功；纯道中清完提前结束；有 duration 的 midboss 到时 |
 | **风险** | 中——时序（dead 与 purge 先后）必须与现网一致 |
+| **手测要点** | 练习模式一章 Letter 拖超时；击破 midboss；道中清波提前结束 |
 
 ---
 
@@ -596,7 +598,8 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | E03d1 | 全绿 | 完成 | `1016b99` 已 push |
 | 2026-07-20 | E03d2 | 全绿 | 完成 | `c6f6334` 已 push；用户信任自动测、跳过细手测 |
 | 2026-07-20 | E07 | 全绿 | 完成 | `1fced35` 已 push |
-| 2026-07-20 | E01 | 全绿 | 等手测 | Game 门面收束 + 模块直调；**仅本地 commit** |
+| 2026-07-20 | E01 | 全绿 | 完成 | `7608739` 已 push |
+| 2026-07-20 | E05 | 全绿 | 等手测 | chapterEnd 纯函数 + 单测；**仅本地 commit** |
 
 ---
 

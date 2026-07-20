@@ -13,6 +13,7 @@ import {
 } from '../js/stages/_shared.js';
 import { MID_PATTERNS, buildExMid } from '../js/stages/ex_mid.js';
 import { asStageContext } from '../js/stages/stageContext.js';
+import { evaluateChapterEnd } from '../js/chapterEnd.js';
 import { test, assert, assertEqual } from './assert.js';
 
 const REQUIRED_STAGE_KEYS = ['1', '2', '3', 'patrol', 'A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'EX'];
@@ -261,4 +262,96 @@ test('asStageContext：窄 API 转发 spawn / wave / boss（E07）', () => {
   }, 'elite');
   assert(spawned.some((x) => x[0] === 'e'));
   assertEqual(game.bossRef != null || spawned.length >= 3, true);
+});
+
+test('evaluateChapterEnd：Letter 超时失败 / 击破成功 / 道中耗尽（E05）', () => {
+  assertEqual(evaluateChapterEnd({ chapterDone: true }), null);
+
+  const letterFail = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 40,
+    letterTimeLeft: 0,
+    hasBossRef: true,
+    bossRefDead: false,
+  });
+  assertEqual(letterFail?.success, false);
+  assertEqual(letterFail?.reason, 'letterTimeout');
+  assertEqual(letterFail?.killBoss, true);
+
+  const letterLive = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 40,
+    letterTimeLeft: 1.5,
+    hasBossRef: true,
+    bossRefDead: false,
+  });
+  assertEqual(letterLive, null);
+
+  const bossWin = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 40,
+    letterTimeLeft: 10,
+    hasBossRef: true,
+    bossRefDead: true,
+  });
+  assertEqual(bossWin?.success, true);
+  assertEqual(bossWin?.reason, 'bossDefeated');
+
+  const durFail = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 0,
+    duration: 30,
+    chapterTime: 30,
+    hasBossRef: true,
+    bossRefDead: false,
+  });
+  assertEqual(durFail?.success, false);
+  assertEqual(durFail?.reason, 'durationBossFail');
+  assertEqual(durFail?.killBoss, true);
+
+  const durOk = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 0,
+    duration: 24,
+    chapterTime: 24,
+    hasBossRef: false,
+    kind: 'mid',
+  });
+  assertEqual(durOk?.success, true);
+  assertEqual(durOk?.reason, 'durationOk');
+
+  const waves = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 0,
+    duration: undefined,
+    chapterTime: 1,
+    hasBossRef: false,
+    kind: 'mid',
+    wavesExhausted: true,
+    livingEnemies: false,
+  });
+  assertEqual(waves?.success, true);
+  assertEqual(waves?.reason, 'wavesClear');
+
+  const wavesEarly = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 0,
+    chapterTime: 0.2,
+    hasBossRef: false,
+    kind: 'mid',
+    wavesExhausted: true,
+    livingEnemies: false,
+  });
+  assertEqual(wavesEarly, null);
+
+  const midBetweenWaves = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 0,
+    chapterTime: 5,
+    hasBossRef: false,
+    kind: 'mid',
+    wavesExhausted: false,
+    livingEnemies: false,
+  });
+  assertEqual(midBetweenWaves, null);
 });

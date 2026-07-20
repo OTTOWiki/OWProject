@@ -14,6 +14,7 @@ import { acquireParticle } from './particlePool.js';
 import { acquireItem } from './itemPool.js';
 import { updateGameHud, updateLetterHud } from './hud.js';
 import { finishChapter, gameOver } from './chapterFlow.js';
+import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
 
 /**
  * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
@@ -259,47 +260,21 @@ export function updateCombat(game, dt) {
     applyCollisionEvents(game, colEvents);
   }
 
-  // chapter 结束判定
-  // 本章所有怪打完 → 强制 _finishChapter（残弹变点）→ 0.8s 后进下一章
-  // 波间暂时无怪不结束（必须 wavesExhausted：刷怪脚本确认不再出怪）
+  // chapter 结束判定（纯函数 evaluateChapterEnd；时序：先扣时再判定）
   if (!settling) {
     game.chapterTime += dt;
-
-    const living = game.enemies.some((e) => !e.dead);
-
-    // Letter 限时：超时未击破 → 失败（强制击破收场）
     if (game.letterTimeMax > 0) {
       game.letterTimeLeft -= dt;
       updateLetterHud(game);
-      if (game.letterTimeLeft <= 0 && !game.chapterDone) {
-        if (game.bossRef && !game.bossRef.dead) {
-          game.bossRef.hp = 0;
-          game.bossRef.dead = true;
-        }
-        finishChapter(game, false);
-      }
-    } else if (ch.duration && game.chapterTime >= ch.duration && !game.chapterDone) {
-      // 有 bossRef 的限时章（道中精英/midboss）：到时未击破 → 失败收场
-      // 纯道中：存活到时即成功（无限刷怪/纯弹幕保底）
-      if (game.bossRef && !game.bossRef.dead) {
+    }
+
+    const end = evaluateChapterEnd(chapterEndSnapFromGame(game, ch));
+    if (end) {
+      if (end.killBoss && game.bossRef && !game.bossRef.dead) {
         game.bossRef.hp = 0;
         game.bossRef.dead = true;
-        finishChapter(game, false);
-      } else {
-        finishChapter(game, true);
       }
-    }
-
-    // Boss / Letter：击破即本章结束（以 dead 为准，避免阶段切血误伤）
-    if (!game.chapterDone && game.bossRef && game.bossRef.dead) {
-      finishChapter(game, true);
-    }
-
-    // 道中：刷怪已耗尽 + 场上无存活敌机 = 本章敌人全部打完
-    if (!game.chapterDone && !game.bossRef && (ch.kind === 'mid' || ch.kind === 'midboss')) {
-      if (game.wavesExhausted && !living && game.chapterTime > 0.4) {
-        finishChapter(game, true);
-      }
+      finishChapter(game, end.success);
     }
   }
 
