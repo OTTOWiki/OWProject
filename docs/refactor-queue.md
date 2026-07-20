@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**Phase E 默认主线完成（E02–E03 / E07 / E01 / E05 / E04 已 push）**；剩余 **E06*** 可选 backlog。  
+当前：**Phase D 完成**；**Phase E 默认主线完成**；**E06b 等手测（本地 commit，未 push）**；E06a / E06c 仍可选。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -567,10 +567,10 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 | ID | 题 | 说明 | 状态 |
 |----|----|------|------|
 | E06a | `ui` 设置表单抽离 | `_initSettings` FPS 指针规则 → `settingsForm.js`；UI 只编排 | 待做（可选） |
-| E06b | Letter 内容目录化 | 大面 letter 按 boss 拆文件；**不动数值**；可与 StageContext 推广一起做 | 待做（可选·**优先**） |
+| E06b | Letter 内容目录化 | A4–B6：`stages/{face}/mid.js` + `letters.js` + `index.js`；旧文件名薄 re-export；**不动数值** | **等手测**（本地 commit） |
 | E06c | `playfieldBg` 调色板数据外置 | SKY/THEME/ACCENT 按 mode 数据文件；绘制逻辑不动 | 待做（可选） |
 
-E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再开，**优先 E06b**。
+E06a / E06c 仍可选；E06b 手测 OK 后 push。
 
 ---
 
@@ -599,6 +599,7 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | E01 | 全绿 | 完成 | `7608739` 已 push |
 | 2026-07-20 | E05 | 全绿 | 完成 | `4d28b3f` 已 push |
 | 2026-07-20 | E04 | 全绿 | 完成 | `7c2db4b` 已 push；Phase E 默认主线收尾 |
+| 2026-07-20 | E06b | 全绿 | 等手测 | A4–B6 Letter/mid 目录化；旧路径 re-export；**仅本地 commit** |
 
 ---
 
