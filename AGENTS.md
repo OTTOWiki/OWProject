@@ -1,7 +1,7 @@
 # AGENTS.md — OWProject
 
 > **贡献流程与红线**见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。  
-> **禁止直推 `main`**：一律功能分支 + **Pull Request**（详见 CONTRIBUTING §0 / §5.1）。  
+> **禁止直推 `main`**：一律功能分支 + **Pull Request**（详见 CONTRIBUTING §0）。  
 > 改造队列见 [`docs/refactor-queue.md`](./docs/refactor-queue.md)。玩家向说明见 [`README.md`](./README.md)。
 
 东方风弹幕 STG（纯前端 H5）。OTTOWiki / 维基梗二次创作；逻辑坐标系固定 **450×600**。
@@ -87,7 +87,7 @@ npm run test:syntax
 - 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
-- **合并门禁**（ruleset `protect-main`）：required check = **`Test`**。加测优先在同一 job 加 step，勿再拆出并列 check 名
+- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step
 
 ---
 

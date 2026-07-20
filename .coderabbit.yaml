@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit 仓库配置（中文审查）。合并门禁见 reviews.review_progress / fail_commit_status。
+language: zh-CN
+
+reviews:
+  profile: chill
+
+  # 上报审查进度为 GitHub Check（required status 的前提）
+  review_progress: true
+  # 旧 commit status 镜像（review_progress 关闭时才作为主通道）
+  commit_status: true
+  # 审查异常时对外状态失败，避免门禁假绿
+  fail_commit_status: true
+  # 不强制 request-changes 工作流（需要人类/机器人 Approve 链时再开）
+  request_changes_workflow: false
+
+  high_level_summary: true
+  # 摘要格式说明（勿把路径/代码规则写在这里）
+  high_level_summary_instructions: >-
+    用中文简短总结本次 PR 的意图与主要改动；不要写成游戏内文案或 changelog 列表。
+
+  path_instructions:
+    - path: "js/version.js"
+      instructions: |
+        ## VERSION 构建号（本仓库约定）
+
+        - `export const VERSION` 是自然数构建号。
+        - 正常提交禁止手改 VERSION。
+        - pre-commit（`.githooks/pre-commit` → `tools/bump-build-version.mjs`）
+          会在同一次 commit 内自动 +1 并 git add `js/version.js`。
+        - 因此 PR diff 里 VERSION 恰好 +1 是预期且正确的，
+          不要报「手动修改 VERSION」或要求撤销。
+        - 仅在以下情况才应指出问题：
+          - 相对 base 一次跳变超过 +1 且无说明；
+          - 把 VERSION_NAME（营销版本）和 VERSION 语义搞混；
+          - 有明确证据作者先手改再触发 hook 导致双加（少见，先核实）。
+        - 不要要求「先恢复旧值再让 hook 生成 N」——diff 里的 +1 本身就是 hook 结果。
+
+    - path: "AGENTS.md"
+      instructions: |
+        以 AGENTS.md / CONTRIBUTING.md 为仓库权威约定。
+        与通用开源习惯冲突时（hook 改 VERSION、禁止游戏内 changelog 等）以仓库文档为准。
+
+    - path: "CONTRIBUTING.md"
+      instructions: |
+        贡献流程与分支策略以本文件为准；禁止直推 main，合并走 PR。
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+
+  finishing_touches:
+    unit_tests:
+      enabled: false
