@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. CI（`npm test`）通过后，由维护者 **Review** 再合并  
+4. CI（`npm test`）通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
 
 ```bash
 git fetch origin
@@ -36,14 +36,12 @@ git push -u origin HEAD
 | 允许 | 禁止 |
 |------|------|
 | 推送到 `feat/*`、`fix/*`、`docs/*` 等非 `main` 分支 | `git push origin main` |
-| 经 PR merge 进 `main` | 在 GitHub 网页上直接改 `main` 上的文件（除非紧急热修且双方知情） |
-| 维护者在 PR 上 Request changes / Approve | 未 Review 就自合入劣质改动 |
+| 经 PR merge 进 `main`（**可自合**） | 在 GitHub 网页上直接改 `main` 上的文件 |
+| 推功能分支、开/改 PR | `git push origin main` |
 
-**原因**：双人维护时，一方环境/工具链不稳时，PR 是拦劣质 diff 的最后关口；也便于对照 `AGENTS.md` / 本文件做检查。
+**原因**：拦住直推，保证 `main` 上的改动都有 PR 记录 + CI；不强制互相 Approve，避免卡住。
 
-**合并权**：建议默认由**主维护者**合并；另一维护者可开 PR、改 PR，但合入前须有 Review（见下文 GitHub 设置）。
-
-仓库侧应用 **Branch protection / Rulesets** 强制本策略（文档 alone 挡不住 `git push`）。设置步骤见 **§5.1**。
+仓库侧 **Ruleset `protect-main`** 强制「必须 PR、禁止 force push」；详见 **§5.1**。
 
 ---
 
@@ -217,18 +215,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 3. Ruleset name：例如 `protect-main`  
 4. Enforcement：**Active**  
 5. Target branches：**Include** → `main`（或 default branch）  
-6. 勾选规则（建议）：  
+6. 勾选规则（本仓 **`protect-main`** 已按此落地）：  
    - **Restrict deletions**  
    - **Block force pushes**  
    - **Require a pull request before merging**  
-     - Required approvals：**1**（双人维护时：对方改动必须有一人 Approve）  
-     - 可选：Dismiss stale pull request approvals when new commits are pushed  
-   - **Require status checks to pass**  
-     - 添加 CI 检查名（与 Actions 一致，常见为 job 名如 `npm test`；以 PR 页 Checks 显示为准）  
-     - Require branches to be up to date：按需  
-   - **Block branch updates** 中确保不能直推（Require PR 已覆盖直推）  
-7. **Bypass list**：默认**不要**把所有 admin 放进 bypass（否则仍可直推）。  
-   若主维护者需要紧急直推，可只加**你自己**为 bypass，另一维护者不要加。  
+     - Required approvals：**0**（允许自合，只拦直推）  
+   - **Require status checks to pass** → 检查名 **`npm test`**  
+7. **Bypass list**：保持空（admin 也不能直推 `main`）。  
 8. Save。
 
 **路径 B — Classic branch protection**
@@ -236,25 +229,12 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 1. `Settings` → `Branches` → `Add branch protection rule`  
 2. Branch name pattern：`main`  
 3. 勾选：  
-   - **Require a pull request before merging**（+ 1 approval）  
-   - **Require status checks to pass before merging**（选中 test workflow）  
-   - **Do not allow bypassing the above settings**（若出现；对 admin 也生效）  
+   - **Require a pull request before merging**（approvals 设 **0**）  
+   - **Require status checks to pass**（`npm test`）  
    - **Do not allow force pushes** / **Do not allow deletions**  
 4. Save changes。
 
-**套餐注意**：本仓为 **private 组织仓**。部分 Branch protection / Rulesets 能力需要组织达到 **GitHub Team**（或更高）。若保存时报权限/套餐错误：
-
-- 升级组织计划，或  
-- 至少保持本文件的 **流程约定** + 收紧另一维护者的权限为 **Write**（不要 Admin），并约定只有主维护者点 Merge。
-
-**权限建议**
-
-| 角色 | 建议仓库角色 |
-|------|----------------|
-| 主维护者 | Admin |
-| 另一维护者 | **Write**（可推分支、开 PR；不能改 Settings / 绕过保护） |
-
-验证：用 Write 账号对 `main` 执行 `git push` 应被拒绝；开 PR 合并应要求检查通过。
+验证：`git push origin main` 应被拒绝；开 PR 且 CI 绿后，作者可自行 Merge。
 
 ---
 
