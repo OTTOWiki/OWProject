@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**E02–E03d2 完成（已 push）**；**E07 等手测（本地 commit，未 push）**；OK 后下一项 = **E01**。  
+当前：**Phase D 完成**；**E02–E03d2 / E07 完成（已 push）**；**E01 等手测（本地 commit，未 push）**；OK 后下一项 = **E05**。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -344,8 +344,8 @@ T12（拆 game，可分步提交）
 | 3 | **E03c** | ~~完成~~（已 push） | 主线 B 同上 |
 | 4 | **E03d1** | ~~完成~~（已 push） | 先降 `ex_mid` 体量，diff 安全 |
 | 5 | **E03d2** | ~~完成~~（已 push） | 壳与主线对齐 |
-| 6 | **E07** | **等手测**：1 面完整 | mid 已统一后再收窄 `g` 契约 |
-| 7 | **E01** | 收 Game 转发门面 | 关卡线告一段落再清门面债 |
+| 6 | **E07** | ~~完成~~（已 push） | mid 已统一后再收窄 `g` 契约 |
+| 7 | **E01** | **等手测**：开局/暂停/结算/换章 | 关卡线告一段落再清门面债 |
 | 8 | **E05** | 章结束纯函数 + 单测 | combat 边界稳后再抽 |
 | 9 | **E04** | 拆 `backgrounds.js` | 与关卡无关，放后；累了可穿插 |
 | — | **E06*** | 默认不做 | 需要扩内容时再开；优先 **E06b** Letter 目录化 |
@@ -390,20 +390,20 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 待做（**排在 E07 之后**，勿提前插队） |
-| **审查对应** | Issue 1（门面 indirection）、Issue 4（`_showOverlay` 未 import 且无调用方） |
-| **目标** | `game.js` 不再充当「每个私有方法转发一次」的双 API；模块内直调；公开 API 变薄 |
+| **状态** | 等手测（本地 commit，未 push） |
+| **审查对应** | Issue 1（门面 indirection） |
+| **改动清单** | `chapterFlow`/`gameCombat` 互调改 import 直调；主循环内直调；`game.js` 重写为门面+主循环；debug/main 仍用 `game._*` 薄入口 |
+| **目标** | 模块内不经 `game._xxx` 绕圈；公开 API 清晰 |
 | **范围** | |
-| | 1. **删除** `_showOverlay`（`showOverlay` 未导入，且全库无调用） |
-| | 2. 审计仅 `combat.*` / `chapterFlow.*` / overlay / hud 的**纯转发**私有方法：若调用方全在同类模块内，改为模块 `import` 直调，并删 `Game` 上对应方法 |
-| | 3. 保留对外/跨层必要入口：`start` / `stop` / `spawnEnemy` / `spawnBullet` / `addScore` / `applySettings`、主循环、以及 debug/UI 仍经 `game` 调用的路径 |
-| | 4. `chapterFlow` ↔ `gameCombat` 互调改为直接 import（避免 `game._finishChapter` → `chapterFlow.finishChapter` 绕圈） |
+| | 1. `finishChapter` / `openResult` / HUD / bomb-miss 等模块内直调 |
+| | 2. 保留对外：`start` / `stop` / `spawnEnemy` / `spawnBullet` / `addScore` / `spawnItem` / `applySettings` + debug 薄入口 |
+| | 3. 主循环 `_loop` / `_handleGlobalInput` 内直接调模块函数 |
 | **不做** | 不改状态机语义、数值、章节表；不拆 `backgrounds`；不迁 stages mid |
-| **目标体量** | `game.js` 明显变短（期望 ~250–400 行量级，以删干净为准，不硬砍行数） |
+| **目标体量** | `game.js` ~550 行门面（含 debug 兼容薄入口列表） |
 | **验收（自动）** | `npm test` 全绿 |
 | **验收（手测）** | 开局→一章→暂停/继续/回标题；章间推进；GameOver/练习结束 overlay；对话确认 |
-| **风险** | 中——漏改调用点会 runtime 炸；每步可先 grep 引用再删 |
-| **手测要点** | 暂停设置进出；决死 Bomb；通关一章自动进下一章 |
+| **风险** | 中——漏改调用点会 runtime 炸 |
+| **手测要点** | 暂停设置进出；决死 Bomb；通关一章自动进下一章；debug softJump |
 
 ---
 
@@ -595,7 +595,8 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | E03c | 全绿 | 完成 | B 线 mid；`eed6085` 已 push |
 | 2026-07-20 | E03d1 | 全绿 | 完成 | `1016b99` 已 push |
 | 2026-07-20 | E03d2 | 全绿 | 完成 | `c6f6334` 已 push；用户信任自动测、跳过细手测 |
-| 2026-07-20 | E07 | 全绿 | 等手测 | stageContext + s1 试点；**仅本地 commit** |
+| 2026-07-20 | E07 | 全绿 | 完成 | `1fced35` 已 push |
+| 2026-07-20 | E01 | 全绿 | 等手测 | Game 门面收束 + 模块直调；**仅本地 commit** |
 
 ---
 

@@ -12,11 +12,13 @@ import { saveHiscore, unlockStage, unlockRoute } from './storage.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
-import { unstableHintFor } from './hud.js';
+import { unstableHintFor, updateGameHud, updateLetterHud } from './hud.js';
 import { debugSkipDialogue } from './debug.js';
 import { releaseBulletList } from './bulletPool.js';
 import { releaseItemList } from './itemPool.js';
 import { releaseParticleList } from './particlePool.js';
+import { bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore } from './gameCombat.js';
+import { openResult } from './gameOverlay.js';
 
 export function wrapWaveFn(game, raw) {
   return (dt) => {
@@ -42,7 +44,7 @@ export function wrapWaveFn(game, raw) {
 export function softClearForNextChapter(game, { convert = true } = {}) {
   if (convert) {
     // 敌弹变点 + 吸道具；随后清空敌弹表并归还池
-    game._bulletsToPointsAndAttract();
+    bulletsToPointsAndAttract(game);
   }
   releaseBulletList(game.enemyBullets);
   game._purgeDeadBullets?.();
@@ -116,7 +118,7 @@ export function startChapter(game) {
     game.el.letterBanner.classList.remove('hidden');
     game.el.letterBanner.style.opacity = '1';
     game.el.letterName.textContent = ch.letter;
-    game._updateLetterHud();
+    updateLetterHud(game);
     game.audio.sfx('letter');
   } else {
     game.el.letterBanner.classList.add('hidden');
@@ -199,13 +201,13 @@ export function startChapter(game) {
       };
       game.state = 'stageTransit';
       game._pendingChapterBegin = beginChapterContent;
-      game._updateHUD();
+      updateGameHud(game);
       return;
     }
   }
 
   beginChapterContent();
-  game._updateHUD();
+  updateGameHud(game);
 }
 
 export function openDialogue(game, lines, after) {
@@ -279,7 +281,7 @@ export function finishChapter(game, success) {
         const dm = game.diffScoreMul || 1;
         game.baseScore += Math.floor(bonus / dm);
         if (game.score > game.hiscore) game.hiscore = game.score;
-        game._checkExtend();
+        checkExtend(game);
       }
     }
   }
@@ -287,8 +289,8 @@ export function finishChapter(game, success) {
   let letterBonus = 0;
   if (perfect && game.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
     letterBonus = calcLetterBonus(ch.stageKey, game.letterTimeLeft, game.letterTimeMax);
-    if (letterBonus > 0) game.addScore(letterBonus);
-    game._grantLetterResource(ch, true, true);
+    if (letterBonus > 0) addScore(game, letterBonus);
+    grantLetterResource(game, ch, true, true);
   }
 
   if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {
@@ -353,7 +355,7 @@ export function finishChapter(game, success) {
 
   if (game.singleChapter || game.mode === 'practice') {
     scheduleAdvance(game, NEXT_DELAY_SEC, () => {
-      game._openResult({
+      openResult(game, {
         title: '练习结束',
         body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n${perfect ? 'Perfect Clear!' : ''}`,
         retryChapter: ch.id,
@@ -526,7 +528,7 @@ export function showEnding(game, which) {
       const exIdx = game._chapterIndexByStageAny.get('EX');
       retryChapter = exIdx != null ? game.chapters[exIdx]?.id : 1;
     }
-    game._openResult({
+    openResult(game, {
       title,
       body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`,
       retryChapter,
@@ -540,7 +542,7 @@ export function gameOver(game) {
   const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
   const show = () => {
     game.audio.stopMusic(0.6);
-    game._openResult({
+    openResult(game, {
       title: 'Game Over',
       body,
       retryChapter: ch.id,
@@ -556,7 +558,7 @@ export function gameOver(game) {
 export function gameClear(game) {
   saveHiscore(game.score);
   game.audio.stopMusic(0.8);
-  game._openResult({
+  openResult(game, {
     title: 'All Clear',
     body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`,
     retryChapter: 1,

@@ -12,6 +12,8 @@ import {
 } from './debug.js';
 import { acquireParticle } from './particlePool.js';
 import { acquireItem } from './itemPool.js';
+import { updateGameHud, updateLetterHud } from './hud.js';
+import { finishChapter, gameOver } from './chapterFlow.js';
 
 /**
  * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
@@ -52,16 +54,16 @@ export function applyCollisionEvents(game, events) {
   for (const ev of events) {
     if (ev.type === 'kill') {
       const e = ev.enemy;
-      game.addScore(e.score);
-      game._burst(e.x, e.y, e.color, 12);
-      const drop = e.drop || game._defaultKillDrop(e);
-      if (drop) game.spawnItem(e.x, e.y, drop);
-      else if (Math.random() < 0.35) game.spawnItem(e.x, e.y, 'score');
+      addScore(game, e.score);
+      burst(game, e.x, e.y, e.color, 12);
+      const drop = e.drop || defaultKillDrop(game, e);
+      if (drop) spawnItem(game, e.x, e.y, drop);
+      else if (Math.random() < 0.35) spawnItem(game, e.x, e.y, 'score');
       e.fireOnDeath?.(game);
     } else if (ev.type === 'graze') {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
-      game.addScore(BALANCE.score.graze);
+      addScore(game, BALANCE.score.graze);
       spawnGrazeParticles(game, p);
       // 擦弹音：每帧最多一次，避免弹幕墙时叠成噪声
       const now = performance.now();
@@ -70,7 +72,7 @@ export function applyCollisionEvents(game, events) {
         game.audio.sfx('graze');
       }
     } else if (ev.type === 'playerHit') {
-      game._hitPlayer();
+      hitPlayer(game);
     }
   }
 }
@@ -118,7 +120,7 @@ export function updateStageTransit(game, dt) {
       begin?.();
     }
   }
-  game._updateHUD();
+  updateGameHud(game);
 }
 
 export function updateCombat(game, dt) {
@@ -268,13 +270,13 @@ export function updateCombat(game, dt) {
     // Letter 限时：超时未击破 → 失败（强制击破收场）
     if (game.letterTimeMax > 0) {
       game.letterTimeLeft -= dt;
-      game._updateLetterHud();
+      updateLetterHud(game);
       if (game.letterTimeLeft <= 0 && !game.chapterDone) {
         if (game.bossRef && !game.bossRef.dead) {
           game.bossRef.hp = 0;
           game.bossRef.dead = true;
         }
-        game._finishChapter(false);
+        finishChapter(game, false);
       }
     } else if (ch.duration && game.chapterTime >= ch.duration && !game.chapterDone) {
       // 有 bossRef 的限时章（道中精英/midboss）：到时未击破 → 失败收场
@@ -282,21 +284,21 @@ export function updateCombat(game, dt) {
       if (game.bossRef && !game.bossRef.dead) {
         game.bossRef.hp = 0;
         game.bossRef.dead = true;
-        game._finishChapter(false);
+        finishChapter(game, false);
       } else {
-        game._finishChapter(true);
+        finishChapter(game, true);
       }
     }
 
     // Boss / Letter：击破即本章结束（以 dead 为准，避免阶段切血误伤）
     if (!game.chapterDone && game.bossRef && game.bossRef.dead) {
-      game._finishChapter(true);
+      finishChapter(game, true);
     }
 
     // 道中：刷怪已耗尽 + 场上无存活敌机 = 本章敌人全部打完
     if (!game.chapterDone && !game.bossRef && (ch.kind === 'mid' || ch.kind === 'midboss')) {
       if (game.wavesExhausted && !living && game.chapterTime > 0.4) {
-        game._finishChapter(true);
+        finishChapter(game, true);
       }
     }
   }
@@ -310,7 +312,7 @@ export function updateCombat(game, dt) {
   game._purgeDeadItems();
   game._purgeDeadParticles();
 
-  game._updateHUD();
+  updateGameHud(game);
 }
 
 export function tickChapterBanner(game, dt) {
@@ -363,7 +365,7 @@ export function miss(game) {
   fullScreenClear(game);
 
   if (p.lives < 0) {
-    game._gameOver();
+    gameOver(game);
     return;
   }
   const floor = BALANCE.resource.missBombFloor ?? 2;

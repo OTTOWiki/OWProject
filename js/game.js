@@ -7,10 +7,21 @@ import { drawPlayer } from './draw/index.js';
 import { drawGameFrame, drawFps } from './gameDraw.js';
 import {
   bindOverlayClicks, hideOverlay, openPause, openResult,
-  runOverlayAction, handleOverlayInput, highlightOverlay, overlayButtons,
+  handleOverlayInput,
 } from './gameOverlay.js';
-import * as chapterFlow from './chapterFlow.js';
-import * as combat from './gameCombat.js';
+import {
+  startChapter, softClearForNextChapter, openDialogue, showDialogueLine,
+  advanceDialogue, finishChapter, scheduleAdvance, cancelAdvance, tickAdvance,
+  nextChapterOrEnd, skipToValidChapter, afterStage3, enterRouteSelect,
+  chooseRoute, jumpToStage, setEndingCinematic, showEnding, gameOver, gameClear,
+  wrapWaveFn,
+} from './chapterFlow.js';
+import {
+  updateCombat, updateStageTransit, bulletsToPointsAndAttract,
+  tickChapterBanner, tryBomb, miss, hitPlayer, collectItem, addScore,
+  checkExtend, flashMsg, defaultKillDrop, isLastLetterOfStage,
+  letterProgressInStage, grantLetterResource, spawnItem, burst,
+} from './gameCombat.js';
 import { buildChapterList } from './stages/index.js';
 import { getDialogues } from './dialogue.js';
 import { loadHiscore, loadSettings } from './storage.js';
@@ -24,6 +35,10 @@ import { purgeDeadBullets, releaseBulletList } from './bulletPool.js';
 import { releaseParticleList, releaseParticle } from './particlePool.js';
 import { purgeDeadItems, releaseItemList } from './itemPool.js';
 
+/**
+ * Game 门面：构造 / start / stop / 主循环 / spawn API。
+ * 章节与战斗逻辑在 chapterFlow / gameCombat；debug 与 main 仍可经本类薄入口调用。
+ */
 export class Game {
   constructor({ canvas, input, audio, background, ui }) {
     this.canvas = canvas;
@@ -137,7 +152,7 @@ export class Game {
   start(opts) {
     const {
       playerId = 'yinquan',
-      startChapter = 1,
+      startChapter: startId = 1,
       mode = 'story',
       lives = null,
       unstable = true,
@@ -188,7 +203,7 @@ export class Game {
     this.rainT = 0;
     this.laserT = 0;
 
-    this.chapterIndex = this._indexForChapterId(startChapter);
+    this.chapterIndex = this._indexForChapterId(startId);
     this._hudCache = createHudCache();
     releaseBulletList(this.playerBullets);
     releaseBulletList(this.enemyBullets);
@@ -223,7 +238,7 @@ export class Game {
     this.nextUnstableFx = null;
     this.stageTransit = null; // 关卡（面）间过渡页
     this._pendingChapterBegin = null;
-    this._cancelAdvance();
+    cancelAdvance(this);
     this.lastStageKey = null;
 
     this.running = true;
@@ -233,8 +248,8 @@ export class Game {
     this.overlayActionIndex = 0;
     this.applySettings();
     this.input.resetShotLatch();
-    this._setEndingCinematic(false);
-    this._hideOverlay();
+    setEndingCinematic(this, false);
+    hideOverlay(this);
     this.el.flash.classList.add('hidden');
     this.el.dialogueBox.classList.add('hidden');
     this.el.hiscore.textContent = String(this.hiscore);
@@ -244,10 +259,10 @@ export class Game {
       this.el.difficulty.style.color = this.diff.color;
     }
 
-    this._bindOverlayClicks();
+    bindOverlayClicks(this);
     this.input.bindCanvas(this.canvas, () => ({ x: this.player.x, y: this.player.y }));
     this.audio.ensure();
-    this._startChapter();
+    startChapter(this);
     this.lastT = performance.now();
     this._fpsBankMs = 0;
     this._lastDrawT = 0;
@@ -288,8 +303,12 @@ export class Game {
     return b;
   }
 
-  _wrapWaveFn(raw) {
-    return chapterFlow.wrapWaveFn(this, raw);
+  addScore(n) {
+    addScore(this, n);
+  }
+
+  spawnItem(x, y, kind = 'score') {
+    spawnItem(this, x, y, kind);
   }
 
   /** 敌机等：swap-remove 删 dead（O(n)，无中间 splice） */
@@ -334,37 +353,12 @@ export class Game {
   stop() {
     this.running = false;
     this.input.resetShotLatch();
-    this._cancelAdvance();
-    this._setEndingCinematic(false);
-    this._hideOverlay();
+    cancelAdvance(this);
+    setEndingCinematic(this, false);
+    hideOverlay(this);
     this.el.bossEnemyMarker?.classList.add('hidden');
     cancelAnimationFrame(this.raf);
     this.audio.stopMusic(0.5);
-  }
-
-  _bulletsToPointsAndAttract() {
-    combat.bulletsToPointsAndAttract(this);
-  }
-
-
-  _softClearForNextChapter(opts) {
-    chapterFlow.softClearForNextChapter(this, opts);
-  }
-
-  _startChapter() {
-    chapterFlow.startChapter(this);
-  }
-
-  _openDialogue(lines, after) {
-    chapterFlow.openDialogue(this, lines, after);
-  }
-
-  _showDialogueLine() {
-    chapterFlow.showDialogueLine(this);
-  }
-
-  _advanceDialogue() {
-    chapterFlow.advanceDialogue(this);
   }
 
   _loop(t) {
@@ -398,11 +392,11 @@ export class Game {
         }
 
         this._handleGlobalInput();
-        if (!this.paused) this._tickAdvance(dt);
+        if (!this.paused) tickAdvance(this, dt);
         if (this.state === 'stageTransit' && !this.paused) {
-          this._updateStageTransit(dt);
+          updateStageTransit(this, dt);
         } else if (this.state === 'playing' && !this.paused) {
-          this._update(dt);
+          updateCombat(this, dt);
         }
         debugTick();
 
@@ -422,7 +416,6 @@ export class Game {
       }
 
       // ---- 描画：跟 rAF / 设置上限，与逻辑 60 完全独立 ----
-      // 无限制 → 每个 rAF 都画（180Hz 屏上角标≈180）；有 cap → 墙钟节流
       let shouldDraw = true;
       const cap = this.fpsLimit > 0 ? Math.max(24, Math.min(240, this.fpsLimit)) : 0;
       if (cap > 0) {
@@ -433,7 +426,7 @@ export class Game {
       }
       if (shouldDraw) {
         try {
-          this._draw();
+          drawGameFrame(this);
         } catch (err) {
           console.error('[game draw]', err);
         }
@@ -457,50 +450,11 @@ export class Game {
           this.ctx.fillStyle = '#0c1018';
           this.ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
           if (this.player) drawPlayer(this.ctx, this.player);
-          this._drawFps(this.ctx);
+          drawFps(this, this.ctx);
         }
       } catch (_) { /* ignore */ }
-      // 外层 catch 时逻辑帧可能未 endFrame
       try { this.input.endFrame(); } catch (_) { /* ignore */ }
     }
-  }
-
-  _drawFps(ctx) {
-    drawFps(this, ctx);
-  }
-
-  /** 关卡过渡页计时；期间继续吸点，不刷怪 */
-  _updateStageTransit(dt) {
-    combat.updateStageTransit(this, dt);
-  }
-
-
-  _bindOverlayClicks() {
-    bindOverlayClicks(this);
-  }
-
-  _overlayButtons() {
-    return overlayButtons(this);
-  }
-
-  _highlightOverlay() {
-    highlightOverlay(this);
-  }
-
-  _hideOverlay() {
-    hideOverlay(this);
-  }
-
-  _openPause() {
-    openPause(this);
-  }
-
-  _openResult(opts) {
-    openResult(this, opts);
-  }
-
-  _runOverlayAction(action) {
-    runOverlayAction(this, action);
   }
 
   _handleGlobalInput() {
@@ -517,7 +471,7 @@ export class Game {
 
     // 暂停：playing / dialogue / 关卡过渡 均可
     if (wantPause && (this.state === 'playing' || this.state === 'dialogue' || this.state === 'stageTransit')) {
-      this._openPause();
+      openPause(this);
       return;
     }
 
@@ -528,165 +482,67 @@ export class Game {
         || this.input.justPressed('Enter')
         || this.input.justPressed('Space')
       ) {
-        this._advanceDialogue();
+        advanceDialogue(this);
       }
       return;
     }
 
     if (this.state === 'routeSelect') {
       if (this.input.justPressed('ArrowLeft') || this.input.justPressed('KeyA')) {
-        this._chooseRoute('A');
+        chooseRoute(this, 'A');
       } else if (this.input.justPressed('ArrowRight') || this.input.justPressed('KeyD')) {
-        this._chooseRoute('B');
+        chooseRoute(this, 'B');
       } else if (this.input.tap) {
-        this._chooseRoute(this.input.tap.x < LOGICAL_W * 0.5 ? 'A' : 'B');
+        chooseRoute(this, this.input.tap.x < LOGICAL_W * 0.5 ? 'A' : 'B');
       }
     }
   }
 
-  _update(dt) {
-    combat.updateCombat(this, dt);
-  }
+  /* ========== 对外 / debug / main 薄入口（模块内已直调，不再经此绕圈） ========== */
 
+  _startChapter() { startChapter(this); }
+  _softClearForNextChapter(opts) { softClearForNextChapter(this, opts); }
+  _openDialogue(lines, after) { openDialogue(this, lines, after); }
+  _showDialogueLine() { showDialogueLine(this); }
+  _advanceDialogue() { advanceDialogue(this); }
+  _finishChapter(success) { finishChapter(this, success); }
+  _scheduleAdvance(sec, fn) { scheduleAdvance(this, sec, fn); }
+  _cancelAdvance() { cancelAdvance(this); }
+  _tickAdvance(dt) { tickAdvance(this, dt); }
+  _nextChapterOrEnd(ch) { nextChapterOrEnd(this, ch); }
+  _skipToValidChapter() { skipToValidChapter(this); }
+  _afterStage3() { afterStage3(this); }
+  _enterRouteSelect() { enterRouteSelect(this); }
+  _chooseRoute(route) { chooseRoute(this, route); }
+  _jumpToStage(stageKey) { jumpToStage(this, stageKey); }
+  _setEndingCinematic(on) { setEndingCinematic(this, on); }
+  _showEnding(which) { showEnding(this, which); }
+  _gameOver() { gameOver(this); }
+  _gameClear() { gameClear(this); }
+  _wrapWaveFn(raw) { return wrapWaveFn(this, raw); }
 
-  _tickChapterBanner(dt) {
-    combat.tickChapterBanner(this, dt);
-  }
+  _bulletsToPointsAndAttract() { bulletsToPointsAndAttract(this); }
+  _updateStageTransit(dt) { updateStageTransit(this, dt); }
+  _update(dt) { updateCombat(this, dt); }
+  _tickChapterBanner(dt) { tickChapterBanner(this, dt); }
+  _tryBomb(isDeath) { return tryBomb(this, isDeath); }
+  _miss() { miss(this); }
+  _hitPlayer() { hitPlayer(this); }
+  _collectItem(it) { collectItem(this, it); }
+  _checkExtend() { checkExtend(this); }
+  _flashMsg(text, sec = 1.2) { flashMsg(this, text, sec); }
+  _defaultKillDrop(e) { return defaultKillDrop(this, e); }
+  _isLastLetterOfStage(ch) { return isLastLetterOfStage(this, ch); }
+  _letterProgressInStage(ch) { return letterProgressInStage(this, ch); }
+  _grantLetterResource(ch, perfect, success) { grantLetterResource(this, ch, perfect, success); }
+  _burst(x, y, color, n) { burst(this, x, y, color, n); }
 
+  _hideOverlay() { hideOverlay(this); }
+  _openPause() { openPause(this); }
+  _openResult(opts) { openResult(this, opts); }
 
-  _tryBomb(isDeath) {
-    return combat.tryBomb(this, isDeath);
-  }
-
-
-  _miss() {
-    combat.miss(this);
-  }
-
-
-  _hitPlayer() {
-    combat.hitPlayer(this);
-  }
-
-
-  _collectItem(it) {
-    combat.collectItem(this, it);
-  }
-
-
-  addScore(n) {
-    combat.addScore(this, n);
-  }
-
-
-  _checkExtend() {
-    combat.checkExtend(this);
-  }
-
-
-  _flashMsg(text, sec = 1.2) {
-    combat.flashMsg(this, text, sec);
-  }
-
-
-  /** 击破默认掉落：道中 midboss 章主敌 → bomb（难度可关） */
-  _defaultKillDrop(e) {
-    return combat.defaultKillDrop(this, e);
-  }
-
-
-  /** 是否为本 stage 最后一张 Letter（boss 章） */
-  _isLastLetterOfStage(ch) {
-    return combat.isLastLetterOfStage(this, ch);
-  }
-
-
-  _letterProgressInStage(ch) {
-    return combat.letterProgressInStage(this, ch);
-  }
-
-
-  /** Letter NMNB 资源掉落（midboss 已在击破时固定掉 B，此处只处理 boss Letter） */
-  _grantLetterResource(ch, perfect, success) {
-    combat.grantLetterResource(this, ch, perfect, success);
-  }
-
-
-  spawnItem(x, y, kind = 'score') {
-    combat.spawnItem(this, x, y, kind);
-  }
-
-
-  _burst(x, y, color, n) {
-    combat.burst(this, x, y, color, n);
-  }
-
-
-  _finishChapter(success) {
-    chapterFlow.finishChapter(this, success);
-  }
-
-  _scheduleAdvance(sec, fn) {
-    chapterFlow.scheduleAdvance(this, sec, fn);
-  }
-
-  _cancelAdvance() {
-    chapterFlow.cancelAdvance(this);
-  }
-
-  _tickAdvance(dt) {
-    chapterFlow.tickAdvance(this, dt);
-  }
-
-  _nextChapterOrEnd(ch) {
-    chapterFlow.nextChapterOrEnd(this, ch);
-  }
-
-  _skipToValidChapter() {
-    chapterFlow.skipToValidChapter(this);
-  }
-
-  _afterStage3() {
-    chapterFlow.afterStage3(this);
-  }
-
-  _enterRouteSelect() {
-    chapterFlow.enterRouteSelect(this);
-  }
-
-  _chooseRoute(route) {
-    chapterFlow.chooseRoute(this, route);
-  }
-
-  _jumpToStage(stageKey) {
-    chapterFlow.jumpToStage(this, stageKey);
-  }
-
-  _setEndingCinematic(on) {
-    chapterFlow.setEndingCinematic(this, on);
-  }
-
-  _showEnding(which) {
-    chapterFlow.showEnding(this, which);
-  }
-
-  _gameOver() {
-    chapterFlow.gameOver(this);
-  }
-
-  _gameClear() {
-    chapterFlow.gameClear(this);
-  }
-
-  _updateLetterHud() {
-    updateLetterHud(this);
-  }
-
-  _updateHUD() {
-    updateGameHud(this);
-  }
-
-  _draw() {
-    drawGameFrame(this);
-  }
+  _updateLetterHud() { updateLetterHud(this); }
+  _updateHUD() { updateGameHud(this); }
+  _draw() { drawGameFrame(this); }
+  _drawFps(ctx) { drawFps(this, ctx); }
 }

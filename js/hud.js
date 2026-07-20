@@ -108,6 +108,7 @@ export function updateLetterHud(game) {
   const tLeft = Math.max(0, game.letterTimeLeft);
 
   if (el.letterRemain && ch) {
+    // 经 Game 薄入口，避免 hud ↔ gameCombat 循环依赖
     const { idx, total, remain } = game._letterProgressInStage(ch);
     const text = total > 0 ? `LETTER ${idx}/${total} · 剩余 ${remain}` : '';
     setText(el.letterRemain, text, 'letterRemain', cache);
