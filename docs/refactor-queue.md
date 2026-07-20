@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**E02–E03c 完成（已 push）**；**E03d1 等手测（本地 commit，未 push）**；OK 后下一项 = **E03d2**。  
+当前：**Phase D 完成**；**E02–E03d1 完成（已 push）**；**E03d2 等手测（本地 commit，未 push）**；OK 后下一项 = **E07**。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -342,8 +342,8 @@ T12（拆 game，可分步提交）
 | 1 | **E03a** | ~~完成~~ | 最小试点，验证 helper 够用 |
 | 2 | **E03b** | ~~完成~~（+A 线激光无时限寿命已 push） | 主线 A 一气迁完 |
 | 3 | **E03c** | ~~完成~~（已 push） | 主线 B 同上 |
-| 4 | **E03d1** | **等手测**：Extra 开局扫一眼 | 先降 `ex_mid` 体量，diff 安全 |
-| 5 | **E03d2** | EX 手写 wave → `installMidWave` | 壳与主线对齐 |
+| 4 | **E03d1** | ~~完成~~（已 push） | 先降 `ex_mid` 体量，diff 安全 |
+| 5 | **E03d2** | **等手测**：Extra 道中→Boss→van | 壳与主线对齐 |
 | 6 | **E07** | 薄 StageContext + **仅 s1 试点** | mid 已统一后再收窄 `g` 契约 |
 | 7 | **E01** | 收 Game 转发门面 | 关卡线告一段落再清门面债 |
 | 8 | **E05** | 章结束纯函数 + 单测 | combat 边界稳后再抽 |
@@ -479,7 +479,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测（本地 commit，未 push） |
+| **状态** | 完成 |
 | **审查对应** | Issue 10；`ex_mid.js` 原 ~1867 行 / 62 `mid_*` |
 | **改动清单** | `ex_mid_0_31.js`（32）+ `ex_mid_32_61.js`（30）；`ex_mid.js` 仅表 + `buildExMid` + re-export |
 | **目标** | 单文件可浏览；**零行为变化** |
@@ -494,14 +494,16 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 待做（**必须在 E03d1 之后**） |
+| **状态** | 等手测（本地 commit，未 push） |
+| **改动清单** | 0–31：crossLanes/hLaserRain/centerSides/gapWall/randomGap/rainSniper/columnLane/laserDot/wallRain；32–61：coreSpin/wallRebuild/rainAfter/crossAfter/hLaserAfter/centerAfter/wallAfter/sanctuary/overwriteEve（共 18） |
 | **目标** | EX 与主线同一 wave 壳；grep 手写 `waveTimer` 壳仅剩有注释特例 |
 | **范围** | d1 拆出的 pattern 文件内：手写 `waveTimer/waveCount/waveFn` → `installMidWave`；`exFire` 间隔仍由调用方传入 |
 | **不做** | 不改 `ex_shared` 公式；不重设计 62 章内容 |
-| **验收（自动）** | 全绿；`MID_PATTERNS.length === 62` |
+| **验收（自动）** | 全绿；`MID_PATTERNS.length === 62`；ex_mid_* 无 `g.waveFn =` |
 | **验收（手测）** | Extra 道中→道中 Boss→van；抽查前半/后半段 mid 密度 |
-| **风险** | 中——continuous 勿塞进 spawn 门后 |
+| **风险** | 中——continuous 勿塞进 spawn 门后；overwriteEve 仅 continuous 勿误触发 wavesExhausted |
 | **完成定义（E03 整段）** | 主线+EX 新手写 wave 壳仅特例；EX 每文件可浏览 |
+| **手测要点** | Extra 前半（含 gap 墙/雨狙）；后半 sanctuary/overwriteEve；精英+辅压章打完精英勿提前结束 |
 
 ---
 
@@ -590,7 +592,8 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | E03a | 全绿 | 完成 | installMidWave continuous-only；s3 mid 手写壳清完；s2 已是 helper |
 | 2026-07-20 | E03b | 全绿 | 完成 | A4/A5/A6 pure-continuous mid；同提交去掉 H/aimed 激光默认 life（已 push） |
 | 2026-07-20 | E03c | 全绿 | 完成 | B 线 mid；`eed6085` 已 push |
-| 2026-07-20 | E03d1 | 全绿 | 等手测 | ex_mid 拆 0–31 / 32–61 + 薄入口；**仅本地 commit** |
+| 2026-07-20 | E03d1 | 全绿 | 完成 | `1016b99` 已 push |
+| 2026-07-20 | E03d2 | 全绿 | 等手测 | EX 18 处手写 wave → installMidWave；**仅本地 commit** |
 
 ---
 

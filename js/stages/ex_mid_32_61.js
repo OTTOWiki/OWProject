@@ -113,26 +113,23 @@ export function mid_coreSpin(g) {
     });
   };
   g.spawnEnemy(core);
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < SI(1.0)) return;
-    g.waveTimer = 0;
-    g.waveCount++;
-    if (g.waveCount > 5) return;
-    const side = g.waveCount % 2 ? 50 : LOGICAL_W - 50;
-    const e = mob(side, -15, exHp(26), C.white);
-    e.vy = 1.3;
-    e.script = (en, d, game) => {
-      timer(en, 's', exFire(0.9), d, () => {
-        spawnAimed(game, en, game.player, {
-          n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.white,
+  installMidWave(g, {
+    interval: SI(1.0),
+    maxWaves: 5,
+    onWave: (game, wave) => {
+      const side = wave % 2 ? 50 : LOGICAL_W - 50;
+      const e = mob(side, -15, exHp(26), C.white);
+      e.vy = 1.3;
+      e.script = (en, d, gm) => {
+        timer(en, 's', exFire(0.9), d, () => {
+          spawnAimed(gm, en, gm.player, {
+            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.white,
+          });
         });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 export function mid_fanEcho(g) {
@@ -168,31 +165,31 @@ export function mid_fanEcho(g) {
 }
 
 export function mid_wallRebuild(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < exFire(1.2)) return;
-    g.waveTimer = 0;
-    const gap = 55;
-    const gapX = 70 + Math.random() * (LOGICAL_W - 140);
-    for (let x = 16; x < LOGICAL_W - 16; x += 22) {
-      if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(acquireBullet({
-        x, y: -12, vx: 0, vy: exSp(1.9),
-        type: 'medium', color: C.dark, from: 'enemy',
-      }));
-    }
-    const e = mob(gapX, -18, exHp(30), C.orange);
-    e.vy = 0.9;
-    e.script = (en, d, game) => {
-      timer(en, 's', exFire(0.5), d, () => {
-        spawnAimed(game, en, game.player, {
-          n: 1, parity: 'odd', type: 'medium', speed: exSp(2.4), color: C.orange,
+  installMidWave(g, {
+    interval: exFire(1.2),
+    maxWaves: 20,
+    onWave: (game) => {
+      const gap = 55;
+      const gapX = 70 + Math.random() * (LOGICAL_W - 140);
+      for (let x = 16; x < LOGICAL_W - 16; x += 22) {
+        if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
+        game.spawnBullet(acquireBullet({
+          x, y: -12, vx: 0, vy: exSp(1.9),
+          type: 'medium', color: C.dark, from: 'enemy',
+        }));
+      }
+      const e = mob(gapX, -18, exHp(30), C.orange);
+      e.vy = 0.9;
+      e.script = (en, d, gm) => {
+        timer(en, 's', exFire(0.5), d, () => {
+          spawnAimed(gm, en, gm.player, {
+            n: 1, parity: 'odd', type: 'medium', speed: exSp(2.4), color: C.orange,
+          });
         });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 export function mid_barrageRing(g) {
@@ -372,49 +369,48 @@ export function mid_hoverRingAfter(g) {
 }
 
 export function mid_rainAfter(g) {
-  g.rainT = 0;
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT >= exFire(0.35)) {
-      g.rainT = 0;
-      for (let i = 0; i < 3; i++) {
-        spawnGravityRain(g, 1, 'medium', C.pink, exSp(1.6));
+  installMidWave(g, {
+    interval: SI(1.5),
+    maxWaves: 4,
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT >= exFire(0.35)) {
+        game.rainT = 0;
+        for (let i = 0; i < 3; i++) {
+          spawnGravityRain(game, 1, 'medium', C.pink, exSp(1.6));
+        }
       }
-    }
-    g.waveTimer += dt;
-    if (g.waveTimer < SI(1.5)) return;
-    g.waveTimer = 0;
-    g.waveCount++;
-    if (g.waveCount > 4) return;
-    const e = mob(60 + Math.random() * (LOGICAL_W - 120), -18, exHp(34), C.pink);
-    e.vy = 1.0;
-    e.script = (en, d, game) => {
-      timer(en, 's', exFire(0.9), d, () => {
-        spawnAimed(game, en, game.player, {
-          n: exN(2, 'even'), parity: 'even', type: 'rice',
-          speed: exSp(2.3), spread: 0.18, color: C.white,
+    },
+    onWave: (game) => {
+      const e = mob(60 + Math.random() * (LOGICAL_W - 120), -18, exHp(34), C.pink);
+      e.vy = 1.0;
+      e.script = (en, d, gm) => {
+        timer(en, 's', exFire(0.9), d, () => {
+          spawnAimed(gm, en, gm.player, {
+            n: exN(2, 'even'), parity: 'even', type: 'rice',
+            speed: exSp(2.3), spread: 0.18, color: C.white,
+          });
         });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 export function mid_crossAfter(g) {
-  g.waveTimer = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < exFire(0.6)) return;
-    g.waveTimer = 0;
-    g.waveCount = (g.waveCount || 0) + 1;
-    spawnCrossFall(g, {
-      y: -10, speed: exSp(1.8), type: 'rice',
-      color: g.waveCount % 2 ? C.cyan : C.blue,
-      lanes: 8, evenOffset: true,
-    });
-  };
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.waveTimer = (game.waveTimer || 0) + dt;
+      if (game.waveTimer < exFire(0.6)) return;
+      game.waveTimer = 0;
+      game.waveCount = (game.waveCount || 0) + 1;
+      spawnCrossFall(game, {
+        y: -10, speed: exSp(1.8), type: 'rice',
+        color: game.waveCount % 2 ? C.cyan : C.blue,
+        lanes: 8, evenOffset: true,
+      });
+    },
+  });
 }
 
 export function mid_hoverEliteAfter(g) {
@@ -475,29 +471,28 @@ export function mid_laserAfter(g) {
 }
 
 export function mid_hLaserAfter(g) {
-  g.laserT = 0;
-  g.rainT = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.laserT = (g.laserT || 0) + dt;
-    if (g.laserT > exFire(0.65)) {
-      g.laserT = 0;
-      g.waveCount = (g.waveCount || 0) + 1;
-      const y = 90 + (g.waveCount * 48) % 320;
-      spawnHLaser(g, y, g.waveCount % 2 === 0 ? 1 : -1, C.gold);
-    }
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT > exFire(0.25)) {
-      g.rainT = 0;
-      for (let i = 0; i < 2; i++) {
-        g.spawnBullet(acquireBullet({
-          x: Math.random() * LOGICAL_W, y: -10,
-          vx: (Math.random() - 0.5) * 0.35, vy: exSp(1.6 + Math.random() * 0.4),
-          type: 'rice', color: C.orange, from: 'enemy', gravity: 0.012,
-        }));
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.laserT = (game.laserT || 0) + dt;
+      if (game.laserT > exFire(0.65)) {
+        game.laserT = 0;
+        game.waveCount = (game.waveCount || 0) + 1;
+        const y = 90 + (game.waveCount * 48) % 320;
+        spawnHLaser(game, y, game.waveCount % 2 === 0 ? 1 : -1, C.gold);
       }
-    }
-  };
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT > exFire(0.25)) {
+        game.rainT = 0;
+        for (let i = 0; i < 2; i++) {
+          game.spawnBullet(acquireBullet({
+            x: Math.random() * LOGICAL_W, y: -10,
+            vx: (Math.random() - 0.5) * 0.35, vy: exSp(1.6 + Math.random() * 0.4),
+            type: 'rice', color: C.orange, from: 'enemy', gravity: 0.012,
+          }));
+        }
+      }
+    },
+  });
 }
 
 export function mid_vFormAfter(g) {
@@ -701,25 +696,22 @@ export function mid_centerAfter(g) {
     });
   };
   g.spawnEnemy(core);
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < SI(1.1)) return;
-    g.waveTimer = 0;
-    g.waveCount++;
-    if (g.waveCount > 4) return;
-    for (const side of [-1, 1]) {
-      const e = mob(LOGICAL_W / 2 + side * 70, -15, exHp(28), C.white);
-      e.vy = 1.25;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(1.0), d, () => {
-          spawnRingAt(game, en.x, en.y, exN(5), exSp(1.8), 'dot', C.white);
-        });
-      };
-      g.spawnEnemy(e);
-    }
-  };
+  installMidWave(g, {
+    interval: SI(1.1),
+    maxWaves: 4,
+    onWave: (game) => {
+      for (const side of [-1, 1]) {
+        const e = mob(LOGICAL_W / 2 + side * 70, -15, exHp(28), C.white);
+        e.vy = 1.25;
+        e.script = (en, d, gm) => {
+          timer(en, 's', exFire(1.0), d, () => {
+            spawnRingAt(gm, en.x, en.y, exN(5), exSp(1.8), 'dot', C.white);
+          });
+        };
+        game.spawnEnemy(e);
+      }
+    },
+  });
 }
 
 export function mid_fanAfter(g) {
@@ -754,35 +746,33 @@ export function mid_fanAfter(g) {
 }
 
 export function mid_wallAfter(g) {
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < exFire(1.15)) return;
-    g.waveTimer = 0;
-    g.waveCount++;
-    const gap = 75;
-    const positions = [LOGICAL_W * 0.2, LOGICAL_W / 2, LOGICAL_W * 0.8];
-    const gapX = positions[(g.waveCount - 1) % 3];
-    for (let x = 16; x < LOGICAL_W - 16; x += 20) {
-      if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-      g.spawnBullet(acquireBullet({
-        x, y: -12, vx: 0, vy: exSp(1.9),
-        type: 'rice', color: C.dark, from: 'enemy',
-      }));
-    }
-    const e = mob(gapX, -18, exHp(28), C.cyan);
-    e.vy = 0.9;
-    e.script = (en, d, game) => {
-      timer(en, 's', exFire(0.55), d, () => {
-        spawnAimed(game, en, game.player, {
-          n: exN(2, 'even'), parity: 'even', type: 'talisman',
-          speed: exSp(2.4), spread: 0.2, color: C.cyan,
+  installMidWave(g, {
+    interval: exFire(1.15),
+    maxWaves: 20,
+    onWave: (game, wave) => {
+      const gap = 75;
+      const positions = [LOGICAL_W * 0.2, LOGICAL_W / 2, LOGICAL_W * 0.8];
+      const gapX = positions[(wave - 1) % 3];
+      for (let x = 16; x < LOGICAL_W - 16; x += 20) {
+        if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
+        game.spawnBullet(acquireBullet({
+          x, y: -12, vx: 0, vy: exSp(1.9),
+          type: 'rice', color: C.dark, from: 'enemy',
+        }));
+      }
+      const e = mob(gapX, -18, exHp(28), C.cyan);
+      e.vy = 0.9;
+      e.script = (en, d, gm) => {
+        timer(en, 's', exFire(0.55), d, () => {
+          spawnAimed(gm, en, gm.player, {
+            n: exN(2, 'even'), parity: 'even', type: 'talisman',
+            speed: exSp(2.4), spread: 0.2, color: C.cyan,
+          });
         });
-      });
-    };
-    g.spawnEnemy(e);
-  };
+      };
+      game.spawnEnemy(e);
+    },
+  });
 }
 
 export function mid_barrageAfter(g) {
@@ -857,29 +847,29 @@ export function mid_spiralFinale(g) {
 }
 
 export function mid_sanctuary(g) {
-  g.waveTimer = 0;
-  g.waveCount = 0;
-  g.waveFn = (dt) => {
-    g.waveTimer += dt;
-    if (g.waveTimer < exFire(0.6)) return;
-    g.waveTimer = 0;
-    g.waveCount++;
-    const dir = g.waveCount % 2 === 0 ? 1 : -1;
-    spawnHLaser(g, 100, dir, C.red);
-    spawnHLaser(g, 250, -dir, C.cyan);
-    spawnHLaser(g, 400, dir, C.gold);
-    if (g.waveCount % 2 === 1) {
-      const gap = 60 + Math.random() * 30;
-      const gapX = 60 + Math.random() * (LOGICAL_W - 120);
-      for (let x = 16; x < LOGICAL_W - 16; x += 20) {
-        if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-        g.spawnBullet(acquireBullet({
-          x, y: -12, vx: 0, vy: exSp(2.2),
-          type: 'rice', color: C.dark, from: 'enemy',
-        }));
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.waveTimer = (game.waveTimer || 0) + dt;
+      if (game.waveTimer < exFire(0.6)) return;
+      game.waveTimer = 0;
+      game.waveCount = (game.waveCount || 0) + 1;
+      const dir = game.waveCount % 2 === 0 ? 1 : -1;
+      spawnHLaser(game, 100, dir, C.red);
+      spawnHLaser(game, 250, -dir, C.cyan);
+      spawnHLaser(game, 400, dir, C.gold);
+      if (game.waveCount % 2 === 1) {
+        const gap = 60 + Math.random() * 30;
+        const gapX = 60 + Math.random() * (LOGICAL_W - 120);
+        for (let x = 16; x < LOGICAL_W - 16; x += 20) {
+          if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
+          game.spawnBullet(acquireBullet({
+            x, y: -12, vx: 0, vy: exSp(2.2),
+            type: 'rice', color: C.dark, from: 'enemy',
+          }));
+        }
       }
-    }
-  };
+    },
+  });
 }
 
 export function mid_overwriteEve(g) {
@@ -905,27 +895,28 @@ export function mid_overwriteEve(g) {
     });
   };
   g.spawnEnemy(e2);
-  g.rainT = 0;
-  g.wallT = 0;
-  g.waveFn = (dt) => {
-    g.rainT = (g.rainT || 0) + dt;
-    if (g.rainT >= exFire(0.25)) {
-      g.rainT = 0;
-      spawnGravityRain(g, 3, 'rice', C.violet, exSp(1.8));
-    }
-    g.wallT = (g.wallT || 0) + dt;
-    if (g.wallT >= exFire(1.2)) {
-      g.wallT = 0;
-      const gap = 60 + Math.random() * 40;
-      const gapX = 60 + Math.random() * (LOGICAL_W - 120);
-      for (let x = 16; x < LOGICAL_W - 16; x += 20) {
-        if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
-        g.spawnBullet(acquireBullet({
-          x, y: -12, vx: 0, vy: exSp(2.5),
-          type: 'rice', color: C.dark, from: 'enemy',
-        }));
+  // 仅辅压；不推进 helper waveCount，避免精英击破后提前清章
+  installMidWave(g, {
+    continuous: (game, dt) => {
+      game.rainT = (game.rainT || 0) + dt;
+      if (game.rainT >= exFire(0.25)) {
+        game.rainT = 0;
+        spawnGravityRain(game, 3, 'rice', C.violet, exSp(1.8));
       }
-    }
-  };
+      game.wallT = (game.wallT || 0) + dt;
+      if (game.wallT >= exFire(1.2)) {
+        game.wallT = 0;
+        const gap = 60 + Math.random() * 40;
+        const gapX = 60 + Math.random() * (LOGICAL_W - 120);
+        for (let x = 16; x < LOGICAL_W - 16; x += 20) {
+          if (x > gapX - gap / 2 && x < gapX + gap / 2) continue;
+          game.spawnBullet(acquireBullet({
+            x, y: -12, vx: 0, vy: exSp(2.5),
+            type: 'rice', color: C.dark, from: 'enemy',
+          }));
+        }
+      }
+    },
+  });
 }
 void LOGICAL_H;
