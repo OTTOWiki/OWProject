@@ -232,8 +232,10 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     const len = b.laserLen || 0;
     if (len > 0) {
       const ang = b.angle || 0;
-      const hx = b.x + Math.cos(ang) * len;
-      const hy = b.y + Math.sin(ang) * len;
+      // drawLaserBeam 在旋转 (ang + PI/2) 后沿局部 -Y 方向延伸；
+      // 对应到世界坐标的方向为 (-cos(ang), -sin(ang))
+      const hx = b.x - Math.cos(ang) * len;
+      const hy = b.y - Math.sin(ang) * len;
       const minX = b.x < hx ? b.x : hx;
       const maxX = b.x > hx ? b.x : hx;
       const minY = b.y < hy ? b.y : hy;
