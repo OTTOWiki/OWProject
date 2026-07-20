@@ -1,12 +1,9 @@
 import {
   MANUAL_CHAPTERS, displayKey, DEFAULT_KEYS, DEFAULT_SETTINGS,
   BALANCE, DIFFICULTIES, DIFFICULTY_ORDER,
-  PLAYER_BULLET_OPACITY_MIN,
-  FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
 } from './config.js';
 import {
-  loadKeys, saveKeys, loadSettings, saveSettings,
-  normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
+  loadKeys, saveKeys, saveSettings,
 } from './storage.js';
 import { stageSelectEntries, buildChapterList } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -21,6 +18,7 @@ import {
   highlightButtons,
 } from './menuNav.js';
 import { HistoryScreen } from './historyScreen.js';
+import { SettingsForm } from './settingsForm.js';
 
 export class UI {
   constructor({ onStartGame, onSettingsChange, audio }) {
@@ -39,7 +37,9 @@ export class UI {
     this.settingsIndex = 0;
     /** 从暂停菜单进入设置时的返回回调 */
     this.settingsReturn = null;
-    this._fpsLastLimited = 60;
+    this.settingsForm = new SettingsForm({
+      onChange: (s) => this.onSettingsChange?.(s),
+    });
 
     this.screens = {
       menu: document.getElementById('screen-menu'),
@@ -66,7 +66,7 @@ export class UI {
     this._initPractice();
     this._initDifficulty();
     this._initKeys();
-    this._initSettings();
+    this.settingsForm.init();
     this._bindClicks();
     this._bindKeyboardNav();
     this.refreshKeyLabels();
@@ -351,152 +351,16 @@ export class UI {
   }
 
   _adjustFpsSetting(dir, mods = {}) {
-    const fps = document.getElementById('set-fps-limit');
-    if (!fps) return;
-    const step = mods.shiftKey ? 1 : 5;
-    let cur = sliderToFpsLimit(fps.value);
-    if (cur <= 0) cur = this._fpsLastLimited || 60;
-    const next = Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, cur + dir * step));
-    fps.value = String(next);
-    this._commitSettingsForm?.();
+    this.settingsForm.adjustFps(dir, mods);
   }
 
   _toggleFpsUnlimited() {
-    const fps = document.getElementById('set-fps-limit');
-    if (!fps) return;
-    const cur = sliderToFpsLimit(fps.value);
-    if (cur <= 0) {
-      const back = this._fpsLastLimited || 60;
-      fps.value = String(Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, back)));
-    } else {
-      this._fpsLastLimited = cur;
-      fps.value = String(FPS_SLIDER_UNLIMITED);
-    }
+    this.settingsForm.toggleFpsUnlimited();
     this._sfx('ok');
-    this._commitSettingsForm?.();
-  }
-
-  _initSettings() {
-    const vol = document.getElementById('set-music-volume');
-    const op = document.getElementById('set-bullet-opacity');
-    const toggle = document.getElementById('set-shot-toggle');
-    const fps = document.getElementById('set-fps-limit');
-    if (!vol || !op || !toggle || !fps) return;
-
-    const opMinPct = Math.round(PLAYER_BULLET_OPACITY_MIN * 100);
-    op.min = String(opMinPct);
-
-    fps.min = String(FPS_LIMIT_MIN);
-    fps.max = String(FPS_SLIDER_UNLIMITED);
-    fps.step = '1';
-
-    const fpsLabel = (limit) => {
-      const n = normalizeFpsLimit(limit, 0);
-      if (n <= 0) return '无限制';
-      return `${n} FPS`;
-    };
-
-    const syncFpsUi = (s) => {
-      const limit = normalizeFpsLimit(s.fpsLimit, 0);
-      fps.value = String(fpsLimitToSlider(limit));
-      if (limit > 0) this._fpsLastLimited = limit;
-      const lab = document.getElementById('set-fps-limit-val');
-      if (lab) lab.textContent = fpsLabel(limit);
-    };
-
-    const syncLabels = (s) => {
-      const volPct = Math.round((s.musicVolume ?? 1) * 100);
-      const opPct = Math.round((s.playerBulletOpacity ?? 0.3) * 100);
-      vol.value = String(volPct);
-      op.value = String(Math.max(opMinPct, opPct));
-      toggle.checked = !!s.shotToggle;
-      const volLab = document.getElementById('set-music-volume-val');
-      const opLab = document.getElementById('set-bullet-opacity-val');
-      const togLab = document.getElementById('set-shot-toggle-val');
-      if (volLab) volLab.textContent = `${volPct}%`;
-      if (opLab) opLab.textContent = `${Math.max(opMinPct, opPct)}%`;
-      if (togLab) togLab.textContent = s.shotToggle ? '开启' : '关闭';
-      syncFpsUi(s);
-    };
-
-    this._refreshSettingsForm = () => syncLabels(loadSettings());
-    this._refreshSettingsForm();
-
-    const commit = () => {
-      let opVal = Number(op.value) / 100;
-      if (opVal < PLAYER_BULLET_OPACITY_MIN) {
-        opVal = PLAYER_BULLET_OPACITY_MIN;
-        op.value = String(opMinPct);
-      }
-      const fpsLimit = sliderToFpsLimit(fps.value);
-      if (fpsLimit > 0) this._fpsLastLimited = fpsLimit;
-      const next = saveSettings({
-        musicVolume: Number(vol.value) / 100,
-        playerBulletOpacity: opVal,
-        shotToggle: toggle.checked,
-        fpsLimit,
-      });
-      syncLabels(next);
-      this.onSettingsChange?.(next);
-    };
-    this._commitSettingsForm = commit;
-
-    vol.addEventListener('input', commit);
-    op.addEventListener('input', commit);
-    toggle.addEventListener('change', commit);
-
-    // 仅指针拖到最右可设无限制；键盘加减到不了
-    let fpsFromPointer = false;
-    let fpsPointerDisarmTimer = 0;
-    const armFpsPointer = () => {
-      if (fpsPointerDisarmTimer) {
-        clearTimeout(fpsPointerDisarmTimer);
-        fpsPointerDisarmTimer = 0;
-      }
-      fpsFromPointer = true;
-    };
-    const scheduleDisarmFpsPointer = () => {
-      if (fpsPointerDisarmTimer) clearTimeout(fpsPointerDisarmTimer);
-      fpsPointerDisarmTimer = window.setTimeout(() => {
-        fpsFromPointer = false;
-        fpsPointerDisarmTimer = 0;
-      }, 0);
-    };
-    fps.addEventListener('pointerdown', armFpsPointer);
-    fps.addEventListener('mousedown', armFpsPointer);
-    fps.addEventListener('touchstart', armFpsPointer, { passive: true });
-    window.addEventListener('pointerup', scheduleDisarmFpsPointer);
-    window.addEventListener('mouseup', scheduleDisarmFpsPointer);
-    window.addEventListener('touchend', scheduleDisarmFpsPointer);
-
-    const onFpsInput = () => {
-      if (!fpsFromPointer && Number(fps.value) >= FPS_SLIDER_UNLIMITED) {
-        fps.value = String(FPS_LIMIT_CAP);
-      }
-      commit();
-    };
-    fps.addEventListener('input', onFpsInput);
-    fps.addEventListener('change', onFpsInput);
-
-    fps.addEventListener('keydown', (e) => {
-      const inc = e.code === 'ArrowRight' || e.code === 'ArrowUp'
-        || e.code === 'PageUp' || e.code === 'End';
-      if (!inc) return;
-      if (e.code === 'End') {
-        e.preventDefault();
-        fps.value = String(FPS_LIMIT_CAP);
-        commit();
-        return;
-      }
-      if (Number(fps.value) >= FPS_LIMIT_CAP) {
-        e.preventDefault();
-        fps.value = String(FPS_LIMIT_CAP);
-      }
-    });
   }
 
   refreshSettingsForm() {
-    this._refreshSettingsForm?.();
+    this.settingsForm.refresh();
   }
 
   openSettingsFromPause(onBack) {
