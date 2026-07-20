@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**Phase E 默认主线完成**；**E06b 已 push**；**E06a 等手测（本地 commit，未 push）**；E06c 仍可选。  
+当前：**Phase D 完成**；**Phase E 默认主线 + E06a/b 已 push**；**E06c 等手测（本地 commit，未 push）**。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -566,11 +566,11 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | ID | 题 | 说明 | 状态 |
 |----|----|------|------|
-| E06a | `ui` 设置表单抽离 | `SettingsForm`（`settingsForm.js`）：音量/透明度/单击发射/FPS 指针规则；UI 只编排 | **等手测**（本地 commit） |
+| E06a | `ui` 设置表单抽离 | `SettingsForm`（`settingsForm.js`）：音量/透明度/单击发射/FPS 指针规则；UI 只编排 | **完成**（已 push） |
 | E06b | Letter 内容目录化 | A4–B6：`stages/{face}/mid.js` + `letters.js` + `index.js`；旧文件名薄 re-export；**不动数值** | **完成**（已 push） |
-| E06c | `playfieldBg` 调色板数据外置 | SKY/THEME/ACCENT 按 mode 数据文件；绘制逻辑不动 | 待做（可选） |
+| E06c | `playfieldBg` 调色板数据外置 | `MODE_THEME` → `playfieldBgThemes.js`；绘制逻辑仍在 `playfieldBg.js` | **等手测**（本地 commit） |
 
-E06c 仍可选；E06a 手测 OK 后 push。
+E06c 手测 OK 后 push；Phase E 可选 backlog 即清完。
 
 ---
 
@@ -600,7 +600,8 @@ E06c 仍可选；E06a 手测 OK 后 push。
 | 2026-07-20 | E05 | 全绿 | 完成 | `4d28b3f` 已 push |
 | 2026-07-20 | E04 | 全绿 | 完成 | `7c2db4b` 已 push；Phase E 默认主线收尾 |
 | 2026-07-20 | E06b | 全绿 | 完成 | `94b99fa` 已 push |
-| 2026-07-20 | E06a | 全绿 | 等手测 | settingsForm.js 抽离；**仅本地 commit** |
+| 2026-07-20 | E06a | 全绿 | 完成 | `c9598e7` 已 push |
+| 2026-07-20 | E06c | 全绿 | 等手测 | playfieldBgThemes 外置；**仅本地 commit** |
 
 ---
 

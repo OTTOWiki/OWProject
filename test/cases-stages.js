@@ -8,6 +8,7 @@ import {
   BG_MODE_BY_STAGE, PLAYFIELD_BG_TEX,
 } from '../js/bgModes.js';
 import { getPlayfieldBgModes } from '../js/playfieldBg.js';
+import { MODE_THEME, themeFor, FALLBACK_THEME } from '../js/playfieldBgThemes.js';
 import {
   faceDefaults, midChapter, letterChapter, installMidWave,
 } from '../js/stages/_shared.js';
@@ -135,6 +136,16 @@ test('章节 bg 或 bgModeFor 结果在统一 BG mode 表内', () => {
     const mode = c.bg || bgModeFor(c.stageKey, isBoss);
     assert(modes.has(mode), `chapter ${c.id} bg mode '${mode}' not in PLAYFIELD_BG_TEX`);
   }
+});
+
+test('playfieldBgThemes：登记 mode 均有主题行（E06c）', () => {
+  assert(FALLBACK_THEME === MODE_THEME.s1_mid || FALLBACK_THEME?.kind);
+  for (const m of getAllBgModes()) {
+    const th = themeFor(m);
+    assert(th && Array.isArray(th.sky) && th.sky.length === 2, `theme ${m} sky`);
+    assert(typeof th.accent === 'string' && th.pillar && th.kind, `theme ${m} fields`);
+  }
+  assertEqual(themeFor('__no_such_mode__'), FALLBACK_THEME);
 });
 
 test('故事图：routeCheck 后存在 A4/B4/patrol；patrol 后有 A/B 可选章', () => {
