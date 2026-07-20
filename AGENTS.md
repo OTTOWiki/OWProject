@@ -18,7 +18,7 @@
 | 改 `Game.state` / mode / 菜单入口 | `stageTransit`、`extra`、主菜单按钮 |
 | 改平衡/流程契约 | `BALANCE` 阈值、章节 id 区间、路线条件 |
 | 改存档 key / 设置项 / 发版流程 | `STORAGE_KEYS`、hooks、CF 构建 |
-| 改测试入口或 CI 约定 | `test/cases*.js`、workflow `Test` 门禁 job |
+| 改测试入口或 CI 约定 | `test/cases*.js`、`.github/workflows/test.yml`（job **Test**） |
 
 **给 Agent 的提示词（改完代码后执行）**：
 
@@ -86,8 +86,8 @@ npm run test:syntax
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
 - 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
-- CI：`.github/workflows/test.yml` — job `unit`（`npm test`）+ 聚合 job **`Test`**
-- **合并门禁**（ruleset）：required check 名是 **`Test`**（整条 workflow 门禁），不是 `npm test`。新增 CI job 时写入 `test.needs` 并在聚合步骤里断言
+- CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
+- **合并门禁**（ruleset `protect-main`）：required check = **`Test`**。加测优先在同一 job 加 step，勿再拆出并列 check 名
 
 ---
 
