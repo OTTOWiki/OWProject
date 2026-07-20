@@ -2,6 +2,9 @@
 
 基于 HTML5 Canvas 的东方风格弹幕 H5 小游戏（纯前端）。
 
+> **参与开发**请先读 [`CONTRIBUTING.md`](./CONTRIBUTING.md)（流程与红线）。  
+> 架构与 Agent 约定：[`AGENTS.md`](./AGENTS.md)。改造队列：[`docs/refactor-queue.md`](./docs/refactor-queue.md)。
+
 ## 运行方式
 
 需要通过本地 HTTP 服务打开（ES Module + Three.js CDN），不要直接双击 `index.html`。
@@ -42,13 +45,14 @@ python -m http.server 8080
 ## 目录
 
 ```
+CONTRIBUTING.md   # 贡献指南
+AGENTS.md         # 架构与开发约定
 index.html / css/style.css
-js/           # 游戏逻辑（game 门面 + chapterFlow/combat/draw/stages/…）
-test/         # 零依赖自动化测试（npm test）
-assets/       # 贴图（AVIF）+ OGG
-tools/        # 部署 hash、git hooks 等
-functions/api/
-参考/         # 过时设计稿（非权威）
+js/               # 游戏逻辑
+test/             # 零依赖自动化测试（npm test）
+assets/           # 贴图（AVIF）+ OGG
+tools/ docs/ functions/api/
+参考/             # 过时设计稿（非权威）
 ```
 
 ## 平衡与开发

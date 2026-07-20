@@ -1,5 +1,8 @@
 # AGENTS.md — OWProject
 
+> **贡献流程与红线**见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。  
+> 改造队列见 [`docs/refactor-queue.md`](./docs/refactor-queue.md)。玩家向说明见 [`README.md`](./README.md)。
+
 东方风弹幕 STG（纯前端 H5）。OTTOWiki / 维基梗二次创作；逻辑坐标系固定 **450×600**。
 
 **权威**：可运行代码（`js/` 等）+ 本文件。`README.md` 偏玩家向；`参考/需求.txt` **已过时**，勿当规格。
@@ -19,11 +22,12 @@
 **给 Agent 的提示词（改完代码后执行）**：
 
 ```
-对照本次 diff，检查 AGENTS.md / README.md 是否仍准确：
+对照本次 diff，检查 AGENTS.md / README.md / CONTRIBUTING.md 是否仍准确：
 1. 目录树与模块职责是否列了新路径、删了死路径
 2. 状态机 / mode / 难度 / 菜单是否与 index.html + js 一致
 3. 数值与流程是否仍写死了已变更的常量（应写「见 config.js」或改成现值）
 4. 常见任务速查表的「主要文件」是否指向现实现
+5. 贡献红线/流程若有变，同步 CONTRIBUTING.md
 有漂移则就地改文档；不要另开「以后再写」的 TODO。不相关的长篇历史说明可删，保持文档可扫读。
 ```
 
@@ -88,6 +92,8 @@ npm run test:syntax
 ## 目录（要点）
 
 ```
+CONTRIBUTING.md        # 贡献流程与红线
+AGENTS.md / README.md
 index.html
 css/style.css
 js/
