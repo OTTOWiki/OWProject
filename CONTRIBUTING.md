@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. CI（`npm test`）通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
+4. CI 检查 **`Test`**（workflow 聚合门禁）通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
 
 ```bash
 git fetch origin
@@ -182,13 +182,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - **禁止** `git push` 到 `main`（见 §0）  
 - 日常在功能分支上多 commit 迭代；推远程分支后开 PR  
 - 涉及玩法/UI：作者先手测，再在 PR 里写手测要点；Reviewer 抽查  
-- CI：PR / 推送到受保护分支会跑 `npm test`（见 `.github/workflows/test.yml`）  
+- CI：PR 会跑 `.github/workflows/test.yml`；合并要求检查名 **`Test`** 成功（见该文件末尾聚合 job）  
 - 队列任务：测绿 → 等手测 → PR 合并后再开下一项  
 
 ### PR 建议自检（作者）
 
 - [ ] 目标分支是 **`main`**，且分支基于较新的 `main`  
-- [ ] `npm test` 通过  
+- [ ] 本地 `npm test` 通过；PR 上 **`Test`** check 绿  
 - [ ] 未改 playfield 画布逻辑尺寸  
 - [ ] 出怪/出弹走 spawn API  
 - [ ] 有意行为变化已写在 PR 说明里  
@@ -220,7 +220,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
    - **Block force pushes**  
    - **Require a pull request before merging**  
      - Required approvals：**0**（允许自合，只拦直推）  
-   - **Require status checks to pass** → 检查名 **`npm test`**  
+   - **Require status checks to pass** → 检查名 **`Test`**（workflow 聚合 job，非单个 `npm test`）  
 7. **Bypass list**：保持空（admin 也不能直推 `main`）。  
 8. Save。
 
@@ -230,7 +230,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 2. Branch name pattern：`main`  
 3. 勾选：  
    - **Require a pull request before merging**（approvals 设 **0**）  
-   - **Require status checks to pass**（`npm test`）  
+   - **Require status checks to pass**（`Test`）  
    - **Do not allow force pushes** / **Do not allow deletions**  
 4. Save changes。
 

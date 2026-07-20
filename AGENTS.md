@@ -18,7 +18,7 @@
 | 改 `Game.state` / mode / 菜单入口 | `stageTransit`、`extra`、主菜单按钮 |
 | 改平衡/流程契约 | `BALANCE` 阈值、章节 id 区间、路线条件 |
 | 改存档 key / 设置项 / 发版流程 | `STORAGE_KEYS`、hooks、CF 构建 |
-| 改测试入口或 CI 约定 | `test/cases*.js`、`npm test` |
+| 改测试入口或 CI 约定 | `test/cases*.js`、workflow `Test` 门禁 job |
 
 **给 Agent 的提示词（改完代码后执行）**：
 
@@ -86,7 +86,8 @@ npm run test:syntax
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
 - 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
-- CI：`.github/workflows/test.yml` → `npm test`
+- CI：`.github/workflows/test.yml` — job `unit`（`npm test`）+ 聚合 job **`Test`**
+- **合并门禁**（ruleset）：required check 名是 **`Test`**（整条 workflow 门禁），不是 `npm test`。新增 CI job 时写入 `test.needs` 并在聚合步骤里断言
 
 ---
 
@@ -237,7 +238,10 @@ docs/                  # 内部改造队列等（非运行时）
 7. 勿运行时改 playfield 的 `width`/`height`。
 8. Stage Select 保持全开放。
 9. **文档与代码同步**（见文首「文档对齐」）。
-10. **禁止直推 `main`**；开 PR 并 Review 后再合并（见 `CONTRIBUTING.md`）。
+10. **禁止直推 `main`**；走 PR 合并（见 `CONTRIBUTING.md`）。
+11. **更改详情不要写在游戏内提示中**  
+    版本说明、修复列表、开发备注、PR/commit 摘要等只写在 Git / 文档 / 发布说明里。  
+    **禁止**塞进：章标题 banner、结算条、面间过渡诗、`MANUAL_CHAPTERS`、对话、flash 提示、HUD 常驻文案、暂停/结果 overlay 等玩家可见文案。
 
 ### 弹种
 

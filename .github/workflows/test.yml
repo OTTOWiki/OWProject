@@ -1,6 +1,9 @@
 # 纯逻辑 + mock 冒烟（node test/run-node.mjs）
 # 无 npm 依赖安装；与本地 `npm test` 一致
 # 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
+#
+# 分支保护 required check 使用末尾聚合 job 名 **Test**（不是单个 unit job）。
+# 以后加测试：新增 job → 写入 test.needs → 聚合步骤里一并断言 success。
 name: Test
 
 on:
@@ -29,3 +32,17 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  # 整条 workflow 门禁：protect-main 的 required status check 认这个名字
+  test:
+    name: Test
+    needs: [unit]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All required jobs succeeded
+        run: |
+          set -euo pipefail
+          echo "unit -> ${{ needs.unit.result }}"
+          test "${{ needs.unit.result }}" = "success"
