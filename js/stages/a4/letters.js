@@ -30,6 +30,8 @@ export function chapter_menbailiang_2(g) {
   pushBossRef(g, { ...BOSS_A4, hp: 3000 }, (en, d, game) => {
     en.x = LOGICAL_W / 2 + Math.sin(en.age * 1.1) * 80;
     en.y = 95 + Math.cos(en.age * 0.7) * 25;
+    // Intentionally managed manually (instead of timer()) because this interval is recomputed per shot
+    // from dynamic age-based cadence (`base`) and runtime fire multiplier (`_fireMul`).
     en.data.aimT = (en.data.aimT || 0) - d;
     if (en.data.aimT <= 0) {
       const base = 0.30 + 0.15 * Math.sin(en.age * 1.2);
