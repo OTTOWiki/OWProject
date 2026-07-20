@@ -319,7 +319,7 @@ T12（拆 game，可分步提交）
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
 
-当前：**Phase D 完成**；**E02–E03 / E07 / E01 完成（已 push）**；**E05 等手测（本地 commit，未 push）**；OK 后下一项 = **E04**（或可选 E06）。  
+当前：**Phase D 完成**；**默认方案 E02–E03 / E07 / E01 / E05 已 push**；**E04 等手测（本地 commit，未 push）**；OK 后 Phase E 主线收尾（E06* 可选）。  
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
@@ -346,8 +346,8 @@ T12（拆 game，可分步提交）
 | 5 | **E03d2** | ~~完成~~（已 push） | 壳与主线对齐 |
 | 6 | **E07** | ~~完成~~（已 push） | mid 已统一后再收窄 `g` 契约 |
 | 7 | **E01** | ~~完成~~（已 push） | 关卡线告一段落再清门面债 |
-| 8 | **E05** | **等手测**：Letter 超时 / 击破 / 道中 | combat 边界稳后再抽 |
-| 9 | **E04** | 拆 `backgrounds.js` | 与关卡无关，放后；累了可穿插 |
+| 8 | **E05** | ~~完成~~（已 push） | combat 边界稳后再抽 |
+| 9 | **E04** | **等手测**：换面左栏 Three | 与关卡无关，放后；累了可穿插 |
 | — | **E06*** | 默认不做 | 需要扩内容时再开；优先 **E06b** Letter 目录化 |
 
 **刻意延后 / 不做的**
@@ -532,18 +532,16 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 待做（**默认排在 E05 之后**；与关卡无关，疲劳时可穿插） |
-| **审查对应** | Issue 3（1081 行） |
+| **状态** | 等手测（本地 commit，未 push） |
+| **审查对应** | Issue 3（原 ~1144 行） |
+| **改动清单** | `js/backgrounds/StageBackground.js`（类+helper）；`scenes.js`（buildS1…B6）；`builders.js`（STAGE_BG_BUILDERS）；`textTexture.js`；根 `backgrounds.js` re-export |
 | **目标** | 单一 JS 文件不再 >1000 行；场景 builder 可按面浏览 |
-| **建议结构** | |
-| | `js/backgrounds/StageBackground.js` — 类：构造 / resize / setMode / update / `_clear` / lights / points / label |
-| | `js/backgrounds/scenes/*.js` — 各 mode 的 `export function buildXxx(bg)`（或按 s1/s2/… 聚合） |
-| | `js/backgrounds/index.js` 或根 `backgrounds.js` re-export — `STAGE_BG_BUILDERS` + 对外 `StageBackground` |
-| **范围** | 只搬迁，不改 Three 视觉与 mode 名；`main.js` import 路径保持或薄 re-export 兼容 |
-| **不做** | 不重做美术；不合并 playfield 调色板（可另开）；不改 `bgModes.js` 登记表语义 |
+| **范围** | 只搬迁，不改 Three 视觉与 mode 名；`main.js` 仍 `from './backgrounds.js'` |
+| **不做** | 不重做美术；不合并 playfield 调色板；不改 `bgModes.js` 登记表语义 |
 | **验收（自动）** | 全绿；语法扫描含新路径 |
 | **验收（手测）** | 抽查 1 面 / 3 面 / A5 / B6 / EX：左栏 Three 主题切换正常、无 WebGL 报错 |
-| **风险** | 中——`this` 与 builder 闭包；dispose 路径勿丢 |
+| **风险** | 中——builder 与 dispose 路径 |
+| **手测要点** | Stage Select 换面看左栏；EX 开局；无控制台 WebGL 报错 |
 
 ---
 
@@ -551,7 +549,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测（本地 commit，未 push） |
+| **状态** | 完成 |
 | **审查对应** | Issue 5（`updateCombat` 内四套结束分支） |
 | **改动清单** | 新增 `js/chapterEnd.js`（`evaluateChapterEnd` + snap）；`updateCombat` 只消费；单测覆盖超时/击破/duration/waves |
 | **目标** | `evaluateChapterEnd(snap) → null \| { success, reason, killBoss? }`；`updateCombat` 只消费 |
@@ -599,7 +597,8 @@ E06* 不阻塞默认方案 0–9 步；内容大扩或 Letter 文件难读时再
 | 2026-07-20 | E03d2 | 全绿 | 完成 | `c6f6334` 已 push；用户信任自动测、跳过细手测 |
 | 2026-07-20 | E07 | 全绿 | 完成 | `1fced35` 已 push |
 | 2026-07-20 | E01 | 全绿 | 完成 | `7608739` 已 push |
-| 2026-07-20 | E05 | 全绿 | 等手测 | chapterEnd 纯函数 + 单测；**仅本地 commit** |
+| 2026-07-20 | E05 | 全绿 | 完成 | `4d28b3f` 已 push |
+| 2026-07-20 | E04 | 全绿 | 等手测 | backgrounds 拆包；**仅本地 commit** |
 
 ---
 
