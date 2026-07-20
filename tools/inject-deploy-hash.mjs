@@ -41,7 +41,8 @@ function tryGitHead() {
 
 const arg = process.argv[2];
 let raw = '';
-let source = 'empty';
+/** @type {string} 哈希来源标签（写入 git-hash.js 注释） */
+let source;
 if (arg === '--clear' || arg === '-c') {
   raw = '';
   source = 'clear';

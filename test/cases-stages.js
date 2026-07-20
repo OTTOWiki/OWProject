@@ -266,7 +266,6 @@ test('asStageContext：窄 API 转发 spawn / wave / boss（E07）', () => {
   assert(typeof game.waveFn === 'function');
   game.waveFn(1.1);
   assertEqual(waved, 1);
-  const boss = { hp: 1 };
   // setBoss 走 pushBossRef → 需要 spawnEnemy 接受 Enemy 形；mock 只验 script 包装
   ctx.setBoss({ x: 10, y: 20, hp: 100, label: 't' }, (en, d, c) => {
     assertEqual(c.player, game.player);

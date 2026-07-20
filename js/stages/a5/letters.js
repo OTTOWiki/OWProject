@@ -175,9 +175,9 @@ export function chapter_rival_7(g) {
       }
     });
     timer(en, 'burst', frenzy ? 0.45 : 0.7, d, () => {
-      for (const side of [-1, 1]) {
-        spawnAimed(game, en, game.player, { n: frenzy ? 3 : 2, parity: 'even', type: 'rice', speed: frenzy ? 3.5 : 2.8, spread: 0.22, color: en.color2 });
-      }
+      const burst = { n: frenzy ? 3 : 2, parity: 'even', type: 'rice', speed: frenzy ? 3.5 : 2.8, spread: 0.22, color: en.color2 };
+      spawnAimed(game, en, game.player, burst);
+      spawnAimed(game, en, game.player, burst);
     });
     timer(en, 'laser', frenzy ? 0.35 : 0.55, d, () => spawnAimedLaser(game, en, game.player, frenzy ? '#f472b6' : en.color, 120));
     if (frenzy) {

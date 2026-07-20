@@ -4,7 +4,7 @@
 import { BALANCE, LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
   loadSprite, spriteKeyForEnemy, spriteKeyForPlayer,
-  drawSpriteCirc, drawSprite,
+  drawSpriteCirc,
 } from '../sprites.js';
 
 /* ========== Drawing helpers — 梦幻弹幕 + 贴图 ========== */
