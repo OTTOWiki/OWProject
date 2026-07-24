@@ -58,8 +58,8 @@ export const BALANCE = {
   playerRadius: 0,
   playerDrawRadius: 11,
   playerShotCooldown: 0.05,
-  playerShotDamage: 3.304,
-  playerOptionDamage: 1.593,
+  playerShotDamage: 3.3,
+  playerOptionDamage: 1.6,
   playerShotSpeed: 15,
   optionHoming: 7.5,       // 子机追踪转向速度
   optionShotEvery: 1,      // 每发都带子机弹

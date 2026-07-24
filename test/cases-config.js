@@ -88,8 +88,8 @@ test('BALANCE 关键字段存在', () => {
   assert(BALANCE.tendencyThreshold > 0);
   assert(BALANCE.score.letterBonus > 0);
   assert(BALANCE.resource?.extendThresholds?.length > 0);
-  assertEqual(BALANCE.playerShotDamage, 2.8);
-  assertEqual(BALANCE.playerOptionDamage, 1.35);
+  assertEqual(BALANCE.playerShotDamage, 3.3);
+  assertEqual(BALANCE.playerOptionDamage, 1.6);
   assertEqual(BALANCE.playerShotSpeed, 15);
   assertEqual(BALANCE.score.clearBullet, 100);
 });
