@@ -243,9 +243,9 @@ export function drawGameFrame(game) {
     ctx.globalAlpha = 1;
   }
 
-  for (const b of game.enemyBullets) drawBullet(ctx, b, 1, game.player);
-
   if (game.player) drawPlayer(ctx, game.player);
+
+  for (const b of game.enemyBullets) drawBullet(ctx, b, 1, game.player);
 
   const pAlpha = game.playerBulletOpacity ?? 0.3;
   for (const b of game.playerBullets) drawBullet(ctx, b, pAlpha);
