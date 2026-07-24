@@ -58,13 +58,13 @@ if (tryWhich('avifenc')) {
 }
 
 if (tryWhich('magick')) {
+  // 不传 -alpha off：有透明通道的 PNG 保留 alpha，无透明的不受影响
   const r = spawnSync(
     'magick',
     [
       src,
       '-strip',
       '-colorspace', 'sRGB',
-      '-alpha', 'off',
       '-define', 'avif:speed=4',
       '-quality', '65',
       dst,

@@ -58,8 +58,8 @@ export const BALANCE = {
   playerRadius: 0,
   playerDrawRadius: 11,
   playerShotCooldown: 0.05,
-  playerShotDamage: 2.8,
-  playerOptionDamage: 1.35,
+  playerShotDamage: 3.304,
+  playerOptionDamage: 1.593,
   playerShotSpeed: 15,
   optionHoming: 7.5,       // 子机追踪转向速度
   optionShotEvery: 1,      // 每发都带子机弹
@@ -79,7 +79,7 @@ export const BALANCE = {
   editMax: 100,
   editPerGraze: 1.15,
   grazeRadius: 33,
-  editClearRadius: 50,
+  editClearRadius: 150,
 
   chapterPerfectMul: 1.05,
   letterCardTime: 42,

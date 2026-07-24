@@ -40,7 +40,8 @@ if command -v avifenc >/dev/null 2>&1; then
 fi
 
 if command -v magick >/dev/null 2>&1; then
-  magick "$src" -strip -colorspace sRGB -alpha off \
+  # 不传 -alpha off：有透明通道的 PNG 保留 alpha，无透明的不受影响
+  magick "$src" -strip -colorspace sRGB \
     -define avif:speed=4 -quality 65 "$dst"
   echo "ok magick: $src -> $dst ($(bytes "$src") -> $(bytes "$dst") bytes)"
   exit 0

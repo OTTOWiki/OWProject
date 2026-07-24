@@ -49,8 +49,8 @@ export const PLACEHOLDER_BOSS_SPRITES = {
 };
 
 const SPRITE_PATHS = {
-  player_yinquan: 'assets/sprites/player_yinquan.avif',
-  player_shama: 'assets/sprites/player_shama.avif',
+  player_yinquan: 'assets/sprites/player.avif',
+  player_shama: 'assets/sprites/player.avif',
   enemy_mob: 'assets/sprites/enemy_mob.avif',
   enemy_elite: 'assets/sprites/enemy_elite.avif',
   enemy_mid1: 'assets/sprites/enemy_mid1.avif',
@@ -60,7 +60,7 @@ const SPRITE_PATHS = {
   boss_patrol: 'assets/sprites/boss_patrol.avif',
   // 以下 key 仅为 PLACEHOLDER 引用路径（文件仍是他角资源）
   boss_menbailiang: 'assets/sprites/boss_dazong.avif',
-  boss_rival: 'assets/sprites/player_shama.avif',
+  boss_rival: 'assets/sprites/player.avif',
   boss_yimeige: 'assets/sprites/enemy_mid1.avif',
   boss_duren: 'assets/sprites/boss_patrol.avif',
   boss_gundian: 'assets/sprites/enemy_elite.avif',
