@@ -181,7 +181,7 @@ export const chapters = [
     id: 128,
     name: '拉斯特神炫「虾油风油精·炫妈归天」',
     letter: '虾油风油精 · 炫妈归天',
-    letterTime: 60,
+    letterTime: 120,
     ending: 'B',
     build: chapter_lastgod_last,
   }),

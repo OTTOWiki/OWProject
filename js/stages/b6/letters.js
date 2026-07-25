@@ -198,34 +198,42 @@ export function chapter_lastgod_last(g) {
     const frenzy = hpRatio < 0.2;
     en.x = LOGICAL_W / 2 + Math.sin(en.age * (frenzy ? 4 : 2.5)) * (frenzy ? 140 : 115);
     en.y = 100 + Math.cos(en.age * (frenzy ? 3.2 : 2.0)) * (frenzy ? 40 : 30);
-    timer(en, 'storm', frenzy ? 0.03 : 0.08, d, () => {
-      for (let i = 0; i < (frenzy ? 6 : 3); i++) {
+    timer(en, 'storm', 0.08, d, () => {
+      const n = 6;
+      for (let i = 0; i < n; i++) {
         game.spawnBullet(acquireBullet({
-          x: en.x, y: en.y, angle: Math.random() * Math.PI * 2,
-          speed: 2 + Math.random() * (frenzy ? 4 : 3),
-          type: ['dot', 'rice', 'talisman', 'medium', 'large'][Math.floor(Math.random() * (frenzy ? 5 : 4))],
+          x: en.x, y: en.y, angle: (i / n) * Math.PI * 2,
+          speed: 1 + Math.random() * 1.5,
+          type: ['dot', 'rice', 'talisman', 'medium', 'large'][Math.floor(Math.random() * 4)],
           color: ['#a3e635', '#4d7c0f', '#bef264', '#65a30d'][Math.floor(Math.random() * 4)], from: 'enemy',
         }));
       }
     });
-    timer(en, 'aim', frenzy ? 0.2 : 0.35, d, () => {
-      spawnAimed(game, en, game.player, { n: frenzy ? 9 : 11, parity: 'odd', type: frenzy ? 'laser' : 'talisman', speed: frenzy ? 5.5 : 4, color: '#65a30d', laserLen: 250, spread: 0.08 });
+    timer(en, 'aim', 0.35, d, () => {
+      const cfg = frenzy
+        ? { n: 2, speed: 1.38, type: 'talisman' }
+        : { n: 3, speed: 2, type: 'talisman' };
+      spawnAimed(game, en, game.player, { parity: 'odd', color: '#65a30d', spread: 0.08, ...cfg });
     });
-    timer(en, 'ring', frenzy ? 0.5 : 0.9, d, () => {
-      spawnRingAt(game, en.x, en.y, frenzy ? 28 : 22, frenzy ? 3.2 : 2.6, 'rice', '#d9f99d', en.age);
+    timer(en, 'ring', 0.9, d, () => {
+      spawnRingAt(game, en.x, en.y, 8, 1.3, 'rice', '#d9f99d', en.age);
     });
+    // 超时强制开狂乱
+    if (!frenzy) {
+      if (en.age > 60 && hpRatio > 0.4) {
+        en.hp = en.maxHp * 0.19;
+      } else if (en.age > 90 && hpRatio > 0.2) {
+        en.hp = en.maxHp * 0.19;
+      }
+    }
     if (frenzy) {
-      timer(en, 'spin', 0.05, d, () => {
-        en.data.a = (en.data.a || 0) + 0.8;
-        for (const side of [-1, 1]) {
-          for (const off of [-1, 1]) {
-            game.spawnBullet(acquireBullet({
-              x: en.x + side * 25, y: en.y + off * 15, angle: en.data.a * side * off, speed: 3.5, type: 'large', color: '#4d7c0f', from: 'enemy',
-            }));
-          }
-        }
+      // 左右两个侧翼札弹发弹源（固定方向，不自机狙）
+      timer(en, 'wing_l', 0.5, d, () => {
+        spawnAimed(game, { x: en.x - 55, y: en.y + 15 }, game.player, { n: 2, parity: 'fixed', baseAngle: Math.PI / 2, type: 'talisman', speed: 1.2, color: '#84cc16', spread: 0.12 });
       });
-      timer(en, 'rain', 0.1, d, () => spawnGravityRain(game, 5, 'medium', '#a3e635', 2.8));
+      timer(en, 'wing_r', 0.5, d, () => {
+        spawnAimed(game, { x: en.x + 55, y: en.y + 15 }, game.player, { n: 2, parity: 'fixed', baseAngle: Math.PI / 2, type: 'talisman', speed: 1.2, color: '#84cc16', spread: 0.12 });
+      });
     }
   });
 }
