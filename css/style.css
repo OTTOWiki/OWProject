@@ -65,60 +65,104 @@ input, select, textarea {
 .load-bg {
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 50% 0%, #2a1840 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 100%, #1a1028 0%, #0b0a12 60%);
+    radial-gradient(ellipse at 60% 30%, rgba(120,60,150,.35) 0%, transparent 60%),
+    url('../assets/ui/loading.avif') center / cover no-repeat,
+    #0b0a12;
 }
-.load-frame {
+/* 中央黑色横带：标题 / 免责 / 制作 */
+.load-band {
   position: relative; z-index: 1;
+  width: 100%;
+  padding: 34px 24px 30px;
   text-align: center;
-  padding: 48px 64px;
-  border: 2px solid var(--border);
-  background: linear-gradient(180deg, rgba(18,16,28,.92), rgba(11,10,18,.94));
-  box-shadow: 0 0 60px rgba(212,181,106,.12), inset 0 0 40px rgba(0,0,0,.3);
-  min-width: 340px;
+  background: linear-gradient(180deg, rgba(0,0,0,.86) 0%, rgba(0,0,0,.9) 50%, rgba(0,0,0,.86) 100%);
+  box-shadow: 0 0 60px rgba(0,0,0,.6);
 }
 .load-title {
   font-family: var(--serif);
-  font-size: 36px;
-  font-weight: 400;
-  color: var(--gold);
-  letter-spacing: 6px;
-  text-shadow: 0 0 24px rgba(212,181,106,.35);
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  font-weight: 700;
+  color: #f2eef8;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 26px rgba(200,160,255,.35);
 }
-.load-title span { font-size: 28px; color: var(--muted); }
+.load-title span { margin-left: 0.06em; }
 .load-sub {
   font-family: var(--serif);
-  color: var(--muted);
-  font-size: 14px;
-  margin: 14px 0 28px;
-  letter-spacing: 4px;
+  color: #cfc4de;
+  font-size: clamp(0.72rem, 2.4vw, 0.9rem);
+  margin-top: 4px;
+  letter-spacing: 0.14em;
 }
-.load-bar-wrap {
-  width: 280px; height: 6px;
-  margin: 0 auto 14px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  position: relative;
+.load-notice {
+  color: #a8d8a0;
+  font-size: clamp(0.68rem, 2.4vw, 0.92rem);
+  margin: 26px 0 34px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 10px rgba(120,220,120,.25);
 }
-.load-bar { width: 100%; height: 100%; overflow: hidden; }
+.load-presented {
+  font-family: var(--serif);
+  color: #d8cfe6;
+  font-size: clamp(0.6rem, 2vw, 0.72rem);
+  letter-spacing: 0.18em;
+}
+.load-maker {
+  font-family: var(--serif);
+  color: #f0ebf8;
+  font-size: clamp(0.95rem, 3.4vw, 1.25rem);
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+}
+/* 右下角：少女祈祷中 / Now Loading */
+.load-corner {
+  position: absolute;
+  right: clamp(16px, 5vw, 56px);
+  bottom: clamp(20px, 6vh, 56px);
+  z-index: 1;
+  text-align: right;
+}
+.load-pray {
+  font-family: var(--serif);
+  font-size: clamp(1.4rem, 6vw, 2.2rem);
+  color: #f6eef2;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 18px rgba(255,180,220,.45), 0 2px 6px rgba(0,0,0,.8);
+}
+.load-now {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(0.8rem, 3vw, 1.05rem);
+  color: #e6d8e4;
+  letter-spacing: 0.12em;
+  margin-top: 2px;
+  text-shadow: 0 2px 6px rgba(0,0,0,.8);
+}
+.load-text {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.85em;
+  color: var(--gold);
+  margin-left: 0.6em;
+}
+.load-bar {
+  width: clamp(140px, 40vw, 220px); height: 3px;
+  margin: 8px 0 0 auto;
+  background: rgba(255,255,255,.15);
+  overflow: hidden;
+}
 .load-fill {
   width: 0%; height: 100%;
   background: linear-gradient(90deg, #c45c8a, var(--gold));
   box-shadow: 0 0 10px rgba(212,181,106,.5);
   transition: width 0.15s linear;
 }
-.load-text {
-  font-family: var(--mono);
-  font-size: 16px;
-  color: var(--gold);
-  letter-spacing: 2px;
-  margin-bottom: 10px;
-}
 .load-hint {
-  font-size: 12px;
-  color: var(--muted);
-  min-height: 16px;
+  font-size: 11px;
+  color: rgba(230,216,228,.7);
+  min-height: 14px;
   letter-spacing: 1px;
+  margin-top: 4px;
 }
 
 .screen {
