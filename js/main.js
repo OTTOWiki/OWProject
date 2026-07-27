@@ -21,16 +21,11 @@ const pauseBtn = document.getElementById('btn-pause');
 const elLoad = document.getElementById('load-screen');
 const elFill = document.getElementById('load-fill');
 const elPct = document.getElementById('load-text');
-const elHint = document.getElementById('load-hint');
 
-const PRAYING = '少女祈祷中...';
-
-function setLoadProgress(pct, hint) {
+function setLoadProgress(pct) {
   const p = Math.max(0, Math.min(100, Math.round(pct)));
   if (elFill) elFill.style.width = `${p}%`;
   if (elPct) elPct.textContent = `${p}%`;
-  // 所有加载类提示统一为「少女祈祷中...」
-  if (elHint) elHint.textContent = PRAYING;
 }
 
 function withTimeout(promise, ms) {
@@ -57,10 +52,10 @@ async function preloadAll(audio) {
 
   const step = () => {
     loaded = Math.min(total, loaded + 1);
-    setLoadProgress((loaded / total) * 100, PRAYING);
+    setLoadProgress((loaded / total) * 100);
   };
 
-  setLoadProgress(0, PRAYING);
+  setLoadProgress(0);
 
   const tasks = [];
 
@@ -114,19 +109,19 @@ async function preloadAll(audio) {
   }
 
   await withTimeout(Promise.all(tasks), 30000);
-  setLoadProgress(100, PRAYING);
+  setLoadProgress(100);
 }
 
 function dismissLoadScreen() {
   if (!elLoad || elLoad.dataset.dismissed) return;
   elLoad.dataset.dismissed = '1';
-  setLoadProgress(100, PRAYING);
+  setLoadProgress(100);
   elLoad.classList.add('done');
   setTimeout(() => elLoad.remove(), 700);
 }
 
 async function boot() {
-  setLoadProgress(0, PRAYING);
+  setLoadProgress(0);
 
   // Audio 先于预载创建，使 OGG Buffer 直接进引擎缓存
   // ensure() 在部分移动端可能保持 suspended；失败曲目在首次手势后补 decode
@@ -145,7 +140,7 @@ async function boot() {
     console.warn('Preload error:', e);
   }
 
-  setLoadProgress(100, PRAYING);
+  setLoadProgress(100);
 
   try {
     // 写入模块缓存；带超时避免某图永远不 complete 卡住加载屏
