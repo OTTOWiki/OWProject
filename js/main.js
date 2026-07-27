@@ -22,12 +22,22 @@ const elLoad = document.getElementById('load-screen');
 const elFill = document.getElementById('load-fill');
 const elPct = document.getElementById('load-text');
 
+/**
+ * Updates the loading indicator with a percentage value.
+ * @param {number} pct - The progress percentage, clamped to the range from 0 to 100.
+ */
 function setLoadProgress(pct) {
   const p = Math.max(0, Math.min(100, Math.round(pct)));
   if (elFill) elFill.style.width = `${p}%`;
   if (elPct) elPct.textContent = `${p}%`;
 }
 
+/**
+ * Resolves with the first result from the operation or a timeout.
+ * @param {Promise} promise - The operation to await.
+ * @param {number} ms - The timeout duration in milliseconds.
+ * @return {Promise<*>} The operation's result, or `undefined` if the timeout expires first.
+ */
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -36,8 +46,8 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * 预载贴图 + OGG。AudioBuffer 直接写入引擎缓存，开局播歌不再二次 fetch。
- * @param {import('./audio.js').AudioEngine} [audio]
+ * Preloads artwork and OGG audio files while updating loading progress.
+ * @param {import('./audio.js').AudioEngine} [audio] - Audio engine used to decode and cache audio buffers.
  */
 async function preloadAll(audio) {
   const imagePaths = [...new Set([
@@ -112,6 +122,9 @@ async function preloadAll(audio) {
   setLoadProgress(100);
 }
 
+/**
+ * Dismisses the loading screen after marking it complete.
+ */
 function dismissLoadScreen() {
   if (!elLoad || elLoad.dataset.dismissed) return;
   elLoad.dataset.dismissed = '1';
@@ -120,6 +133,12 @@ function dismissLoadScreen() {
   setTimeout(() => elLoad.remove(), 700);
 }
 
+/**
+ * Initializes the audio, input, background, game, and user interface systems.
+ *
+ * Preloads required assets, applies saved settings, installs interaction handlers,
+ * and displays a startup failure message if initialization cannot complete.
+ */
 async function boot() {
   setLoadProgress(0);
 
