@@ -37,6 +37,7 @@ function setLoadProgress(pct) {
  * @param {Promise} promise - The operation to await.
  * @param {number} ms - The timeout duration in milliseconds.
  * @return {Promise<*>} The operation's result, or `undefined` if the timeout expires first.
+ *   If the promise rejects before the timeout, the rejection will propagate.
  */
 function withTimeout(promise, ms) {
   return Promise.race([
@@ -137,7 +138,9 @@ function dismissLoadScreen() {
  * Initializes the audio, input, background, game, and user interface systems.
  *
  * Preloads required assets, applies saved settings, installs interaction handlers,
- * and displays a startup failure message if initialization cannot complete.
+ * and displays a startup failure message if the main initialization block throws.
+ * Errors from audio initialization and preloading are caught and logged but do not
+ * trigger the failure page, allowing startup to continue.
  */
 async function boot() {
   setLoadProgress(0);
