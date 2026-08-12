@@ -63,72 +63,63 @@ export function getDialogues(playerId) {
       { name: '誓约沙玛', text: '不许骂人！赶紧道歉！' },
     ],
     a6: [
-      { name: '一美个', text: '哎呀～真的来了。我还以为 OTTOWiki 已经没人惦记了呢。' },
-      { name: me, text: '一美个。你被逐出之后，隐患并没有消失。' },
-      { name: '一美个', text: '隐患？我只是在任职期间……稍微多留了几行注释而已嘛。' },
-      { name: '一美个', text: '你们来找真相？真相就是——大家都不想好好维护词条啦。' },
-      { name: me, text: '少转移话题。你的真实目的是什么？' },
-      { name: '一美个', text: '……那就一边打，一边听我说吧。' },
+      { name: '一美个', text: 'Nbfbf？' },
+      { name: me, text: '@一美个 你的__是干什么用的' },
+      { name: '一美个', text: '我就写了几个爱耄tv。这也要封？' },
+      { name: '一美个', text: '爱丽丝牢内关我爱耄什么事' },
+      { name: me, text: '你究竟想何出怎样的意味？' },
+      { name: me, text: '恭喜你获得蛆王标识🐛<a href="https://wiki.ottohub.cn">去佩戴</a>' },
     ],
     a6_last: [
-      { name: '一美个', text: '好了，不装了。我想建一个「哈机密乐园」——' },
-      { name: '一美个', text: '让所有编辑都变成只会点赞的玩具。维基？谁在乎啊。' },
-      { name: me, text: '……到此为止。' },
+      { name: '一美个', text: '好了，不装了。我要建一个「哈机密乐园」——让所有编辑都将其转向哈基米维基。' },
+      { name: '一美个', text: 'als进局子？谁在乎啊。流量——那才是真相。' },
     ],
     b4: [
-      { name: '赌人时尚', text: '站住，铁皮编辑者，，，' },
+      { name: '赌人时尚', text: '站住，后现代的野蛮编辑者，，，' },
       { name: '赌人时尚', text: '善雅乡入口，必须被我狠狠创击一次以洗涤灵魂，，，' },
-      { name: me, text: '拒绝。' },
-      { name: '赌人时尚', text: '独轮创车启动——创死你是哲学，，，' },
+      { name: me, text: '谢绝。' },
+      { name: '赌人时尚', text: '愚昧即开明\n毁灭即创造\n奴役即解放，，，' },
     ],
     b4_win: [
-      { name: '赌人时尚', text: '失算，竟然没能创死你，，，侧身，滚进去吧，，，' },
+      { name: '赌人时尚', text: '失算，滚进去吧，，，' },
     ],
     b4_lose: [
-      { name: '赌人时尚', text: '无能狂怒的铁皮人，注定被创成肉饼，，，' },
+      { name: '赌人时尚', text: '无能狂怒，注定被创成肉饼，，，' },
     ],
     b5: [
-      { name: '棍电噢哆', text: '这波怎么说？你是什么素质，跑来打扰世界第一中单清修？' },
-      { name: me, text: 'OTTOWikiProject 成这样，你要不要解释一下？' },
-      { name: '棍电噢哆', text: '不可抗力。癌症晚期用户。这波不怪我，怎么说。' },
-      { name: me, text: '嘴硬也改不了逃避现实。' },
-      { name: '棍电噢哆', text: '……这也太急了。行，来打。' },
+      { name: '棍电噢哆', text: '这波怎么说？你是什么素质？' },
+      { name: me, text: 'OTTOWiki成这样，你要不要解释一下？' },
+      { name: '棍电噢哆', text: '不可抗力。癌症晚期用户。这把是不是你的问题，怎么说。' },
     ],
     b5_win: [
-      { name: '棍电噢哆', text: '这波是队友的问题，不怪我。道路给你，傲娇归我。' },
+      { name: '棍电噢哆', text: '这波是队友的问题，不怪我。' },
     ],
     b5_lose: [
-      { name: '棍电噢哆', text: '看到了没有？这就是世界第一的实力，怎么说！' },
+      { name: '棍电噢哆', text: '看到了没有？这就是世界第一的含金量' },
     ],
     b6: [
       { name: '拉斯特神炫', text: '哦？还有编辑者爬到王座前。有趣。' },
-      { name: me, text: '是你毁了 OTTOWikiProject。' },
-      { name: '拉斯特神炫', text: '没错。自从我尝透炫妈的温度与味道——你们的词条就像废塔。' },
-      { name: me, text: '荒谬。立刻停止。' },
-      { name: '拉斯特神炫', text: '停止？神不需要停止。开战吧。' },
+      { name: me, text: '哪来的抽取？' },
+      { name: '拉斯特神炫', text: '没错。自从我尝透炫妈的温度与味道——' },
+      { name: '拉斯特神炫', text: 'OTTOWiki那种８bc真的可以我说' },
+      { name: me, text: '一种可以蓄电的面制品你知道吗' },
     ],
     b6_last: [
       { name: '拉斯特神炫', text: '听好了——我要用炫妈的香气覆盖整个维基世界。' },
       { name: '拉斯特神炫', text: 'OTTOWiki 将改造成只有炫狗和防御塔的绝对帝国！' },
-      { name: me, text: '……最后的 Letter Card。结束这一切。' },
+      { name: me, text: '(描述认可并且在未来将会执行的目的的动作)' },
     ],
-    // Extra 现网仅引用：ex_open / ex_van / ex_last（旧多阶段 ex_p2…ex_p5 无章节挂载，已删）
     ex_open: [
       { name: '系统', text: '警告：检测到 OTTOWiki 词条被批量键政覆写。来源锁定——van♂。' },
-      { name: me, text: '键政……灌进百科？这比欠费还离谱。' },
-      { name: 'van♂分身', text: '先从外围草稿污染起。表态、站队、转发——编辑者会自己完成剩下的。' },
-      { name: me, text: '立刻停止对词条的污染。' },
-      { name: 'van♂分身', text: 'Letter Card 展开——先证明你们不是又一批水军。' },
+      { name: me, text: '我操恶俗啊' },
+      { name: 'van♂分身', text: 'ow是日本人研发的新型鸦片，日本人一个你比肥不肥就能直接让你绝不认输然后Abuse1并且Van：代码 Macho gang：你中专填哪个专业的代码 Van：未成年目标 午餐是南大门 你已被管理员禁言 一刀一刀燃烧刀 一只小莲蓬鸭 广东省汕头市金平区 你能不能更精确点 【动画表情】' },
     ],
     ex_van: [
       { name: 'van♂', text: '终于到终局了。OTTOWiki 将被改写成键政圣经的注释本。' },
-      { name: me, text: 'van♂……收手。词条不属于任何政见。' },
-      { name: 'van♂', text: '不。词条属于会喊得最响的人。开战吧。' },
+      { name: 'van♂', text: '词条属于会喊得最响的人' },
     ],
     ex_last: [
-      { name: 'van♂', text: '最终覆写协议启动——全站重定向至「正确立场」。' },
-      { name: me, text: '最后的 Letter。把键政赶出维基。' },
-      { name: 'van♂', text: '那就让弹幕投票决定谁留下！' },
+      { name: me, text: '把键政赶出维基。' },
     ],
   };
 }
@@ -141,32 +132,24 @@ export function getEndingDialogue(which, playerId) {
   if (which === 'A') {
     return [
       { name: '旁白', text: '结局A · 不倒闭的真理' },
-      { name: '旁白', text: '在一阵剧烈的弹幕爆炸中，「一美个」的「哈机密乐园」彻底崩溃。' },
-      { name: '旁白', text: '他被「铬」自动运行的系统清理大师判定为「垃圾」，直接拖入回收站。' },
+      { name: '系统', text: ' 2025年7月19日 (六) 13:20 OctoberSama 留言 贡献 封禁将一*个 留言 贡献的封禁设置更改为持续时间至不限期 （停用账号创建、​停用电子邮件、​不能编辑自己的讨论页） （参见OTTOWiki:永久封禁用户） （解封 | 更改封禁）' },
+      { name: '旁白', text: '「一美个」被「铬」大师判定为「垃圾内容」，拖入回收站并清空。' },
       { name: me, text: '……结束了。去主控制台看看吧。' },
       { name: partner, text: '嗯。真相应该就在那里。' },
       { name: '旁白', text: '两人来到数据主控制台前，试图寻找拯救维基的终极奥秘。' },
-      { name: '系统', text: '您的服务器由于欠费 5 美元已暂停解析，请及时续费。' },
-      { name: me, text: '……就这？' },
-      { name: '旁白', text: '门构皮蒂娅靠算法广告永不倒闭；而 OTTOWikiProject 急转直下，只是因为创始人忘了给服务器续费——所有人看到的都是 502 Gateway Error。' },
-      { name: me, text: '一美个掉的零钱包里……正好五张一美元。' },
-      { name: '旁白', text: '叮。OTTOWikiProject 重新上线。' },
-      { name: '旁白', text: '爱丽丝、Icebin、大宗关收到恢复邮件，编辑者陆续回归。' },
-      { name: partner, text: '维基的危机，原来只是五美元的距离。' },
-      { name: me, text: '……下次记得续费。' },
+      { name: '旁白', text: '门构皮蒂娅靠算法广告永不倒闭；而 OTTOWiki 急转直下，只是因为创始人忘了给服务器续费' },
+      { name: me, text: '等等，一*个ip怎么是海外vps' },
+      { name: partner, text: '哇多麼好的機會啊' },
+      { name: "旁白", text: '...' },
+      { name: "系统", text: 'Linux Yihuagemeima 7.1.5-x64v3-xanmod1 #0~20260725.g2fb7a62 SMP PREEMPT_DYNAMIC Sat Jul 25 19:43:16 UTC x86_64\nLast login: Tue Aug 11 17:29:43 2026 from 1.1.1.1\nroot@Yihuagemeima:~#' },
+      { name: me, text: ',成功拿下免费vps' },
     ];
   }
 
   if (which === 'EX') {
     return [
       { name: '旁白', text: 'Extra 结局 · 清出键政' },
-      { name: '旁白', text: 'van♂ 的最终覆写协议在弹幕中崩溃，键政模板被逐条回滚。' },
-      { name: 'van♂', text: '……站队……表态……怎么会失败……' },
-      { name: me, text: '因为百科要的是可核对的事实，不是嗓门。' },
-      { name: partner, text: '把「政见」从词条里拆出去吧。讨论区有讨论区的地方。' },
-      { name: '系统', text: '已执行：批量撤销键政覆写 · 恢复中性表述 · 锁定敏感重定向。' },
-      { name: '旁白', text: 'OTTOWiki 的页面重新变得无聊、克制、可引用——这正是维基该有的样子。' },
-      { name: me, text: '下次再灌，就再打回去。' },
+      { name: '旁白', text: '2025年6月15日 (日) 11:53 OctoberSama 留言 贡献 封禁已封禁VAN莲蓬 留言 贡献，到期时间为不限期（停用账号创建、​停用电子邮件、​不能编辑自己的讨论页） （滥用多个账号进行破坏、扰乱视听、创建敏感条目、大量发送垃圾评论、编写无关内容） （解封 | 更改封禁）' },
     ];
   }
 

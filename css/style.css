@@ -983,6 +983,7 @@ input, select, textarea {
   line-height: 1.5;
   color: #f2e6c8;
   min-height: 2.6em;
+  white-space: pre-line;
 }
 .dialogue-hint {
   text-align: right;
