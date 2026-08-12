@@ -286,6 +286,10 @@ export const SPEAKER_COLORS = {
   誓约沙玛: '#f9a8d4',
   'van♂': '#c084fc',
   'van♂分身': '#a78bfa',
+  'blkf姉貴': '#f87171',
+  '壹隻憂鬱臺灣烏龜blkf': '#fb923c',
+  '骯髒變態囓齒blkf兄': '#fca5a5',
+  '尋釁兄貴': '#ef4444',
   系统: '#94a3b8',
   旁白: '#cbd5e1',
 };
