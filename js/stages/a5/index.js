@@ -147,14 +147,14 @@ export const chapters = [
     id: 55,
     name: '主角「署名权·最后的编辑者」',
     letter: '署名权 · 最后的编辑者',
-    letterTime: 48,
+    letterTime: 50,
     build: chapter_rival_7,
   }),
   letterChapter(FACE, {
     id: 56,
     name: '主角「署名权·共同署名」',
     letter: '署名权 · 共同署名',
-    letterTime: 52,
+    letterTime: 58,
     build: chapter_rival_last,
   }),
 ];

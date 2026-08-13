@@ -1,12 +1,13 @@
 /**
  * 用例聚合入口（浏览器 / Node 均 import 本文件注册全部用例）
- * 分文件：config / patterns / collision / stages / storage-spawn / smoke
+ * 分文件：config / patterns / collision / stages / boss-dps / storage-spawn / smoke
  */
 import './cases-config.js';
 import './cases-patterns.js';
 import './cases-collision.js';
 import './cases-pools.js';
 import './cases-stages.js';
+import './cases-boss-dps.js';
 import './cases-storage-spawn.js';
 import './cases-assets.js';
 import './cases-smoke.js';
