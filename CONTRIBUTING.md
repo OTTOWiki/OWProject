@@ -64,6 +64,7 @@ npx --yes serve .        # 或 python -m http.server 8080
 npm test                 # 语法检查 + 单元/冒烟（提交前应绿）
 npm run test:unit
 npm run test:syntax
+npm run test:bun          # bun test（可选；入口 test/run-bun.test.mjs）
 # 浏览器结果页：serve 后打开 /test/
 ```
 

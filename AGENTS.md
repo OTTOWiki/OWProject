@@ -79,10 +79,11 @@ owDebug.kill()            // 清敌+清弹+本章成功
 npm test              # 语法 + 单元/冒烟
 npm run test:unit
 npm run test:syntax
+npm run test:bun       # bun test（入口 test/run-bun.test.mjs）
 # 浏览器：serve 后打开 /test/
 ```
 
-- CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）
+- CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
 - 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
@@ -265,7 +266,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 改版面主题色 | `playfieldBgThemes.js` |
 | 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
 | 发版 | `VERSION_NAME` + hooks；CF `pages:build`；tag |
-| 测试 | `npm test` 或 `/test/` |
+| 测试 | `npm test`、`npm run test:bun` 或 `/test/` |
 
 ---
 
