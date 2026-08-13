@@ -406,7 +406,6 @@ export class Game {
               : 1;
           this.playBg?.update(dt * bgMul);
           this.background?.setTendency(this.totalTendency);
-          this.background?.update();
         } catch (err) {
           console.error('[game bg]', err);
         } finally {
@@ -425,6 +424,12 @@ export class Game {
         }
       }
       if (shouldDraw) {
+        // Three 背景渲染随描画节流，不随固定 60Hz 逻辑步进（与 drawGameFrame 同频）
+        try {
+          this.background?.update();
+        } catch (err) {
+          console.error('[game bg]', err);
+        }
         try {
           drawGameFrame(this);
         } catch (err) {
