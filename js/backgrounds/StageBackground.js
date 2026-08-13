@@ -18,7 +18,7 @@ export class StageBackground {
     this.root = new THREE.Group();
     this.scene.add(this.root);
     this.particles = null;
-    this.clock = new THREE.Clock();
+    this.timer = new THREE.Timer(); // r185 起 Clock 弃用，改用 Timer
     this.mode = 's1_mid';
     this.tendency = { a: 0, b: 0, pct: 0 };
     this.extras = [];
@@ -159,7 +159,18 @@ export class StageBackground {
       // Three r160: PointsMaterial uses sizeAttenuation (not depthAttenuation)
       color, size, transparent: true, opacity: 0.85, sizeAttenuation: true,
     });
+    // 粒子 y 上移/回绕放进顶点着色器（uTime 驱动），替代每帧逐顶点 setY——
+    // 逐顶点 CPU 更新是背景热点（docs/perf-optimization.md P2），着色器一次 uniform 赋值等价
+    const uTime = { value: 0 };
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = uTime;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\n\tuniform float uTime;')
+        // 语义与旧逐顶点逻辑一致：0.72 单位/秒上移，y>8 回绕到 -8（mod 对任意初始 y 成立）
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n\ttransformed.y = mod( transformed.y + uTime * 0.72 + 8.0, 16.0 ) - 8.0;');
+    };
     const pts = new THREE.Points(geo, mat);
+    pts.userData.particleTime = uTime;
     this.root.add(pts);
     this.particles = pts;
     return pts;
@@ -190,18 +201,18 @@ export class StageBackground {
   }
 
   update() {
-    const t = this.clock.getElapsedTime();
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    // r185: Clock 弃用改用 Timer——Timer 需每帧先 update() 再读值；
+    // 旧 Clock 写法 getElapsedTime() 内部先调 getDelta()，导致紧随的 dt≈0，
+    // dt 系动画（ud.rot/speed/tunnel/orbit/spin 等）被冻结，迁移 Timer 后恢复运动
+    this.timer.update();
+    const t = this.timer.getElapsed();
+    const dt = Math.min(this.timer.getDelta(), 0.05);
 
     if (this.particles) {
       this.particles.rotation.y = t * 0.05;
-      const pos = this.particles.geometry.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        let y = pos.getY(i) + 0.012;
-        if (y > 8) y = -8;
-        pos.setY(i, y);
-      }
-      pos.needsUpdate = true;
+      // y 位移已在顶点着色器里由 uTime 驱动，这里只推进 uniform
+      const uTime = this.particles.userData.particleTime;
+      if (uTime) uTime.value = t;
     }
 
     for (const e of this.extras) {
