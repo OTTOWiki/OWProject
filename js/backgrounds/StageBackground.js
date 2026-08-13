@@ -18,7 +18,7 @@ export class StageBackground {
     this.root = new THREE.Group();
     this.scene.add(this.root);
     this.particles = null;
-    this.clock = new THREE.Clock();
+    this.timer = new THREE.Timer(); // r185 起 Clock 弃用，改用 Timer
     this.mode = 's1_mid';
     this.tendency = { a: 0, b: 0, pct: 0 };
     this.extras = [];
@@ -201,8 +201,12 @@ export class StageBackground {
   }
 
   update() {
-    const t = this.clock.getElapsedTime();
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    // r185: Clock 弃用改用 Timer——Timer 需每帧先 update() 再读值；
+    // 旧 Clock 写法 getElapsedTime() 内部先调 getDelta()，导致紧随的 dt≈0，
+    // dt 系动画（ud.rot/speed/tunnel/orbit/spin 等）被冻结，迁移 Timer 后恢复运动
+    this.timer.update();
+    const t = this.timer.getElapsed();
+    const dt = Math.min(this.timer.getDelta(), 0.05);
 
     if (this.particles) {
       this.particles.rotation.y = t * 0.05;
