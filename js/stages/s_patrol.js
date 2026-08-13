@@ -65,6 +65,7 @@ export const chapters = [
     id: 24, name: '巡查姬「404」',
     letter: '404 Not Found · 存在抹消', letterTime: 50,
     onClear: 'routeSelect',
+    loseDialogue: 'patrol_lose',
     build: chapter_patrol_2,
   }),
 ];

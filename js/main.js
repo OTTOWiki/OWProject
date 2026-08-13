@@ -274,7 +274,8 @@ async function boot() {
     window.addEventListener('keydown', unlock);
 
     const dialogueBox = document.getElementById('dialogue-box');
-    dialogueBox?.addEventListener('click', () => {
+    dialogueBox?.addEventListener('click', (e) => {
+      if (e.target.closest?.('a')) return; // 链接点击放行（不推进对话）
       if (game.state === 'dialogue') game._advanceDialogue();
     });
     // 路线选择：对话层遮挡时也可点左右半区（触屏 pointer 兼容）

@@ -33,6 +33,10 @@ export const PORTRAIT_HIDDEN_OK = new Set([
   '拉斯特神炫',
   'van♂',
   'van♂分身',
+  'blkf姉貴',
+  '壹隻憂鬱臺灣烏龜blkf',
+  '骯髒變態囓齒blkf兄',
+  '尋釁兄貴',
 ]);
 
 const IMG_CACHE = new Map();

@@ -238,7 +238,7 @@ export function showDialogueLine(game) {
   const name = line.name;
   game.el.dialogueName.textContent = name;
   game.el.dialogueName.style.color = SPEAKER_COLORS[name] || '#e2e8f0';
-  game.el.dialogueText.textContent = line.text;
+  game.el.dialogueText.innerHTML = line.text;
 
   const img = game.el.dialoguePortrait;
   if (img) {

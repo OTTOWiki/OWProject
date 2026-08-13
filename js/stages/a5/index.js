@@ -155,7 +155,6 @@ export const chapters = [
     name: '主角「署名权·共同署名」',
     letter: '署名权 · 共同署名',
     letterTime: 52,
-    winDialogue: 'a5_end',
     build: chapter_rival_last,
   }),
 ];
