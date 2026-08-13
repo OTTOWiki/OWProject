@@ -61,9 +61,10 @@ npx --yes serve .        # 或 python -m http.server 8080
 不要双击打开 `index.html`。改 JS/CSS/HTML 后刷新即可。
 
 ```bash
-npm test                 # 语法检查 + 单元/冒烟（提交前应绿）
+npm test                 # 语法检查 + 单元/冒烟（提交前应绿；有 bun 优先 bun test，无 bun 退 node）
 npm run test:unit
 npm run test:syntax
+npm run test:bun          # 强制 bun test（可选；入口 test/run-bun.test.mjs）
 # 浏览器结果页：serve 后打开 /test/
 ```
 

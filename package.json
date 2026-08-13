@@ -5,9 +5,10 @@
   "description": "OTTOWiki Project — pure frontend STG (no build step)",
   "type": "module",
   "scripts": {
-    "test": "node test/check-syntax.mjs && node test/run-node.mjs",
+    "test": "node test/run-tests.mjs",
     "test:unit": "node test/run-node.mjs",
     "test:syntax": "node test/check-syntax.mjs",
+    "test:bun": "bun test",
     "serve": "npx --yes serve .",
     "pages:build": "node tools/inject-deploy-hash.mjs",
     "inject-hash": "node tools/inject-deploy-hash.mjs",
