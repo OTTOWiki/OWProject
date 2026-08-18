@@ -5,7 +5,7 @@ import {
 import {
   loadKeys, saveKeys, saveSettings,
 } from './storage.js';
-import { stageSelectEntries, buildChapterList } from './stages/index.js';
+import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
 import {
   handleListScreen,
@@ -15,6 +15,7 @@ import {
   adjustFocusItem,
   activateFocusItem,
   clampIndex,
+  wrapIndex,
   highlightButtons,
 } from './menuNav.js';
 import { HistoryScreen } from './historyScreen.js';
@@ -38,6 +39,10 @@ export class UI {
     this.manualIndex = 1;
     this.practiceIndex = 0;
     this.settingsIndex = 0;
+    /** 练习：所选章节 id（默认第 1 章） */
+    this.practiceChapterId = 1;
+    /** 练习：所选难度 id（DIFFICULTIES，默认 normal） */
+    this.practiceDiffId = 'normal';
     /** 从暂停菜单进入设置时的返回回调 */
     this.settingsReturn = null;
     this.settingsForm = new SettingsForm({
@@ -317,13 +322,42 @@ export class UI {
   }
 
   _initPractice() {
-    const sel = document.getElementById('practice-chapter');
-    sel.innerHTML = '';
-    for (const ch of buildChapterList()) {
-      const opt = document.createElement('option');
-      opt.value = ch.id;
-      opt.textContent = `#${ch.id} ${ch.name}`;
-      sel.appendChild(opt);
+    const list = document.getElementById('practice-chapter-list');
+    if (list) {
+      list.innerHTML = '';
+      for (const g of practiceChapterGroups()) {
+        const group = document.createElement('div');
+        group.className = 'pc-group';
+        const title = document.createElement('div');
+        title.className = 'pc-group-title';
+        title.textContent = g.label;
+        group.appendChild(title);
+        for (const ch of g.chapters) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pc-item';
+          btn.dataset.id = ch.id;
+          btn.textContent = `#${ch.id} ${ch.name}`;
+          btn.addEventListener('click', () => this._selectPracticeChapter(ch.id));
+          group.appendChild(btn);
+        }
+        list.appendChild(group);
+      }
+    }
+    const diffBox = document.getElementById('practice-diffs');
+    if (diffBox) {
+      diffBox.innerHTML = '';
+      for (const id of DIFFICULTY_ORDER) {
+        const d = DIFFICULTIES[id];
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'pd-chip';
+        chip.dataset.diff = id;
+        chip.style.setProperty('--dc', d.color);
+        chip.textContent = `${d.rank} ${d.name}`;
+        chip.addEventListener('click', () => this._selectPracticeDiff(id));
+        diffBox.appendChild(chip);
+      }
     }
     const unstableCb = document.getElementById('practice-unstable');
     const unstableVal = document.getElementById('practice-unstable-val');
@@ -332,6 +366,54 @@ export class UI {
     };
     unstableCb?.addEventListener('change', syncUnstableLabel);
     syncUnstableLabel();
+    this._refreshPracticeChapter();
+    this._refreshPracticeDiff();
+  }
+
+  _practiceChapterIds() {
+    return [...document.querySelectorAll('#practice-chapter-list .pc-item')].map((b) => Number(b.dataset.id));
+  }
+
+  _selectPracticeChapter(id) {
+    this.practiceChapterId = Number(id);
+    this._refreshPracticeChapter();
+    this._sfx('ok');
+  }
+
+  _cyclePracticeChapter(dir) {
+    const ids = this._practiceChapterIds();
+    if (!ids.length) return;
+    const i = ids.indexOf(this.practiceChapterId);
+    this.practiceChapterId = ids[wrapIndex(i < 0 ? 0 : i + dir, ids.length)];
+    this._refreshPracticeChapter();
+    this._sfx('ok');
+  }
+
+  _refreshPracticeChapter() {
+    document.querySelectorAll('#practice-chapter-list .pc-item').forEach((b) => {
+      b.classList.toggle('selected', Number(b.dataset.id) === this.practiceChapterId);
+    });
+    document.querySelector(`#practice-chapter-list .pc-item[data-id="${this.practiceChapterId}"]`)
+      ?.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  _selectPracticeDiff(id) {
+    this.practiceDiffId = id;
+    this._refreshPracticeDiff();
+    this._sfx('ok');
+  }
+
+  _cyclePracticeDiff(dir) {
+    const i = DIFFICULTY_ORDER.indexOf(this.practiceDiffId);
+    this.practiceDiffId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
+    this._refreshPracticeDiff();
+    this._sfx('ok');
+  }
+
+  _refreshPracticeDiff() {
+    document.querySelectorAll('#practice-diffs .pd-chip').forEach((b) => {
+      b.classList.toggle('selected', b.dataset.diff === this.practiceDiffId);
+    });
   }
 
   _initKeys() {
@@ -449,19 +531,19 @@ export class UI {
     } else if (action === 'practice') {
       this.show('practice');
     } else if (action === 'practice-start') {
-      const ch = Number(document.getElementById('practice-chapter').value);
       const rawLives = Number(document.getElementById('practice-lives').value);
       // 练习残机不封顶（仅下限 0）；空/非法回落 2
       const lives = Number.isFinite(rawLives) ? Math.max(0, Math.floor(rawLives)) : 2;
       const unstable = document.getElementById('practice-unstable').checked;
       this.pendingStart = {
-        startChapter: ch,
+        startChapter: this.practiceChapterId,
         mode: 'practice',
         lives,
         unstable,
         singleChapter: true,
       };
-      this.show('difficulty');
+      this.pendingDifficulty = this.practiceDiffId;
+      this.show('player');
     } else if (action === 'settings-reset') {
       const next = saveSettings({ ...DEFAULT_SETTINGS });
       this.refreshSettingsForm();
@@ -482,13 +564,19 @@ export class UI {
         this.show('menu');
       }
     } else if (action === 'back-diff') {
-      this.show('difficulty');
+      // 练习难度内联在练习页，返回直接回练习屏
+      if (this.pendingStart?.mode === 'practice') {
+        this.show('practice');
+      } else {
+        this.show('difficulty');
+      }
     }
   }
 
   _practiceItems() {
     return [
-      { type: 'select', el: document.getElementById('practice-chapter'), wrap: null },
+      { type: 'chapters', el: document.getElementById('practice-chapter-list'), wrap: null },
+      { type: 'diffs', el: document.getElementById('practice-diffs'), wrap: null },
       // max: null = 左右调值不封顶（练习可自定义任意残机）
       { type: 'number', el: document.getElementById('practice-lives'), min: 0, max: null, wrap: null },
       { type: 'checkbox', el: document.getElementById('practice-unstable'), wrap: null },
@@ -550,6 +638,14 @@ export class UI {
   }
 
   _adjustFocusItem(item, dir, mods = {}) {
+    if (item?.type === 'chapters') {
+      this._cyclePracticeChapter(dir);
+      return true;
+    }
+    if (item?.type === 'diffs') {
+      this._cyclePracticeDiff(dir);
+      return true;
+    }
     return adjustFocusItem(item, dir, mods, {
       sfx: (n) => this._sfx(n),
       adjustFps: (d, m) => this._adjustFpsSetting(d, m),

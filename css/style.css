@@ -491,7 +491,6 @@ input, select, textarea {
 .practice-form .settings-row {
   margin: 0;
 }
-.practice-form select,
 .practice-form input[type="number"] {
   flex: 1;
   min-width: 0;
@@ -507,10 +506,6 @@ input, select, textarea {
   -webkit-user-select: text;
   cursor: text;
 }
-.practice-form select {
-  cursor: pointer;
-}
-.practice-form .settings-row.selected select,
 .practice-form .settings-row.selected input[type="number"] {
   border-color: rgba(212, 181, 106, 0.55);
 }
@@ -520,6 +515,93 @@ input, select, textarea {
   accent-color: var(--gold2);
   cursor: pointer;
   pointer-events: auto;
+}
+
+/* Practice — 关卡分组章节列表（替代原生 select；点选/←→ 循环） */
+.practice-chapter-control {
+  align-items: stretch;
+}
+.practice-chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: min(34vh, 260px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(10, 8, 14, 0.6);
+  padding: 0.3rem;
+  text-align: left;
+}
+.pc-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 0.25rem;
+}
+.pc-group:last-child { margin-bottom: 0; }
+.pc-group-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-family: var(--serif);
+  font-size: 0.78rem;
+  color: var(--gold2);
+  letter-spacing: 0.12em;
+  padding: 0.3rem 0.4rem 0.2rem;
+  border-bottom: 1px solid rgba(92, 74, 46, 0.45);
+  background: #141020;
+}
+.pc-item {
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #e8dcc4;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0.38rem 0.55rem;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pc-item:hover { background: var(--focus-bg-soft); }
+.pc-item.selected {
+  background: var(--focus-bg);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+  color: #f3e7cd;
+}
+/* Practice — 难度 chips（DIFFICULTIES：这么菜啊 / 白银 / S6第一个王者 / 职业选手） */
+.practice-diffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+}
+.pd-chip {
+  appearance: none;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 4px;
+  border: 1px solid var(--focus-border-soft);
+  background: rgba(12, 14, 20, 0.55);
+  color: #e8dcc4;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pd-chip:hover { background: var(--focus-bg-soft); }
+.pd-chip.selected {
+  border-color: var(--dc, var(--gold));
+  background: var(--focus-bg);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+  color: #f3e7cd;
 }
 .practice-hint {
   margin: 0;

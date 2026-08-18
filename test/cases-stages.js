@@ -1,7 +1,7 @@
 /**
  * 章节表 / 对话键 / 背景 mode 契约
  */
-import { buildChapterList, stageIntroFor, stageSelectEntries } from '../js/stages/index.js';
+import { buildChapterList, stageIntroFor, stageSelectEntries, practiceChapterGroups } from '../js/stages/index.js';
 import { getDialogues } from '../js/dialogue.js';
 import {
   bgModeFor, getAllBgModes, isKnownBgMode, resolveBgMode,
@@ -18,6 +18,24 @@ import { evaluateChapterEnd } from '../js/chapterEnd.js';
 import { test, assert, assertEqual } from './assert.js';
 
 const REQUIRED_STAGE_KEYS = ['1', '2', '3', 'patrol', 'A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'EX'];
+
+test('practiceChapterGroups：按关卡分组，不重不漏且组序与选关一致', () => {
+  const groups = practiceChapterGroups();
+  const flat = buildChapterList();
+  const all = groups.flatMap((g) => g.chapters);
+  assertEqual(all.length, flat.length, 'chapter count mismatch');
+  assertEqual(
+    all.map((c) => c.id).join(','),
+    flat.map((c) => c.id).join(','),
+    'group flatten order != chapter list order',
+  );
+  assertEqual(
+    groups.map((g) => g.label).join(','),
+    stageSelectEntries().map((e) => e.label).join(','),
+    'group order != stage select order',
+  );
+  assertEqual(new Set(all.map((c) => c.id)).size, all.length, 'duplicate chapter id');
+});
 
 test('章节表：id 唯一且故事节点用 onClear 元数据', () => {
   const list = buildChapterList();
