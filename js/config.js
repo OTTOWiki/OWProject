@@ -155,7 +155,7 @@ export const BALANCE = {
     hitStopBomb: 0.08,
     hitStopMiss: 0.1,
     hitStopLetter: 0.08,
-    shake: { bomb: [7, 0.45], miss: [9, 0.5], bossKill: [6, 0.4], letter: [5, 0.35] }, // [幅度, 时长s]
+    shake: { bomb: [7, 0.45], bossKill: [6, 0.4], letter: [5, 0.35] }, // [幅度, 时长s]
   },
 };
 

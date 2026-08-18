@@ -376,7 +376,7 @@ export function miss(game) {
   const p = game.player;
   game.chapterMiss = true;
   addHitStop(game, BALANCE.feedback.hitStopMiss);
-  addShake(game, ...BALANCE.feedback.shake.miss);
+  // 用户调整：Miss 不震屏（停帧保留）；Bomb/击破/Letter 仍震
   if (!debugLocksLives()) p.lives -= 1;
   p.arbitration = 0;
   p.edit = Math.min(p.edit, BALANCE.editMax * 0.3);
