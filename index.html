@@ -42,6 +42,8 @@
             <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
             <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
             <button class="menu-btn" data-action="history"><span class="star">★</span> History</button>
+            <button class="menu-btn" data-action="ranking"><span class="star">★</span> Ranking</button>
+            <button class="menu-btn" data-action="replay"><span class="star">★</span> Replay</button>
             <button class="menu-btn" data-action="settings"><span class="star">★</span> Settings</button>
             <button class="menu-btn" data-action="practice"><span class="star">★</span> Practice</button>
             <button class="menu-btn" data-action="exit"><span class="star">★</span> Exit</button>
@@ -220,6 +222,38 @@
       </div>
     </div>
 
+    <!-- 排行榜 -->
+    <div id="screen-ranking" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide ranking-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Ranking · 排行榜</h2>
+          <p class="keys-hint">←→ 切难度 · ↑↓ 选择 · Esc/X 返回</p>
+          <div class="ranking-diffs" id="ranking-diffs"></div>
+          <div class="ranking-list" id="ranking-list" role="list"></div>
+          <button class="menu-btn ghost" data-action="back">返回</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 录像回放 -->
+    <div id="screen-replay" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide replay-panel">
+        <div class="th-panel-frame">
+          <h2 class="panel-title">Replay · 录像回放</h2>
+          <p class="keys-hint">↑↓ 选择 · Z/Enter 播放 · Del 删除 · Esc/X 返回</p>
+          <p class="replay-status" id="replay-status">加载中…</p>
+          <div class="replay-list" id="replay-list" role="list"></div>
+          <div class="row-btns">
+            <button class="menu-btn ghost" data-action="replay-import">导入</button>
+            <button class="menu-btn ghost" data-action="back">返回</button>
+          </div>
+          <input type="file" id="replay-import-input" accept=".json,application/json" multiple hidden />
+        </div>
+      </div>
+    </div>
+
     <!-- 游戏主界面 -->
     <div id="screen-game" class="screen">
       <div class="game-layout">
@@ -252,6 +286,7 @@
                 <pre class="game-overlay-body" id="overlay-body"></pre>
                 <div class="game-overlay-actions" id="overlay-actions">
                   <button type="button" class="menu-btn overlay-btn" data-overlay="resume">继续</button>
+                  <button type="button" class="menu-btn overlay-btn" data-overlay="save-replay">保存录像</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="settings">设置</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="retry">再试一次</button>
                   <button type="button" class="menu-btn ghost overlay-btn" data-overlay="menu">主菜单</button>
@@ -296,6 +331,22 @@
             </div>
           </div>
         </aside>
+      </div>
+
+      <!-- 成绩排行结算弹层（入榜时先于 game over 结算展示） -->
+      <div id="score-ranking" class="score-ranking hidden">
+        <div class="score-ranking-backdrop" aria-hidden="true"></div>
+        <div class="score-ranking-panel th-panel">
+          <div class="th-panel-frame">
+            <h2 class="panel-title">成绩排行 · Score Ranking</h2>
+            <p class="sr-diff" id="sr-diff"></p>
+            <div class="sr-list" id="sr-list" role="list"></div>
+            <div class="row-btns">
+              <button type="button" class="menu-btn" data-sr-action="save">保存</button>
+              <button type="button" class="menu-btn ghost" data-sr-action="cancel">取消</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

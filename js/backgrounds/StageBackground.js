@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { resolveBgMode } from '../bgModes.js';
 import { STAGE_BG_BUILDERS } from './builders.js';
 import { makeTextTexture } from './textTexture.js';
+import { withRealRandom } from '../rng.js';
 
 export class StageBackground {
   constructor(canvas) {
@@ -76,7 +77,8 @@ export class StageBackground {
     this._clear();
     const m = resolveBgMode(this.mode);
     const build = STAGE_BG_BUILDERS[m] || STAGE_BG_BUILDERS.s1_mid;
-    build(this);
+    // 场景构建是装饰性随机；用真实随机，避免消费录像的种子流（否则切关后回放走样）
+    withRealRandom(() => build(this));
   }
 
   _addLights(color = 0x88aaff, intensity = 1.2, amb = 0.55) {

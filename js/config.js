@@ -15,7 +15,15 @@ export const STORAGE_KEYS = {
   unlocked: 'gunwei_unlocked',
   difficulty: 'gunwei_difficulty',
   settings: 'gunwei_settings',
+  ranking: 'gunwei_ranking',
+  rankingName: 'gunwei_ranking_name',
+  replayIndex: 'gunwei_replays_index',
 };
+
+/** 每难度排行榜条目上限 */
+export const RANKING_LIMIT = 10;
+/** 录像文件格式版本（向前兼容校验） */
+export const REPLAY_VERSION = 1;
 
 /** 自机子弹不透明度下限（设置滑条与存档钳制） */
 export const PLAYER_BULLET_OPACITY_MIN = 0.1;

@@ -11,6 +11,8 @@ import { getSpritePaths, preloadSprites } from './sprites.js';
 import { getPlayfieldBgPaths, preloadPlayfieldBg } from './playfieldBg.js';
 import { VERSION_LABEL, applyVersionToDom } from './version.js';
 import { installDebug } from './debug.js';
+import { loadReplay } from './replayStore.js';
+import { bindScoreRanking } from './scoreRanking.js';
 
 const canvas = document.getElementById('playfield');
 const bgCanvas = document.getElementById('bg3d');
@@ -220,12 +222,26 @@ async function boot() {
           audio.setMusicVolume(s.musicVolume ?? 1);
         }
       },
+      onPlayReplay(replayId) {
+        loadReplay(replayId)
+          .then((data) => {
+            if (!data) {
+              console.warn('[replay] not found:', replayId);
+              return;
+            }
+            if (!game) return;
+            ui.showGame();
+            game.startReplay(data);
+          })
+          .catch((e) => console.error('[replay] load failed:', e));
+      },
     });
 
     game = new Game({ canvas, input, audio, background, ui });
     // 启动时套用本地设置
     game.applySettings();
     installDebug(game);
+    bindScoreRanking(game);
 
     // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
     // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）
@@ -273,30 +289,32 @@ async function boot() {
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
 
+    // 对话/选线的点击改走 input.tap（会进录像快照），不直调 game 方法，
+    // 否则点击绕过 withSeededRng + 快照，回放会卡对话/卡选线且种子流偏移。
+    const setTap = (x) => { if (game) game.input.tap = { x, y: 0 }; };
+
     const dialogueBox = document.getElementById('dialogue-box');
     dialogueBox?.addEventListener('click', (e) => {
       if (e.target.closest?.('a')) return; // 链接点击放行（不推进对话）
-      if (game.state === 'dialogue') game._advanceDialogue();
+      if (game.state === 'dialogue') setTap(1);
     });
     // 路线选择：对话层遮挡时也可点左右半区（触屏 pointer 兼容）
-    const routePickFromClientX = (clientX, el) => {
+    const routePickFromClientX = (clientX) => {
       if (game.state !== 'routeSelect') return;
-      const rect = el.getBoundingClientRect();
-      const x = clientX - rect.left;
-      game._chooseRoute(x < rect.width * 0.5 ? 'A' : 'B');
+      const rect = canvas.getBoundingClientRect();
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      setTap(x);
     };
     dialogueBox?.addEventListener('pointerup', (e) => {
       if (game.state !== 'routeSelect') return;
       e.preventDefault();
-      routePickFromClientX(e.clientX, dialogueBox);
+      routePickFromClientX(e.clientX);
     });
     // 鼠标 / 部分触屏：版面左右点选（touch 主路径走 input.tap）
     canvas.addEventListener('pointerup', (e) => {
       if (game.state !== 'routeSelect') return;
       if (e.pointerType === 'touch') return; // 由 input.tap 处理，避免双触发
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-      game._chooseRoute(x < canvas.width * 0.5 ? 'A' : 'B');
+      routePickFromClientX(e.clientX);
     });
 
     const unlockAudio = () => {

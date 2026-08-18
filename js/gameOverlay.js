@@ -44,6 +44,7 @@ export function showOverlay(game, { mode, title, body = '', actions, hint }) {
     if (id === 'settings') btn.textContent = '设置';
     if (id === 'retry') btn.textContent = mode === 'pause' ? '重开本章' : '再试一次';
     if (id === 'menu') btn.textContent = '主菜单';
+    if (id === 'save-replay') btn.textContent = mode === 'pause' ? '保存录像' : '保存整局录像';
   }
   highlightOverlay(game);
 }
@@ -62,12 +63,16 @@ export function openPause(game) {
     mode: 'pause',
     title: 'PAUSED',
     body: '',
-    actions: ['resume', 'settings', 'retry', 'menu'],
+    actions: ['resume', 'save-replay', 'settings', 'retry', 'menu'],
     hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
   });
 }
 
 export function openResult(game, { title, body, retryChapter }) {
+  if (game.replaying) {
+    game._showReplayEnd();
+    return;
+  }
   game.paused = true;
   game.state = 'gameover';
   game.resultPayload = {
@@ -78,7 +83,7 @@ export function openResult(game, { title, body, retryChapter }) {
     mode: 'result',
     title,
     body,
-    actions: ['retry', 'menu'],
+    actions: ['save-replay', 'retry', 'menu'],
     hint: '↑↓ 选择 · Z 确认',
   });
   game.ui?.showGame?.();
@@ -102,12 +107,14 @@ export function runOverlayAction(game, action) {
     return;
   }
   if (action === 'retry') {
+    if (game.replaying) return;
     const chId = game.overlayMode === 'result'
       ? (game.resultPayload?.retryChapter ?? game.chapters[game.chapterIndex]?.id)
       : game.chapters[game.chapterIndex]?.id;
     const keepLives = game.overlayMode === 'pause' ? game.player.lives : undefined;
     hideOverlay(game);
-    game.start({
+    // 延后到微任务，避免在逻辑块（withSeededRng）内重入 start → 打乱新局种子
+    queueMicrotask(() => game.start({
       playerId: game.playerId,
       startChapter: chId,
       mode: game.mode,
@@ -115,14 +122,32 @@ export function runOverlayAction(game, action) {
       unstable: game.practiceUnstable,
       singleChapter: game.singleChapter,
       difficulty: game.difficultyId,
+    }));
+    return;
+  }
+  if (action === 'save-replay') {
+    const isPause = game.overlayMode === 'pause';
+    game._saveReplay({
+      partial: isPause,
+      cleared: !isPause && !!game._endCleared,
+    }).then((r) => {
+      if (game.el.overlayHint) {
+        game.el.overlayHint.textContent = r && r.ok ? '录像已保存' : '录像保存失败';
+      }
+    }).catch(() => {
+      if (game.el.overlayHint) game.el.overlayHint.textContent = '录像保存失败';
     });
     return;
   }
   if (action === 'menu') {
-    saveHiscore(game.score);
+    if (!game.replaying) saveHiscore(game.score);
     hideOverlay(game);
-    game.stop();
-    game.ui.showMenu();
+    // 延后到微任务，避免在逻辑块内重入 stop
+    queueMicrotask(() => {
+      game.stop();
+      if (game.replaying && game.ui?.showReplayScreen) game.ui.showReplayScreen();
+      else game.ui.showMenu();
+    });
   }
 }
 

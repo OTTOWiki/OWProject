@@ -6,7 +6,7 @@ import { Player } from './entities.js';
 import { drawPlayer } from './draw/index.js';
 import { drawGameFrame, drawFps } from './gameDraw.js';
 import {
-  bindOverlayClicks, hideOverlay, openPause, openResult,
+  bindOverlayClicks, hideOverlay, openPause, openResult, showOverlay,
   handleOverlayInput,
 } from './gameOverlay.js';
 import {
@@ -25,6 +25,10 @@ import {
 import { buildChapterList } from './stages/index.js';
 import { getDialogues } from './dialogue.js';
 import { loadHiscore, loadSettings } from './storage.js';
+import { withSeededRng, createRng, randomSeed } from './rng.js';
+import { buildReplay, validateReplay, createPlayer, createReplayInput } from './replay.js';
+import { saveReplay } from './replayStore.js';
+import { handleScoreRankingKey, isScoreRankingOpen } from './scoreRanking.js';
 import { PlayfieldBackground } from './playfieldBg.js';
 import {
   createHudCache, updateGameHud, updateLetterHud,
@@ -91,6 +95,21 @@ export class Game {
     this._fpsAccum = 0;
     this._fpsLastDrawT = null;
 
+    /** 录像/回放状态 */
+    this.replaying = false;       // 回放中
+    this.recording = false;       // 录制缓冲中（普通对局常开）
+    this.replay = null;           // 当前回放的录像对象
+    this._replaySeed = null;
+    this._rngNext = null;         // 种子 PRNG 的 next（null=Math.random）
+    this._recordFrames = [];      // [{s, i}] 原始帧缓冲
+    this._startChapterId = null;  // 录像头部：本局起始章节 id
+    this._startLives = null;      // 录像头部：起始残机（practice 自定义）
+    this.realInput = input;       // 真实输入（回放控制键用）
+    this._replayInput = null;     // 回放时注入 game.input 的虚拟输入
+    this._replayPlayer = null;
+    this._replayFast = false;
+    this._replayDone = false;
+
     this._bindUI();
   }
 
@@ -111,7 +130,7 @@ export class Game {
     } else {
       this.fpsLimit = nextCap;
     }
-    this.input.applySettings(s);
+    this.realInput.applySettings(s);
     this.audio.setMusicVolume(s.musicVolume ?? 1);
   }
 
@@ -158,7 +177,31 @@ export class Game {
       unstable = true,
       singleChapter = false,
       difficulty = 'normal',
-    } = opts;
+      replay = null,
+    } = opts || {};
+
+    this.replaying = !!replay;
+    this.replay = replay || null;
+    this.recording = !this.replaying;   // 普通对局常驻缓冲；回放不录制
+    this._recordFrames = [];
+    this._replayDone = false;
+    this._replayFast = false;
+    this._startChapterId = startId;
+    this._startLives = lives;
+
+    this._replaySeed = replay && replay.seed != null ? replay.seed : randomSeed();
+    this._rngNext = createRng(this._replaySeed);
+
+    // 回放：game.input 换成虚拟输入（读录像快照）；真实输入留给回放控制键
+    if (this.replaying) {
+      if (!this._replayInput) this._replayInput = createReplayInput();
+      this._replayInput.keys = replay.keys ? { ...replay.keys } : { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' };
+      this._replayInput.shotToggleMode = !!replay.shotToggleMode;
+      this.input = this._replayInput;
+      this._replayPlayer = createPlayer(replay.frames);
+    } else {
+      this.input = this.realInput;
+    }
 
     this.diff = getDifficulty(difficulty);
     this.difficultyId = this.diff.id;
@@ -233,6 +276,8 @@ export class Game {
     this.pendingAfterDialogue = null;
     this.routeChoice = null;
     this.resultPayload = null;
+    this._rankingResult = null; // 结算入榜暂存（排行榜，与录像独立）
+    this._endCleared = false;
     this.chapterBanner = null; // 非阻塞章标题/结算条
     this._queuedStartTitle = null; // 结束条播完后显示的新章标题
     this.nextUnstableFx = null;
@@ -248,6 +293,8 @@ export class Game {
     this.overlayActionIndex = 0;
     this.applySettings();
     this.input.resetShotLatch();
+    // 清真实输入的残留边沿（菜单 Esc/R 等），避免开局即暂停/误触发
+    this.realInput.endFrame();
     setEndingCinematic(this, false);
     hideOverlay(this);
     this.el.flash.classList.add('hidden');
@@ -262,7 +309,7 @@ export class Game {
     bindOverlayClicks(this);
     this.input.bindCanvas(this.canvas, () => ({ x: this.player.x, y: this.player.y }));
     this.audio.ensure();
-    startChapter(this);
+    withSeededRng(() => startChapter(this), this._rngNext);
     this.lastT = performance.now();
     this._fpsBankMs = 0;
     this._lastDrawT = 0;
@@ -372,46 +419,36 @@ export class Game {
 
     // ---- 逻辑：固定 60Hz 步进（与显示器刷新无关）----
     const LOGIC_FRAME_MS = 1000 / 60;
-    this._fpsBankMs += elapsedMs;
-    if (this._fpsBankMs > LOGIC_FRAME_MS * 4) this._fpsBankMs = LOGIC_FRAME_MS * 4;
-
-    let steps = 0;
-    while (this._fpsBankMs >= LOGIC_FRAME_MS * 0.92 && steps < 3) {
-      this._fpsBankMs -= LOGIC_FRAME_MS;
-      steps++;
-    }
 
     try {
-      if (steps > 0) {
-        let dt = (1 / 60) * steps;
-        const dbgScale = getDebugTimeScale();
-        if (dbgScale !== 1) {
-          dt *= dbgScale;
-          const capDt = 0.05 * Math.max(1, dbgScale);
-          if (dt > capDt) dt = capDt;
+      if (this.replaying) {
+        const handled = this._handleReplayControl();
+        if (!handled && !this._replayDone) {
+          // 按真实时间推进：累加 real time，消费录像帧覆盖对应游戏时间（steps），
+          // 使回放速度与录制一致（1x；快进 3x），不依赖回放机的刷新率。
+          this._fpsBankMs += elapsedMs * (this._replayFast ? 3 : 1);
+          if (this._fpsBankMs > LOGIC_FRAME_MS * 8) this._fpsBankMs = LOGIC_FRAME_MS * 8;
+          while (this._fpsBankMs >= LOGIC_FRAME_MS * 0.92 && !this._replayDone) {
+            const frame = this._replayPlayer.next();
+            if (!frame) {
+              this._replayDone = true;
+              this._showReplayEnd();
+              break;
+            }
+            this._runLogicBlock(frame.steps, frame.snapshot);
+            this._fpsBankMs -= frame.steps * LOGIC_FRAME_MS;
+          }
         }
+      } else {
+        this._fpsBankMs += elapsedMs;
+        if (this._fpsBankMs > LOGIC_FRAME_MS * 4) this._fpsBankMs = LOGIC_FRAME_MS * 4;
 
-        this._handleGlobalInput();
-        if (!this.paused) tickAdvance(this, dt);
-        if (this.state === 'stageTransit' && !this.paused) {
-          updateStageTransit(this, dt);
-        } else if (this.state === 'playing' && !this.paused) {
-          updateCombat(this, dt);
+        let steps = 0;
+        while (this._fpsBankMs >= LOGIC_FRAME_MS * 0.92 && steps < 3) {
+          this._fpsBankMs -= LOGIC_FRAME_MS;
+          steps++;
         }
-        debugTick();
-
-        try {
-          const bgMul = this.paused ? 0
-            : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
-              : 1;
-          this.playBg?.update(dt * bgMul);
-          this.background?.setTendency(this.totalTendency);
-        } catch (err) {
-          console.error('[game bg]', err);
-        } finally {
-          // 仅逻辑帧清边沿；失败也必须清，否则 justPressed 卡死 → 暂停连闪
-          this.input.endFrame();
-        }
+        if (steps > 0) this._runLogicBlock(steps, null);
       }
 
       // ---- 描画：跟 rAF / 设置上限，与逻辑 60 完全独立 ----
@@ -462,6 +499,173 @@ export class Game {
     }
   }
 
+  /**
+   * 单次逻辑块：回放按录像 steps 原样重放；普通对局按 bank 追赶合并后的 steps 前进。
+   * @param {number} steps 0..3 合并步数
+   * @param {object|null} snap 回放快照（普通对局为 null，现场采样）
+   */
+  _runLogicBlock(steps, snap) {
+    let dt = (1 / 60) * steps;
+    if (!this.replaying) {
+      const dbgScale = getDebugTimeScale();
+      if (dbgScale !== 1) {
+        dt *= dbgScale;
+        const capDt = 0.05 * Math.max(1, dbgScale);
+        if (dt > capDt) dt = capDt;
+      }
+    }
+
+    let recSnap = null;
+    if (this.replaying) {
+      this.input.set(snap);
+    } else {
+      recSnap = this.input.snapshot();
+    }
+
+    let wasPlaying = false;
+    withSeededRng(() => {
+      this._handleGlobalInput();
+      wasPlaying = !this.paused; // 在 tickAdvance/updateCombat 前判定：对话/选线/死帧/取消暂停都要录
+      if (!this.paused) tickAdvance(this, dt);
+      if (this.state === 'stageTransit' && !this.paused) {
+        updateStageTransit(this, dt);
+      } else if (this.state === 'playing' && !this.paused) {
+        updateCombat(this, dt);
+      }
+      debugTick();
+
+      try {
+        const bgMul = this.paused ? 0
+          : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
+            : 1;
+        this.playBg?.update(dt * bgMul);
+        this.background?.setTendency(this.totalTendency);
+      } catch (err) {
+        console.error('[game bg]', err);
+      } finally {
+        // 仅逻辑块清边沿；失败也必须清，否则 justPressed 卡死 → 暂停连闪
+        this.input.endFrame();
+      }
+    }, this._rngNext);
+
+    // 录制：本逻辑块确实推进了游戏流程（含对话/选线/死亡/取消暂停）
+    if (this.recording && !this.replaying && wasPlaying) {
+      this._recordFrames.push({ s: steps, i: recSnap });
+    }
+  }
+
+  /** 回放控制（真实按键）：Esc 退出、R 重开、F/Shift 快进 */
+  /**
+   * 回放控制（真实按键）：Esc 退出、R 重开、F/Shift 快进。
+   * @returns {boolean} 是否已触发退出/重开（调用方应跳过本 rAF 的逻辑，避免重入/多消费帧）
+   */
+  _handleReplayControl() {
+    const ri = this.realInput;
+    if (ri.justPressed('Escape')) {
+      ri.endFrame();
+      this._exitReplay();
+      return true;
+    }
+    if (this._replayDone) {
+      if (ri.justPressed('Enter') || ri.justPressed('KeyZ') || ri.justPressed('Space')) {
+        this._exitReplay();
+        return true;
+      }
+      ri.endFrame();
+      return false;
+    }
+    if (ri.justPressed('KeyR')) {
+      ri.endFrame();
+      this._restartReplay();
+      return true;
+    }
+    this._replayFast = ri.isDown('KeyF') || ri.isDown('ShiftLeft') || ri.isDown('ShiftRight');
+    ri.endFrame();
+    return false;
+  }
+
+  _exitReplay() {
+    const toReplayScreen = !!this.replay;
+    this.stop();
+    if (toReplayScreen && this.ui?.showReplayScreen) this.ui.showReplayScreen();
+    else this.ui?.showMenu?.();
+  }
+
+  _restartReplay() {
+    const r = this.replay;
+    if (!r) return;
+    this.stop();
+    this.startReplay(r);
+  }
+
+  _showReplayEnd() {
+    this._replayDone = true;
+    const es = this.replay?.endState || {};
+    this.paused = true;
+    this.state = 'gameover';
+    showOverlay(this, {
+      mode: 'result',
+      title: this.replay?.partial ? '回放结束（部分）' : '回放结束',
+      body: `得分：${es.score ?? this.score}\n难度：${this.diff?.rank} ${this.diff?.name}`,
+      actions: ['menu'],
+      hint: 'Esc 返回录像列表',
+    });
+  }
+
+  /** 从录像数据启动回放 */
+  startReplay(replay) {
+    if (!validateReplay(replay)) return false;
+    if (!replay.playerId) return false;
+    this.start({
+      playerId: replay.playerId,
+      startChapter: replay.startChapter,
+      mode: replay.mode,
+      lives: replay.lives,
+      unstable: replay.unstable,
+      singleChapter: replay.singleChapter,
+      difficulty: replay.difficultyId,
+      replay,
+    });
+    return true;
+  }
+
+  /** 保存录像（暂停=部分 / 结算=整局）。异步写 IndexedDB，返回 {ok, replayId?}。 */
+  async _saveReplay({ partial = false, cleared = false } = {}) {
+    if (!this.recording || this.replaying) return { ok: false, reason: 'unavailable' };
+    if (!this._recordFrames.length) return { ok: false, reason: 'empty' };
+    const ch = this.chapters[this.chapterIndex];
+    const replay = buildReplay({
+      header: {
+        seed: this._replaySeed,
+        shotToggleMode: !!this.realInput.shotToggleMode,
+        keys: { ...this.realInput.keys },
+        playerId: this.playerId,
+        difficultyId: this.difficultyId,
+        mode: this.mode,
+        route: this.routeChoice || (this.mode === 'extra' ? 'EX' : null),
+        startChapter: this._startChapterId,
+        lives: this._startLives,
+        singleChapter: !!this.singleChapter,
+        unstable: !!this.practiceUnstable,
+      },
+      frames: this._recordFrames,
+      endState: {
+        score: this.score,
+        cleared: !!cleared,
+        stageReached: this.el.stageLabel?.textContent || (ch ? ch.name : ''),
+        chapterIndex: this.chapterIndex,
+      },
+      partial: !!partial,
+    });
+    try {
+      await saveReplay(replay);
+      return { ok: true, replayId: replay.replayId };
+    } catch (e) {
+      console.error('[replay save]', e);
+      return { ok: false, reason: 'store' };
+    }
+  }
+
   _handleGlobalInput() {
     // 设置页等非游戏屏时不吃输入（避免 Esc 误开暂停）
     if (!document.getElementById('screen-game')?.classList.contains('active')) {
@@ -469,23 +673,32 @@ export class Game {
       return;
     }
 
-    const wantPause = this.input.consumePause();
-
-    // 叠加层（暂停 / 结束）优先
-    if (handleOverlayInput(this, wantPause)) return;
-
-    // 暂停：playing / dialogue / 关卡过渡 均可
-    if (wantPause && (this.state === 'playing' || this.state === 'dialogue' || this.state === 'stageTransit')) {
-      openPause(this);
+    // 成绩排行弹层：优先处理其键盘导航
+    if (isScoreRankingOpen()) {
+      handleScoreRankingKey(this);
       return;
     }
 
+    if (!this.replaying) {
+      const wantPause = this.input.consumePause();
+
+      // 叠加层（暂停 / 结束）优先
+      if (handleOverlayInput(this, wantPause)) return;
+
+      // 暂停：playing / dialogue / 关卡过渡 均可
+      if (wantPause && (this.state === 'playing' || this.state === 'dialogue' || this.state === 'stageTransit')) {
+        openPause(this);
+        return;
+      }
+    }
+
     if (this.state === 'dialogue') {
-      // Shot 默认即 KeyZ：只走一条确认路径，避免同帧连跳两句
+      // Shot 默认即 KeyZ：只走一条确认路径，避免同帧连跳两句；tap 由点击/触屏写入快照
       if (
         this.input.shotPressed()
         || this.input.justPressed('Enter')
         || this.input.justPressed('Space')
+        || this.input.tap
       ) {
         advanceDialogue(this);
       }
