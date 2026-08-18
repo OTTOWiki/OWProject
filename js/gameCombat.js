@@ -72,10 +72,11 @@ function spawnGrazeParticles(game, p) {
   }
 }
 
+// 受击白闪（hurtT）保留；命中停帧只给一次性大事件（击破/Bomb/Miss/Letter），
+// 避免持续输出把逻辑压到低速（旧版每帧 addHitStop → _hitStop 恒 >0 → updateCombat 被节流）。
 export function applyCollisionEvents(game, events) {
   if (!events || !events.length) return;
   const p = game.player;
-  let hurtHandled = false; // 每帧仅第一个 hurt 事件触发一次停帧（弹幕墙去重）
   for (const ev of events) {
     if (ev.type === 'kill') {
       const e = ev.enemy;
@@ -89,11 +90,6 @@ export function applyCollisionEvents(game, events) {
         addHitStop(game, BALANCE.feedback.hitStopBossKill);
         addShake(game, ...BALANCE.feedback.shake.bossKill);
         addShockwave(game, e.x, e.y, e.color || '#ffffff', 90, 0.4);
-      }
-    } else if (ev.type === 'hurt') {
-      if (!hurtHandled) {
-        hurtHandled = true;
-        addHitStop(game, BALANCE.feedback.hitStopBossHurt);
       }
     } else if (ev.type === 'graze') {
       if (!p) continue;

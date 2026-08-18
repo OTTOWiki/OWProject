@@ -1,5 +1,6 @@
 /**
- * 打击反馈（PR-A）：addHitStop / addShake 语义 + collision hurt 事件
+ * 打击反馈（PR-A）：addHitStop / addShake 语义 + collision 事件
+ * 受击不再产生 hurt 事件（移除每帧受击停帧后）；击破仍发 kill
  * 纯视觉层：不触碰判定 / 得分 / 回放
  */
 import { BALANCE } from '../js/config.js';
@@ -30,7 +31,7 @@ test('addShake：设置 _shakeMag / _shakeDur / _shakeT 三个字段', () => {
   assertEqual(game._shakeT, 0.45, 'T 初始化为 dur');
 });
 
-/** 最小 mock：runCollisions 只读实体字段 + hurt，不碰 audio/score */
+/** 最小 mock：runCollisions 只读实体字段 + hurt 方法，不碰 audio/score */
 function mockGame({ player, enemies = [], bullets = [] } = {}) {
   const playerBullets = [];
   const enemyBullets = [];
@@ -90,23 +91,23 @@ function mockBullet(opts) {
 
 const PLAYER = { x: 50, y: 500, r: 3, edit: 0 };
 
-test('runCollisions：boss 受击未死 → hurt 事件', () => {
+test('runCollisions：boss 受击未死 → 无 hurt 事件（受击停帧已移除）', () => {
   const boss = mockEnemy({ type: 'boss', x: 100, y: 100, hp: 100 });
   const pb = mockBullet({ from: 'player', x: 100, y: 100, r: 6, damage: 10 });
   const g = mockGame({ player: PLAYER, enemies: [boss], bullets: [pb] });
   const events = runCollisions(g);
   assert(!boss.dead, 'boss survives');
-  assert(events.some((e) => e.type === 'hurt' && e.enemy === boss), `expected hurt, got ${events.map((e) => e.type).join(',')}`);
+  assert(!events.some((e) => e.type === 'hurt'), `surviving boss must not emit hurt, got ${events.map((e) => e.type).join(',')}`);
   assert(!events.some((e) => e.type === 'kill'), 'surviving boss must not emit kill');
 });
 
-test('runCollisions：elite 受击未死 → hurt 事件', () => {
+test('runCollisions：elite 受击未死 → 无 hurt 事件（受击停帧已移除）', () => {
   const elite = mockEnemy({ type: 'elite', x: 100, y: 100, hp: 100 });
   const pb = mockBullet({ from: 'player', x: 100, y: 100, r: 6, damage: 10 });
   const g = mockGame({ player: PLAYER, enemies: [elite], bullets: [pb] });
   const events = runCollisions(g);
   assert(!elite.dead, 'elite survives');
-  assert(events.some((e) => e.type === 'hurt' && e.enemy === elite), `expected hurt, got ${events.map((e) => e.type).join(',')}`);
+  assert(!events.some((e) => e.type === 'hurt'), `elite must not emit hurt, got ${events.map((e) => e.type).join(',')}`);
 });
 
 test('runCollisions：普通 mob 受击未死 → 无 hurt 事件', () => {

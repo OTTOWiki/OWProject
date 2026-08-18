@@ -151,7 +151,6 @@ export const BALANCE = {
   /** 打击反馈（纯视觉；不影响判定/回放） */
   feedback: {
     hitStopCap: 0.15,
-    hitStopBossHurt: 0.03,
     hitStopBossKill: 0.12,
     hitStopBomb: 0.08,
     hitStopMiss: 0.1,
