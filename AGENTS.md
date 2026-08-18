@@ -177,7 +177,7 @@ docs/                  # 内部改造队列等（非运行时）
 **`Game.mode`**：`story` | `practice` | `stage` | `extra`  
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。）
 
-**练习模式**：章节按关卡分组选择（`practiceChapterGroups`，替代原生 select），难度在练习页内联选择（`DIFFICULTIES`）；不经难度页，直接选自机。
+**练习模式**：难度用内联标签选择（`DIFFICULTIES`），章节按关卡分组列表选择（`practiceChapterGroups`，替代原生 select）；不经难度页，直接选自机。
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 

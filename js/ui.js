@@ -349,14 +349,14 @@ export class UI {
       diffBox.innerHTML = '';
       for (const id of DIFFICULTY_ORDER) {
         const d = DIFFICULTIES[id];
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'pd-chip';
-        chip.dataset.diff = id;
-        chip.style.setProperty('--dc', d.color);
-        chip.textContent = `${d.rank} ${d.name}`;
-        chip.addEventListener('click', () => this._selectPracticeDiff(id));
-        diffBox.appendChild(chip);
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'pd-tab';
+        tab.dataset.diff = id;
+        tab.style.setProperty('--dc', d.color);
+        tab.textContent = `${d.rank} ${d.name}`;
+        tab.addEventListener('click', () => this._selectPracticeDiff(id));
+        diffBox.appendChild(tab);
       }
     }
     const unstableCb = document.getElementById('practice-unstable');
@@ -411,7 +411,7 @@ export class UI {
   }
 
   _refreshPracticeDiff() {
-    document.querySelectorAll('#practice-diffs .pd-chip').forEach((b) => {
+    document.querySelectorAll('#practice-diffs .pd-tab').forEach((b) => {
       b.classList.toggle('selected', b.dataset.diff === this.practiceDiffId);
     });
   }
@@ -575,8 +575,8 @@ export class UI {
 
   _practiceItems() {
     return [
-      { type: 'chapters', el: document.getElementById('practice-chapter-list'), wrap: null },
       { type: 'diffs', el: document.getElementById('practice-diffs'), wrap: null },
+      { type: 'chapters', el: document.getElementById('practice-chapter-list'), wrap: null },
       // max: null = 左右调值不封顶（练习可自定义任意残机）
       { type: 'number', el: document.getElementById('practice-lives'), min: 0, max: null, wrap: null },
       { type: 'checkbox', el: document.getElementById('practice-unstable'), wrap: null },
