@@ -174,7 +174,7 @@ export const chapters = [
     name: '拉斯特神炫「虾油风油精·绝对帝国」',
     dialogue: 'b6_last',
     letter: '虾油风油精 · 绝对帝国',
-    letterTime: 55,
+    letterTime: 66,
     build: chapter_lastgod_8,
   }),
   letterChapter(FACE, {
