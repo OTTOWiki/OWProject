@@ -335,6 +335,8 @@ export class UI {
         tab.type = 'button';
         tab.className = 'ptab';
         tab.dataset.diff = id;
+        tab.role = 'radio';
+        tab.setAttribute('aria-checked', 'false');
         tab.style.setProperty('--dc', d.color);
         tab.textContent = `${d.rank} ${d.name}`;
         tab.addEventListener('click', () => this._selectPracticeDiff(id));
@@ -349,6 +351,8 @@ export class UI {
         chip.type = 'button';
         chip.className = 'ptab';
         chip.dataset.stage = this._practiceStageKeys[i];
+        chip.role = 'radio';
+        chip.setAttribute('aria-checked', 'false');
         chip.textContent = g.label;
         chip.addEventListener('click', () => this._selectPracticeStage(this._practiceStageKeys[i]));
         stageBox.appendChild(chip);
@@ -396,6 +400,8 @@ export class UI {
       btn.type = 'button';
       btn.className = 'pc-item';
       btn.dataset.id = ch.id;
+      btn.role = 'option';
+      btn.setAttribute('aria-selected', 'false');
       btn.textContent = `#${ch.id} ${ch.name}`;
       btn.addEventListener('click', () => this._selectPracticeChapter(ch.id));
       list.appendChild(btn);
@@ -426,7 +432,9 @@ export class UI {
 
   _refreshPracticeStage() {
     document.querySelectorAll('#practice-stages .ptab').forEach((b) => {
-      b.classList.toggle('selected', b.dataset.stage === this.practiceStageKey);
+      const isSelected = b.dataset.stage === this.practiceStageKey;
+      b.classList.toggle('selected', isSelected);
+      b.setAttribute('aria-checked', String(isSelected));
     });
   }
 
@@ -449,7 +457,9 @@ export class UI {
 
   _refreshPracticeChapter() {
     document.querySelectorAll('#practice-chapter-list .pc-item').forEach((b) => {
-      b.classList.toggle('selected', Number(b.dataset.id) === this.practiceChapterId);
+      const isSelected = Number(b.dataset.id) === this.practiceChapterId;
+      b.classList.toggle('selected', isSelected);
+      b.setAttribute('aria-selected', String(isSelected));
     });
     document.querySelector(`#practice-chapter-list .pc-item[data-id="${this.practiceChapterId}"]`)
       ?.scrollIntoView?.({ block: 'nearest' });
@@ -472,7 +482,9 @@ export class UI {
 
   _refreshPracticeDiff() {
     document.querySelectorAll('#practice-diffs .ptab').forEach((b) => {
-      b.classList.toggle('selected', b.dataset.diff === this.practiceDiffId);
+      const isSelected = b.dataset.diff === this.practiceDiffId;
+      b.classList.toggle('selected', isSelected);
+      b.setAttribute('aria-checked', String(isSelected));
     });
   }
 
