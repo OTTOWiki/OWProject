@@ -12,9 +12,10 @@ import { BALANCE } from './config.js';
 const GRID_CELL = 56;
 
 /** @typedef {{ type: 'kill', enemy: object }} KillEvent */
+/** @typedef {{ type: 'hurt', enemy: object }} HurtEvent */
 /** @typedef {{ type: 'graze', bullet: object }} GrazeEvent */
 /** @typedef {{ type: 'playerHit', source: 'bullet'|'body', bullet?: object, enemy?: object }} PlayerHitEvent */
-/** @typedef {KillEvent|GrazeEvent|PlayerHitEvent} CollisionEvent */
+/** @typedef {KillEvent|HurtEvent|GrazeEvent|PlayerHitEvent} CollisionEvent */
 
 /** 点到线段最短距离 */
 export function distPointSeg(px, py, x1, y1, x2, y2) {
@@ -217,6 +218,9 @@ export function runCollisions(game) {
       const killed = e.hurt(b.damage);
       if (killed) {
         events.push({ type: 'kill', enemy: e });
+      } else if (e.type === 'boss' || e.type === 'elite') {
+        // 未击杀的 boss/elite 受击 → 供打击反馈消费（纯视觉）
+        events.push({ type: 'hurt', enemy: e });
       }
       return true;
     };

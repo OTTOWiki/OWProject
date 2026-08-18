@@ -19,7 +19,10 @@ import { debugSkipDialogue } from './debug.js';
 import { releaseBulletList } from './bulletPool.js';
 import { releaseItemList } from './itemPool.js';
 import { releaseParticleList } from './particlePool.js';
-import { bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore } from './gameCombat.js';
+import {
+  bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore,
+  addHitStop, addShake,
+} from './gameCombat.js';
 import { openResult } from './gameOverlay.js';
 
 export function wrapWaveFn(game, raw) {
@@ -291,7 +294,11 @@ export function finishChapter(game, success) {
   let letterBonus = 0;
   if (perfect && game.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
     letterBonus = calcLetterBonus(ch.stageKey, game.letterTimeLeft, game.letterTimeMax);
-    if (letterBonus > 0) addScore(game, letterBonus);
+    if (letterBonus > 0) {
+      addScore(game, letterBonus);
+      addHitStop(game, BALANCE.feedback.hitStopLetter);
+      addShake(game, ...BALANCE.feedback.shake.letter);
+    }
     grantLetterResource(game, ch, true, true);
   }
 
