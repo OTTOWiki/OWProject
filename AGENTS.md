@@ -87,7 +87,7 @@ npm run test:bun       # 强制 bun test（入口 test/run-bun.test.mjs）
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
-- 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|smoke|load.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|pools|stages|storage-spawn|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step
@@ -112,6 +112,7 @@ js/
   stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_*；_shared + stageContext
   ui.js / menuNav.js / settingsForm.js / startMode.js
   historyScreen.js / historyVersions.js
+  ranking.js / rankingScreen.js / scoreRanking.js / replay.js / replayStore.js / replayScreen.js / rng.js
   input.js / audio.js / storage.js / debug.js
   backgrounds.js       # re-export → backgrounds/*
   backgrounds/         # StageBackground、builders、scenes
@@ -157,6 +158,13 @@ docs/                  # 内部改造队列等（非运行时）
 | `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
 | `backgrounds/*` | 左侧 Three 场景 | 版面 Canvas |
 | `playfieldBgThemes.js` | `MODE_THEME` 一行表 | Three 场景 |
+| `rng.js` | 种子 PRNG（mulberry32）+ `withSeededRng` | 业务逻辑 |
+| `ranking.js` | 排行榜纯函数 + localStorage（按难度 top10） | UI / 录像 |
+| `rankingScreen.js` | 排行榜屏（难度切换 + 列表） | 游戏逻辑 |
+| `scoreRanking.js` | 成绩排行结算弹层（入榜时名次高亮 + 机签 + 保存/取消） | 游戏逻辑 |
+| `replay.js` | 录像：快照 RLE 编解码、回放游标、虚拟输入 | 存档 I/O |
+| `replayStore.js` | 录像帧数据 IndexedDB + localStorage 索引 | 游戏逻辑 |
+| `replayScreen.js` | 录像列表屏（播放/删除） | 游戏逻辑 |
 
 出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**，勿直接 `enemies.push` / `bullets.push`。
 
@@ -167,6 +175,8 @@ docs/                  # 内部改造队列等（非运行时）
 
 **`Game.mode`**：`story` | `practice` | `stage` | `extra`  
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。）
+
+**录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
 ### 章节流
 
@@ -210,6 +220,9 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_unlocked` | 进度记录（Stage Select **不门禁**） |
 | `gunwei_difficulty` | 上次难度 |
 | `gunwei_settings` | 音量、弹透明度、单击发射、FPS 上限等 |
+| `gunwei_ranking` | 排行榜（按难度 top10，与录像独立） |
+| `gunwei_ranking_name` | 上次入榜昵称（3 字） |
+| `gunwei_replays_index` | 录像索引（元数据；帧数据在 IndexedDB `owproject-replays`） |
 
 ---
 
@@ -267,6 +280,8 @@ docs/                  # 内部改造队列等（非运行时）
 | 改左侧 3D | `backgrounds/*` + `bgModes.js` |
 | 改版面主题色 | `playfieldBgThemes.js` |
 | 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
+| 改排行榜 | `ranking.js` + `rankingScreen.js` + `scoreRanking.js` + `index.html` |
+| 改录像/回放 | `replay.js` + `replayStore.js` + `replayScreen.js` + `game.js` + `rng.js` |
 | 发版 | `VERSION_NAME` + hooks；CF `pages:build`；tag |
 | 测试 | `npm test`（优先 bun，无 bun 退 node）、`npm run test:bun` 或 `/test/` |
 

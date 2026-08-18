@@ -2,6 +2,12 @@
  * BGM + SFX：仅音频文件（OGG）播放
  */
 
+/**
+ * 装饰性音效随机（音高抖动）用真实随机：模块加载时捕获，
+ * 不受录像回放 withSeededRng 的全局 Math.random 替换影响。
+ */
+const SFX_RANDOM = Math.random.bind(Math);
+
 /** 音频文件映射：musicId → OGG 文件路径 */
 export const AUDIO_FILE_MAP = {
   s1_mid: 'assets/bgm/押っ開かれた火蓋 ～ Slow Starter.ogg',
@@ -231,15 +237,15 @@ export class AudioEngine {
       o.start(t);
       o.stop(t + d + 0.02);
     };
-    if (type === 'shot') blip(880 + Math.random() * 200, 0.04, 0.04);
+    if (type === 'shot') blip(880 + SFX_RANDOM() * 200, 0.04, 0.04);
     else if (type === 'bomb') {
       blip(120, 0.35, 0.12, 'sawtooth');
       blip(80, 0.4, 0.08, 'sine');
     } else if (type === 'hit') blip(200, 0.08, 0.05);
     else if (type === 'graze') {
       // 轻脆「擦」：短高音 + 轻微泛音，比旧版更可听
-      blip(1680 + Math.random() * 220, 0.045, 0.045, 'sine');
-      blip(2400 + Math.random() * 180, 0.03, 0.02, 'triangle');
+      blip(1680 + SFX_RANDOM() * 220, 0.045, 0.045, 'sine');
+      blip(2400 + SFX_RANDOM() * 180, 0.03, 0.02, 'triangle');
     }
     else if (type === 'dead') {
       blip(400, 0.25, 0.09, 'sawtooth');

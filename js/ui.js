@@ -19,11 +19,14 @@ import {
 } from './menuNav.js';
 import { HistoryScreen } from './historyScreen.js';
 import { SettingsForm } from './settingsForm.js';
+import { RankingScreen } from './rankingScreen.js';
+import { ReplayScreen } from './replayScreen.js';
 
 export class UI {
-  constructor({ onStartGame, onSettingsChange, audio }) {
+  constructor({ onStartGame, onSettingsChange, audio, onPlayReplay }) {
     this.onStartGame = onStartGame;
     this.onSettingsChange = onSettingsChange || null;
+    this.onPlayReplay = onPlayReplay || null;
     this.audio = audio;
     this.menuIndex = 0;
     this.pendingStart = null;
@@ -50,6 +53,8 @@ export class UI {
       settings: document.getElementById('screen-settings'),
       manual: document.getElementById('screen-manual'),
       history: document.getElementById('screen-history'),
+      ranking: document.getElementById('screen-ranking'),
+      replay: document.getElementById('screen-replay'),
       game: document.getElementById('screen-game'),
     };
 
@@ -57,6 +62,19 @@ export class UI {
       audio,
       isActive: () => !!this.screens.history?.classList.contains('active'),
       onBack: () => this._action('back'),
+    });
+
+    this.ranking = new RankingScreen({
+      audio,
+      isActive: () => !!this.screens.ranking?.classList.contains('active'),
+      onBack: () => this._action('back'),
+    });
+
+    this.replay = new ReplayScreen({
+      audio,
+      isActive: () => !!this.screens.replay?.classList.contains('active'),
+      onBack: () => this._action('back'),
+      onPlay: (replayId) => this.onPlayReplay?.(replayId),
     });
 
     this._navHandlers = this._buildNavHandlers();
@@ -156,6 +174,8 @@ export class UI {
         });
       },
       history: (e) => this.history.handleKey(e),
+      ranking: (e) => this.ranking.handleKey(e),
+      replay: (e) => this.replay.handleKey(e),
     };
   }
 
@@ -413,6 +433,12 @@ export class UI {
       this.history.load();
     } else if (action === 'history-refresh') {
       this.history.load(true);
+    } else if (action === 'ranking') {
+      this.show('ranking');
+    } else if (action === 'replay') {
+      this.show('replay');
+    } else if (action === 'replay-import') {
+      this.replay._importReplays();
     } else if (action === 'settings' || action === 'key-config') {
       this.settingsReturn = null;
       this.binding = null;
@@ -601,10 +627,22 @@ export class UI {
     if (name === 'history') {
       this.history.resetFocus();
     }
+    if (name === 'ranking') {
+      this.ranking.resetFocus();
+      this.ranking.render();
+    }
+    if (name === 'replay') {
+      this.replay.resetFocus();
+      this.replay.load();
+    }
   }
 
   showMenu() {
     this.show('menu');
+  }
+
+  showReplayScreen() {
+    this.show('replay');
   }
 
   showGame() {

@@ -9,6 +9,8 @@ import {
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
 import { saveHiscore, unlockStage, unlockRoute } from './storage.js';
+import { loadRanking, rankFor, loadName } from './ranking.js';
+import { openScoreRanking } from './scoreRanking.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
@@ -364,7 +366,7 @@ export function finishChapter(game, success) {
     return;
   }
 
-  if (typeof ch.stage === 'number') unlockStage(ch.stage + 1);
+  if (typeof ch.stage === 'number' && !game.replaying) unlockStage(ch.stage + 1);
 
   if (ch.onClear === 'routeCheck') {
     scheduleAdvance(game, NEXT_DELAY_SEC, () => afterStage3(game));
@@ -453,11 +455,11 @@ export function afterStage3(game) {
   const need = BALANCE.tendencyThreshold;
   if (t <= -need) {
     game.routeChoice = 'A';
-    unlockRoute('A');
+    if (!game.replaying) unlockRoute('A');
     jumpToStage(game, 'A4');
   } else if (t >= need) {
     game.routeChoice = 'B';
-    unlockRoute('B');
+    if (!game.replaying) unlockRoute('B');
     jumpToStage(game, 'B4');
   } else {
     const patrolIdx = game._chapterIndexByStageAny.get('patrol');
@@ -480,7 +482,7 @@ export function enterRouteSelect(game) {
 
 export function chooseRoute(game, route) {
   game.routeChoice = route;
-  unlockRoute(route);
+  if (!game.replaying) unlockRoute(route);
   game.el.dialogueBox.classList.add('hidden');
   game.state = 'playing';
   jumpToStage(game, route === 'A' ? 'A4' : 'B4');
@@ -512,7 +514,9 @@ export function setEndingCinematic(game, on) {
 }
 
 export function showEnding(game, which) {
+  if (game.replaying) { game._showReplayEnd(); return; }
   saveHiscore(game.score);
+  submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
   const title = which === 'A'
     ? '结局A · 不倒闭的真理'
@@ -528,25 +532,29 @@ export function showEnding(game, which) {
       const exIdx = game._chapterIndexByStageAny.get('EX');
       retryChapter = exIdx != null ? game.chapters[exIdx]?.id : 1;
     }
-    openResult(game, {
+    const openFinal = () => openResult(game, {
       title,
       body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`,
       retryChapter,
     });
+    openScoreRanking(game, openFinal);
   });
 }
 
 export function gameOver(game) {
+  if (game.replaying) { game._showReplayEnd(); return; }
   const ch = game.chapters[game.chapterIndex];
   saveHiscore(game.score);
+  submitRanking(game, { cleared: false });
   const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
   const show = () => {
     game.audio.stopMusic(0.6);
-    openResult(game, {
+    const openFinal = () => openResult(game, {
       title: 'Game Over',
       body,
       retryChapter: ch.id,
     });
+    openScoreRanking(game, openFinal);
   };
   if (ch.loseDialogue && game.dialogues[ch.loseDialogue]) {
     openDialogue(game, game.dialogues[ch.loseDialogue], show);
@@ -556,11 +564,50 @@ export function gameOver(game) {
 }
 
 export function gameClear(game) {
+  if (game.replaying) { game._showReplayEnd(); return; }
   saveHiscore(game.score);
+  submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
-  openResult(game, {
+  const openFinal = () => openResult(game, {
     title: 'All Clear',
     body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`,
     retryChapter: 1,
   });
+  openScoreRanking(game, openFinal);
+}
+
+/* ========== 本地排行榜（与录像完全独立） ========== */
+
+/**
+ * 对局结束统一入榜判定。练习不入榜。
+ * 仅预判名次并暂存到 game._rankingResult，真正写盘在成绩排行屏「保存」时（scoreRanking → ranking.js commitRankingEntry）。
+ */
+export function submitRanking(game, { cleared = false } = {}) {
+  game._endCleared = !!cleared;
+  if (game.mode === 'practice') {
+    game._rankingResult = null;
+    return null;
+  }
+  const difficultyId = game.difficultyId;
+  const playerName = game.player?.def?.name || '';
+  const entry = {
+    score: game.score,
+    name: loadName(playerName),
+    playerId: game.playerId,
+    playerName,
+    difficultyId,
+    mode: game.mode,
+    route: game.routeChoice || (game.mode === 'extra' ? 'EX' : null),
+    cleared: !!cleared,
+    stageReached: game.el?.stageLabel?.textContent || '',
+    date: Date.now(),
+  };
+  const list = loadRanking()[difficultyId] || [];
+  const rank = rankFor(list, entry.score);
+  if (rank < 0) {
+    game._rankingResult = { qualifies: false };
+    return null;
+  }
+  game._rankingResult = { qualifies: true, difficultyId, entry, rank };
+  return entry;
 }

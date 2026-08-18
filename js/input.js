@@ -8,6 +8,31 @@ const MOVE_UP = new Set(['ArrowUp', 'KeyW']);
 const MOVE_DOWN = new Set(['ArrowDown', 'KeyS']);
 const MOVE_KEYS = new Set([...MOVE_LEFT, ...MOVE_RIGHT, ...MOVE_UP, ...MOVE_DOWN]);
 
+/**
+ * 由移动键按下顺序（moveSeq）求移动轴（同轴对向后按为准；对角归一化）。
+ * 抽出为纯函数供 Input.moveAxis 与回放输入复用，避免两处算法漂移。
+ */
+export function moveAxisFromSeq(moveSeq) {
+  let x = 0, y = 0;
+  for (let i = moveSeq.length - 1; i >= 0; i--) {
+    const code = moveSeq[i];
+    if (!x) {
+      if (MOVE_LEFT.has(code)) x = -1;
+      else if (MOVE_RIGHT.has(code)) x = 1;
+    }
+    if (!y) {
+      if (MOVE_UP.has(code)) y = -1;
+      else if (MOVE_DOWN.has(code)) y = 1;
+    }
+    if (x && y) break;
+  }
+  if (x && y) {
+    const inv = 1 / Math.SQRT2;
+    x *= inv; y *= inv;
+  }
+  return { x, y };
+}
+
 export class Input {
   constructor() {
     this.keys = loadKeys();
@@ -187,6 +212,24 @@ export class Input {
     this.tap = null;
   }
 
+  /**
+   * 录像输入快照：覆盖 Input 各查询方法所读的全部状态。
+   * 字段名与 js/replay.js 约定一致（d,p,m,t,v,a,b,i,l）。
+   */
+  snapshot() {
+    return {
+      d: [...this.down],
+      p: [...this.pressed],
+      m: [...this._moveSeq],
+      t: this.tap ? [this.tap.x, this.tap.y] : null,
+      v: this.virtualMove ? [this.virtualMove.x, this.virtualMove.y] : null,
+      a: !!this.autoShot,
+      b: !!this.bombTap,
+      i: !!this.itemTap,
+      l: !!this.shotLatched,
+    };
+  }
+
   isDown(code) { return this.down.has(code); }
   justPressed(code) { return this.pressed.has(code); }
 
@@ -225,23 +268,6 @@ export class Input {
    * 上下轴同理。
    */
   moveAxis() {
-    let x = 0, y = 0;
-    for (let i = this._moveSeq.length - 1; i >= 0; i--) {
-      const code = this._moveSeq[i];
-      if (!x) {
-        if (MOVE_LEFT.has(code)) x = -1;
-        else if (MOVE_RIGHT.has(code)) x = 1;
-      }
-      if (!y) {
-        if (MOVE_UP.has(code)) y = -1;
-        else if (MOVE_DOWN.has(code)) y = 1;
-      }
-      if (x && y) break;
-    }
-    if (x && y) {
-      const inv = 1 / Math.SQRT2;
-      x *= inv; y *= inv;
-    }
-    return { x, y };
+    return moveAxisFromSeq(this._moveSeq);
   }
 }
