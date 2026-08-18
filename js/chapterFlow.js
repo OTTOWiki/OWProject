@@ -8,7 +8,7 @@ import {
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, recordLetterTry, recordLetterCapture } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
 import { trackForStage } from './audio.js';
@@ -105,6 +105,7 @@ export function startChapter(game) {
 
   game.letterTimeMax = ch.letterTime || 0;
   game.letterTimeLeft = game.letterTimeMax;
+  if (game.letterTimeMax > 0 && !game.replaying) recordLetterTry(ch.id);
   game.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
   const isBoss = ch.kind === 'boss';
@@ -293,6 +294,7 @@ export function finishChapter(game, success) {
     letterBonus = calcLetterBonus(ch.stageKey, game.letterTimeLeft, game.letterTimeMax);
     if (letterBonus > 0) addScore(game, letterBonus);
     grantLetterResource(game, ch, true, true);
+    if (!game.replaying) recordLetterCapture(ch.id);
   }
 
   if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {

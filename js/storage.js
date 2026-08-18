@@ -166,3 +166,55 @@ export function savePracticePrefs(prefs) {
     }));
   } catch { /* ignore quota / private mode */ }
 }
+
+/**
+ * Letter 卡收取记录（{ [chapterId]: { tries, captures } }）
+ * 实战与练习共用一份；回放不计数。损坏数据丢弃，解析失败返回 {}。
+ */
+export function loadLetterRate() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.letterRate);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out = {};
+    for (const key of Object.keys(parsed)) {
+      if (!/^\d+$/.test(key)) continue; // chapterId 须为数字字符串键
+      const entry = parsed[key];
+      if (!entry || typeof entry !== 'object') continue;
+      const { tries, captures } = entry;
+      if (!Number.isInteger(tries) || tries < 0) continue;
+      if (!Number.isInteger(captures) || captures < 0) continue;
+      out[key] = { tries, captures };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function recordLetterTry(chapterId) {
+  try {
+    const rate = loadLetterRate();
+    const id = String(chapterId);
+    const cur = rate[id] || { tries: 0, captures: 0 };
+    rate[id] = { tries: cur.tries + 1, captures: cur.captures };
+    localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
+  } catch { /* ignore quota / private mode */ }
+}
+
+export function recordLetterCapture(chapterId) {
+  try {
+    const rate = loadLetterRate();
+    const id = String(chapterId);
+    const cur = rate[id] || { tries: 0, captures: 0 };
+    rate[id] = { tries: cur.tries, captures: cur.captures + 1 };
+    localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
+  } catch { /* ignore quota / private mode */ }
+}
+
+/** Letter 收取率文案；无记录时显示占位 */
+export function letterRateText(tries, captures) {
+  if (!(tries > 0)) return '暂无收取记录';
+  return `成功 ${captures} / 尝试 ${tries} = ${Math.round((captures / tries) * 100)}%`;
+}

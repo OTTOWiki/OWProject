@@ -20,6 +20,8 @@ export const STORAGE_KEYS = {
   replayIndex: 'gunwei_replays_index',
   /** 练习模式上次选择（章节 id + 难度），进练习直接跳回 */
   practice: 'gunwei_practice',
+  /** Letter 卡收取记录（{ [chapterId]: { tries, captures } }） */
+  letterRate: 'gunwei_letter_rate',
 };
 
 /** 每难度排行榜条目上限 */
@@ -445,6 +447,7 @@ export const MANUAL_CHAPTERS = [
     title: '四、系统指南',
     body: `· 章节：道中每段、Boss 每张 Letter card 各为一章。章内无 Miss 无 Bomb → 章节得分 ×1.05。
 · Letter 红利：Boss / 道中精英限时卡内击破且无 Miss 无 Bomb 时获得。随剩余时间线性递减，并随关卡进程提高（终面约 2 倍于 1 面）。
+· Letter 收取记录：Letter 卡名下方显示该卡的「成功收取 / 总尝试 = 收率%」，实战与练习共用一份持久记录。
 · 审核中（决死）：被弹后有极短「审核中」窗口，此时按 Bomb 可免死并全清弹幕。
 · 编辑度：判定点靠近子弹（擦弹）积攒编辑度；满槽按 Item 触发编辑战。
 · 收点线：版面上方浅色虚线。自机越过收点线后，场上得分道具永久被吸引。

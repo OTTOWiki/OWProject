@@ -160,6 +160,7 @@ export class Game {
 
       letterBanner: document.getElementById('letter-banner'),
       letterName: document.getElementById('letter-name'),
+      letterRate: document.getElementById('letter-rate'),
       letterRemain: document.getElementById('letter-remain'),
       letterBonus: document.getElementById('letter-bonus'),
       letterTimer: document.getElementById('letter-timer'),
