@@ -1,11 +1,13 @@
 /**
  * 打击反馈（PR-A）：addHitStop / addShake 语义 + collision 事件
  * 受击不再产生 hurt 事件（移除每帧受击停帧后）；击破仍发 kill
+ * 受击白闪绘制：本地坐标系（回归「白色透明球体」偏移 bug）
  * 纯视觉层：不触碰判定 / 得分 / 回放
  */
 import { BALANCE } from '../js/config.js';
 import { runCollisions } from '../js/collision.js';
 import { addHitStop, addShake } from '../js/gameCombat.js';
+import { drawEnemy } from '../js/draw/entitiesDraw.js';
 import { test, assert, assertEqual } from './assert.js';
 
 test('addHitStop：max 语义 + cap，不叠加', () => {
@@ -128,4 +130,41 @@ test('runCollisions：boss 被击杀 → kill 事件而非 hurt', () => {
   assertEqual(events.length, 1, 'single event for killing blow');
   assertEqual(events[0].type, 'kill');
   assertEqual(events[0].enemy, boss);
+});
+
+/** 记录 arc 中心的 2D mock ctx（覆盖 drawEnemy 全路径；贴图走 null → 几何分支） */
+function mockDrawCtx() {
+  const arcs = [];
+  const gradient = { addColorStop() {} };
+  const ctx = {
+    arcs,
+    globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
+    fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt',
+    shadowColor: '', shadowBlur: 0, font: '', textAlign: 'start',
+    save() {}, restore() {}, translate() {}, rotate() {}, clip() {},
+    beginPath() {}, closePath() {}, moveTo() {}, lineTo() {},
+    arc(x, y, r) { arcs.push({ x, y, r }); },
+    ellipse() {}, fill() {}, stroke() {}, fillRect() {}, strokeRect() {},
+    fillText() {}, drawImage() {},
+    createRadialGradient() { return gradient; },
+    createLinearGradient() { return gradient; },
+  };
+  return ctx;
+}
+
+test('drawEnemy 受击白闪：translate(e.x,e.y) 后必须用本地中心 (0,0)，杜绝偏移白球', () => {
+  // kind 'boss' 未登记专用贴图 → spriteKeyForEnemy 返回 null → 几何分支（node 无 Image 也安全）
+  const boss = {
+    id: 1, x: 120, y: 80, r: 24, type: 'boss', kind: 'boss',
+    hp: 100, maxHp: 100, dead: false, isSpawning: false,
+    spin: 0, color: '#f00', color2: '#fff', label: null,
+    spawnFxT: 0, hurtT: 0.06,
+  };
+  const ctx = mockDrawCtx();
+  drawEnemy(ctx, boss);
+  // 回归锁定：受击白闪曾用绝对坐标 (e.x,e.y) → 白闪画在 2×(120,80)=(240,160) 的偏移位置；
+  // drawEnemy 内部已 translate(e.x,e.y)，所有圆必须落在本地原点
+  const off = ctx.arcs.filter((a) => a.x !== 0 || a.y !== 0);
+  assertEqual(off.length, 0, `所有 arc 必须本地 (0,0)；偏移圆心: ${JSON.stringify(off.slice(0, 3))}`);
 });

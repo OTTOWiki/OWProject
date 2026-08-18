@@ -806,18 +806,21 @@ export function drawEnemy(ctx, e) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = hurtA;
     const fr = size * 0.72;
-    const fg = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, fr);
+    // 本段处于上方 translate(e.x,e.y) 后的本地坐标系：中心必须用 (0,0)。
+    // 回归：曾用绝对坐标 (e.x,e.y)，白闪画到 2×(e.x,e.y) 的偏移位置
+    // （用户实测的「白色透明球体」任意位置冒出）。
+    const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, fr);
     fg.addColorStop(0, 'rgba(255,255,255,0.85)');
     fg.addColorStop(0.55, 'rgba(255,255,255,0.35)');
     fg.addColorStop(1, 'transparent');
     ctx.fillStyle = fg;
     ctx.beginPath();
-    ctx.arc(e.x, e.y, fr, 0, Math.PI * 2);
+    ctx.arc(0, 0, fr, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = `rgba(255,255,255,${hurtA})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(e.x, e.y, size * 0.5, 0, Math.PI * 2);
+    ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
