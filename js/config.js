@@ -42,7 +42,7 @@ export const FPS_SLIDER_UNLIMITED = 241;
  * 触屏灵敏度：相对拖拽时自机位移 = 手指位移 × 此系数（>1 加速，<1 减速）。
  * 只作用于实时触控增量；virtualMove 仍为绝对逻辑坐标，录像快照/回放不受影响。
  */
-export const TOUCH_SENSITIVITY = 1.5;
+export const TOUCH_SENSITIVITY = 1.2;
 
 /** 玩家设置默认值 */
 export const DEFAULT_SETTINGS = {
