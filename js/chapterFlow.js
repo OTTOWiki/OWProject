@@ -8,7 +8,7 @@ import {
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute, recordLetterTry, recordLetterCapture } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
 import { trackForStage } from './audio.js';
@@ -121,6 +121,11 @@ export function startChapter(game) {
     game.el.letterBanner.classList.remove('hidden');
     game.el.letterBanner.style.opacity = '1';
     game.el.letterName.textContent = ch.letter;
+    // 章首一次性读取收取记录写入 DOM（Letter 战不再每帧读 localStorage）
+    if (game.el.letterRate) {
+      const rate = loadLetterRate()[ch.id];
+      game.el.letterRate.textContent = letterRateText(rate?.tries ?? 0, rate?.captures ?? 0);
+    }
     updateLetterHud(game);
     game.audio.sfx('letter');
   } else {

@@ -3,7 +3,6 @@
  * DOM 仅在脏字段变化时写入，避免每帧 innerHTML
  */
 import { BALANCE, LOGICAL_W, LOGICAL_H, calcLetterBonus } from './config.js';
-import { loadLetterRate, letterRateText } from './storage.js';
 
 /** @returns {object} 脏缓存 */
 export function createHudCache() {
@@ -24,7 +23,6 @@ export function createHudCache() {
     letterBonus: null,
     letterBonusOpacity: null,
     letterBannerOpacity: null,
-    letterRate: null,
   };
 }
 
@@ -133,12 +131,8 @@ export function updateLetterHud(game) {
     }
   }
 
-  if (el.letterRate && ch && game.letterTimeMax > 0) {
-    // Letter 收取记录（成功/尝试 = 收率）；tries 变化时脏缓存自然刷新
-    const rate = loadLetterRate()[ch.id];
-    const text = letterRateText(rate?.tries ?? 0, rate?.captures ?? 0);
-    setText(el.letterRate, text, 'letterRate', cache);
-  }
+  // 注：letterRate 收率文本由 chapterFlow.startChapter 章首一次性写入 DOM，
+  // 不在此每帧读取 localStorage（移动端存储 I/O 会阻塞主线程）。
 
   const p = game.player;
   if (p) {
