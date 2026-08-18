@@ -83,7 +83,20 @@ export function buildReplay({ header, frames, endState, partial }) {
 }
 
 export function validateReplay(data) {
-  return !!(data && data.version === REPLAY_VERSION && Array.isArray(data.frames) && data.seed != null);
+  if (!(data && data.version === REPLAY_VERSION && Array.isArray(data.frames) && data.seed != null)) {
+    return false;
+  }
+  // Validate every frame run as [count, steps, snapshot]
+  for (const run of data.frames) {
+    if (!Array.isArray(run) || run.length !== 3) return false;
+    const [count, steps, snapshot] = run;
+    if (!Number.isSafeInteger(count) || !Number.isSafeInteger(steps)) return false;
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    if (!Array.isArray(snapshot.d) || !Array.isArray(snapshot.p) || !Array.isArray(snapshot.m)) return false;
+    if (snapshot.t != null && (!Array.isArray(snapshot.t) || snapshot.t.length !== 2 || !Number.isFinite(snapshot.t[0]) || !Number.isFinite(snapshot.t[1]))) return false;
+    if (snapshot.v != null && (!Array.isArray(snapshot.v) || snapshot.v.length !== 2 || !Number.isFinite(snapshot.v[0]) || !Number.isFinite(snapshot.v[1]))) return false;
+  }
+  return true;
 }
 
 /** 录像 → JSON 文本（导出） */

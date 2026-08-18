@@ -2,7 +2,7 @@
  * 成绩排行结算弹层：游戏结束且入榜时，先展示排行榜 + 本局名次（高亮）+ 可编辑机签，
  * 保存/取消后再进入常规 game over / all clear / 结局 结算。
  */
-import { DIFFICULTIES } from './config.js';
+import { DIFFICULTIES, RANKING_LIMIT } from './config.js';
 import { loadRanking, commitRankingEntry, loadName } from './ranking.js';
 
 const ROUTE_LABEL = { A: 'A线', B: 'B线', EX: 'EX' };
@@ -42,6 +42,7 @@ export function openScoreRanking(game, onDone) {
 
 /** 键盘导航：↑↓ 选择 · Z/Enter 确认 · Esc/X 取消。返回是否已处理。 */
 export function handleScoreRankingKey(game) {
+  if (document.activeElement?.classList.contains('sr-name-input')) return false;
   const btns = [...document.querySelectorAll('[data-sr-action]')];
   if (!btns.length) return false;
   const i = game._srFocusIndex || 0;
@@ -95,7 +96,7 @@ function render(game) {
   const entry = { ...res.entry, name: loadName(res.entry.playerName) };
   const list = (loadRanking()[res.difficultyId] || []).slice();
   list.splice(res.rank, 0, entry);
-  const top = list.slice(0, 10);
+  const top = list.slice(0, RANKING_LIMIT);
 
   const listEl = document.getElementById('sr-list');
   if (listEl) {

@@ -98,7 +98,8 @@ export class ReplayScreen {
       tag.textContent = '部分';
       item.append(meta, score, tag, date);
     } else {
-      item.append(meta, score, date);
+      const placeholder = document.createElement('span');
+      item.append(meta, score, placeholder, date);
     }
 
     item.addEventListener('click', () => {
@@ -110,14 +111,14 @@ export class ReplayScreen {
     del.type = 'button';
     del.className = 'replay-del';
     del.textContent = '删除';
-    del.setAttribute('aria-label', `删除 ${m.mode} 录像`);
+    del.setAttribute('aria-label', `删除 ${MODE_LABEL[m.mode] || m.mode} 录像`);
     del.addEventListener('click', () => this._onDelete(del, m));
 
     const exp = document.createElement('button');
     exp.type = 'button';
     exp.className = 'replay-del replay-export';
     exp.textContent = '导出';
-    exp.setAttribute('aria-label', `导出 ${m.mode} 录像`);
+    exp.setAttribute('aria-label', `导出 ${MODE_LABEL[m.mode] || m.mode} 录像`);
     exp.addEventListener('click', () => this._exportReplay(m));
 
     wrap.append(item, del, exp);
@@ -170,6 +171,7 @@ export class ReplayScreen {
 
   /** 导出单条录像为 JSON 文件 */
   async _exportReplay(m) {
+    const statusEl = document.getElementById('replay-status');
     try {
       const replay = await loadReplay(m.replayId);
       if (!replay) throw new Error('not found');
@@ -177,9 +179,12 @@ export class ReplayScreen {
       const name = `owproject-replay-${m.replayId}.json`;
       downloadTextFile(name, text);
       this.audio.sfx('ok');
+      if (statusEl) {
+        statusEl.classList.remove('error');
+        statusEl.textContent = `共 ${this.items.length} 条录像 · Z/Enter 播放 · Del 删除`;
+      }
     } catch (err) {
       console.error('[replay export]', err);
-      const statusEl = document.getElementById('replay-status');
       if (statusEl) { statusEl.textContent = '导出失败'; statusEl.classList.add('error'); }
     }
   }
@@ -216,7 +221,7 @@ export class ReplayScreen {
           continue;
         }
         // 导入为新的本地条目，避免 replayId 冲突覆盖
-        const replay = { ...res.replay, replayId: makeReplayId(), date: Date.now() };
+        const replay = { ...res.replay, replayId: makeReplayId() };
         await saveReplay(replay);
         imported++;
       } catch (err) {

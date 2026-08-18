@@ -50,9 +50,7 @@ export function loadReplayIndex() {
 }
 
 function saveReplayIndex(list) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.replayIndex, JSON.stringify(list));
-  } catch { /* 忽略配额 */ }
+  localStorage.setItem(STORAGE_KEYS.replayIndex, JSON.stringify(list));
 }
 
 /** 保存录像（帧数据入 IndexedDB + 索引入 localStorage）。返回索引 meta。 */
@@ -78,7 +76,19 @@ export async function saveReplay(replay) {
   const list = loadReplayIndex().filter((it) => it.replayId !== meta.replayId);
   list.push(meta);
   list.sort((a, b) => b.date - a.date);
-  saveReplayIndex(list);
+
+  try {
+    saveReplayIndex(list);
+  } catch (err) {
+    // Rollback IndexedDB on index write failure
+    await withStore('readwrite', (store) => new Promise((resolve, reject) => {
+      const req = store.delete(replay.replayId);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    }));
+    throw err;
+  }
+
   return meta;
 }
 

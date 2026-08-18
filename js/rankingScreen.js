@@ -78,7 +78,7 @@ export class RankingScreen {
 
     const name = document.createElement('span');
     name.className = 'ranking-name';
-    name.textContent = e.name;
+    name.textContent = e.name ?? '';
 
     const player = document.createElement('span');
     player.className = 'ranking-player';

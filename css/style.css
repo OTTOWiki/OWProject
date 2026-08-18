@@ -1536,13 +1536,13 @@ input, select, textarea {
   width: 7rem;
   padding: 0.35rem 0.5rem;
   text-align: center;
+  font: inherit;
   font-size: 1rem;
   letter-spacing: 0.35em;
   color: #f3e7cd;
   background: rgba(12, 14, 20, 0.7);
   border: 1px solid var(--focus-border-mid);
   border-radius: 4px;
-  font: inherit;
 }
 .overlay-rank input:focus {
   outline: none;
@@ -1619,13 +1619,13 @@ input, select, textarea {
   min-width: 0;
   padding: 0.2rem 0.4rem;
   text-align: center;
+  font: inherit;
   font-size: 0.85rem;
   letter-spacing: 0.3em;
   color: #f3e7cd;
   background: rgba(12, 14, 20, 0.7);
   border: 1px solid var(--focus-border-mid);
   border-radius: 3px;
-  font: inherit;
 }
 .sr-name-input:focus {
   outline: none;

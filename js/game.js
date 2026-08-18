@@ -615,6 +615,7 @@ export class Game {
   /** 从录像数据启动回放 */
   startReplay(replay) {
     if (!validateReplay(replay)) return false;
+    if (!replay.playerId) return false;
     this.start({
       playerId: replay.playerId,
       startChapter: replay.startChapter,
