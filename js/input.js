@@ -1,5 +1,5 @@
 import { loadKeys } from './storage.js';
-import { LOGICAL_W, LOGICAL_H } from './config.js';
+import { LOGICAL_W, LOGICAL_H, TOUCH_SENSITIVITY } from './config.js';
 
 /** 移动键集合（方向键 + WASD） */
 const MOVE_LEFT = new Set(['ArrowLeft', 'KeyA']);
@@ -143,8 +143,10 @@ export class Input {
       if (!e.touches.length || !this._touchStart || !this._playerStart) return;
       const cur = logical(e.touches[0]);
       this._touchLast = cur;
-      const dx = cur.x - this._touchStart.x;
-      const dy = cur.y - this._touchStart.y;
+      // 灵敏度：自机位移 = 手指位移 × TOUCH_SENSITIVITY（相对拖拽加速）。
+      // 最终 virtualMove 仍为绝对逻辑坐标，录像快照/回放不受影响。
+      const dx = (cur.x - this._touchStart.x) * TOUCH_SENSITIVITY;
+      const dy = (cur.y - this._touchStart.y) * TOUCH_SENSITIVITY;
       this.virtualMove = {
         x: Math.max(0, Math.min(LOGICAL_W, this._playerStart.x + dx)),
         y: Math.max(0, Math.min(LOGICAL_H, this._playerStart.y + dy)),
