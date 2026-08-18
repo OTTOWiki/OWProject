@@ -3,7 +3,7 @@
  * @param {import('./game.js').Game} game
  */
 import { BALANCE } from './config.js';
-import { startChapter, finalizeGameOver } from './chapterFlow.js';
+import { startChapter } from './chapterFlow.js';
 import { saveHiscore } from './storage.js';
 
 export function bindOverlayClicks(game) {
@@ -94,10 +94,13 @@ export function openResult(game, { title, body, retryChapter, actions }) {
 
 export function runOverlayAction(game, action) {
   if (!game.overlayMode) return;
-  // 续关：Game Over 结算里可继续（限未回放、且续关次数未用完）
+  // 续关：Game Over 结算里可继续（限未回放 / 结果叠加层 / 次数未用完 / 非练习与非 Nomiss）
   if (action === 'continue') {
     if (game.replaying || game.overlayMode !== 'result') return;
-    if (!game._pendingRanking || game.continuesLeft <= 0) return;
+    if (game.continuesLeft <= 0 || game.mode === 'practice' || game.mode === 'nomiss') return;
+    // 续关后分数清零重新开始（hiscore 保留全局最高不重置）
+    game.score = 0;
+    game.baseScore = 0;
     game.continuesLeft--;
     game.continuesUsed++;
     game.recording = false; // 续关后不再录制录像
@@ -107,16 +110,6 @@ export function runOverlayAction(game, action) {
     game.player.resetPos();
     game.state = 'playing';
     startChapter(game);
-    return;
-  }
-  // 续关可用时选了终局动作（保存/重试/回菜单）：先落标准结算，重出动作选择。
-  // 仅限结果叠加层——续关后中途暂停里的 retry/menu 不受影响
-  if (
-    !game.replaying && game.overlayMode === 'result' && game._pendingRanking
-    && (action === 'menu' || action === 'retry' || action === 'save-replay')
-  ) {
-    game._pendingRanking = false;
-    finalizeGameOver(game);
     return;
   }
   if (action === 'resume') {

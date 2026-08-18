@@ -105,7 +105,7 @@ export const BALANCE = {
 
   /** 击破连击：每连击 +1% 分数（仅乘实时得分，不计入 baseScore）；窗口秒数 */
   combo: { perPercent: 0.01, window: 3 },
-  /** 续关：Game Over 后可续关次数 / 续关后残机 / Bomb（分数保留） */
+  /** 续关：Game Over 后可续关次数 / 续关后残机 / Bomb（续关后分数清零，hiscore 保留） */
   continue: { max: 2, lives: 2, bombs: 2 },
 
   tendencyMaxPerChapter: 10,
@@ -452,7 +452,7 @@ export const MANUAL_CHAPTERS = [
     title: '四、系统指南',
     body: `· 章节：道中每段、Boss 每张 Letter card 各为一章。章内无 Miss 无 Bomb → 章节得分 ×1.05。
 · Combo：击破敌机累积连击，3 秒内未再击破则中断。连击越高得分倍率越高（每连击 +1%），倍率只作用于实时得分、不计入基础分（不影响 Extend 阈值）。
-· 续关：Game Over 后可选择继续（至多 2 次，练习除外）。续关后以 2 残 2 Bomb 重新开始本章，分数保留；续关对局在排行榜中标注「续」，且不再录制录像。
+· 续关：每次 Game Over 都先过成绩排行。还有续关次数（至多 2 次，练习除外）时可在结算选择继续：续关后以 2 残 2 Bomb 重新开始本章，**分数清零**（最高分 hiscore 保留）；续关对局在排行榜中标注「续」，且不再录制录像。
 · Letter 红利：Boss / 道中精英限时卡内击破且无 Miss 无 Bomb 时获得。随剩余时间线性递减，并随关卡进程提高（终面约 2 倍于 1 面）。
 · 审核中（决死）：被弹后有极短「审核中」窗口，此时按 Bomb 可免死并全清弹幕。
 · 编辑度：判定点靠近子弹（擦弹）积攒编辑度；满槽按 Item 触发编辑战。

@@ -523,7 +523,6 @@ export function setEndingCinematic(game, on) {
 
 export function showEnding(game, which) {
   if (game.replaying) { game._showReplayEnd(); return; }
-  game._pendingRanking = false;
   saveHiscore(game.score);
   submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
@@ -560,34 +559,25 @@ function buildGameOverBody(game) {
 
 /**
  * 标准 Game Over 结算：存高分 → 入榜 → （入榜则先弹成绩排行）→ 结果动作选择。
- * 续关耗尽 / 练习 / 续关时选了终局动作 均走此路径。
+ * 每次 Game Over 都先过成绩排行；还有续关次数时结果动作含「继续」。
  */
 export function finalizeGameOver(game) {
-  game._pendingRanking = false;
   saveHiscore(game.score);
   submitRanking(game, { cleared: false });
   game.audio.stopMusic(0.6);
+  const canContinue = !game.replaying && game.continuesLeft > 0
+    && game.mode !== 'practice' && game.mode !== 'nomiss';
   openScoreRanking(game, () => openResult(game, {
     title: 'Game Over',
     body: buildGameOverBody(game),
     retryChapter: game.chapters[game.chapterIndex]?.id ?? 1,
+    actions: canContinue ? ['continue', 'save-replay', 'retry', 'menu'] : undefined,
   }));
 }
 
 export function gameOver(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
   const ch = game.chapters[game.chapterIndex];
-  // 还有续关次数（练习除外）：先给「继续」动作，其余终局动作落标准结算
-  if (game.continuesLeft > 0 && game.mode !== 'practice') {
-    game._pendingRanking = true;
-    openResult(game, {
-      title: 'Game Over',
-      body: buildGameOverBody(game),
-      retryChapter: ch.id,
-      actions: ['continue', 'save-replay', 'retry', 'menu'],
-    });
-    return;
-  }
   if (ch.loseDialogue && game.dialogues[ch.loseDialogue]) {
     openDialogue(game, game.dialogues[ch.loseDialogue], () => finalizeGameOver(game));
   } else {
@@ -597,7 +587,6 @@ export function gameOver(game) {
 
 export function gameClear(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
-  game._pendingRanking = false;
   saveHiscore(game.score);
   submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);

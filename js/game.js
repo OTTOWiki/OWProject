@@ -243,7 +243,6 @@ export class Game {
     this.comboTimer = 0;
     this.continuesLeft = BALANCE.continue.max;
     this.continuesUsed = 0;
-    this._pendingRanking = false;
 
     releaseItemList(this.items);
     releaseParticleList(this.particles);
