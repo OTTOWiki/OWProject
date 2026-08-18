@@ -517,7 +517,7 @@ input, select, textarea {
   pointer-events: auto;
 }
 
-/* Practice — 关卡分组章节列表（替代原生 select；点选/←→ 循环） */
+/* Practice — 章节列表（只显示当前关卡的章节，短列表；点选/←→ 循环） */
 .practice-chapter-control {
   align-items: stretch;
 }
@@ -533,25 +533,6 @@ input, select, textarea {
   background: rgba(10, 8, 14, 0.6);
   padding: 0.3rem;
   text-align: left;
-}
-.pc-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 0.25rem;
-}
-.pc-group:last-child { margin-bottom: 0; }
-.pc-group-title {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  font-family: var(--serif);
-  font-size: 0.78rem;
-  color: var(--gold2);
-  letter-spacing: 0.12em;
-  padding: 0.3rem 0.4rem 0.2rem;
-  border-bottom: 1px solid rgba(92, 74, 46, 0.45);
-  background: #141020;
 }
 .pc-item {
   appearance: none;
@@ -575,14 +556,14 @@ input, select, textarea {
   box-shadow: 0 0 0 1px var(--focus-ring);
   color: #f3e7cd;
 }
-/* Practice — 难度标签（DIFFICULTIES：这么菜啊 / 白银 / S6第一个王者 / 职业选手；点选/←→ 循环） */
+/* Practice — 难度 / 关卡标签（难度带 --dc 主题色；点选/←→ 循环） */
 .practice-diffs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   width: 100%;
 }
-.pd-tab {
+.ptab {
   flex: 1 1 auto;
   min-width: 3.2rem;
   padding: 0.45rem 0.5rem;
@@ -598,9 +579,9 @@ input, select, textarea {
   -webkit-user-select: none;
   user-select: none;
 }
-.pd-tab:hover { background: var(--focus-bg-soft); }
-.pd-tab.selected,
-.pd-tab:focus-visible {
+.ptab:hover { background: var(--focus-bg-soft); }
+.ptab.selected,
+.ptab:focus-visible {
   border-color: var(--dc, var(--focus-border));
   background: var(--focus-bg);
   box-shadow: 0 0 0 1px var(--focus-ring);

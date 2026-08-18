@@ -4,6 +4,7 @@ import {
 } from './config.js';
 import {
   loadKeys, saveKeys, saveSettings,
+  loadPracticePrefs, savePracticePrefs,
 } from './storage.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -322,28 +323,9 @@ export class UI {
   }
 
   _initPractice() {
-    const list = document.getElementById('practice-chapter-list');
-    if (list) {
-      list.innerHTML = '';
-      for (const g of practiceChapterGroups()) {
-        const group = document.createElement('div');
-        group.className = 'pc-group';
-        const title = document.createElement('div');
-        title.className = 'pc-group-title';
-        title.textContent = g.label;
-        group.appendChild(title);
-        for (const ch of g.chapters) {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'pc-item';
-          btn.dataset.id = ch.id;
-          btn.textContent = `#${ch.id} ${ch.name}`;
-          btn.addEventListener('click', () => this._selectPracticeChapter(ch.id));
-          group.appendChild(btn);
-        }
-        list.appendChild(group);
-      }
-    }
+    this._practiceStages = practiceChapterGroups();
+    this._practiceStageKeys = this._practiceStages.map((g) => String(g.chapters[0].stageKey));
+
     const diffBox = document.getElementById('practice-diffs');
     if (diffBox) {
       diffBox.innerHTML = '';
@@ -351,7 +333,7 @@ export class UI {
         const d = DIFFICULTIES[id];
         const tab = document.createElement('button');
         tab.type = 'button';
-        tab.className = 'pd-tab';
+        tab.className = 'ptab';
         tab.dataset.diff = id;
         tab.style.setProperty('--dc', d.color);
         tab.textContent = `${d.rank} ${d.name}`;
@@ -359,6 +341,21 @@ export class UI {
         diffBox.appendChild(tab);
       }
     }
+    const stageBox = document.getElementById('practice-stages');
+    if (stageBox) {
+      stageBox.innerHTML = '';
+      this._practiceStages.forEach((g, i) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'ptab';
+        chip.dataset.stage = this._practiceStageKeys[i];
+        chip.textContent = g.label;
+        chip.addEventListener('click', () => this._selectPracticeStage(this._practiceStageKeys[i]));
+        stageBox.appendChild(chip);
+      });
+    }
+    this._restorePracticePrefs();
+    this._rebuildPracticeChapters();
     const unstableCb = document.getElementById('practice-unstable');
     const unstableVal = document.getElementById('practice-unstable-val');
     const syncUnstableLabel = () => {
@@ -367,16 +364,76 @@ export class UI {
     unstableCb?.addEventListener('change', syncUnstableLabel);
     syncUnstableLabel();
     this._refreshPracticeChapter();
+    this._refreshPracticeStage();
     this._refreshPracticeDiff();
+  }
+
+  /** 恢复上次选择（难度/关卡/章节）；无存档或数据失效回落默认 */
+  _restorePracticePrefs() {
+    this.practiceDiffId = 'normal';
+    this.practiceStageKey = this._practiceStageKeys[0] ?? null;
+    this.practiceChapterId = this._practiceStages[0]?.chapters[0]?.id ?? 1;
+    const prefs = loadPracticePrefs();
+    if (!prefs) return;
+    if (DIFFICULTY_ORDER.includes(prefs.diff)) this.practiceDiffId = prefs.diff;
+    const stageIdx = this._practiceStages.findIndex((g) => g.chapters.some((c) => c.id === prefs.chapter));
+    if (stageIdx >= 0) {
+      this.practiceStageKey = this._practiceStageKeys[stageIdx];
+      this.practiceChapterId = prefs.chapter;
+    }
+  }
+
+  /** 只渲染当前关卡的章节列表（短列表，无需整表滚动） */
+  _rebuildPracticeChapters() {
+    const list = document.getElementById('practice-chapter-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const stage = this._practiceStages.find(
+      (g) => String(g.chapters[0].stageKey) === this.practiceStageKey,
+    ) || this._practiceStages[0];
+    for (const ch of stage?.chapters || []) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pc-item';
+      btn.dataset.id = ch.id;
+      btn.textContent = `#${ch.id} ${ch.name}`;
+      btn.addEventListener('click', () => this._selectPracticeChapter(ch.id));
+      list.appendChild(btn);
+    }
   }
 
   _practiceChapterIds() {
     return [...document.querySelectorAll('#practice-chapter-list .pc-item')].map((b) => Number(b.dataset.id));
   }
 
+  _selectPracticeStage(key) {
+    this.practiceStageKey = key;
+    const stage = this._practiceStages.find((g) => String(g.chapters[0].stageKey) === key);
+    this.practiceChapterId = stage?.chapters[0]?.id ?? this.practiceChapterId;
+    this._rebuildPracticeChapters();
+    this._refreshPracticeChapter();
+    this._refreshPracticeStage();
+    this._savePracticePrefs();
+    this._sfx('ok');
+  }
+
+  _cyclePracticeStage(dir) {
+    const keys = this._practiceStageKeys;
+    if (!keys.length) return;
+    const i = keys.indexOf(this.practiceStageKey);
+    this._selectPracticeStage(keys[wrapIndex(i < 0 ? 0 : i + dir, keys.length)]);
+  }
+
+  _refreshPracticeStage() {
+    document.querySelectorAll('#practice-stages .ptab').forEach((b) => {
+      b.classList.toggle('selected', b.dataset.stage === this.practiceStageKey);
+    });
+  }
+
   _selectPracticeChapter(id) {
     this.practiceChapterId = Number(id);
     this._refreshPracticeChapter();
+    this._savePracticePrefs();
     this._sfx('ok');
   }
 
@@ -386,6 +443,7 @@ export class UI {
     const i = ids.indexOf(this.practiceChapterId);
     this.practiceChapterId = ids[wrapIndex(i < 0 ? 0 : i + dir, ids.length)];
     this._refreshPracticeChapter();
+    this._savePracticePrefs();
     this._sfx('ok');
   }
 
@@ -400,6 +458,7 @@ export class UI {
   _selectPracticeDiff(id) {
     this.practiceDiffId = id;
     this._refreshPracticeDiff();
+    this._savePracticePrefs();
     this._sfx('ok');
   }
 
@@ -407,13 +466,18 @@ export class UI {
     const i = DIFFICULTY_ORDER.indexOf(this.practiceDiffId);
     this.practiceDiffId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
     this._refreshPracticeDiff();
+    this._savePracticePrefs();
     this._sfx('ok');
   }
 
   _refreshPracticeDiff() {
-    document.querySelectorAll('#practice-diffs .pd-tab').forEach((b) => {
+    document.querySelectorAll('#practice-diffs .ptab').forEach((b) => {
       b.classList.toggle('selected', b.dataset.diff === this.practiceDiffId);
     });
+  }
+
+  _savePracticePrefs() {
+    savePracticePrefs({ chapter: this.practiceChapterId, diff: this.practiceDiffId });
   }
 
   _initKeys() {
@@ -576,6 +640,7 @@ export class UI {
   _practiceItems() {
     return [
       { type: 'diffs', el: document.getElementById('practice-diffs'), wrap: null },
+      { type: 'stages', el: document.getElementById('practice-stages'), wrap: null },
       { type: 'chapters', el: document.getElementById('practice-chapter-list'), wrap: null },
       // max: null = 左右调值不封顶（练习可自定义任意残机）
       { type: 'number', el: document.getElementById('practice-lives'), min: 0, max: null, wrap: null },
@@ -638,12 +703,16 @@ export class UI {
   }
 
   _adjustFocusItem(item, dir, mods = {}) {
-    if (item?.type === 'chapters') {
-      this._cyclePracticeChapter(dir);
-      return true;
-    }
     if (item?.type === 'diffs') {
       this._cyclePracticeDiff(dir);
+      return true;
+    }
+    if (item?.type === 'stages') {
+      this._cyclePracticeStage(dir);
+      return true;
+    }
+    if (item?.type === 'chapters') {
+      this._cyclePracticeChapter(dir);
       return true;
     }
     return adjustFocusItem(item, dir, mods, {
