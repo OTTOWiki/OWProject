@@ -13,7 +13,7 @@ import {
 import { acquireParticle } from './particlePool.js';
 import { acquireItem } from './itemPool.js';
 import { updateGameHud, updateLetterHud } from './hud.js';
-import { finishChapter, gameOver } from './chapterFlow.js';
+import { finishChapter, gameOver, startChapter, softClearForNextChapter } from './chapterFlow.js';
 import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
 
 /**
@@ -329,7 +329,34 @@ export function tryBomb(game, isDeath) {
   return true;
 }
 
+/**
+ * Nomiss：被弹（决死未救回）→ 不扣残机不 Game Over，自动重开当前章节。
+ * - 还原本章开头的 Unstable 异常（经 nextUnstableFx，startChapter 优先采用）
+ * - BGM 回带到进章位置（game.js 逐帧记录的 _nomissBgmPos）
+ * - 资源保留（残机/Bomb 不动）；章节状态由 startChapter 重建
+ */
+export function nomissRestart(game) {
+  game.audio.sfx('dead');
+  burst(game, game.player.x, game.player.y, '#f87171', 30);
+  game.player.resetPos();
+  game.player.invuln = 1.5;
+
+  if (game._nomissSnapshot?.unstableFx) {
+    game.nextUnstableFx = game._nomissSnapshot.unstableFx;
+  }
+  if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
+  flashMsg(game, '无伤重开', 1.2);
+
+  softClearForNextChapter(game, { convert: true });
+  startChapter(game);
+}
+
 export function miss(game) {
+  // Nomiss：miss 被劫持为自动重开当前章节（不扣残机、不 GameOver）
+  if (game.mode === 'nomiss' && !game.replaying) {
+    nomissRestart(game);
+    return;
+  }
   const p = game.player;
   game.chapterMiss = true;
   if (!debugLocksLives()) p.lives -= 1;

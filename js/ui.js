@@ -5,6 +5,7 @@ import {
 import {
   loadKeys, saveKeys, saveSettings,
   loadPracticePrefs, savePracticePrefs,
+  loadNomissProgress,
 } from './storage.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -581,6 +582,10 @@ export class UI {
       this.show('difficulty');
     } else if (action === 'extra-start') {
       this.pendingStart = { startChapter: this._extraStartChapter(), mode: 'extra' };
+      this.show('difficulty');
+    } else if (action === 'nomiss-start') {
+      // Nomiss：无存档从头（1）；有进度从下一章续
+      this.pendingStart = { startChapter: loadNomissProgress() ?? 1, mode: 'nomiss' };
       this.show('difficulty');
     } else if (action === 'stage-select') {
       this.show('stage');

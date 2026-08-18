@@ -174,8 +174,9 @@ docs/                  # 内部改造队列等（非运行时）
 **`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`  
 暂停：`paused` 标志（不是 state）。
 
-**`Game.mode`**：`story` | `practice` | `stage` | `extra`  
-（Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。）
+**`Game.mode`**：`story` | `practice` | `stage` | `extra` | `nomiss`  
+（Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。  
+`nomiss` 无伤模式：被弹自动重开当前章、保留资源、禁录像、进度持久化、仅暂停结算/结局结算，不入榜。）
 
 **练习模式**：难度用内联标签选择（`DIFFICULTIES`），关卡用标签二选、章节列表只显示当前关卡的章节（`practiceChapterGroups`，替代原生 select）；记住上次选择（`gunwei_practice`）；不经难度页，直接选自机。
 
@@ -199,6 +200,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 决死窗：`BALANCE.deathBombWindow`
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - 默认 **4 残 4B**；Stage Select **不锁关**
+- Nomiss：`miss()` 被 `nomissRestart` 劫持——不扣残机不 Game Over，还原本章 Unstable（`_nomissSnapshot`）+ BGM 回带（`audio.seekMusic`），重开当前章；进度存 `gunwei_nomiss_progress`
 
 ### 自机 / 难度
 
@@ -227,6 +229,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_ranking_name` | 上次入榜昵称（3 字） |
 | `gunwei_replays_index` | 录像索引（元数据；帧数据在 IndexedDB `owproject-replays`） |
 | `gunwei_practice` | 练习模式上次选择（章节 id + 难度） |
+| `gunwei_nomiss_progress` | Nomiss 模式章节进度（下一章 id） |
 
 ---
 

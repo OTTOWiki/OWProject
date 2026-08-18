@@ -166,3 +166,36 @@ export function savePracticePrefs(prefs) {
     }));
   } catch { /* ignore quota / private mode */ }
 }
+
+/**
+ * Nomiss 模式章节进度（存 { nextChapterId }）；无/坏数据返回 null。
+ * @returns {number|null} 下一章 id（正整数），无进度时 null
+ */
+export function loadNomissProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.nomissProgress);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    const id = Number(p?.nextChapterId);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Nomiss 模式章节进度：id 为正整数 → 存 { nextChapterId: id }；
+ * id 为 null/undefined → 清除（通关后从头开始）。
+ */
+export function saveNomissProgress(id) {
+  try {
+    if (id == null) {
+      localStorage.removeItem(STORAGE_KEYS.nomissProgress);
+      return;
+    }
+    const n = Number(id);
+    if (!Number.isInteger(n) || n <= 0) return; // 非法值丢弃，不动旧进度
+    localStorage.setItem(STORAGE_KEYS.nomissProgress, JSON.stringify({ nextChapterId: n }));
+  } catch { /* ignore quota / private mode */ }
+}

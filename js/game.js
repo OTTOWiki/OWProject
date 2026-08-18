@@ -183,11 +183,16 @@ export class Game {
     this.replaying = !!replay;
     this.replay = replay || null;
     this.recording = !this.replaying;   // 普通对局常驻缓冲；回放不录制
+    if (mode === 'nomiss') this.recording = false; // Nomiss 全程不录制录像
     this._recordFrames = [];
     this._replayDone = false;
     this._replayFast = false;
     this._startChapterId = startId;
     this._startLives = lives;
+    /** Nomiss：被弹重开时的 BGM 回带位置（game.js 逐帧记录，null=无曲目/未开播） */
+    this._nomissBgmPos = null;
+    /** Nomiss：本章开头的状态快照（Unstable 异常还原用） */
+    this._nomissSnapshot = null;
 
     this._replaySeed = replay && replay.seed != null ? replay.seed : randomSeed();
     this._rngNext = createRng(this._replaySeed);
@@ -513,6 +518,12 @@ export class Game {
         const capDt = 0.05 * Math.max(1, dbgScale);
         if (dt > capDt) dt = capDt;
       }
+    }
+
+    // Nomiss：每逻辑帧记录当前曲目位置，被弹重开当前章时回带用
+    if (!this.paused && this.mode === 'nomiss' && this.state === 'playing' && this.audio?.currentId) {
+      const pos = this.audio.musicPosition();
+      if (pos != null) this._nomissBgmPos = pos;
     }
 
     let recSnap = null;
