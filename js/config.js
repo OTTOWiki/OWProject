@@ -18,6 +18,8 @@ export const STORAGE_KEYS = {
   ranking: 'gunwei_ranking',
   rankingName: 'gunwei_ranking_name',
   replayIndex: 'gunwei_replays_index',
+  /** 练习模式上次选择（章节 id + 难度），进练习直接跳回 */
+  practice: 'gunwei_practice',
 };
 
 /** 每难度排行榜条目上限 */

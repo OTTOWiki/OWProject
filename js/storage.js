@@ -141,3 +141,28 @@ export function unlockRoute(route) {
     localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
   } catch { /* ignore quota / private mode */ }
 }
+
+/** 练习模式上次选择（章节 id + 难度）；损坏/缺失回落 null */
+export function loadPracticePrefs() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.practice);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || !Number.isInteger(p.chapter)) return null;
+    return {
+      chapter: p.chapter,
+      diff: typeof p.diff === 'string' ? p.diff : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function savePracticePrefs(prefs) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.practice, JSON.stringify({
+      chapter: Number(prefs.chapter),
+      diff: prefs.diff || null,
+    }));
+  } catch { /* ignore quota / private mode */ }
+}

@@ -177,6 +177,8 @@ docs/                  # 内部改造队列等（非运行时）
 **`Game.mode`**：`story` | `practice` | `stage` | `extra`  
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。）
 
+**练习模式**：难度用内联标签选择（`DIFFICULTIES`），关卡用标签二选、章节列表只显示当前关卡的章节（`practiceChapterGroups`，替代原生 select）；记住上次选择（`gunwei_practice`）；不经难度页，直接选自机。
+
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
 ### 章节流
@@ -224,6 +226,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_ranking` | 排行榜（按难度 top10，与录像独立） |
 | `gunwei_ranking_name` | 上次入榜昵称（3 字） |
 | `gunwei_replays_index` | 录像索引（元数据；帧数据在 IndexedDB `owproject-replays`） |
+| `gunwei_practice` | 练习模式上次选择（章节 id + 难度） |
 
 ---
 

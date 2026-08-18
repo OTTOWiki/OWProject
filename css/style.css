@@ -491,7 +491,6 @@ input, select, textarea {
 .practice-form .settings-row {
   margin: 0;
 }
-.practice-form select,
 .practice-form input[type="number"] {
   flex: 1;
   min-width: 0;
@@ -507,10 +506,6 @@ input, select, textarea {
   -webkit-user-select: text;
   cursor: text;
 }
-.practice-form select {
-  cursor: pointer;
-}
-.practice-form .settings-row.selected select,
 .practice-form .settings-row.selected input[type="number"] {
   border-color: rgba(212, 181, 106, 0.55);
 }
@@ -520,6 +515,77 @@ input, select, textarea {
   accent-color: var(--gold2);
   cursor: pointer;
   pointer-events: auto;
+}
+
+/* Practice — 章节列表（只显示当前关卡的章节，短列表；点选/←→ 循环） */
+.practice-chapter-control {
+  align-items: stretch;
+}
+.practice-chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: min(34vh, 260px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(10, 8, 14, 0.6);
+  padding: 0.3rem;
+  text-align: left;
+}
+.pc-item {
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #e8dcc4;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0.38rem 0.55rem;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pc-item:hover { background: var(--focus-bg-soft); }
+.pc-item.selected {
+  background: var(--focus-bg);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+  color: #f3e7cd;
+}
+/* Practice — 难度 / 关卡标签（难度带 --dc 主题色；点选/←→ 循环） */
+.practice-diffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+}
+.ptab {
+  flex: 1 1 auto;
+  min-width: 3.2rem;
+  padding: 0.45rem 0.5rem;
+  background: rgba(12, 14, 20, 0.55);
+  border: 1px solid var(--focus-border-soft);
+  color: #d8cbb0;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.ptab:hover { background: var(--focus-bg-soft); }
+.ptab.selected,
+.ptab:focus-visible {
+  border-color: var(--dc, var(--focus-border));
+  background: var(--focus-bg);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+  color: #f3e7cd;
 }
 .practice-hint {
   margin: 0;

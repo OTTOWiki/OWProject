@@ -105,3 +105,22 @@ export function stageSelectEntries() {
     se_ex,
   ];
 }
+
+/**
+ * 练习模式章节分组：按关卡（stageSelectEntries 顺序）分组，组内保持章节原顺序。
+ * @returns {{ label: string, chapters: object[] }[]}
+ */
+export function practiceChapterGroups() {
+  const byStage = new Map();
+  for (const ch of buildChapterList()) {
+    const key = String(ch.stageKey);
+    if (!byStage.has(key)) byStage.set(key, []);
+    byStage.get(key).push(ch);
+  }
+  const groups = [];
+  for (const e of stageSelectEntries()) {
+    const chs = byStage.get(String(e.id));
+    if (chs?.length) groups.push({ label: e.label, chapters: chs });
+  }
+  return groups;
+}
