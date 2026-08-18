@@ -103,7 +103,7 @@ export function startChapter(game) {
     game.bombCost = game.unstableFx.bombCost || 1;
   }
 
-  // Nomiss：快照本章开头的 Unstable 异常，被弹重开时经 nextUnstableFx 还原（BGM 位置由 game.js 逐帧记录）
+  // Nomiss：快照本章开头的 Unstable 异常，被弹重开时经 nextUnstableFx 还原
   if (game.mode === 'nomiss') game._nomissSnapshot = { unstableFx: game.unstableFx };
 
   game.letterTimeMax = ch.letterTime || 0;
@@ -111,7 +111,17 @@ export function startChapter(game) {
   game.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
   const isBoss = ch.kind === 'boss';
-  game.audio.playTrack(ch.music || trackForStage(ch.stageKey, isBoss), isBoss);
+  const musicId = ch.music || trackForStage(ch.stageKey, isBoss);
+  game.audio.playTrack(musicId, isBoss);
+  // Nomiss：章首一次性记录 BGM「进章位置」（被弹重开回带目标）。
+  // 同曲续播（currentId===musicId，playTrack early-return）→ 记录当前续播位置；
+  // 换曲/未开播 → 0（新曲从头播放）。旧版在 game.js 逐帧记录「受击时刻」位置，
+  // 回带幅度≈决死窗（0.2s）→ 听感等于没回带。
+  if (game.mode === 'nomiss') {
+    game._nomissBgmPos = game.audio.currentId === musicId
+      ? (game.audio.musicPosition?.() ?? 0)
+      : 0;
+  }
   const bgMode = ch.bg || bgModeFor(ch.stageKey, isBoss);
   game.background?.setMode(bgMode);
   const doTrans = game._lastBgMode != null && game._lastBgMode !== bgMode;

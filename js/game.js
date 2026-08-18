@@ -189,7 +189,7 @@ export class Game {
     this._replayFast = false;
     this._startChapterId = startId;
     this._startLives = lives;
-    /** Nomiss：被弹重开时的 BGM 回带位置（game.js 逐帧记录，null=无曲目/未开播） */
+    /** Nomiss：被弹重开时的 BGM 回带位置（chapterFlow.startChapter 章首记录，null=未开播/换曲时兜底 0） */
     this._nomissBgmPos = null;
     /** Nomiss：本章开头的状态快照（Unstable 异常还原用） */
     this._nomissSnapshot = null;
@@ -518,12 +518,6 @@ export class Game {
         const capDt = 0.05 * Math.max(1, dbgScale);
         if (dt > capDt) dt = capDt;
       }
-    }
-
-    // Nomiss：每逻辑帧记录当前曲目位置，被弹重开当前章时回带用
-    if (!this.paused && this.mode === 'nomiss' && this.state === 'playing' && this.audio?.currentId) {
-      const pos = this.audio.musicPosition();
-      if (pos != null) this._nomissBgmPos = pos;
     }
 
     let recSnap = null;

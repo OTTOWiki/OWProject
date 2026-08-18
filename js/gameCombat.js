@@ -332,7 +332,7 @@ export function tryBomb(game, isDeath) {
 /**
  * Nomiss：被弹（决死未救回）→ 不扣残机不 Game Over，自动重开当前章节。
  * - 还原本章开头的 Unstable 异常（经 nextUnstableFx，startChapter 优先采用）
- * - BGM 回带到进章位置（game.js 逐帧记录的 _nomissBgmPos）
+ * - BGM 回带到进章位置（chapterFlow.startChapter 章首记录的 _nomissBgmPos）
  * - 资源保留（残机/Bomb 不动）；章节状态由 startChapter 重建
  */
 export function nomissRestart(game) {

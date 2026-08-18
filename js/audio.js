@@ -34,6 +34,21 @@ export const AUDIO_FILE_MAP = {
   ex_boss: 'assets/bgm/輝く針の小人族　～ Little Princess.ogg',
 };
 
+/**
+ * 循环内播放位置纯函数：now 相对 startT 的偏移按 dur 取模回绕 ∈ [0, dur)。
+ * 数据异常（非有限值 / dur≤0）返回 null。musicPosition 与 seekMusic 共用。
+ * @param {number} now
+ * @param {number} startT
+ * @param {number} dur
+ * @returns {number|null}
+ */
+export function wrapMusicPos(now, startT, dur) {
+  if (!Number.isFinite(now) || !Number.isFinite(startT) || !Number.isFinite(dur) || !(dur > 0)) return null;
+  const pos = (now - startT) % dur;
+  if (!Number.isFinite(pos)) return null;
+  return pos < 0 ? pos + dur : pos;
+}
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -232,13 +247,11 @@ export class AudioEngine {
 
   /**
    * 当前曲目在循环内的播放位置（秒）；无曲目 / 无 context / 数据异常返回 null。
-   * Nomiss 模式每逻辑帧记录，被弹重开当前章时回带用。
+   * Nomiss 模式章首记录进章位置，被弹重开当前章时回带用。
    */
   musicPosition() {
     if (!this.ctx || !this._audioSourceNode || !this._musicBufDur) return null;
-    const pos = (this.ctx.currentTime - this._musicStartT) % this._musicBufDur;
-    if (!Number.isFinite(pos)) return null;
-    return pos < 0 ? pos + this._musicBufDur : pos;
+    return wrapMusicPos(this.ctx.currentTime, this._musicStartT, this._musicBufDur);
   }
 
   /**
@@ -251,7 +264,10 @@ export class AudioEngine {
     if (!this._audioSourceNode || !this._musicBuf || !(this._musicBufDur > 0)) return;
     const o = Number(offset);
     if (!Number.isFinite(o)) return;
-    const clamped = ((o % this._musicBufDur) + this._musicBufDur) % this._musicBufDur;
+    let clamped = ((o % this._musicBufDur) + this._musicBufDur) % this._musicBufDur;
+    // 防御钳制：src.start(when, offset) 要求 offset ∈ [0, dur)；
+    // 公式本身保证 ∈[0,dur)，此处兜底避免浮点/实现差异把 offset 推到 dur
+    if (!(clamped < this._musicBufDur)) clamped = 0;
 
     // 停掉当前 source（不淡出增益；短淡入由下方 ramp 负责）
     try { this._audioSourceNode.stop(); } catch (_) {}
