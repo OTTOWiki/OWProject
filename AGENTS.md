@@ -138,7 +138,8 @@ docs/                  # 内部改造队列等（非运行时）
 
 - `LOGICAL_W=450`, `LOGICAL_H=600`（`config.js`）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
-- 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标
+- 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
+- 移动端竖屏（`≤820px 且 portrait`）：单列——版面占满可用高度，HUD 压成底部横条
 
 ### 模块职责
 
