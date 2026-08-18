@@ -57,6 +57,11 @@ export function applyCollisionEvents(game, events) {
       const e = ev.enemy;
       addScore(game, e.score);
       burst(game, e.x, e.y, e.color, 12);
+      // 连击：击破 +1 并续窗口（窗口见 BALANCE.combo.window）
+      game.combo = (game.combo || 0) + 1;
+      game.comboTimer = BALANCE.combo.window;
+      game.stats.kills++;
+      game.stats.maxCombo = Math.max(game.stats.maxCombo, game.combo);
       const drop = e.drop || defaultKillDrop(game, e);
       if (drop) spawnItem(game, e.x, e.y, drop);
       else if (Math.random() < 0.35) spawnItem(game, e.x, e.y, 'score');
@@ -65,6 +70,7 @@ export function applyCollisionEvents(game, events) {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
       addScore(game, BALANCE.score.graze);
+      game.stats.graze++;
       spawnGrazeParticles(game, p);
       // 擦弹音：每帧最多一次，避免弹幕墙时叠成噪声
       const now = performance.now();
@@ -128,6 +134,15 @@ export function updateCombat(game, dt) {
   const p = game.player;
   const ch = game.chapters[game.chapterIndex];
   const settling = !!game.chapterDone;
+
+  // 连击窗口衰减：超时清零（击破时在 applyCollisionEvents 续期）
+  if (game.combo > 0) {
+    game.comboTimer -= dt;
+    if (game.comboTimer <= 0) {
+      game.combo = 0;
+      game.comboTimer = 0;
+    }
+  }
 
   if (debugAutoEdit() && p) p.edit = BALANCE.editMax;
 
@@ -321,6 +336,8 @@ export function tryBomb(game, isDeath) {
   p.bombTimer = BALANCE.bombDuration;
   p.invuln = BALANCE.bombInvuln;
   game.chapterBomb = true;
+  game.stats.bombs++;
+  if (isDeath) game.stats.deathbombs++;
   fullScreenClear(game);
   // 清屏后放出 8 发巨型追踪弹（避免被 fullScreenClear 清掉）
   spawnBombOrbs(game, p);
@@ -332,6 +349,7 @@ export function tryBomb(game, isDeath) {
 export function miss(game) {
   const p = game.player;
   game.chapterMiss = true;
+  game.stats.misses++;
   if (!debugLocksLives()) p.lives -= 1;
   p.arbitration = 0;
   p.edit = Math.min(p.edit, BALANCE.editMax * 0.3);
@@ -358,6 +376,7 @@ export function hitPlayer(game) {
 }
 
 export function collectItem(game, it) {
+  game.stats.items++;
   if (it.kind === 'score') addScore(game, BALANCE.score.itemSmall);
   else if (it.kind === 'scoreL') addScore(game, BALANCE.score.itemLarge);
   else if (it.kind === 'life') {
@@ -371,7 +390,9 @@ export function collectItem(game, it) {
 
 export function addScore(game, n) {
   const raw = Math.floor(n * (game.scoreMul || 1));
-  const v = Math.floor(raw * (game.diffScoreMul || 1));
+  // Combo 倍率：每连击 +1%（仅乘实时得分，不计入 baseScore；combo=0 时为 1）
+  const comboMul = 1 + (game.combo || 0) * BALANCE.combo.perPercent;
+  const v = Math.floor(raw * (game.diffScoreMul || 1) * comboMul);
   game.score += v;
   game.chapterScore += v;
   game.baseScore += raw;

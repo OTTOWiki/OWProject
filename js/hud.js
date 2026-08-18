@@ -16,6 +16,7 @@ export function createHudCache() {
     unstable: null,
     tendency: null,
     chapter: null,
+    combo: null,
     difficulty: null,
     difficultyColor: null,
     letterRemain: null,
@@ -76,6 +77,12 @@ export function updateGameHud(game) {
 
   setText(el.unstable, game.unstableFx ? game.unstableFx.label : '关', 'unstable', cache);
   setText(el.tendency, `${game.totalTendency.toFixed(0)}%`, 'tendency', cache);
+  setText(
+    el.combo,
+    game.combo > 0 ? `连击 ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}` : '—',
+    'combo',
+    cache,
+  );
 
   const ch = game.chapters[game.chapterIndex];
   setText(el.chapter, ch ? ch.name : '—', 'chapter', cache);

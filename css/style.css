@@ -556,6 +556,13 @@ input, select, textarea {
   box-shadow: 0 0 0 1px var(--focus-ring);
   color: #f3e7cd;
 }
+/* Practice — 章节最佳记录（练习各章最佳，随难度切换刷新） */
+.pc-best {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
 /* Practice — 难度 / 关卡标签（难度带 --dc 主题色；点选/←→ 循环） */
 .practice-diffs {
   display: flex;
@@ -1517,6 +1524,19 @@ input, select, textarea {
 .ranking-name { color: #f3e7cd; font-weight: 600; }
 .ranking-player { color: #b8a888; font-size: 0.78rem; }
 .ranking-route { color: #9ec9e8; font-size: 0.78rem; }
+/* 排行榜「续」徽标：续关对局 */
+.rk-badge {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  background: rgba(251, 191, 36, 0.12);
+  vertical-align: middle;
+}
 .ranking-score { color: #f3e7cd; font-family: var(--mono, monospace); text-align: right; }
 .ranking-date { color: #8a7c62; font-size: 0.75rem; }
 .ranking-empty { color: #8a7c62; text-align: center; padding: 1rem 0; }

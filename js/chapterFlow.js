@@ -8,9 +8,10 @@ import {
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
+import { formatRunStats } from './runStats.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
@@ -267,6 +268,7 @@ export function finishChapter(game, success) {
   const ch = game.chapters[game.chapterIndex];
   const clean = !game.chapterMiss && !game.chapterBomb;
   const perfect = success && clean;
+  if (perfect) game.stats.nmnb++;
 
   const baseChapter = game.chapterScore;
   let settleMul = 1;
@@ -356,10 +358,16 @@ export function finishChapter(game, success) {
   const NEXT_DELAY_SEC = 0.8;
 
   if (game.singleChapter || game.mode === 'practice') {
+    if (game.mode === 'practice') {
+      savePracticeBest(ch.id, game.difficultyId, { score: game.score, perfect });
+    }
+    const statsLines = formatRunStats(game.stats || {});
+    const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n${perfect ? 'Perfect Clear!' : ''}`
+      + (statsLines.length ? '\n' + statsLines.join('\n') : '');
     scheduleAdvance(game, NEXT_DELAY_SEC, () => {
       openResult(game, {
         title: '练习结束',
-        body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n${perfect ? 'Perfect Clear!' : ''}`,
+        body,
         retryChapter: ch.id,
       });
     });
@@ -515,6 +523,7 @@ export function setEndingCinematic(game, on) {
 
 export function showEnding(game, which) {
   if (game.replaying) { game._showReplayEnd(); return; }
+  game._pendingRanking = false;
   saveHiscore(game.score);
   submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
@@ -541,38 +550,67 @@ export function showEnding(game, which) {
   });
 }
 
+/** Game Over 结算正文（难度/章节/得分/倾向 + 对局统计行，<pre> 用） */
+function buildGameOverBody(game) {
+  const ch = game.chapters[game.chapterIndex];
+  const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
+  const statsLines = formatRunStats(game.stats || {});
+  return statsLines.length ? body + '\n' + statsLines.join('\n') : body;
+}
+
+/**
+ * 标准 Game Over 结算：存高分 → 入榜 → （入榜则先弹成绩排行）→ 结果动作选择。
+ * 续关耗尽 / 练习 / 续关时选了终局动作 均走此路径。
+ */
+export function finalizeGameOver(game) {
+  game._pendingRanking = false;
+  saveHiscore(game.score);
+  submitRanking(game, { cleared: false });
+  game.audio.stopMusic(0.6);
+  openScoreRanking(game, () => openResult(game, {
+    title: 'Game Over',
+    body: buildGameOverBody(game),
+    retryChapter: game.chapters[game.chapterIndex]?.id ?? 1,
+  }));
+}
+
 export function gameOver(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
   const ch = game.chapters[game.chapterIndex];
-  saveHiscore(game.score);
-  submitRanking(game, { cleared: false });
-  const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
-  const show = () => {
-    game.audio.stopMusic(0.6);
-    const openFinal = () => openResult(game, {
+  // 还有续关次数（练习除外）：先给「继续」动作，其余终局动作落标准结算
+  if (game.continuesLeft > 0 && game.mode !== 'practice') {
+    game._pendingRanking = true;
+    openResult(game, {
       title: 'Game Over',
-      body,
+      body: buildGameOverBody(game),
       retryChapter: ch.id,
+      actions: ['continue', 'save-replay', 'retry', 'menu'],
     });
-    openScoreRanking(game, openFinal);
-  };
+    return;
+  }
   if (ch.loseDialogue && game.dialogues[ch.loseDialogue]) {
-    openDialogue(game, game.dialogues[ch.loseDialogue], show);
+    openDialogue(game, game.dialogues[ch.loseDialogue], () => finalizeGameOver(game));
   } else {
-    show();
+    finalizeGameOver(game);
   }
 }
 
 export function gameClear(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
+  game._pendingRanking = false;
   saveHiscore(game.score);
   submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
-  const openFinal = () => openResult(game, {
-    title: 'All Clear',
-    body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`,
-    retryChapter: 1,
-  });
+  const openFinal = () => {
+    const statsLines = formatRunStats(game.stats || {});
+    const body = `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`
+      + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+    openResult(game, {
+      title: 'All Clear',
+      body,
+      retryChapter: 1,
+    });
+  };
   openScoreRanking(game, openFinal);
 }
 
@@ -599,6 +637,7 @@ export function submitRanking(game, { cleared = false } = {}) {
     mode: game.mode,
     route: game.routeChoice || (game.mode === 'extra' ? 'EX' : null),
     cleared: !!cleared,
+    continued: (game.continuesUsed || 0) > 0,
     stageReached: game.el?.stageLabel?.textContent || '',
     date: Date.now(),
   };
