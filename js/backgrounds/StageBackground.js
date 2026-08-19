@@ -2,7 +2,7 @@
  * Three.js 左侧关卡印象 — StageBackground 类
  * mode 登记：js/bgModes.js；场景 builder 见 scenes.js + STAGE_BG_BUILDERS
  */
-import * as THREE from 'three';
+import { THREE } from './threeLoader.js';
 import { resolveBgMode } from '../bgModes.js';
 import { STAGE_BG_BUILDERS } from './builders.js';
 import { makeTextTexture } from './textTexture.js';

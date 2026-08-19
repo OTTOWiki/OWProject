@@ -2,7 +2,7 @@
  * 左侧 Three 场景 builder（由 StageBackground 方法抽出，E04）
  * 约定：export function buildXxx(bg, ...) 使用 bg._atmosphere / _scatter 等
  */
-import * as THREE from 'three';
+import { THREE } from './threeLoader.js';
 import { makeTextTexture } from './textTexture.js';
 
 export function buildS1Mid(bg) {

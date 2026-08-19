@@ -5,8 +5,7 @@
  * 方案：顺序尝试 jsdelivr → unpkg → esm.sh，首个 import 成功即固化；
  * 全部失败抛聚合错误，由 main.js 显示可重试占位并展示原因（无需控制台）。
  *
- * 既有代码 `THREE.Xxx` 写法零改动：静态 `import * as THREE from 'three'`
- * 改为 `import { THREE } from './threeLoader.js'`（懒解析代理，setThree 后即生效）。
+ * 既有代码 `THREE.Xxx` 写法零改动：静态 three 导入改为经 threeLoader 懒代理（setThree 后即生效）。
  */
 
 const THREE_MIRRORS = [

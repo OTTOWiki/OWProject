@@ -1,7 +1,7 @@
 /**
  * Canvas text texture for stage labels
  */
-import * as THREE from 'three';
+import { THREE } from './threeLoader.js';
 
 export function makeTextTexture(lines, {
   w = 256, h = 128, fill = '#a8ffc8', bg = 'rgba(0,0,0,0.35)',
