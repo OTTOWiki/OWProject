@@ -4,6 +4,7 @@
 import { Input } from './input.js';
 import { AudioEngine, AUDIO_FILE_MAP } from './audio.js';
 import { StageBackground } from './backgrounds.js';
+import { loadThreeModule } from './backgrounds/threeLoader.js';
 import { Game } from './game.js';
 import { UI } from './ui.js';
 import { getAssetPaths, preloadArtAssets } from './assets.js';
@@ -147,6 +148,11 @@ function dismissLoadScreen() {
 async function boot() {
   setLoadProgress(0);
 
+  // Three.js 多 CDN 加载与资源预载并行（首个镜像成功即固化）；
+  // 构造 StageBackground 前 await 落定：失败则走 #bg3d-fallback 可重试占位，游戏本体照常运行。
+  let threeErr = null;
+  const threeReady = loadThreeModule().catch((e) => { threeErr = e; });
+
   // Audio 先于预载创建，使 OGG Buffer 直接进引擎缓存
   // ensure() 在部分移动端可能保持 suspended；失败曲目在首次手势后补 decode
   const audio = new AudioEngine();
@@ -192,18 +198,36 @@ async function boot() {
   try {
     let background = null;
 
-    try {
-      background = new StageBackground(bgCanvas);
-      background.setMode('s1_mid');
+    const elBgFallback = document.getElementById('bg3d-fallback');
+    const elBgErr = document.getElementById('bg3d-fallback-err');
+    const showBgFallback = (err) => {
+      if (!elBgFallback) return;
+      elBgFallback.classList.remove('hidden');
+      if (elBgErr) elBgErr.textContent = err?.message || String(err);
+    };
+    const hideBgFallback = () => elBgFallback?.classList.add('hidden');
+
+    const initBackground = () => {
+      const bg = new StageBackground(bgCanvas);
+      bg.setMode('s1_mid');
       const idle = () => {
         if (!document.getElementById('screen-game')?.classList.contains('active')) {
-          background.update();
+          bg.update();
         }
         requestAnimationFrame(idle);
       };
       requestAnimationFrame(idle);
+      return bg;
+    };
+
+    try {
+      // three 加载失败时 loadThreeModule 抛聚合错误（含各镜像原因），占位 UI 展示
+      await threeReady;
+      if (threeErr) throw threeErr;
+      background = initBackground();
     } catch (err) {
       console.warn('Three.js background failed:', err);
+      showBgFallback(err);
       background = { setMode() {}, setTendency() {}, update() {} };
     }
 
@@ -242,6 +266,24 @@ async function boot() {
     game.applySettings();
     installDebug(game);
     bindScoreRanking(game);
+
+    // 印象场景加载失败占位：重试 → 重新加载 three 并替换 game 使用的背景
+    const retryBtn = document.getElementById('bg3d-fallback-retry');
+    retryBtn?.addEventListener('click', async () => {
+      if (retryBtn.disabled) return;
+      retryBtn.disabled = true;
+      try {
+        await loadThreeModule();
+        const nb = initBackground();
+        hideBgFallback();
+        if (game) game.background = nb;
+      } catch (err) {
+        console.warn('Three.js background retry failed:', err);
+        if (elBgErr) elBgErr.textContent = err?.message || String(err);
+      } finally {
+        retryBtn.disabled = false;
+      }
+    });
 
     // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
     // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）
