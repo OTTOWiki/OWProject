@@ -395,6 +395,7 @@ export function collectItem(game, it) {
   if (it.kind === 'score') addScore(game, BALANCE.score.itemSmall);
   else if (it.kind === 'scoreL') addScore(game, BALANCE.score.itemLarge);
   else if (it.kind === 'life') {
+    if (game.mode === 'nomiss') return; // 防御：nomiss 禁用生命道具（spawnItem 已拦截，此处兜底遗漏来源）
     game.player.lives = Math.min(BALANCE.maxLives, game.player.lives + 1);
     game.audio.sfx('ok');
   } else if (it.kind === 'bomb') {
@@ -500,6 +501,8 @@ export function grantLetterResource(game, ch, perfect, success) {
 }
 
 export function spawnItem(game, x, y, kind = 'score') {
+  // nomiss 禁用生命道具（含 Letter 末卡 NMNB 奖励的 life 掉落）
+  if (game.mode === 'nomiss' && kind === 'life') return;
   game.items.push(acquireItem(x, y, kind));
 }
 

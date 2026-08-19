@@ -200,7 +200,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 决死窗：`BALANCE.deathBombWindow`
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - 默认 **4 残 4B**；Stage Select **不锁关**
-- Nomiss：`miss()` 被 `nomissRestart` 劫持——不扣残机不 Game Over，还原本章 Unstable（`_nomissSnapshot`）+ BGM 回带（`audio.seekMusic`），重开当前章；进度存 `gunwei_nomiss_progress`
+- Nomiss：`miss()` 被 `nomissRestart` 劫持——不扣残机不 Game Over，回滚分数/资源到进章时状态（`_nomissSnapshot`，该次尝试作废，hiscore 保留）+ BGM 回带（`audio.seekMusic`），重开当前章；**生命道具禁用**（`spawnItem`/`collectItem` 拦截）；进度存 `gunwei_nomiss_progress`
 
 ### 自机 / 难度
 

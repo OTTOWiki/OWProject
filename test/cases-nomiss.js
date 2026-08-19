@@ -8,7 +8,7 @@ import { BALANCE, STORAGE_KEYS } from '../js/config.js';
 import {
   loadNomissProgress, saveNomissProgress,
 } from '../js/storage.js';
-import { miss } from '../js/gameCombat.js';
+import { miss, spawnItem, collectItem } from '../js/gameCombat.js';
 import { startChapter } from '../js/chapterFlow.js';
 import { wrapMusicPos } from '../js/audio.js';
 import { localStatsText, runOverlayAction } from '../js/gameOverlay.js';
@@ -275,4 +275,25 @@ test('settle：非 Nomiss 不可触发（进度不受影响）', () => {
   g.ui = null;
   runOverlayAction(g, 'settle');
   assertEqual(loadNomissProgress(), 3, 'story 模式 settle 不生效');
+});
+
+test('spawnItem：nomiss 禁用生命道具（life 不生成，其他照常）', () => {
+  const g = { mode: 'nomiss', items: [] };
+  spawnItem(g, 100, 100, 'life');
+  assertEqual(g.items.length, 0, 'nomiss 下 life 不生成（含 Letter NMNB 奖励）');
+  spawnItem(g, 100, 100, 'score');
+  assertEqual(g.items.length, 1, 'nomiss 下其他道具照常生成');
+  const g2 = { mode: 'story', items: [] };
+  spawnItem(g2, 100, 100, 'life');
+  assertEqual(g2.items.length, 1, '非 nomiss 下 life 正常生成');
+});
+
+test('collectItem：nomiss 收集 life 无效（lives 不变、无音效）', () => {
+  const g = { mode: 'nomiss', player: { lives: 4 }, audio: { sfx() { this.called = true; } } };
+  collectItem(g, { kind: 'life' });
+  assertEqual(g.player.lives, 4, 'nomiss 下 life 收集无效');
+  assert(!g.audio.called, '不播 ok 音效');
+  const g2 = { mode: 'story', player: { lives: 4 }, audio: { sfx() {} } };
+  collectItem(g2, { kind: 'life' });
+  assertEqual(g2.player.lives, 5, '非 nomiss 下 life 正常 +1');
 });
