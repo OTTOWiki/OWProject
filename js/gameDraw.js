@@ -70,14 +70,15 @@ export function pickComboAnchor(px, py, W, H, dist) {
  * 仅用 game._drawFrameT；HUD 右栏 Combo 行保留。
  */
 export function drawComboCounter(game, ctx) {
-  if (!(game.combo > 0)) return;
+  // 连击 ≥ 2 才显示（首次击破的 1 连击不打扰版面）
+  if (!(game.combo > 1)) return;
   const a = pickComboAnchor(
     game.player?.x ?? 0, game.player?.y ?? 0,
     LOGICAL_W, LOGICAL_H, BALANCE.combo.display.evadeDist,
   );
   const frameT = game._drawFrameT || performance.now();
   const blinkOn = Math.floor(frameT / (BALANCE.combo.display.blinkSec * 1000)) % 2 === 0;
-  const text = `连击 ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`;
+  const text = `COMBO ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`;
   ctx.save();
   ctx.globalAlpha = blinkOn ? BALANCE.combo.display.alpha : 0;
   ctx.font = 'bold 20px "Songti SC","SimSun",serif';
@@ -312,7 +313,7 @@ export function drawGameFrame(game) {
   }
 
   // Combo 版面显示：图层在弹幕之上（fog/炸弹着色叠加之后）；锚点按自机位置避让
-  if (game.combo > 0 && !game.chapterDone && game.state === 'playing') {
+  if (game.combo > 1 && !game.chapterDone && game.state === 'playing') {
     drawComboCounter(game, ctx);
   }
 

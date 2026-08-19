@@ -79,7 +79,7 @@ export function updateGameHud(game) {
   setText(el.tendency, `${game.totalTendency.toFixed(0)}%`, 'tendency', cache);
   setText(
     el.combo,
-    game.combo > 0 ? `连击 ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}` : '—',
+    game.combo > 1 ? `COMBO ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}` : '—',
     'combo',
     cache,
   );
