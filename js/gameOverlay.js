@@ -2,7 +2,7 @@
  * 暂停 / 结果叠加层（从 Game 抽出，行为与原先一致）
  * @param {import('./game.js').Game} game
  */
-import { saveHiscore } from './storage.js';
+import { saveHiscore, saveNomissProgress } from './storage.js';
 
 /**
  * 对局统计简版两行（本 PR 内建；若后续 runStats.js 统一模块合并则收敛）。
@@ -121,9 +121,10 @@ export function runOverlayAction(game, action) {
     return;
   }
   if (action === 'settle') {
-    // Nomiss 手动结算：仅暂停菜单可用；不开排行榜、不入榜
+    // Nomiss 手动结算：仅暂停菜单可用；不开排行榜、不入榜；清空进度（下次从头第 1 章）
     if (game.mode !== 'nomiss' || game.overlayMode !== 'pause') return;
     hideOverlay(game);
+    saveNomissProgress(null);
     saveHiscore(game.score);
     const ch = game.chapters[game.chapterIndex];
     openResult(game, {

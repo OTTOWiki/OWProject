@@ -103,8 +103,17 @@ export function startChapter(game) {
     game.bombCost = game.unstableFx.bombCost || 1;
   }
 
-  // Nomiss：快照本章开头的 Unstable 异常，被弹重开时经 nextUnstableFx 还原
-  if (game.mode === 'nomiss') game._nomissSnapshot = { unstableFx: game.unstableFx };
+  // Nomiss：快照本章开头状态（Unstable 异常 + 分数/资源），被弹重开时回滚到进章时状态（该次尝试作废）
+  if (game.mode === 'nomiss') {
+    game._nomissSnapshot = {
+      unstableFx: game.unstableFx,
+      score: game.score,
+      baseScore: game.baseScore,
+      extendCount: game.extendCount,
+      lives: game.player.lives,
+      bombs: game.player.bombs,
+    };
+  }
 
   game.letterTimeMax = ch.letterTime || 0;
   game.letterTimeLeft = game.letterTimeMax;
@@ -572,8 +581,9 @@ export function showEnding(game, which) {
 export function gameOver(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
   if (game.mode === 'nomiss') {
-    // 不应走到（miss 已被 nomissRestart 劫持）；兜底为手动结算语义
+    // 不应走到（miss 已被 nomissRestart 劫持）；兜底为手动结算语义，并清空进度
     const ch = game.chapters[game.chapterIndex];
+    saveNomissProgress(null);
     saveHiscore(game.score);
     openResult(game, {
       title: 'Nomiss 结算',
@@ -607,7 +617,8 @@ export function gameClear(game) {
   saveHiscore(game.score);
   game.audio.stopMusic(0.8);
   if (game.mode === 'nomiss') {
-    // Nomiss：不入榜、不弹排行榜，直接结算
+    // Nomiss：不入榜、不弹排行榜，直接结算；清空进度（下次从头）
+    saveNomissProgress(null);
     openResult(game, {
       title: 'All Clear',
       body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}\n${localStatsText(game.stats)}`,

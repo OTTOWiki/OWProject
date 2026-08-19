@@ -11,7 +11,7 @@ import {
 import { miss } from '../js/gameCombat.js';
 import { startChapter } from '../js/chapterFlow.js';
 import { wrapMusicPos } from '../js/audio.js';
-import { localStatsText } from '../js/gameOverlay.js';
+import { localStatsText, runOverlayAction } from '../js/gameOverlay.js';
 import { isExtraRestrictedMode } from '../js/startMode.js';
 import { createMockGame } from './mockGame.js';
 import { test, assert, assertEqual } from './assert.js';
@@ -79,8 +79,10 @@ test('miss()：nomiss 分支不扣残机、自动重开当前章（Unstable 还�
   g.replaying = false;
   g.chapters = [ch];
   g.chapterIndex = 0;
-  g.score = 0;
-  g.hiscore = 0;
+  g.score = 50000;
+  g.baseScore = 30000;
+  g.extendCount = 2;
+  g.hiscore = 99999;
   g.totalTendency = 0;
   g.diff = { rank: 'NORMAL', name: '白银', color: '#4ade80' };
   g.state = 'playing';
@@ -101,21 +103,36 @@ test('miss()：nomiss 分支不扣残机、自动重开当前章（Unstable 还�
   };
   g.player.resetPos = () => {};
   g.player.invuln = 0;
-  const livesBefore = g.player.lives;
+  g.player.lives = 4; // 当前（尝试中 Extend/生命道具所得，应随回滚作废）
+  g.player.bombs = 3;
   g._nomissBgmPos = 12.5;
   const fx = { id: 'atk_up', label: '攻击力+8%', atkMul: 1.08, scoreMul: 1, compMul: 1 };
-  g._nomissSnapshot = { unstableFx: fx };
+  // 进章时快照：与当前值不同 → 被弹后应回滚到快照
+  g._nomissSnapshot = {
+    unstableFx: fx,
+    score: 12000,
+    baseScore: 8000,
+    extendCount: 1,
+    lives: 3,
+    bombs: 2,
+  };
   g.nextUnstableFx = null;
 
   miss(g);
 
-  // 未扣残机、未置 chapterMiss、给了重生无敌
-  assertEqual(g.player.lives, livesBefore);
+  // 分数/资源回滚到进章时状态（该次尝试作废）
+  assertEqual(g.score, 12000, 'score 回滚');
+  assertEqual(g.baseScore, 8000, 'baseScore 回滚');
+  assertEqual(g.extendCount, 1, 'extendCount 回滚');
+  assertEqual(g.player.lives, 3, 'lives 回滚（尝试内所得作废）');
+  assertEqual(g.player.bombs, 2, 'bombs 回滚');
+  assertEqual(g.hiscore, 99999, 'hiscore 保留峰值不降');
   assert(!g.chapterMiss);
   assertEqual(g.player.invuln, 1.5);
-  // startChapter 已执行（lastStageKey 记录、chapterTime 重置）
+  // startChapter 已执行（lastStageKey 记录、chapterTime 重置；并重新快照回滚后的状态）
   assertEqual(g.lastStageKey, '1');
   assertEqual(g.chapterTime, 0);
+  assertEqual(g._nomissSnapshot.score, 12000, '重开后快照为回滚后的分数');
   // Unstable 还原为本单开头那次（startChapter 经 nextUnstableFx 采用并消费）
   assert(g.unstableFx === fx);
   assertEqual(g.nextUnstableFx, null);
@@ -220,4 +237,42 @@ test('localStatsText：统计两行简版（容错缺失字段）', () => {
   // 空 / 缺失字段不抛
   assert(localStatsText(undefined).length > 0);
   assert(localStatsText({}).length > 0);
+});
+
+test('settle：Nomiss 手动结算清空进度（下次重进从第 1 章）', () => {
+  saveNomissProgress(7);
+  assertEqual(loadNomissProgress(), 7, '前置：进度已保存');
+
+  const g = createMockGame();
+  g.mode = 'nomiss';
+  g.replaying = false;
+  g.overlayMode = 'pause';
+  g.state = 'playing';
+  g.score = 12345;
+  g.hiscore = 0;
+  g.diff = { rank: 'NORMAL', name: '白银', color: '#4ade80' };
+  g.chapters = [{ id: 5, name: '测试章' }];
+  g.chapterIndex = 0;
+  g.stats = { graze: 0, kills: 0, bombs: 0, misses: 0, nmnb: 0, items: 0, maxCombo: 0, time: 0 };
+  g.player = { lives: 2, bombs: 2, x: 225, y: 500, def: {} };
+  g.el = { overlay: null };
+  g.ui = null;
+
+  runOverlayAction(g, 'settle');
+  assertEqual(loadNomissProgress(), null, '结算后进度清空');
+  assertEqual(g.overlayMode, 'result', '结算结果叠加层已打开');
+});
+
+test('settle：非 Nomiss 不可触发（进度不受影响）', () => {
+  saveNomissProgress(3);
+  const g = createMockGame();
+  g.mode = 'story';
+  g.replaying = false;
+  g.overlayMode = 'pause';
+  g.score = 1;
+  g.hiscore = 0;
+  g.el = { overlay: null };
+  g.ui = null;
+  runOverlayAction(g, 'settle');
+  assertEqual(loadNomissProgress(), 3, 'story 模式 settle 不生效');
 });

@@ -331,9 +331,10 @@ export function tryBomb(game, isDeath) {
 
 /**
  * Nomiss：被弹（决死未救回）→ 不扣残机不 Game Over，自动重开当前章节。
- * - 还原本章开头的 Unstable 异常（经 nextUnstableFx，startChapter 优先采用）
+ * - 回滚到进章时状态（该次尝试作废）：Unstable 异常（经 nextUnstableFx）、
+ *   分数 score/baseScore/extendCount、残机/Bomb（含尝试内 Extend/生命道具所得一并回滚）
+ * - hiscore 保留峰值不降；combo 与 stats 不回滚（stats 为累计对局统计，非单章尝试）
  * - BGM 回带到进章位置（chapterFlow.startChapter 章首记录的 _nomissBgmPos）
- * - 资源保留（残机/Bomb 不动）；章节状态由 startChapter 重建
  */
 export function nomissRestart(game) {
   game.audio.sfx('dead');
@@ -341,8 +342,14 @@ export function nomissRestart(game) {
   game.player.resetPos();
   game.player.invuln = 1.5;
 
-  if (game._nomissSnapshot?.unstableFx) {
-    game.nextUnstableFx = game._nomissSnapshot.unstableFx;
+  const snap = game._nomissSnapshot;
+  if (snap) {
+    if (snap.unstableFx) game.nextUnstableFx = snap.unstableFx;
+    game.score = snap.score ?? game.score;
+    game.baseScore = snap.baseScore ?? game.baseScore;
+    game.extendCount = snap.extendCount ?? game.extendCount;
+    game.player.lives = snap.lives ?? game.player.lives;
+    game.player.bombs = snap.bombs ?? game.player.bombs;
   }
   if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
   flashMsg(game, '无伤重开', 1.2);
