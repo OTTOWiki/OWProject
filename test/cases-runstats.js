@@ -5,6 +5,7 @@ import { BALANCE, STORAGE_KEYS } from '../js/config.js';
 import { formatRunTime, formatRunStats } from '../js/runStats.js';
 import { addScore } from '../js/gameCombat.js';
 import { loadPracticeBest, savePracticeBest } from '../js/storage.js';
+import { pickComboAnchor } from '../js/gameDraw.js';
 import { test, assert, assertEqual } from './assert.js';
 
 // Node/bun 无 localStorage：注入最小内存实现，测写读路径；浏览器用原生
@@ -122,7 +123,45 @@ test('loadPracticeBest：坏数据丢弃 / 非法 JSON 回落 {}', () => {
 test('BALANCE.combo / BALANCE.continue 字段存在', () => {
   assertEqual(BALANCE.combo.perPercent, 0.01);
   assertEqual(BALANCE.combo.window, 3);
+  assertEqual(BALANCE.combo.display.blinkSec, 0.133);
+  assertEqual(BALANCE.combo.display.alpha, 0.8);
+  assertEqual(BALANCE.combo.display.evadeDist, 100);
   assertEqual(BALANCE.continue.max, 2);
   assertEqual(BALANCE.continue.lives, 2);
   assertEqual(BALANCE.continue.bombs, 2);
+});
+
+test('pickComboAnchor：远距离 → 右上', () => {
+  // 自机在底部中央，离四个锚点都远（≥100）→ 第一个锚点（右上）
+  const a = pickComboAnchor(225, 500, 450, 600, 100);
+  assertEqual(a.x, 450 * 0.75);
+  assertEqual(a.y, 600 * 0.25);
+});
+
+test('pickComboAnchor：贴近右上 → 左上', () => {
+  // 自机贴近右上锚点（距离 0<100）→ 跳过，取左上（距离 225≥100）
+  const a = pickComboAnchor(450 * 0.75, 600 * 0.25, 450, 600, 100);
+  assertEqual(a.x, 450 * 0.25);
+  assertEqual(a.y, 600 * 0.25);
+});
+
+test('pickComboAnchor：贴近右上+左上 → 左下', () => {
+  // 自机在顶部中央：距右上/左上各 112.5 <150 → 跳过，取左下（≈320.4≥150）
+  const a = pickComboAnchor(225, 150, 450, 600, 150);
+  assertEqual(a.x, 450 * 0.25);
+  assertEqual(a.y, 600 * 0.75);
+});
+
+test('pickComboAnchor：贴近前三个 → 右下', () => {
+  // 自机 (150,150)：距右上 187.5、左上 37.5、左下 ≈302.3 均 <310 → 跳过，右下 ≈353.8≥310
+  const a = pickComboAnchor(150, 150, 450, 600, 310);
+  assertEqual(a.x, 450 * 0.75);
+  assertEqual(a.y, 600 * 0.75);
+});
+
+test('pickComboAnchor：四者全近 → 回退右上', () => {
+  // 自机在版面中央：距四锚点各 ≈187.5 <300 → 全不满足 → 回退第一个（右上）
+  const a = pickComboAnchor(225, 300, 450, 600, 300);
+  assertEqual(a.x, 450 * 0.75);
+  assertEqual(a.y, 600 * 0.25);
 });

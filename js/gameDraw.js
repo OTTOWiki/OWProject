@@ -46,6 +46,58 @@ export function updateBossEnemyMarker(game) {
   el.classList.remove('hidden');
 }
 
+/**
+ * Combo 版面锚点避让（纯函数）：右上→左上→左下→右下 区域中心，
+ * 返回第一个与自机距离 ≥ dist 的锚点；全不满足回退右上。
+ * @param {number} px 自机 x
+ * @param {number} py 自机 y
+ * @param {number} W 版面宽
+ * @param {number} H 版面高
+ * @param {number} dist 避让距离
+ * @returns {{x: number, y: number}}
+ */
+export function pickComboAnchor(px, py, W, H, dist) {
+  const anchors = [
+    { x: W * 0.75, y: H * 0.25 }, // 右上
+    { x: W * 0.25, y: H * 0.25 }, // 左上
+    { x: W * 0.25, y: H * 0.75 }, // 左下
+    { x: W * 0.75, y: H * 0.75 }, // 右下
+  ];
+  for (const a of anchors) {
+    const dx = a.x - px;
+    const dy = a.y - py;
+    if (dx * dx + dy * dy >= dist * dist) return a;
+  }
+  return anchors[0];
+}
+
+/**
+ * Combo 版面内显示（图层在弹幕之上）：半透明、约 display.blinkSec 闪烁一次、
+ * 锚点按自机位置智能避让（右上→左上→左下→右下）。纯视觉：仅用 game._drawFrameT；
+ * HUD 右栏 Combo 行保留。
+ */
+export function drawComboCounter(game, ctx) {
+  if (!(game.combo > 0)) return;
+  const a = pickComboAnchor(
+    game.player?.x ?? 0, game.player?.y ?? 0,
+    LOGICAL_W, LOGICAL_H, BALANCE.combo.display.evadeDist,
+  );
+  const frameT = game._drawFrameT || performance.now();
+  const blinkOn = Math.floor(frameT / (BALANCE.combo.display.blinkSec * 1000)) % 2 === 0;
+  const text = `连击 ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`;
+  ctx.save();
+  ctx.globalAlpha = blinkOn ? BALANCE.combo.display.alpha : 0;
+  ctx.font = 'bold 20px "Songti SC","SimSun",serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillStyle = '#fbbf24';
+  ctx.strokeText(text, a.x, a.y);
+  ctx.fillText(text, a.x, a.y);
+  ctx.restore();
+}
+
 export function drawTendencyGauge(game, ctx) {
   const H = LOGICAL_H;
   const W = LOGICAL_W;
@@ -264,6 +316,11 @@ export function drawGameFrame(game) {
   if (game.player?.bombTimer > 0) {
     ctx.fillStyle = `rgba(196,181,253,${0.15 * (game.player.bombTimer / BALANCE.bombDuration)})`;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // Combo 版面显示：图层在弹幕之上（fog/炸弹着色叠加之后）；锚点按自机位置避让
+  if (game.combo > 0 && !game.chapterDone && game.state === 'playing') {
+    drawComboCounter(game, ctx);
   }
 
   if (game.state === 'playing' && !game.chapterDone) {

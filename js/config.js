@@ -104,7 +104,12 @@ export const BALANCE = {
   midBossTime: 28,
 
   /** 击破连击：每连击 +1% 分数（仅乘实时得分，不计入 baseScore）；窗口秒数 */
-  combo: { perPercent: 0.01, window: 3 },
+  combo: {
+    perPercent: 0.01,
+    window: 3,
+    /** 版面内 combo 显示（纯视觉）：闪烁周期 / 半透明 alpha / 自机避让距离 */
+    display: { blinkSec: 0.133, alpha: 0.8, evadeDist: 100 },
+  },
   /** 续关：Game Over 后可续关次数 / 续关后残机 / Bomb（续关后分数清零，hiscore 保留） */
   continue: { max: 2, lives: 2, bombs: 2 },
 
