@@ -906,6 +906,31 @@ input, select, textarea {
   height: 100%;
   display: block;
 }
+#bg3d-fallback {
+  position: absolute; inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 12px;
+  color: #cbd5e1;
+  background: #08060e;
+  z-index: 1;
+}
+#bg3d-fallback p { margin: 0; text-align: center; }
+#bg3d-fallback-err { color: #94a3b8; }
+#bg3d-fallback button {
+  cursor: pointer;
+  padding: 0.4rem 1rem;
+  font-size: 12px;
+  color: #e2e8f0;
+  background: #1e293b;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+#bg3d-fallback button:hover { background: #334155; }
+.hidden { display: none !important; }
 .overlay-fx {
   position: absolute; inset: 0;
   pointer-events: none;
