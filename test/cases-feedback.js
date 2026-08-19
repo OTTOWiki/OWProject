@@ -135,9 +135,11 @@ test('runCollisions：boss 被击杀 → kill 事件而非 hurt', () => {
 /** 记录 arc 中心的 2D mock ctx（覆盖 drawEnemy 全路径；贴图走 null → 几何分支） */
 function mockDrawCtx() {
   const arcs = [];
+  const gradients = [];
   const gradient = { addColorStop() {} };
   const ctx = {
     arcs,
+    gradients,
     globalAlpha: 1,
     globalCompositeOperation: 'source-over',
     fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt',
@@ -147,7 +149,10 @@ function mockDrawCtx() {
     arc(x, y, r) { arcs.push({ x, y, r }); },
     ellipse() {}, fill() {}, stroke() {}, fillRect() {}, strokeRect() {},
     fillText() {}, drawImage() {},
-    createRadialGradient() { return gradient; },
+    createRadialGradient(x0, y0, r0, x1, y1, r1) {
+      gradients.push({ x0, y0, r0, x1, y1, r1 });
+      return gradient;
+    },
     createLinearGradient() { return gradient; },
   };
   return ctx;
@@ -167,4 +172,7 @@ test('drawEnemy 受击白闪：translate(e.x,e.y) 后必须用本地中心 (0,0)
   // drawEnemy 内部已 translate(e.x,e.y)，所有圆必须落在本地原点
   const off = ctx.arcs.filter((a) => a.x !== 0 || a.y !== 0);
   assertEqual(off.length, 0, `所有 arc 必须本地 (0,0)；偏移圆心: ${JSON.stringify(off.slice(0, 3))}`);
+  // 同理：受击白闪径向渐变中心也必须为 (0,0)
+  const gradOff = ctx.gradients.filter((g) => g.x0 !== 0 || g.y0 !== 0 || g.x1 !== 0 || g.y1 !== 0);
+  assertEqual(gradOff.length, 0, `所有径向渐变中心必须本地 (0,0)；偏移渐变: ${JSON.stringify(gradOff.slice(0, 3))}`);
 });

@@ -213,19 +213,20 @@ export function drawGameFrame(game) {
     return;
   }
 
+  // 先清除整个逻辑画布（未平移坐标系），避免震屏留下边缘残影
+  if (game.playBg) {
+    game.playBg.draw(ctx);
+  } else {
+    ctx.fillStyle = '#0c1018';
+    ctx.fillRect(0, 0, W, H);
+  }
+
   // 震屏：整场绘制统一平移（纯视觉；帧末 restore 配对）
   const shakeActive = game._shakeT > 0;
   if (shakeActive) {
     ctx.save();
     const mag = game._shakeMag * (game._shakeT / Math.max(1e-4, game._shakeDur));
     ctx.translate((Math.random() * 2 - 1) * mag, (Math.random() * 2 - 1) * mag);
-  }
-
-  if (game.playBg) {
-    game.playBg.draw(ctx);
-  } else {
-    ctx.fillStyle = '#0c1018';
-    ctx.fillRect(0, 0, W, H);
   }
 
   drawCollectLine(ctx, W);

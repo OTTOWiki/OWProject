@@ -1,6 +1,6 @@
 /**
  * 用例聚合入口（浏览器 / Node 均 import 本文件注册全部用例）
- * 分文件：config / patterns / collision / stages / boss-dps / storage-spawn / smoke
+ * 分文件：config / patterns / collision / feedback / pools / stages / boss-dps / storage-spawn / assets / ranking / replay / smoke / load
  */
 import './cases-config.js';
 import './cases-patterns.js';
