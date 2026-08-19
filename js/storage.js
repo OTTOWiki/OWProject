@@ -166,3 +166,68 @@ export function savePracticePrefs(prefs) {
     }));
   } catch { /* ignore quota / private mode */ }
 }
+
+/**
+ * 练习模式各章最佳：{ [chapterId]: { [diffId]: { score, perfect, date } } }
+ * 校验：chapterId 数字、diffId 字符串、score 有限数字、perfect 布尔；坏数据丢弃，解析失败返回 {}。
+ */
+export function loadPracticeBest() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.practiceBest);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out = {};
+    for (const [chKey, diffs] of Object.entries(parsed)) {
+      const chapterId = Number(chKey);
+      if (!Number.isInteger(chapterId)) continue;
+      if (!diffs || typeof diffs !== 'object' || Array.isArray(diffs)) continue;
+      const diffMap = {};
+      for (const [diffId, rec] of Object.entries(diffs)) {
+        if (typeof diffId !== 'string' || !rec || typeof rec !== 'object') continue;
+        const score = Number(rec.score);
+        if (!Number.isFinite(score)) continue;
+        if (typeof rec.perfect !== 'boolean') continue;
+        diffMap[diffId] = {
+          score: Math.floor(score),
+          perfect: rec.perfect,
+          date: Number.isFinite(Number(rec.date)) ? Number(rec.date) : Date.now(),
+        };
+      }
+      if (Object.keys(diffMap).length) out[chapterId] = diffMap;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** 写练习各章最佳（覆盖同章同难度）；异常静默 */
+export function savePracticeBest(chapterId, diffId, { score, perfect }) {
+  try {
+    const cid = Number(chapterId);
+    if (!Number.isInteger(cid)) return;
+    const best = loadPracticeBest();
+    const map = best[cid] || (best[cid] = {});
+    const newScore = Math.floor(Number(score) || 0);
+    const existing = map[diffId];
+    if (existing) {
+      if (newScore > existing.score) {
+        map[diffId] = {
+          score: newScore,
+          perfect: !!perfect,
+          date: Date.now(),
+        };
+      } else if (newScore === existing.score) {
+        existing.perfect = existing.perfect || !!perfect;
+      }
+    } else {
+      map[diffId] = {
+        score: newScore,
+        perfect: !!perfect,
+        date: Date.now(),
+      };
+    }
+    localStorage.setItem(STORAGE_KEYS.practiceBest, JSON.stringify(best));
+  } catch { /* ignore quota / private mode */ }
+}

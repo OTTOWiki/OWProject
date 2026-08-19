@@ -46,6 +46,52 @@ export function updateBossEnemyMarker(game) {
   el.classList.remove('hidden');
 }
 
+/**
+ * Combo 版面锚点避让（纯函数，两点互斥）：默认右上区域中心；
+ * 自机进入右上锚点邻域（距离 < dist）→ 移到左上区域中心；
+ * 自机在左上锚点附近/中部/底部远离右上时 → 保持默认右上
+ *（组件总在自机不在的那个顶部锚点）。
+ * @param {number} px 自机 x
+ * @param {number} py 自机 y
+ * @param {number} W 版面宽
+ * @param {number} H 版面高
+ * @param {number} dist 避让距离
+ * @returns {{x: number, y: number}}
+ */
+export function pickComboAnchor(px, py, W, H, dist) {
+  const right = { x: W * 0.75, y: H * 0.25 };
+  const left = { x: W * 0.25, y: H * 0.25 };
+  return Math.hypot(right.x - px, right.y - py) < dist ? left : right;
+}
+
+/**
+ * Combo 版面内显示（图层在弹幕之上）：半透明、约 display.blinkSec 闪烁一次、
+ * 锚点按自机位置两点互斥避让（默认右上，靠近右上→左上）。纯视觉：
+ * 仅用 game._drawFrameT；HUD 右栏 Combo 行保留。
+ */
+export function drawComboCounter(game, ctx) {
+  // 连击 ≥ 2 才显示（首次击破的 1 连击不打扰版面）
+  if (!(game.combo > 1)) return;
+  const a = pickComboAnchor(
+    game.player?.x ?? 0, game.player?.y ?? 0,
+    LOGICAL_W, LOGICAL_H, BALANCE.combo.display.evadeDist,
+  );
+  const frameT = game._drawFrameT || performance.now();
+  const blinkOn = Math.floor(frameT / (BALANCE.combo.display.blinkSec * 1000)) % 2 === 0;
+  const text = `COMBO ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`;
+  ctx.save();
+  ctx.globalAlpha = blinkOn ? BALANCE.combo.display.alpha : 0;
+  ctx.font = 'bold 20px "Songti SC","SimSun",serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillStyle = '#fbbf24';
+  ctx.strokeText(text, a.x, a.y);
+  ctx.fillText(text, a.x, a.y);
+  ctx.restore();
+}
+
 export function drawTendencyGauge(game, ctx) {
   const H = LOGICAL_H;
   const W = LOGICAL_W;
@@ -294,6 +340,11 @@ export function drawGameFrame(game) {
   if (game.player?.bombTimer > 0) {
     ctx.fillStyle = `rgba(196,181,253,${0.15 * (game.player.bombTimer / BALANCE.bombDuration)})`;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // Combo 版面显示：图层在弹幕之上（fog/炸弹着色叠加之后）；锚点按自机位置避让
+  if (game.combo > 1 && !game.chapterDone && game.state === 'playing') {
+    drawComboCounter(game, ctx);
   }
 
   if (game.state === 'playing' && !game.chapterDone) {

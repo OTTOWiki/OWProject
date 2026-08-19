@@ -28,6 +28,7 @@ import { loadHiscore, loadSettings } from './storage.js';
 import { withSeededRng, createRng, randomSeed } from './rng.js';
 import { buildReplay, validateReplay, createPlayer, createReplayInput } from './replay.js';
 import { saveReplay } from './replayStore.js';
+import { formatRunStats } from './runStats.js';
 import { handleScoreRankingKey, isScoreRankingOpen } from './scoreRanking.js';
 import { PlayfieldBackground } from './playfieldBg.js';
 import {
@@ -147,6 +148,7 @@ export class Game {
       bonus: document.getElementById('ui-bonus'),
       playerName: document.getElementById('ui-player-name'),
       difficulty: document.getElementById('ui-difficulty'),
+      combo: document.getElementById('ui-combo'),
       stageLabel: document.getElementById('stage-label'),
       dialogueBox: document.getElementById('dialogue-box'),
       dialogueName: document.getElementById('dialogue-name'),
@@ -231,6 +233,16 @@ export class Game {
     this.totalTendency = 0;
     this.chapterTendency = 0;
     this._flashTimer = 0;
+
+    // 对局统计 / 连击 / 续关
+    this.stats = {
+      graze: 0, kills: 0, bombs: 0, deathbombs: 0, misses: 0,
+      nmnb: 0, items: 0, maxCombo: 0, time: 0,
+    };
+    this.combo = 0;
+    this.comboTimer = 0;
+    this.continuesLeft = BALANCE.continue.max;
+    this.continuesUsed = 0;
 
     // 打击反馈（纯视觉；不影响判定/回放）
     this._hitStop = 0;
@@ -533,6 +545,8 @@ export class Game {
     withSeededRng(() => {
       this._handleGlobalInput();
       wasPlaying = !this.paused; // 在 tickAdvance/updateCombat 前判定：对话/选线/死帧/取消暂停都要录
+      // 对局计时：仅正常游玩帧累计（暂停/对话/选线/过渡不计）
+      if (!this.paused && this.state === 'playing') this.stats.time += dt;
       // 震屏按游戏钟衰减：停帧时也衰减，观感更好（纯视觉）
       if (!this.paused) this._shakeT = Math.max(0, this._shakeT - dt);
       if (!this.paused && this._hitStop > 0) {
@@ -617,10 +631,14 @@ export class Game {
     const es = this.replay?.endState || {};
     this.paused = true;
     this.state = 'gameover';
+    let body = `得分：${es.score ?? this.score}\n难度：${this.diff?.rank} ${this.diff?.name}`;
+    if (es.stats) {
+      body += '\n' + formatRunStats(es.stats).join('\n');
+    }
     showOverlay(this, {
       mode: 'result',
       title: this.replay?.partial ? '回放结束（部分）' : '回放结束',
-      body: `得分：${es.score ?? this.score}\n难度：${this.diff?.rank} ${this.diff?.name}`,
+      body,
       actions: ['menu'],
       hint: 'Esc 返回录像列表',
     });
@@ -668,6 +686,7 @@ export class Game {
         cleared: !!cleared,
         stageReached: this.el.stageLabel?.textContent || (ch ? ch.name : ''),
         chapterIndex: this.chapterIndex,
+        stats: this.stats,
       },
       partial: !!partial,
     });

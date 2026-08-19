@@ -87,6 +87,12 @@ export class RankingScreen {
     const route = document.createElement('span');
     route.className = 'ranking-route';
     route.textContent = ROUTE_LABEL[e.route] || (e.cleared ? '通关' : '—');
+    if (e.continued) {
+      const badge = document.createElement('span');
+      badge.className = 'rk-badge';
+      badge.textContent = '续';
+      route.appendChild(badge);
+    }
 
     const score = document.createElement('span');
     score.className = 'ranking-score';
