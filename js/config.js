@@ -147,6 +147,15 @@ export const BALANCE = {
     /** 道中精英（midboss）击破是否掉 Bomb */
     midbossDrop: true,
   },
+
+  /** 打击反馈（纯视觉；不影响判定/回放） */
+  feedback: {
+    hitStopCap: 0.15,
+    hitStopBomb: 0.08,
+    hitStopMiss: 0.1,
+    hitStopLetter: 0.08,
+    shake: { bomb: [7, 0.45], bossKill: [6, 0.4], letter: [5, 0.35] }, // [幅度, 时长s]
+  },
 };
 
 /** 关卡进程倍率：越往后 Letter 红利越高 */

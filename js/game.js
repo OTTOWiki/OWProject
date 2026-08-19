@@ -232,6 +232,13 @@ export class Game {
     this.chapterTendency = 0;
     this._flashTimer = 0;
 
+    // 打击反馈（纯视觉；不影响判定/回放）
+    this._hitStop = 0;
+    this._shakeT = 0;
+    this._shakeDur = 0;
+    this._shakeMag = 0;
+    this._shockwaves = [];
+
     releaseItemList(this.items);
     releaseParticleList(this.particles);
     this.enemies = [];
@@ -526,11 +533,18 @@ export class Game {
     withSeededRng(() => {
       this._handleGlobalInput();
       wasPlaying = !this.paused; // 在 tickAdvance/updateCombat 前判定：对话/选线/死帧/取消暂停都要录
-      if (!this.paused) tickAdvance(this, dt);
-      if (this.state === 'stageTransit' && !this.paused) {
-        updateStageTransit(this, dt);
-      } else if (this.state === 'playing' && !this.paused) {
-        updateCombat(this, dt);
+      // 震屏按游戏钟衰减：停帧时也衰减，观感更好（纯视觉）
+      if (!this.paused) this._shakeT = Math.max(0, this._shakeT - dt);
+      if (!this.paused && this._hitStop > 0) {
+        // 停帧：本轮跳过战斗推进，只扣 hitStop 计时
+        this._hitStop -= dt;
+      } else {
+        if (!this.paused) tickAdvance(this, dt);
+        if (this.state === 'stageTransit' && !this.paused) {
+          updateStageTransit(this, dt);
+        } else if (this.state === 'playing' && !this.paused) {
+          updateCombat(this, dt);
+        }
       }
       debugTick();
 

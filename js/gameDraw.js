@@ -213,11 +213,25 @@ export function drawGameFrame(game) {
     return;
   }
 
+  // 先清除整个逻辑画布（未平移坐标系），避免震屏留下边缘残影
   if (game.playBg) {
     game.playBg.draw(ctx);
   } else {
     ctx.fillStyle = '#0c1018';
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // 震屏：整场绘制统一平移（纯视觉；帧末 restore 配对）
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.restore();
+
+  const shakeActive = game._shakeT > 0;
+  if (shakeActive) {
+    ctx.save();
+    const mag = game._shakeMag * (game._shakeT / Math.max(1e-4, game._shakeDur));
+    ctx.translate((Math.random() * 2 - 1) * mag, (Math.random() * 2 - 1) * mag);
   }
 
   drawCollectLine(ctx, W);
@@ -249,6 +263,22 @@ export function drawGameFrame(game) {
 
   const pAlpha = game.playerBulletOpacity ?? 0.3;
   for (const b of game.playerBullets) drawBullet(ctx, b, pAlpha);
+
+  // 冲击波：扩张淡出圆环（alpha = life/maxLife）
+  if (game._shockwaves) {
+    for (const sw of game._shockwaves) {
+      if (sw.dead) continue;
+      const a = Math.max(0, Math.min(1, sw.life / Math.max(1e-4, sw.maxLife)));
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = sw.color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, Math.max(0, sw.r), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
 
   if (game.fog && game.player) {
     const g = ctx.createRadialGradient(
@@ -299,6 +329,9 @@ export function drawGameFrame(game) {
   if (game.chapterBanner && !game.stageTransit) {
     drawGameChapterBanner(game, ctx, W, H);
   }
+
+  // 震屏恢复（先于 FPS 计数器，保持其稳定）
+  if (shakeActive) ctx.restore();
 
   drawFps(game, ctx);
 }
