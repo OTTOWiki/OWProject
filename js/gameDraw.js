@@ -47,8 +47,10 @@ export function updateBossEnemyMarker(game) {
 }
 
 /**
- * Combo 版面锚点避让（纯函数）：右上→左上→左下→右下 区域中心，
- * 返回第一个与自机距离 ≥ dist 的锚点；全不满足回退右上。
+ * Combo 版面锚点避让（纯函数，两点互斥）：默认右上区域中心；
+ * 自机进入右上锚点邻域（距离 < dist）→ 移到左上区域中心；
+ * 自机在左上锚点附近/中部/底部远离右上时 → 保持默认右上
+ *（组件总在自机不在的那个顶部锚点）。
  * @param {number} px 自机 x
  * @param {number} py 自机 y
  * @param {number} W 版面宽
@@ -57,24 +59,15 @@ export function updateBossEnemyMarker(game) {
  * @returns {{x: number, y: number}}
  */
 export function pickComboAnchor(px, py, W, H, dist) {
-  const anchors = [
-    { x: W * 0.75, y: H * 0.25 }, // 右上
-    { x: W * 0.25, y: H * 0.25 }, // 左上
-    { x: W * 0.25, y: H * 0.75 }, // 左下
-    { x: W * 0.75, y: H * 0.75 }, // 右下
-  ];
-  for (const a of anchors) {
-    const dx = a.x - px;
-    const dy = a.y - py;
-    if (dx * dx + dy * dy >= dist * dist) return a;
-  }
-  return anchors[0];
+  const right = { x: W * 0.75, y: H * 0.25 };
+  const left = { x: W * 0.25, y: H * 0.25 };
+  return Math.hypot(right.x - px, right.y - py) < dist ? left : right;
 }
 
 /**
  * Combo 版面内显示（图层在弹幕之上）：半透明、约 display.blinkSec 闪烁一次、
- * 锚点按自机位置智能避让（右上→左上→左下→右下）。纯视觉：仅用 game._drawFrameT；
- * HUD 右栏 Combo 行保留。
+ * 锚点按自机位置两点互斥避让（默认右上，靠近右上→左上）。纯视觉：
+ * 仅用 game._drawFrameT；HUD 右栏 Combo 行保留。
  */
 export function drawComboCounter(game, ctx) {
   if (!(game.combo > 0)) return;
