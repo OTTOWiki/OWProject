@@ -87,7 +87,7 @@ export function applyCollisionEvents(game, events) {
       else if (Math.random() < 0.35) spawnItem(game, e.x, e.y, 'score');
       e.fireOnDeath?.(game);
       if (e.type === 'boss' || e.type === 'elite') {
-        addHitStop(game, BALANCE.feedback.hitStopBossKill);
+        // 击破不再停帧（仅保留震屏与冲击波）；停帧只给 Bomb/Miss/Letter
         addShake(game, ...BALANCE.feedback.shake.bossKill);
         addShockwave(game, e.x, e.y, e.color || '#ffffff', 90, 0.4);
       }
