@@ -86,9 +86,10 @@ export function openPause(game) {
     mode: 'pause',
     title: 'PAUSED',
     body: '',
+    // 常规模式暂停菜单不提供「重开本章」（retry 仅 Nomiss 保留，配合自动重开机制）
     actions: isNomiss
       ? ['resume', 'settle', 'settings', 'retry']
-      : ['resume', 'save-replay', 'settings', 'retry', 'menu'],
+      : ['resume', 'save-replay', 'settings', 'menu'],
     hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
   });
 }
@@ -231,7 +232,7 @@ export function handleOverlayInput(game, wantPause) {
     if (id) runOverlayAction(game, id);
     return true;
   }
-  if (game.overlayMode === 'pause' && game.input.justPressed('KeyR')) {
+  if (game.overlayMode === 'pause' && game.mode === 'nomiss' && game.input.justPressed('KeyR')) {
     runOverlayAction(game, 'retry');
     return true;
   }

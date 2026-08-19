@@ -267,8 +267,16 @@ export class UI {
 
   _playerItems() {
     const cards = [...document.querySelectorAll('#screen-player-select .player-card')];
+    const nomiss = document.getElementById('player-nomiss');
     const back = document.querySelector('#screen-player-select [data-action="back-diff"]');
     const items = cards.map((el) => ({ type: 'card', el }));
+    if (nomiss && !document.getElementById('player-nomiss-row')?.classList.contains('hidden')) {
+      items.push({
+        type: 'checkbox',
+        el: nomiss,
+        wrap: document.getElementById('player-nomiss-row'),
+      });
+    }
     if (back) items.push({ type: 'button', el: back });
     return items;
   }
@@ -557,7 +565,12 @@ export class UI {
       card.addEventListener('click', () => {
         this._sfx('ok');
         const playerId = card.dataset.player;
-        const start = this.pendingStart || { startChapter: 1, mode: 'story' };
+        let start = this.pendingStart || { startChapter: 1, mode: 'story' };
+        // Nomiss：自机选择勾选 → 无存档从头（1）、有进度从下一章续
+        const nomissEl = document.getElementById('player-nomiss');
+        if (nomissEl?.checked && start.mode === 'story') {
+          start = { startChapter: loadNomissProgress() ?? 1, mode: 'nomiss' };
+        }
         this.showGame();
         this.onStartGame({
           playerId,
@@ -569,6 +582,12 @@ export class UI {
           difficulty: this.pendingDifficulty || 'normal',
         });
       });
+    });
+    // Nomiss 勾选行：开关值标签
+    const nomissCb = document.getElementById('player-nomiss');
+    const nomissVal = document.getElementById('player-nomiss-val');
+    nomissCb?.addEventListener('change', () => {
+      if (nomissVal) nomissVal.textContent = nomissCb.checked ? '开启' : '关闭';
     });
   }
 
@@ -582,10 +601,6 @@ export class UI {
       this.show('difficulty');
     } else if (action === 'extra-start') {
       this.pendingStart = { startChapter: this._extraStartChapter(), mode: 'extra' };
-      this.show('difficulty');
-    } else if (action === 'nomiss-start') {
-      // Nomiss：无存档从头（1）；有进度从下一章续
-      this.pendingStart = { startChapter: loadNomissProgress() ?? 1, mode: 'nomiss' };
       this.show('difficulty');
     } else if (action === 'stage-select') {
       this.show('stage');
@@ -764,7 +779,23 @@ export class UI {
     const items = this._playerItems();
     if (!items.length) return;
     this.playerIndex = clampIndex(this.playerIndex, items.length);
-    items.forEach((it, i) => it.el.classList.toggle('selected', i === this.playerIndex));
+    items.forEach((it, i) => {
+      const on = i === this.playerIndex;
+      it.el.classList.toggle('selected', on && (it.type === 'card' || it.type === 'button'));
+      it.wrap?.classList.toggle('selected', on);
+    });
+  }
+
+  /** Nomiss 勾选行：仅常规故事流程显示；每次进入自机选择重置为关闭 */
+  _syncNomissRow() {
+    const row = document.getElementById('player-nomiss-row');
+    const cb = document.getElementById('player-nomiss');
+    if (!row || !cb) return;
+    const mode = this.pendingStart?.mode || 'story';
+    row.classList.toggle('hidden', mode !== 'story');
+    cb.checked = false;
+    const val = document.getElementById('player-nomiss-val');
+    if (val) val.textContent = '关闭';
   }
 
   _highlightStage() {
@@ -785,6 +816,7 @@ export class UI {
     if (name === 'difficulty') this._highlightDiff();
     if (name === 'player') {
       this.playerIndex = 0;
+      this._syncNomissRow();
       this._highlightPlayer();
     }
     if (name === 'stage') {

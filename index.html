@@ -39,7 +39,6 @@
           <nav class="menu-nav" id="main-menu-nav">
             <button class="menu-btn" data-action="start"><span class="star">★</span> Start Game</button>
             <button class="menu-btn" data-action="extra-start"><span class="star">★</span> Extra Start</button>
-            <button class="menu-btn" data-action="nomiss-start"><span class="star">★</span> Nomiss</button>
             <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
             <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
             <button class="menu-btn" data-action="history"><span class="star">★</span> History</button>
@@ -87,6 +86,14 @@
               <p>机制相同 · 剧情对应</p>
             </button>
           </div>
+          <label class="settings-row check nomiss-row" id="player-nomiss-row">
+            <span class="settings-label">Nomiss 无伤模式</span>
+            <span class="settings-control">
+              <input type="checkbox" id="player-nomiss" />
+              <span class="settings-value" id="player-nomiss-val">关闭</span>
+            </span>
+          </label>
+          <p class="nomiss-hint">被弹不扣残机、自动重开当前章节；不录制录像、不入排行榜，进度自动保存。</p>
           <button class="menu-btn ghost" data-action="back-diff">返回难度</button>
         </div>
       </div>

@@ -176,7 +176,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 **`Game.mode`**：`story` | `practice` | `stage` | `extra` | `nomiss`  
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。  
-`nomiss` 无伤模式：被弹自动重开当前章、保留资源、禁录像、进度持久化、仅暂停结算/结局结算，不入榜。）
+`nomiss` 无伤模式：**入口 = Start Game 的自机选择页勾选「Nomiss 无伤模式」复选框**（无主菜单独立入口）；被弹自动重开当前章、保留资源、禁录像、进度持久化、仅暂停结算/结局结算，不入榜。）
 
 **练习模式**：难度用内联标签选择（`DIFFICULTIES`），关卡用标签二选、章节列表只显示当前关卡的章节（`practiceChapterGroups`，替代原生 select）；记住上次选择（`gunwei_practice`）；不经难度页，直接选自机。
 

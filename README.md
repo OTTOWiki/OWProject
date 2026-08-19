@@ -33,13 +33,13 @@ python -m http.server 8080
 
 ## 内容范围
 
-- 主菜单：Start Game / Extra Start / Nomiss / Stage Select / Manual / History / Ranking / Replay / Settings / Practice / Exit  
+- 主菜单：Start Game / Extra Start / Stage Select / Manual / History / Ranking / Replay / Settings / Practice / Exit  
   （键位在 **Settings** 内，非独立顶栏项）
 - 自机：饮泉思源 / 誓约沙玛（机制相同，剧情对应）
 - 前三面 + 中立拦截 + A/B 线 4–6 面 + EX + 双结局
 - **Stage Select 全开放**（不锁关；进度可写入 localStorage，仅作记录）
 - 章节 Perfect、擦弹编辑度、决死 Bomb、Unstable Machine、阵营倾向
-- **Nomiss 无伤模式**：被弹自动重开当前章（不扣残机、不 Game Over、保留资源、BGM 回带、Unstable 还原）；进度持久化可续章；仅暂停手动结算或通关结局结算；不录制、不入榜
+- **Nomiss 无伤模式**：Start Game → 选难度 → **自机选择页勾选「Nomiss 无伤模式」**进入；被弹自动重开当前章（不扣残机、不 Game Over、保留资源、BGM 回带、Unstable 还原）；进度持久化可续章；仅暂停手动结算或通关结局结算；不录制、不入榜
 - 左侧 Three.js 关卡印象；BGM 为 **OGG**（`assets/bgm/*.ogg`）
 - 高分 / 键位 / 设置 / 排行榜 localStorage 存档；录像帧数据存 IndexedDB
 - History 依赖 Cloudflare Pages Functions（`functions/api/`），本地纯静态可能不可用

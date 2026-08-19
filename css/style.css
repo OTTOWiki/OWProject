@@ -594,6 +594,16 @@ input, select, textarea {
   color: var(--muted);
   padding: 0 0.15rem;
 }
+.nomiss-row {
+  margin-top: 0.6rem;
+}
+.nomiss-row.hidden { display: none; }
+.nomiss-hint {
+  margin: 0.35rem 0.1rem 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
 .row-btns {
   display: flex;
   gap: 0.5rem;
