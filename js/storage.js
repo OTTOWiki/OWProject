@@ -209,11 +209,25 @@ export function savePracticeBest(chapterId, diffId, { score, perfect }) {
     if (!Number.isInteger(cid)) return;
     const best = loadPracticeBest();
     const map = best[cid] || (best[cid] = {});
-    map[diffId] = {
-      score: Math.floor(Number(score) || 0),
-      perfect: !!perfect,
-      date: Date.now(),
-    };
+    const newScore = Math.floor(Number(score) || 0);
+    const existing = map[diffId];
+    if (existing) {
+      if (newScore > existing.score) {
+        map[diffId] = {
+          score: newScore,
+          perfect: !!perfect,
+          date: Date.now(),
+        };
+      } else if (newScore === existing.score) {
+        existing.perfect = existing.perfect || !!perfect;
+      }
+    } else {
+      map[diffId] = {
+        score: newScore,
+        perfect: !!perfect,
+        date: Date.now(),
+      };
+    }
     localStorage.setItem(STORAGE_KEYS.practiceBest, JSON.stringify(best));
   } catch { /* ignore quota / private mode */ }
 }

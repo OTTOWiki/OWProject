@@ -5,7 +5,8 @@
 
 /** 秒 → mm:ss（分钟补零），如 04:32；非法/负数按 0 处理 */
 export function formatRunTime(sec) {
-  const s = Math.max(0, Math.floor(Number(sec) || 0));
+  const num = Number(sec);
+  const s = Math.max(0, Math.floor(Number.isFinite(num) ? num : 0));
   const m = Math.floor(s / 60);
   const ss = s % 60;
   return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;

@@ -488,10 +488,8 @@ export class UI {
 
   _cyclePracticeDiff(dir) {
     const i = DIFFICULTY_ORDER.indexOf(this.practiceDiffId);
-    this.practiceDiffId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
-    this._refreshPracticeDiff();
-    this._savePracticePrefs();
-    this._sfx('ok');
+    const newId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
+    this._selectPracticeDiff(newId);
   }
 
   _refreshPracticeDiff() {

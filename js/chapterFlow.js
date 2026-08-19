@@ -547,11 +547,16 @@ export function showEnding(game, which) {
       const exIdx = game._chapterIndexByStageAny.get('EX');
       retryChapter = exIdx != null ? game.chapters[exIdx]?.id : 1;
     }
-    const openFinal = () => openResult(game, {
-      title,
-      body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`,
-      retryChapter,
-    });
+    const openFinal = () => {
+      const statsLines = formatRunStats(game.stats || {});
+      const body = `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`
+        + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+      openResult(game, {
+        title,
+        body,
+        retryChapter,
+      });
+    };
     openScoreRanking(game, openFinal);
   });
 }
