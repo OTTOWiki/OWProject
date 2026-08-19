@@ -222,6 +222,11 @@ export function drawGameFrame(game) {
   }
 
   // 震屏：整场绘制统一平移（纯视觉；帧末 restore 配对）
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.restore();
+
   const shakeActive = game._shakeT > 0;
   if (shakeActive) {
     ctx.save();
