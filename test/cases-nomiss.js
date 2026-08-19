@@ -289,11 +289,12 @@ test('spawnItem：nomiss 禁用生命道具（life 不生成，其他照常）',
 });
 
 test('collectItem：nomiss 收集 life 无效（lives 不变、无音效）', () => {
-  const g = { mode: 'nomiss', player: { lives: 4 }, audio: { sfx() { this.called = true; } } };
+  // stats 字段供整合后 collectItem 的 game.stats.items++ 使用（单分支无此行为，双环境均健壮）
+  const g = { mode: 'nomiss', player: { lives: 4 }, audio: { sfx() { this.called = true; } }, stats: { items: 0 } };
   collectItem(g, { kind: 'life' });
   assertEqual(g.player.lives, 4, 'nomiss 下 life 收集无效');
   assert(!g.audio.called, '不播 ok 音效');
-  const g2 = { mode: 'story', player: { lives: 4 }, audio: { sfx() {} } };
+  const g2 = { mode: 'story', player: { lives: 4 }, audio: { sfx() {} }, stats: { items: 0 } };
   collectItem(g2, { kind: 'life' });
   assertEqual(g2.player.lives, 5, '非 nomiss 下 life 正常 +1');
 });
