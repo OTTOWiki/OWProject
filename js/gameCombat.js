@@ -22,6 +22,29 @@ import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
  * @param {import('./game.js').Game} game
  * @param {import('./collision.js').CollisionEvent[]} events
  */
+
+/* ========== 打击反馈（纯视觉；不影响判定/回放） ========== */
+
+/** 停帧：max 语义 + cap，不叠加（Boss 连中只保留最长一次） */
+export function addHitStop(game, dur) {
+  game._hitStop = Math.min(BALANCE.feedback.hitStopCap, Math.max(game._hitStop || 0, dur));
+}
+
+/** 震屏：直接覆盖幅度与时长，T 重置到 dur（新震动盖旧震动） */
+export function addShake(game, mag, dur) {
+  game._shakeMag = mag;
+  game._shakeDur = dur;
+  game._shakeT = dur;
+}
+
+/** 冲击波：扩张淡出圆环（r 由 vr 匀速增大，alpha 随 life/maxLife 衰减） */
+export function addShockwave(game, x, y, color, maxR, life) {
+  if (!game._shockwaves) game._shockwaves = [];
+  game._shockwaves.push({
+    x, y, r: 0, vr: maxR / life, color, life, maxLife: life, dead: false,
+  });
+}
+
 /** 单次擦弹生成粒子数 / 场上擦弹粒子上限 */
 const GRAZE_PARTICLES_PER = 8;
 const GRAZE_PARTICLE_MAX = 48;
@@ -49,6 +72,8 @@ function spawnGrazeParticles(game, p) {
   }
 }
 
+// 受击白闪（hurtT）保留；命中停帧只给一次性大事件（击破/Bomb/Miss/Letter），
+// 避免持续输出把逻辑压到低速（旧版每帧 addHitStop → _hitStop 恒 >0 → updateCombat 被节流）。
 export function applyCollisionEvents(game, events) {
   if (!events || !events.length) return;
   const p = game.player;
@@ -66,6 +91,11 @@ export function applyCollisionEvents(game, events) {
       if (drop) spawnItem(game, e.x, e.y, drop);
       else if (Math.random() < 0.35) spawnItem(game, e.x, e.y, 'score');
       e.fireOnDeath?.(game);
+      if (e.type === 'boss' || e.type === 'elite') {
+        // 击破不再停帧（仅保留震屏与冲击波）；停帧只给 Bomb/Miss/Letter
+        addShake(game, ...BALANCE.feedback.shake.bossKill);
+        addShockwave(game, e.x, e.y, e.color || '#ffffff', 90, 0.4);
+      }
     } else if (ev.type === 'graze') {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
@@ -269,6 +299,15 @@ export function updateCombat(game, dt) {
   // particles
   for (const pt of game.particles) pt.update(dt);
 
+  // shockwaves（打击反馈冲击波：扩张 + 计时）
+  if (game._shockwaves) {
+    for (const sw of game._shockwaves) {
+      sw.r += sw.vr * dt;
+      sw.life -= dt;
+      if (sw.life <= 0) sw.dead = true;
+    }
+  }
+
   // collisions：几何命中 → 事件 → 得分/掉落/onDeath（purge 前）
   if (!settling) {
     const colEvents = runCollisions(game);
@@ -299,6 +338,7 @@ export function updateCombat(game, dt) {
   // cleanup：分表 swap-remove + 对象池归还
   game._purgeDeadBullets();
   game._purgeDead(game.enemies);
+  if (game._shockwaves) game._purgeDead(game._shockwaves);
   game._purgeDeadItems();
   game._purgeDeadParticles();
 
@@ -343,6 +383,9 @@ export function tryBomb(game, isDeath) {
   spawnBombOrbs(game, p);
   game.audio.sfx('bomb');
   burst(game, p.x, p.y, p.def?.color || '#c4b5fd', 40);
+  addHitStop(game, BALANCE.feedback.hitStopBomb);
+  addShake(game, ...BALANCE.feedback.shake.bomb);
+  addShockwave(game, p.x, p.y, p.def?.color || '#c4b5fd', 120, 0.5);
   return true;
 }
 
@@ -350,6 +393,8 @@ export function miss(game) {
   const p = game.player;
   game.chapterMiss = true;
   game.stats.misses++;
+  addHitStop(game, BALANCE.feedback.hitStopMiss);
+  // 用户调整：Miss 不震屏（停帧保留）；Bomb/击破/Letter 仍震
   if (!debugLocksLives()) p.lives -= 1;
   p.arbitration = 0;
   p.edit = Math.min(p.edit, BALANCE.editMax * 0.3);

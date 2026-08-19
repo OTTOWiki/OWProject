@@ -87,7 +87,7 @@ npm run test:bun       # 强制 bun test（入口 test/run-bun.test.mjs）
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
-- 分文件：`cases-config|patterns|collision|pools|stages|boss-dps|storage-spawn|runstats|assets|ranking|replay|smoke|load.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|runstats|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step

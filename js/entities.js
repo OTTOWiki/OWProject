@@ -287,6 +287,8 @@ export class Enemy {
     this.score = opts.score || BALANCE.score.killSmall;
     this.spin = 0;
     this.data = opts.data || {};
+    /** 受击闪白计时（>0 时绘制叠加白闪；纯视觉） */
+    this.hurtT = 0;
 
     // 入场目标（脚本/移动生效前的落位）
     this.enterX = opts.x;
@@ -356,6 +358,7 @@ export class Enemy {
   update(dt, game) {
     this.age += dt;
     if (this.invuln > 0) this.invuln -= dt;
+    if (this.hurtT > 0) this.hurtT -= dt;
     this.spin += dt;
 
     // 特效现身
@@ -395,6 +398,7 @@ export class Enemy {
 
   hurt(dmg) {
     if (this.invuln > 0 || this.isSpawning) return false;
+    this.hurtT = 0.06;
     this.hp -= dmg;
     if (this.hp <= 0) {
       this.dead = true;
