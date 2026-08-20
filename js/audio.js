@@ -34,6 +34,21 @@ export const AUDIO_FILE_MAP = {
   ex_boss: 'assets/bgm/輝く針の小人族　～ Little Princess.ogg',
 };
 
+/**
+ * 循环内播放位置纯函数：now 相对 startT 的偏移按 dur 取模回绕 ∈ [0, dur)。
+ * 数据异常（非有限值 / dur≤0）返回 null。musicPosition 与 seekMusic 共用。
+ * @param {number} now
+ * @param {number} startT
+ * @param {number} dur
+ * @returns {number|null}
+ */
+export function wrapMusicPos(now, startT, dur) {
+  if (!Number.isFinite(now) || !Number.isFinite(startT) || !Number.isFinite(dur) || !(dur > 0)) return null;
+  const pos = (now - startT) % dur;
+  if (!Number.isFinite(pos)) return null;
+  return pos < 0 ? pos + dur : pos;
+}
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -49,6 +64,11 @@ export class AudioEngine {
     this._audioSourceNode = null;
     this._audioBufferCache = new Map();
     this._audioBufferLoading = new Map();
+    /** 当前曲目开始播放的 ctx 时间（musicPosition/seekMusic 用） */
+    this._musicStartT = 0;
+    /** 当前曲目 AudioBuffer 与其时长（seekMusic 用；stopMusic 时清空 buffer） */
+    this._musicBuf = null;
+    this._musicBufDur = 0;
   }
 
   _musicTargetGain() {
@@ -184,6 +204,7 @@ export class AudioEngine {
       this.musicGain.gain.linearRampToValueAtTime(1e-4, t + fade);
     }
     this.currentId = null;
+    this._musicBuf = null;
   }
 
   async playTrack(id) {
@@ -206,8 +227,11 @@ export class AudioEngine {
     if (!audioBuf) return;
 
     this.currentId = musicId;
+    this._musicBuf = audioBuf;
+    this._musicBufDur = audioBuf.duration;
 
     const now = this.ctx.currentTime;
+    this._musicStartT = now;
     try { this.musicGain.disconnect(); } catch (_) {}
     this._wireMusicBus();
     this.musicGain.gain.setValueAtTime(1e-4, now);
@@ -219,6 +243,51 @@ export class AudioEngine {
     src.connect(this.musicGain);
     src.start(now);
     this._audioSourceNode = src;
+  }
+
+  /**
+   * 当前曲目在循环内的播放位置（秒）；无曲目 / 无 context / 数据异常返回 null。
+   * Nomiss 模式章首记录进章位置，被弹重开当前章时回带用。
+   */
+  musicPosition() {
+    if (!this.ctx || !this._audioSourceNode || !this._musicBufDur) return null;
+    return wrapMusicPos(this.ctx.currentTime, this._musicStartT, this._musicBufDur);
+  }
+
+  /**
+   * 无缝把当前曲目回带到 offset（秒）继续播放（loop 取模）。
+   * 曲目不变（currentId 不变），仅重接 source；增益按 playTrack 同款 0.6s ramp。
+   * 非 Nomiss 场景也可用于任意 BGM 回带。
+   */
+  seekMusic(offset) {
+    if (!this.enabled || !this.ctx) return;
+    if (!this._audioSourceNode || !this._musicBuf || !(this._musicBufDur > 0)) return;
+    const o = Number(offset);
+    if (!Number.isFinite(o)) return;
+    let clamped = ((o % this._musicBufDur) + this._musicBufDur) % this._musicBufDur;
+    // 防御钳制：src.start(when, offset) 要求 offset ∈ [0, dur)；
+    // 公式本身保证 ∈[0,dur)，此处兜底避免浮点/实现差异把 offset 推到 dur
+    if (!(clamped < this._musicBufDur)) clamped = 0;
+
+    // 停掉当前 source（不淡出增益；短淡入由下方 ramp 负责）
+    try { this._audioSourceNode.stop(); } catch (_) {}
+    this._audioSourceNode.disconnect();
+    this._audioSourceNode = null;
+
+    // 重接 music bus（playTrack 同款）
+    const now = this.ctx.currentTime;
+    try { this.musicGain.disconnect(); } catch (_) {}
+    this._wireMusicBus();
+    this.musicGain.gain.setValueAtTime(1e-4, now);
+    this.musicGain.gain.linearRampToValueAtTime(this._musicTargetGain(), now + 0.6);
+
+    const src = this.ctx.createBufferSource();
+    src.buffer = this._musicBuf;
+    src.loop = true;
+    src.connect(this.musicGain);
+    src.start(this.ctx.currentTime, clamped);
+    this._audioSourceNode = src;
+    this._musicStartT = this.ctx.currentTime - clamped;
   }
 
   async sfx(type) {

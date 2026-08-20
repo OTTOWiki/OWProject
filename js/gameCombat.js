@@ -11,9 +11,9 @@ import {
   debugBlocksHit, debugLocksLives, debugLocksBombs, debugAutoEdit,
 } from './debug.js';
 import { acquireParticle } from './particlePool.js';
-import { acquireItem } from './itemPool.js';
+import { acquireItem, releaseItemList } from './itemPool.js';
 import { updateGameHud, updateLetterHud } from './hud.js';
-import { finishChapter, gameOver } from './chapterFlow.js';
+import { finishChapter, gameOver, startChapter, softClearForNextChapter } from './chapterFlow.js';
 import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
 
 /**
@@ -22,6 +22,29 @@ import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
  * @param {import('./game.js').Game} game
  * @param {import('./collision.js').CollisionEvent[]} events
  */
+
+/* ========== 打击反馈（纯视觉；不影响判定/回放） ========== */
+
+/** 停帧：max 语义 + cap，不叠加（Boss 连中只保留最长一次） */
+export function addHitStop(game, dur) {
+  game._hitStop = Math.min(BALANCE.feedback.hitStopCap, Math.max(game._hitStop || 0, dur));
+}
+
+/** 震屏：直接覆盖幅度与时长，T 重置到 dur（新震动盖旧震动） */
+export function addShake(game, mag, dur) {
+  game._shakeMag = mag;
+  game._shakeDur = dur;
+  game._shakeT = dur;
+}
+
+/** 冲击波：扩张淡出圆环（r 由 vr 匀速增大，alpha 随 life/maxLife 衰减） */
+export function addShockwave(game, x, y, color, maxR, life) {
+  if (!game._shockwaves) game._shockwaves = [];
+  game._shockwaves.push({
+    x, y, r: 0, vr: maxR / life, color, life, maxLife: life, dead: false,
+  });
+}
+
 /** 单次擦弹生成粒子数 / 场上擦弹粒子上限 */
 const GRAZE_PARTICLES_PER = 8;
 const GRAZE_PARTICLE_MAX = 48;
@@ -49,6 +72,8 @@ function spawnGrazeParticles(game, p) {
   }
 }
 
+// 受击白闪（hurtT）保留；命中停帧只给一次性大事件（击破/Bomb/Miss/Letter），
+// 避免持续输出把逻辑压到低速（旧版每帧 addHitStop → _hitStop 恒 >0 → updateCombat 被节流）。
 export function applyCollisionEvents(game, events) {
   if (!events || !events.length) return;
   const p = game.player;
@@ -57,14 +82,25 @@ export function applyCollisionEvents(game, events) {
       const e = ev.enemy;
       addScore(game, e.score);
       burst(game, e.x, e.y, e.color, 12);
+      // 连击：击破 +1 并续窗口（窗口见 BALANCE.combo.window）
+      game.combo = (game.combo || 0) + 1;
+      game.comboTimer = BALANCE.combo.window;
+      game.stats.kills++;
+      game.stats.maxCombo = Math.max(game.stats.maxCombo, game.combo);
       const drop = e.drop || defaultKillDrop(game, e);
       if (drop) spawnItem(game, e.x, e.y, drop);
       else if (Math.random() < 0.35) spawnItem(game, e.x, e.y, 'score');
       e.fireOnDeath?.(game);
+      if (e.type === 'boss' || e.type === 'elite') {
+        // 击破不再停帧（仅保留震屏与冲击波）；停帧只给 Bomb/Miss/Letter
+        addShake(game, ...BALANCE.feedback.shake.bossKill);
+        addShockwave(game, e.x, e.y, e.color || '#ffffff', 90, 0.4);
+      }
     } else if (ev.type === 'graze') {
       if (!p) continue;
       p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
       addScore(game, BALANCE.score.graze);
+      game.stats.graze++;
       spawnGrazeParticles(game, p);
       // 擦弹音：每帧最多一次，避免弹幕墙时叠成噪声
       const now = performance.now();
@@ -128,6 +164,15 @@ export function updateCombat(game, dt) {
   const p = game.player;
   const ch = game.chapters[game.chapterIndex];
   const settling = !!game.chapterDone;
+
+  // 连击窗口衰减：超时清零（击破时在 applyCollisionEvents 续期）
+  if (game.combo > 0) {
+    game.comboTimer -= dt;
+    if (game.comboTimer <= 0) {
+      game.combo = 0;
+      game.comboTimer = 0;
+    }
+  }
 
   if (debugAutoEdit() && p) p.edit = BALANCE.editMax;
 
@@ -254,6 +299,15 @@ export function updateCombat(game, dt) {
   // particles
   for (const pt of game.particles) pt.update(dt);
 
+  // shockwaves（打击反馈冲击波：扩张 + 计时）
+  if (game._shockwaves) {
+    for (const sw of game._shockwaves) {
+      sw.r += sw.vr * dt;
+      sw.life -= dt;
+      if (sw.life <= 0) sw.dead = true;
+    }
+  }
+
   // collisions：几何命中 → 事件 → 得分/掉落/onDeath（purge 前）
   if (!settling) {
     const colEvents = runCollisions(game);
@@ -284,6 +338,7 @@ export function updateCombat(game, dt) {
   // cleanup：分表 swap-remove + 对象池归还
   game._purgeDeadBullets();
   game._purgeDead(game.enemies);
+  if (game._shockwaves) game._purgeDead(game._shockwaves);
   game._purgeDeadItems();
   game._purgeDeadParticles();
 
@@ -321,17 +376,60 @@ export function tryBomb(game, isDeath) {
   p.bombTimer = BALANCE.bombDuration;
   p.invuln = BALANCE.bombInvuln;
   game.chapterBomb = true;
+  game.stats.bombs++;
+  if (isDeath) game.stats.deathbombs++;
   fullScreenClear(game);
   // 清屏后放出 8 发巨型追踪弹（避免被 fullScreenClear 清掉）
   spawnBombOrbs(game, p);
   game.audio.sfx('bomb');
   burst(game, p.x, p.y, p.def?.color || '#c4b5fd', 40);
+  addHitStop(game, BALANCE.feedback.hitStopBomb);
+  addShake(game, ...BALANCE.feedback.shake.bomb);
+  addShockwave(game, p.x, p.y, p.def?.color || '#c4b5fd', 120, 0.5);
   return true;
 }
 
+/**
+ * Nomiss：被弹（决死未救回）→ 不扣残机不 Game Over，自动重开当前章节。
+ * - 回滚到进章时状态（该次尝试作废）：Unstable 异常（经 nextUnstableFx）、
+ *   分数 score/baseScore/extendCount、残机/Bomb（含尝试内 Extend/生命道具所得一并回滚）
+ * - hiscore 保留峰值不降；combo 与 stats 不回滚（stats 为累计对局统计，非单章尝试）
+ * - BGM 回带到进章位置（chapterFlow.startChapter 章首记录的 _nomissBgmPos）
+ */
+export function nomissRestart(game) {
+  game.audio.sfx('dead');
+  burst(game, game.player.x, game.player.y, '#f87171', 30);
+  game.player.resetPos();
+  game.player.invuln = 1.5;
+
+  const snap = game._nomissSnapshot;
+  if (snap) {
+    if (snap.unstableFx) game.nextUnstableFx = snap.unstableFx;
+    game.score = snap.score ?? game.score;
+    game.baseScore = snap.baseScore ?? game.baseScore;
+    game.extendCount = snap.extendCount ?? game.extendCount;
+    game.player.lives = snap.lives ?? game.player.lives;
+    game.player.bombs = snap.bombs ?? game.player.bombs;
+  }
+  if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
+  flashMsg(game, '无伤重开', 1.2);
+
+  softClearForNextChapter(game, { convert: false });
+  releaseItemList(game.items);
+  startChapter(game);
+}
+
 export function miss(game) {
+  // Nomiss：miss 被劫持为自动重开当前章节（不扣残机、不 GameOver）
+  if (game.mode === 'nomiss' && !game.replaying) {
+    nomissRestart(game);
+    return;
+  }
   const p = game.player;
   game.chapterMiss = true;
+  game.stats.misses++;
+  addHitStop(game, BALANCE.feedback.hitStopMiss);
+  // 用户调整：Miss 不震屏（停帧保留）；Bomb/击破/Letter 仍震
   if (!debugLocksLives()) p.lives -= 1;
   p.arbitration = 0;
   p.edit = Math.min(p.edit, BALANCE.editMax * 0.3);
@@ -358,9 +456,11 @@ export function hitPlayer(game) {
 }
 
 export function collectItem(game, it) {
+  game.stats.items++;
   if (it.kind === 'score') addScore(game, BALANCE.score.itemSmall);
   else if (it.kind === 'scoreL') addScore(game, BALANCE.score.itemLarge);
   else if (it.kind === 'life') {
+    if (game.mode === 'nomiss') return; // 防御：nomiss 禁用生命道具（spawnItem 已拦截，此处兜底遗漏来源）
     game.player.lives = Math.min(BALANCE.maxLives, game.player.lives + 1);
     game.audio.sfx('ok');
   } else if (it.kind === 'bomb') {
@@ -371,7 +471,9 @@ export function collectItem(game, it) {
 
 export function addScore(game, n) {
   const raw = Math.floor(n * (game.scoreMul || 1));
-  const v = Math.floor(raw * (game.diffScoreMul || 1));
+  // Combo 倍率：每连击 +1%（仅乘实时得分，不计入 baseScore；combo=0 时为 1）
+  const comboMul = 1 + (game.combo || 0) * BALANCE.combo.perPercent;
+  const v = Math.floor(raw * (game.diffScoreMul || 1) * comboMul);
   game.score += v;
   game.chapterScore += v;
   game.baseScore += raw;
@@ -466,6 +568,8 @@ export function grantLetterResource(game, ch, perfect, success) {
 }
 
 export function spawnItem(game, x, y, kind = 'score') {
+  // nomiss 禁用生命道具（含 Letter 末卡 NMNB 奖励的 life 掉落）
+  if (game.mode === 'nomiss' && kind === 'life') return;
   game.items.push(acquireItem(x, y, kind));
 }
 

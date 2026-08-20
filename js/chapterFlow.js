@@ -8,9 +8,10 @@ import {
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, saveNomissProgress, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
+import { formatRunStats } from './runStats.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
@@ -19,8 +20,11 @@ import { debugSkipDialogue } from './debug.js';
 import { releaseBulletList } from './bulletPool.js';
 import { releaseItemList } from './itemPool.js';
 import { releaseParticleList } from './particlePool.js';
-import { bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore } from './gameCombat.js';
-import { openResult } from './gameOverlay.js';
+import {
+  bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore,
+  addHitStop, addShake,
+} from './gameCombat.js';
+import { openResult, localStatsText } from './gameOverlay.js';
 
 export function wrapWaveFn(game, raw) {
   return (dt) => {
@@ -103,12 +107,35 @@ export function startChapter(game) {
     game.bombCost = game.unstableFx.bombCost || 1;
   }
 
+  // Nomiss：快照本章开头状态（Unstable 异常 + 分数/资源），被弹重开时回滚到进章时状态（该次尝试作废）
+  if (game.mode === 'nomiss') {
+    game._nomissSnapshot = {
+      unstableFx: game.unstableFx,
+      score: game.score,
+      baseScore: game.baseScore,
+      extendCount: game.extendCount,
+      lives: game.player.lives,
+      bombs: game.player.bombs,
+    };
+  }
+
   game.letterTimeMax = ch.letterTime || 0;
   game.letterTimeLeft = game.letterTimeMax;
+  if (game.letterTimeMax > 0 && !game.replaying) recordLetterTry(ch.id);
   game.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
   const isBoss = ch.kind === 'boss';
-  game.audio.playTrack(ch.music || trackForStage(ch.stageKey, isBoss), isBoss);
+  const musicId = ch.music || trackForStage(ch.stageKey, isBoss);
+  game.audio.playTrack(musicId, isBoss);
+  // Nomiss：章首一次性记录 BGM「进章位置」（被弹重开回带目标）。
+  // 同曲续播（currentId===musicId，playTrack early-return）→ 记录当前续播位置；
+  // 换曲/未开播 → 0（新曲从头播放）。旧版在 game.js 逐帧记录「受击时刻」位置，
+  // 回带幅度≈决死窗（0.2s）→ 听感等于没回带。
+  if (game.mode === 'nomiss') {
+    game._nomissBgmPos = game.audio.currentId === musicId
+      ? (game.audio.musicPosition?.() ?? 0)
+      : 0;
+  }
   const bgMode = ch.bg || bgModeFor(ch.stageKey, isBoss);
   game.background?.setMode(bgMode);
   const doTrans = game._lastBgMode != null && game._lastBgMode !== bgMode;
@@ -120,6 +147,11 @@ export function startChapter(game) {
     game.el.letterBanner.classList.remove('hidden');
     game.el.letterBanner.style.opacity = '1';
     game.el.letterName.textContent = ch.letter;
+    // 章首一次性读取收取记录写入 DOM（Letter 战不再每帧读 localStorage）
+    if (game.el.letterRate) {
+      const rate = loadLetterRate()[ch.id];
+      game.el.letterRate.textContent = letterRateText(rate?.tries ?? 0, rate?.captures ?? 0);
+    }
     updateLetterHud(game);
     game.audio.sfx('letter');
   } else {
@@ -267,6 +299,7 @@ export function finishChapter(game, success) {
   const ch = game.chapters[game.chapterIndex];
   const clean = !game.chapterMiss && !game.chapterBomb;
   const perfect = success && clean;
+  if (perfect) game.stats.nmnb++;
 
   const baseChapter = game.chapterScore;
   let settleMul = 1;
@@ -291,8 +324,13 @@ export function finishChapter(game, success) {
   let letterBonus = 0;
   if (perfect && game.letterTimeMax > 0 && (ch.kind === 'boss' || ch.kind === 'midboss')) {
     letterBonus = calcLetterBonus(ch.stageKey, game.letterTimeLeft, game.letterTimeMax);
-    if (letterBonus > 0) addScore(game, letterBonus);
+    if (letterBonus > 0) {
+      addScore(game, letterBonus);
+      addHitStop(game, BALANCE.feedback.hitStopLetter);
+      addShake(game, ...BALANCE.feedback.shake.letter);
+    }
     grantLetterResource(game, ch, true, true);
+    if (!game.replaying) recordLetterCapture(ch.id);
   }
 
   if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {
@@ -356,10 +394,16 @@ export function finishChapter(game, success) {
   const NEXT_DELAY_SEC = 0.8;
 
   if (game.singleChapter || game.mode === 'practice') {
+    if (game.mode === 'practice') {
+      savePracticeBest(ch.id, game.difficultyId, { score: game.score, perfect });
+    }
+    const statsLines = formatRunStats(game.stats || {});
+    const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n${perfect ? 'Perfect Clear!' : ''}`
+      + (statsLines.length ? '\n' + statsLines.join('\n') : '');
     scheduleAdvance(game, NEXT_DELAY_SEC, () => {
       openResult(game, {
         title: '练习结束',
-        body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n${perfect ? 'Perfect Clear!' : ''}`,
+        body,
         retryChapter: ch.id,
       });
     });
@@ -394,6 +438,10 @@ export function finishChapter(game, success) {
   scheduleAdvance(game, NEXT_DELAY_SEC, () => {
     game.chapterIndex++;
     skipToValidChapter(game);
+    // Nomiss：进度持久化为下一章 id（到末尾无章则 null）
+    if (game.mode === 'nomiss' && !game.replaying) {
+      saveNomissProgress(game.chapters[game.chapterIndex]?.id ?? null);
+    }
     startChapter(game);
   });
 }
@@ -516,7 +564,8 @@ export function setEndingCinematic(game, on) {
 export function showEnding(game, which) {
   if (game.replaying) { game._showReplayEnd(); return; }
   saveHiscore(game.score);
-  submitRanking(game, { cleared: true });
+  const isNomiss = game.mode === 'nomiss';
+  if (!isNomiss) submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
   const title = which === 'A'
     ? '结局A · 不倒闭的真理'
@@ -527,64 +576,124 @@ export function showEnding(game, which) {
   setEndingCinematic(game, true);
   openDialogue(game, lines, () => {
     setEndingCinematic(game, false);
+    if (isNomiss) {
+      // 通关后清空进度，下轮从头
+      saveNomissProgress(null);
+      openResult(game, {
+        title: 'Nomiss 完成',
+        body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}\n${localStatsText(game.stats)}`,
+        actions: ['retry', 'menu'],
+      });
+      return;
+    }
     let retryChapter = 1;
     if (which === 'EX') {
       const exIdx = game._chapterIndexByStageAny.get('EX');
       retryChapter = exIdx != null ? game.chapters[exIdx]?.id : 1;
     }
-    const openFinal = () => openResult(game, {
-      title,
-      body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`,
-      retryChapter,
-    });
+    const openFinal = () => {
+      const statsLines = formatRunStats(game.stats || {});
+      const body = `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`
+        + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+      openResult(game, {
+        title,
+        body,
+        retryChapter,
+        actions: ['save-replay', 'retry', 'menu'],
+      });
+    };
     openScoreRanking(game, openFinal);
   });
 }
 
-export function gameOver(game) {
-  if (game.replaying) { game._showReplayEnd(); return; }
+/** Game Over 结算正文（难度/章节/得分/倾向 + 对局统计行，<pre> 用） */
+function buildGameOverBody(game) {
   const ch = game.chapters[game.chapterIndex];
+  const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
+  const statsLines = formatRunStats(game.stats || {});
+  return statsLines.length ? body + '\n' + statsLines.join('\n') : body;
+}
+
+/**
+ * 标准 Game Over 结算：存高分 → 入榜 → （入榜则先弹成绩排行）→ 结果动作选择。
+ * 每次 Game Over 都先过成绩排行；还有续关次数时结果动作含「继续」。
+ */
+export function finalizeGameOver(game) {
   saveHiscore(game.score);
   submitRanking(game, { cleared: false });
-  const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
-  const show = () => {
-    game.audio.stopMusic(0.6);
-    const openFinal = () => openResult(game, {
-      title: 'Game Over',
-      body,
-      retryChapter: ch.id,
+  game.audio.stopMusic(0.6);
+  const canContinue = !game.replaying && game.continuesLeft > 0
+    && game.mode !== 'practice' && game.mode !== 'nomiss';
+  openScoreRanking(game, () => openResult(game, {
+    title: 'Game Over',
+    body: buildGameOverBody(game),
+    retryChapter: game.chapters[game.chapterIndex]?.id ?? 1,
+    actions: canContinue ? ['continue', 'save-replay', 'retry', 'menu'] : undefined,
+  }));
+}
+
+export function gameOver(game) {
+  if (game.replaying) { game._showReplayEnd(); return; }
+  if (game.mode === 'nomiss') {
+    // 不应走到（miss 已被 nomissRestart 劫持）；兜底为手动结算语义，并清空进度
+    const ch = game.chapters[game.chapterIndex];
+    saveNomissProgress(null);
+    saveHiscore(game.score);
+    openResult(game, {
+      title: 'Nomiss 结算',
+      body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch?.name ?? '—'}\n得分：${game.score}\n${localStatsText(game.stats)}`,
+      retryChapter: ch?.id ?? 1,
+      actions: ['retry', 'menu'],
     });
-    openScoreRanking(game, openFinal);
-  };
+    return;
+  }
+  const ch = game.chapters[game.chapterIndex];
   if (ch.loseDialogue && game.dialogues[ch.loseDialogue]) {
-    openDialogue(game, game.dialogues[ch.loseDialogue], show);
+    openDialogue(game, game.dialogues[ch.loseDialogue], () => finalizeGameOver(game));
   } else {
-    show();
+    finalizeGameOver(game);
   }
 }
 
 export function gameClear(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
   saveHiscore(game.score);
-  submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
-  const openFinal = () => openResult(game, {
-    title: 'All Clear',
-    body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`,
-    retryChapter: 1,
-  });
+  if (game.mode === 'nomiss') {
+    // Nomiss：不入榜、不弹排行榜，直接结算；清空进度（下次从头）
+    saveNomissProgress(null);
+    openResult(game, {
+      title: 'All Clear',
+      body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}\n${localStatsText(game.stats)}`,
+      retryChapter: 1,
+      actions: ['retry', 'menu'],
+    });
+    return;
+  }
+  submitRanking(game, { cleared: true });
+  const openFinal = () => {
+    const statsLines = formatRunStats(game.stats || {});
+    const body = `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`
+      + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+    openResult(game, {
+      title: 'All Clear',
+      body,
+      retryChapter: 1,
+      actions: ['save-replay', 'retry', 'menu'],
+    });
+  };
   openScoreRanking(game, openFinal);
 }
 
 /* ========== 本地排行榜（与录像完全独立） ========== */
 
 /**
- * 对局结束统一入榜判定。练习不入榜。
+ * 对局结束统一入榜判定。练习 / Nomiss 不入榜。
  * 仅预判名次并暂存到 game._rankingResult，真正写盘在成绩排行屏「保存」时（scoreRanking → ranking.js commitRankingEntry）。
  */
 export function submitRanking(game, { cleared = false } = {}) {
   game._endCleared = !!cleared;
-  if (game.mode === 'practice') {
+  if (game.mode === 'practice' || game.mode === 'nomiss') {
     game._rankingResult = null;
     return null;
   }
@@ -599,6 +708,7 @@ export function submitRanking(game, { cleared = false } = {}) {
     mode: game.mode,
     route: game.routeChoice || (game.mode === 'extra' ? 'EX' : null),
     cleared: !!cleared,
+    continued: (game.continuesUsed || 0) > 0,
     stageReached: game.el?.stageLabel?.textContent || '',
     date: Date.now(),
   };

@@ -86,6 +86,14 @@
               <p>机制相同 · 剧情对应</p>
             </button>
           </div>
+          <label class="settings-row check nomiss-row" id="player-nomiss-row">
+            <span class="settings-label">Nomiss 无伤模式</span>
+            <span class="settings-control">
+              <input type="checkbox" id="player-nomiss" />
+              <span class="settings-value" id="player-nomiss-val">关闭</span>
+            </span>
+          </label>
+          <p class="nomiss-hint">被弹不扣残机、自动重开当前章节；不录制录像、不入排行榜，进度自动保存。</p>
           <button class="menu-btn ghost" data-action="back-diff">返回难度</button>
         </div>
       </div>
@@ -303,7 +311,9 @@
                 <pre class="game-overlay-body" id="overlay-body"></pre>
                 <div class="game-overlay-actions" id="overlay-actions">
                   <button type="button" class="menu-btn overlay-btn" data-overlay="resume">继续</button>
+                  <button type="button" class="menu-btn overlay-btn" data-overlay="settle">结算</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="save-replay">保存录像</button>
+                  <button type="button" class="menu-btn overlay-btn" data-overlay="continue">继续</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="settings">设置</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="retry">再试一次</button>
                   <button type="button" class="menu-btn ghost overlay-btn" data-overlay="menu">主菜单</button>
@@ -315,6 +325,7 @@
             <div id="letter-banner" class="letter-banner hidden">
               <div class="letter-remain" id="letter-remain"></div>
               <div class="letter-name" id="letter-name"></div>
+              <div class="letter-rate" id="letter-rate"></div>
               <div class="letter-bonus" id="letter-bonus">BONUS 0</div>
               <div class="letter-timer" id="letter-timer"></div>
             </div>
@@ -336,6 +347,7 @@
                 <span>Edit</span>
                 <div class="edit-bar"><div id="ui-edit" class="edit-fill"></div></div>
               </div>
+              <div class="stat-row"><span>Combo</span><strong id="ui-combo">—</strong></div>
               <div class="stat-row"><span>Unstable</span><strong id="ui-unstable">关</strong></div>
               <div class="stat-row"><span>A / B</span><strong id="ui-tendency">0 / 0</strong></div>
               <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>

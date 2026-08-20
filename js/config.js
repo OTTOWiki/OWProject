@@ -20,6 +20,12 @@ export const STORAGE_KEYS = {
   replayIndex: 'gunwei_replays_index',
   /** 练习模式上次选择（章节 id + 难度），进练习直接跳回 */
   practice: 'gunwei_practice',
+  /** Nomiss 模式章节进度（下一章 id），重进从进度续章 */
+  nomissProgress: 'gunwei_nomiss_progress',
+  /** Letter 卡收取记录（{ [chapterId]: { tries, captures } }） */
+  letterRate: 'gunwei_letter_rate',
+  /** 练习模式各章最佳（得分 + 是否 NMNB） */
+  practiceBest: 'gunwei_practice_best',
 };
 
 /** 每难度排行榜条目上限 */
@@ -101,6 +107,16 @@ export const BALANCE = {
   letterCardTime: 42,
   midBossTime: 28,
 
+  /** 击破连击：每连击 +1% 分数（仅乘实时得分，不计入 baseScore）；窗口秒数 */
+  combo: {
+    perPercent: 0.01,
+    window: 3,
+    /** 版面内 combo 显示（纯视觉）：闪烁周期 / 半透明 alpha / 自机避让距离 */
+    display: { blinkSec: 0.133, alpha: 0.8, evadeDist: 100 },
+  },
+  /** 续关：Game Over 后可续关次数 / 续关后残机 / Bomb（续关后分数清零，hiscore 保留） */
+  continue: { max: 2, lives: 2, bombs: 2 },
+
   tendencyMaxPerChapter: 10,
   /** 3 面结束后 |倾向| ≥ 此值进对应 A/B 线，否则巡查拦截。以代码为准（旧需求稿中的 14 已废弃） */
   tendencyThreshold: 70,
@@ -146,6 +162,15 @@ export const BALANCE = {
     missBombFloor: 3,
     /** 道中精英（midboss）击破是否掉 Bomb */
     midbossDrop: true,
+  },
+
+  /** 打击反馈（纯视觉；不影响判定/回放） */
+  feedback: {
+    hitStopCap: 0.15,
+    hitStopBomb: 0.08,
+    hitStopMiss: 0.1,
+    hitStopLetter: 0.08,
+    shake: { bomb: [7, 0.45], bossKill: [6, 0.4], letter: [5, 0.35] }, // [幅度, 时长s]
   },
 };
 
@@ -444,11 +469,15 @@ export const MANUAL_CHAPTERS = [
   {
     title: '四、系统指南',
     body: `· 章节：道中每段、Boss 每张 Letter card 各为一章。章内无 Miss 无 Bomb → 章节得分 ×1.05。
+· Combo：击破敌机累积连击，3 秒内未再击破则中断。连击越高得分倍率越高（每连击 +1%），倍率只作用于实时得分、不计入基础分（不影响 Extend 阈值）。
+· 续关：每次 Game Over 都先过成绩排行。还有续关次数（至多 2 次，练习除外）时可在结算选择继续：续关后以 2 残 2 Bomb 重新开始本章，**分数清零**（最高分 hiscore 保留）；续关对局在排行榜中标注「续」，且不再录制录像。
 · Letter 红利：Boss / 道中精英限时卡内击破且无 Miss 无 Bomb 时获得。随剩余时间线性递减，并随关卡进程提高（终面约 2 倍于 1 面）。
+· Letter 收取记录：Letter 卡名下方显示该卡的「成功收取 / 总尝试 = 收率%」，实战与练习共用一份持久记录。
 · 审核中（决死）：被弹后有极短「审核中」窗口，此时按 Bomb 可免死并全清弹幕。
 · 编辑度：判定点靠近子弹（擦弹）积攒编辑度；满槽按 Item 触发编辑战。
 · 收点线：版面上方浅色虚线。自机越过收点线后，场上得分道具永久被吸引。
 · 系统异常（原 Unstable Machine）：道中章节附加随机异常（攻击/分数加减、迷雾、Bomb 禁用或双倍消耗等）。负面效果不实时加分，仅在章节 NMNB（无Miss无Bomb）结算时给予补偿倍率；正面不加惩罚。后三面（A/B 线 4–6 面）一般叠加 2–3 个效果。练习模式可单独关闭。
+· Nomiss 无伤模式：被弹（决死窗口未救回）不扣残机、不 Game Over，自动重开当前章节——BGM 回到进章位置、系统异常与分数/资源回滚到进章时状态（该次尝试作废，hiscore 保留）；**生命道具禁用**（含 Letter NMNB 奖励）。进度自动持久化，重进从进度续章；仅在暂停菜单手动结算或通关结局自动结算；全程不录制录像、不入排行榜。
 · 阵营偏移：前三面在左半场积累 A 线倾向，右半场积累 B 线倾向；摇摆不定者将面临中立拦截。
 · 资源获取：
   — 分数 Extend：累计基础分（不含难度得分倍率）达阈值 1UP（0.8M / 2M / 4M / 7M / 其后每 +4M）。

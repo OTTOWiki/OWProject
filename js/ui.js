@@ -5,6 +5,7 @@ import {
 import {
   loadKeys, saveKeys, saveSettings,
   loadPracticePrefs, savePracticePrefs,
+  loadNomissProgress, loadPracticeBest,
 } from './storage.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -266,8 +267,16 @@ export class UI {
 
   _playerItems() {
     const cards = [...document.querySelectorAll('#screen-player-select .player-card')];
+    const nomiss = document.getElementById('player-nomiss');
     const back = document.querySelector('#screen-player-select [data-action="back-diff"]');
     const items = cards.map((el) => ({ type: 'card', el }));
+    if (nomiss && !document.getElementById('player-nomiss-row')?.classList.contains('hidden')) {
+      items.push({
+        type: 'checkbox',
+        el: nomiss,
+        wrap: document.getElementById('player-nomiss-row'),
+      });
+    }
     if (back) items.push({ type: 'button', el: back });
     return items;
   }
@@ -402,10 +411,11 @@ export class UI {
       btn.dataset.id = ch.id;
       btn.role = 'option';
       btn.setAttribute('aria-selected', 'false');
-      btn.textContent = `#${ch.id} ${ch.name}`;
+      btn.innerHTML = `#${ch.id} ${ch.name}<span class="pc-best"></span>`;
       btn.addEventListener('click', () => this._selectPracticeChapter(ch.id));
       list.appendChild(btn);
     }
+    this._refreshPracticeBests();
   }
 
   _practiceChapterIds() {
@@ -463,21 +473,32 @@ export class UI {
     });
     document.querySelector(`#practice-chapter-list .pc-item[data-id="${this.practiceChapterId}"]`)
       ?.scrollIntoView?.({ block: 'nearest' });
+    this._refreshPracticeBests();
+  }
+
+  /** 刷新练习章节列表里的各章最佳（当前难度） */
+  _refreshPracticeBests() {
+    const bests = loadPracticeBest();
+    document.querySelectorAll('#practice-chapter-list .pc-item').forEach((b) => {
+      const rec = bests[Number(b.dataset.id)]?.[this.practiceDiffId];
+      const span = b.querySelector('.pc-best');
+      if (!span) return;
+      span.textContent = rec ? `最佳 ${rec.score}${rec.perfect ? ' · NMNB' : ''}` : '';
+    });
   }
 
   _selectPracticeDiff(id) {
     this.practiceDiffId = id;
     this._refreshPracticeDiff();
+    this._refreshPracticeBests();
     this._savePracticePrefs();
     this._sfx('ok');
   }
 
   _cyclePracticeDiff(dir) {
     const i = DIFFICULTY_ORDER.indexOf(this.practiceDiffId);
-    this.practiceDiffId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
-    this._refreshPracticeDiff();
-    this._savePracticePrefs();
-    this._sfx('ok');
+    const newId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
+    this._selectPracticeDiff(newId);
   }
 
   _refreshPracticeDiff() {
@@ -556,7 +577,12 @@ export class UI {
       card.addEventListener('click', () => {
         this._sfx('ok');
         const playerId = card.dataset.player;
-        const start = this.pendingStart || { startChapter: 1, mode: 'story' };
+        let start = this.pendingStart || { startChapter: 1, mode: 'story' };
+        // Nomiss：自机选择勾选 → 无存档从头（1）、有进度从下一章续
+        const nomissEl = document.getElementById('player-nomiss');
+        if (nomissEl?.checked && start.mode === 'story') {
+          start = { startChapter: loadNomissProgress() ?? 1, mode: 'nomiss' };
+        }
         this.showGame();
         this.onStartGame({
           playerId,
@@ -568,6 +594,12 @@ export class UI {
           difficulty: this.pendingDifficulty || 'normal',
         });
       });
+    });
+    // Nomiss 勾选行：开关值标签
+    const nomissCb = document.getElementById('player-nomiss');
+    const nomissVal = document.getElementById('player-nomiss-val');
+    nomissCb?.addEventListener('change', () => {
+      if (nomissVal) nomissVal.textContent = nomissCb.checked ? '开启' : '关闭';
     });
   }
 
@@ -759,7 +791,25 @@ export class UI {
     const items = this._playerItems();
     if (!items.length) return;
     this.playerIndex = clampIndex(this.playerIndex, items.length);
-    items.forEach((it, i) => it.el.classList.toggle('selected', i === this.playerIndex));
+    items.forEach((it, i) => {
+      const on = i === this.playerIndex;
+      // 所有类型：wrapping element 切换 selected（含 checkbox 的 player-nomiss-row）
+      it.wrap?.classList.toggle('selected', on);
+      // card/button：element 自身也切换 selected
+      it.el.classList.toggle('selected', on && (it.type === 'card' || it.type === 'button'));
+    });
+  }
+
+  /** Nomiss 勾选行：仅常规故事流程显示；每次进入自机选择重置为关闭 */
+  _syncNomissRow() {
+    const row = document.getElementById('player-nomiss-row');
+    const cb = document.getElementById('player-nomiss');
+    if (!row || !cb) return;
+    const mode = this.pendingStart?.mode || 'story';
+    row.classList.toggle('hidden', mode !== 'story');
+    cb.checked = false;
+    const val = document.getElementById('player-nomiss-val');
+    if (val) val.textContent = '关闭';
   }
 
   _highlightStage() {
@@ -780,6 +830,7 @@ export class UI {
     if (name === 'difficulty') this._highlightDiff();
     if (name === 'player') {
       this.playerIndex = 0;
+      this._syncNomissRow();
       this._highlightPlayer();
     }
     if (name === 'stage') {
