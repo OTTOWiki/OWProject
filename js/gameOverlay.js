@@ -2,6 +2,8 @@
  * 暂停 / 结果叠加层（从 Game 抽出，行为与原先一致）
  * @param {import('./game.js').Game} game
  */
+import { BALANCE } from './config.js';
+import { startChapter } from './chapterFlow.js';
 import { saveHiscore } from './storage.js';
 
 export function bindOverlayClicks(game) {
@@ -41,6 +43,7 @@ export function showOverlay(game, { mode, title, body = '', actions, hint }) {
     const show = want.has(id);
     btn.classList.toggle('hidden', !show);
     if (id === 'resume') btn.textContent = '继续';
+    if (id === 'continue') btn.textContent = '继续';
     if (id === 'settings') btn.textContent = '设置';
     if (id === 'retry') btn.textContent = mode === 'pause' ? '重开本章' : '再试一次';
     if (id === 'menu') btn.textContent = '主菜单';
@@ -68,7 +71,7 @@ export function openPause(game) {
   });
 }
 
-export function openResult(game, { title, body, retryChapter }) {
+export function openResult(game, { title, body, retryChapter, actions }) {
   if (game.replaying) {
     game._showReplayEnd();
     return;
@@ -83,7 +86,7 @@ export function openResult(game, { title, body, retryChapter }) {
     mode: 'result',
     title,
     body,
-    actions: ['save-replay', 'retry', 'menu'],
+    actions: actions || ['save-replay', 'retry', 'menu'],
     hint: '↑↓ 选择 · Z 确认',
   });
   game.ui?.showGame?.();
@@ -91,6 +94,24 @@ export function openResult(game, { title, body, retryChapter }) {
 
 export function runOverlayAction(game, action) {
   if (!game.overlayMode) return;
+  // 续关：Game Over 结算里可继续（限未回放 / 结果叠加层 / 次数未用完 / 非练习与非 Nomiss）
+  if (action === 'continue') {
+    if (game.replaying || game.overlayMode !== 'result') return;
+    if (game.continuesLeft <= 0 || game.mode === 'practice' || game.mode === 'nomiss') return;
+    // 续关后分数清零重新开始（hiscore 保留全局最高不重置）
+    game.score = 0;
+    game.baseScore = 0;
+    game.continuesLeft--;
+    game.continuesUsed++;
+    game.recording = false; // 续关后不再录制录像
+    hideOverlay(game);
+    game.player.lives = BALANCE.continue.lives;
+    game.player.bombs = BALANCE.continue.bombs;
+    game.player.resetPos();
+    game.state = 'playing';
+    startChapter(game);
+    return;
+  }
   if (action === 'resume') {
     if (game.overlayMode === 'pause') hideOverlay(game);
     return;

@@ -798,6 +798,32 @@ export function drawEnemy(ctx, e) {
     ctx.fillText(e.label, 0, size / 2 + 14);
     ctx.globalAlpha = bodyAlpha;
   }
+
+  // 受击白闪：lighter 叠加白色径向渐变 + 圆环（纯视觉）
+  if (e.hurtT > 0) {
+    const hurtA = Math.min(1, e.hurtT / 0.06) * 0.85;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = hurtA;
+    const fr = size * 0.72;
+    // 本段处于上方 translate(e.x,e.y) 后的本地坐标系：中心必须用 (0,0)。
+    // 回归：曾用绝对坐标 (e.x,e.y)，白闪画到 2×(e.x,e.y) 的偏移位置
+    // （用户实测的「白色透明球体」任意位置冒出）。
+    const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, fr);
+    fg.addColorStop(0, 'rgba(255,255,255,0.85)');
+    fg.addColorStop(0.55, 'rgba(255,255,255,0.35)');
+    fg.addColorStop(1, 'transparent');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(0, 0, fr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${hurtA})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
   ctx.restore();
 }
@@ -823,10 +849,14 @@ function drawBossRingHp(ctx, e, size) {
 
   // 血量弧
   if (t > 0.001) {
-    const grad = ctx.createLinearGradient(-radius, 0, radius, 0);
-    grad.addColorStop(0, e.color2 || '#fff');
-    grad.addColorStop(1, e.color);
-    ctx.strokeStyle = grad;
+    const hurtA = e.hurtT > 0 ? Math.min(1, e.hurtT / 0.06) * 0.85 : 0;
+    const grad = hurtA > 0 ? null : ctx.createLinearGradient(-radius, 0, radius, 0);
+    if (grad) {
+      grad.addColorStop(0, e.color2 || '#fff');
+      grad.addColorStop(1, e.color);
+    }
+    // 受击瞬间描边闪白
+    ctx.strokeStyle = hurtA > 0 ? `rgba(255,255,255,${hurtA})` : grad;
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.shadowColor = e.color;

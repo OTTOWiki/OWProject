@@ -40,6 +40,7 @@ python -m http.server 8080
 - **Stage Select 全开放**（不锁关；进度可写入 localStorage，仅作记录）
 - 章节 Perfect、擦弹编辑度、决死 Bomb、Unstable Machine、阵营倾向
 - Letter 卡收取记录（成功收取 / 总尝试 = 收率%，实战与练习共用一份持久记录）
+- 击破连击 Combo、续关（续关后分数清零）、结算统计、练习各章最佳记录
 - 左侧 Three.js 关卡印象；BGM 为 **OGG**（`assets/bgm/*.ogg`）
 - 高分 / 键位 / 设置 / 排行榜 localStorage 存档；录像帧数据存 IndexedDB
 - History 依赖 Cloudflare Pages Functions（`functions/api/`），本地纯静态可能不可用

@@ -87,7 +87,7 @@ npm run test:bun       # 强制 bun test（入口 test/run-bun.test.mjs）
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
-- 分文件：`cases-config|patterns|collision|pools|stages|boss-dps|storage-spawn|letterrate|assets|ranking|replay|smoke|load.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step
@@ -107,6 +107,7 @@ js/
   version.js / git-hash.js
   game.js              # Game 门面：主循环、spawn API、状态字段
   gameDraw.js / gameOverlay.js / gameCombat.js / chapterFlow.js / chapterEnd.js / hud.js
+  runStats.js          # 对局统计纯格式化（formatRunTime / formatRunStats）
   collision.js / patterns.js / entities.js / spawnScale.js
   draw/                # 实体绘制
   stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_*；_shared + stageContext
@@ -150,6 +151,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `chapterFlow.js` | 章开/结、对话、路线、结局、面过渡 | 逐帧弹幕 |
 | `gameCombat.js` | 战斗帧、Bomb/Miss、得分、道具、collision 消费 | 对话/路线 |
 | `chapterEnd.js` | 章结束条件纯函数 | 改 game 状态 |
+| `runStats.js` | 对局统计纯格式化（用时/统计行） | 改 game 状态 |
 | `collision.js` | 碰撞几何；`runCollisions` 返回事件 | 得分/掉落/SFX |
 | `stages/*` | 章节定义 + 刷怪 | 全局状态机 |
 | `patterns.js` | 弹幕工具 | UI / 存档 |
@@ -198,6 +200,8 @@ docs/                  # 内部改造队列等（非运行时）
 - 擦弹 → edit；满 100 按 Item → 半径 `editClearRadius`（50）消弹
 - 决死窗：`BALANCE.deathBombWindow`
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
+- Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
+- 续关：每次 Game Over 先过成绩排行；还有续关次数（`BALANCE.continue.max`=2，练习除外）时结算可选继续，续关后残机/Bomb=2（`BALANCE.continue.lives/bombs`）、**分数清零**（hiscore 保留），排行榜标「续」，续关后不再录制录像
 - 默认 **4 残 4B**；Stage Select **不锁关**
 
 ### 自机 / 难度
@@ -228,6 +232,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_replays_index` | 录像索引（元数据；帧数据在 IndexedDB `owproject-replays`） |
 | `gunwei_practice` | 练习模式上次选择（章节 id + 难度） |
 | `gunwei_letter_rate` | Letter 卡收取记录（成功收取/总尝试次数） |
+| `gunwei_practice_best` | 练习模式各章最佳（得分 + 是否 NMNB） |
 
 ---
 
