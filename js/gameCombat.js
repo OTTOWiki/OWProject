@@ -11,9 +11,9 @@ import {
   debugBlocksHit, debugLocksLives, debugLocksBombs, debugAutoEdit,
 } from './debug.js';
 import { acquireParticle } from './particlePool.js';
-import { acquireItem } from './itemPool.js';
+import { acquireItem, releaseItemList } from './itemPool.js';
 import { updateGameHud, updateLetterHud } from './hud.js';
-import { finishChapter, gameOver } from './chapterFlow.js';
+import { finishChapter, gameOver, startChapter, softClearForNextChapter } from './chapterFlow.js';
 import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
 
 /**
@@ -389,7 +389,42 @@ export function tryBomb(game, isDeath) {
   return true;
 }
 
+/**
+ * Nomiss：被弹（决死未救回）→ 不扣残机不 Game Over，自动重开当前章节。
+ * - 回滚到进章时状态（该次尝试作废）：Unstable 异常（经 nextUnstableFx）、
+ *   分数 score/baseScore/extendCount、残机/Bomb（含尝试内 Extend/生命道具所得一并回滚）
+ * - hiscore 保留峰值不降；combo 与 stats 不回滚（stats 为累计对局统计，非单章尝试）
+ * - BGM 回带到进章位置（chapterFlow.startChapter 章首记录的 _nomissBgmPos）
+ */
+export function nomissRestart(game) {
+  game.audio.sfx('dead');
+  burst(game, game.player.x, game.player.y, '#f87171', 30);
+  game.player.resetPos();
+  game.player.invuln = 1.5;
+
+  const snap = game._nomissSnapshot;
+  if (snap) {
+    if (snap.unstableFx) game.nextUnstableFx = snap.unstableFx;
+    game.score = snap.score ?? game.score;
+    game.baseScore = snap.baseScore ?? game.baseScore;
+    game.extendCount = snap.extendCount ?? game.extendCount;
+    game.player.lives = snap.lives ?? game.player.lives;
+    game.player.bombs = snap.bombs ?? game.player.bombs;
+  }
+  if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
+  flashMsg(game, '无伤重开', 1.2);
+
+  softClearForNextChapter(game, { convert: false });
+  releaseItemList(game.items);
+  startChapter(game);
+}
+
 export function miss(game) {
+  // Nomiss：miss 被劫持为自动重开当前章节（不扣残机、不 GameOver）
+  if (game.mode === 'nomiss' && !game.replaying) {
+    nomissRestart(game);
+    return;
+  }
   const p = game.player;
   game.chapterMiss = true;
   game.stats.misses++;
@@ -425,6 +460,7 @@ export function collectItem(game, it) {
   if (it.kind === 'score') addScore(game, BALANCE.score.itemSmall);
   else if (it.kind === 'scoreL') addScore(game, BALANCE.score.itemLarge);
   else if (it.kind === 'life') {
+    if (game.mode === 'nomiss') return; // 防御：nomiss 禁用生命道具（spawnItem 已拦截，此处兜底遗漏来源）
     game.player.lives = Math.min(BALANCE.maxLives, game.player.lives + 1);
     game.audio.sfx('ok');
   } else if (it.kind === 'bomb') {
@@ -532,6 +568,8 @@ export function grantLetterResource(game, ch, perfect, success) {
 }
 
 export function spawnItem(game, x, y, kind = 'score') {
+  // nomiss 禁用生命道具（含 Letter 末卡 NMNB 奖励的 life 掉落）
+  if (game.mode === 'nomiss' && kind === 'life') return;
   game.items.push(acquireItem(x, y, kind));
 }
 

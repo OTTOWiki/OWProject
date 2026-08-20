@@ -16,5 +16,6 @@ import './cases-continue.js';
 import './cases-assets.js';
 import './cases-ranking.js';
 import './cases-replay.js';
+import './cases-nomiss.js';
 import './cases-smoke.js';
 import './cases-load.js'; // 浏览器：动态 import 主模块；Node 跳过

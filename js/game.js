@@ -186,11 +186,16 @@ export class Game {
     this.replaying = !!replay;
     this.replay = replay || null;
     this.recording = !this.replaying;   // 普通对局常驻缓冲；回放不录制
+    if (mode === 'nomiss') this.recording = false; // Nomiss 全程不录制录像
     this._recordFrames = [];
     this._replayDone = false;
     this._replayFast = false;
     this._startChapterId = startId;
     this._startLives = lives;
+    /** Nomiss：被弹重开时的 BGM 回带位置（chapterFlow.startChapter 章首记录，null=未开播/换曲时兜底 0） */
+    this._nomissBgmPos = null;
+    /** Nomiss：本章开头的状态快照（Unstable 异常还原用） */
+    this._nomissSnapshot = null;
 
     this._replaySeed = replay && replay.seed != null ? replay.seed : randomSeed();
     this._rngNext = createRng(this._replaySeed);

@@ -20,6 +20,8 @@ export const STORAGE_KEYS = {
   replayIndex: 'gunwei_replays_index',
   /** 练习模式上次选择（章节 id + 难度），进练习直接跳回 */
   practice: 'gunwei_practice',
+  /** Nomiss 模式章节进度（下一章 id），重进从进度续章 */
+  nomissProgress: 'gunwei_nomiss_progress',
   /** Letter 卡收取记录（{ [chapterId]: { tries, captures } }） */
   letterRate: 'gunwei_letter_rate',
   /** 练习模式各章最佳（得分 + 是否 NMNB） */
@@ -475,6 +477,7 @@ export const MANUAL_CHAPTERS = [
 · 编辑度：判定点靠近子弹（擦弹）积攒编辑度；满槽按 Item 触发编辑战。
 · 收点线：版面上方浅色虚线。自机越过收点线后，场上得分道具永久被吸引。
 · 系统异常（原 Unstable Machine）：道中章节附加随机异常（攻击/分数加减、迷雾、Bomb 禁用或双倍消耗等）。负面效果不实时加分，仅在章节 NMNB（无Miss无Bomb）结算时给予补偿倍率；正面不加惩罚。后三面（A/B 线 4–6 面）一般叠加 2–3 个效果。练习模式可单独关闭。
+· Nomiss 无伤模式：被弹（决死窗口未救回）不扣残机、不 Game Over，自动重开当前章节——BGM 回到进章位置、系统异常与分数/资源回滚到进章时状态（该次尝试作废，hiscore 保留）；**生命道具禁用**（含 Letter NMNB 奖励）。进度自动持久化，重进从进度续章；仅在暂停菜单手动结算或通关结局自动结算；全程不录制录像、不入排行榜。
 · 阵营偏移：前三面在左半场积累 A 线倾向，右半场积累 B 线倾向；摇摆不定者将面临中立拦截。
 · 资源获取：
   — 分数 Extend：累计基础分（不含难度得分倍率）达阈值 1UP（0.8M / 2M / 4M / 7M / 其后每 +4M）。

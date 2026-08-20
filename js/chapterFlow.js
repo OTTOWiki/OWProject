@@ -8,7 +8,7 @@ import {
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, saveNomissProgress, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
 import { formatRunStats } from './runStats.js';
@@ -24,7 +24,7 @@ import {
   bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore,
   addHitStop, addShake,
 } from './gameCombat.js';
-import { openResult } from './gameOverlay.js';
+import { openResult, localStatsText } from './gameOverlay.js';
 
 export function wrapWaveFn(game, raw) {
   return (dt) => {
@@ -107,13 +107,35 @@ export function startChapter(game) {
     game.bombCost = game.unstableFx.bombCost || 1;
   }
 
+  // Nomiss：快照本章开头状态（Unstable 异常 + 分数/资源），被弹重开时回滚到进章时状态（该次尝试作废）
+  if (game.mode === 'nomiss') {
+    game._nomissSnapshot = {
+      unstableFx: game.unstableFx,
+      score: game.score,
+      baseScore: game.baseScore,
+      extendCount: game.extendCount,
+      lives: game.player.lives,
+      bombs: game.player.bombs,
+    };
+  }
+
   game.letterTimeMax = ch.letterTime || 0;
   game.letterTimeLeft = game.letterTimeMax;
   if (game.letterTimeMax > 0 && !game.replaying) recordLetterTry(ch.id);
   game.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
   const isBoss = ch.kind === 'boss';
-  game.audio.playTrack(ch.music || trackForStage(ch.stageKey, isBoss), isBoss);
+  const musicId = ch.music || trackForStage(ch.stageKey, isBoss);
+  game.audio.playTrack(musicId, isBoss);
+  // Nomiss：章首一次性记录 BGM「进章位置」（被弹重开回带目标）。
+  // 同曲续播（currentId===musicId，playTrack early-return）→ 记录当前续播位置；
+  // 换曲/未开播 → 0（新曲从头播放）。旧版在 game.js 逐帧记录「受击时刻」位置，
+  // 回带幅度≈决死窗（0.2s）→ 听感等于没回带。
+  if (game.mode === 'nomiss') {
+    game._nomissBgmPos = game.audio.currentId === musicId
+      ? (game.audio.musicPosition?.() ?? 0)
+      : 0;
+  }
   const bgMode = ch.bg || bgModeFor(ch.stageKey, isBoss);
   game.background?.setMode(bgMode);
   const doTrans = game._lastBgMode != null && game._lastBgMode !== bgMode;
@@ -416,6 +438,10 @@ export function finishChapter(game, success) {
   scheduleAdvance(game, NEXT_DELAY_SEC, () => {
     game.chapterIndex++;
     skipToValidChapter(game);
+    // Nomiss：进度持久化为下一章 id（到末尾无章则 null）
+    if (game.mode === 'nomiss' && !game.replaying) {
+      saveNomissProgress(game.chapters[game.chapterIndex]?.id ?? null);
+    }
     startChapter(game);
   });
 }
@@ -538,7 +564,8 @@ export function setEndingCinematic(game, on) {
 export function showEnding(game, which) {
   if (game.replaying) { game._showReplayEnd(); return; }
   saveHiscore(game.score);
-  submitRanking(game, { cleared: true });
+  const isNomiss = game.mode === 'nomiss';
+  if (!isNomiss) submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
   const title = which === 'A'
     ? '结局A · 不倒闭的真理'
@@ -549,6 +576,16 @@ export function showEnding(game, which) {
   setEndingCinematic(game, true);
   openDialogue(game, lines, () => {
     setEndingCinematic(game, false);
+    if (isNomiss) {
+      // 通关后清空进度，下轮从头
+      saveNomissProgress(null);
+      openResult(game, {
+        title: 'Nomiss 完成',
+        body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}\n${localStatsText(game.stats)}`,
+        actions: ['retry', 'menu'],
+      });
+      return;
+    }
     let retryChapter = 1;
     if (which === 'EX') {
       const exIdx = game._chapterIndexByStageAny.get('EX');
@@ -562,6 +599,7 @@ export function showEnding(game, which) {
         title,
         body,
         retryChapter,
+        actions: ['save-replay', 'retry', 'menu'],
       });
     };
     openScoreRanking(game, openFinal);
@@ -596,6 +634,19 @@ export function finalizeGameOver(game) {
 
 export function gameOver(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
+  if (game.mode === 'nomiss') {
+    // 不应走到（miss 已被 nomissRestart 劫持）；兜底为手动结算语义，并清空进度
+    const ch = game.chapters[game.chapterIndex];
+    saveNomissProgress(null);
+    saveHiscore(game.score);
+    openResult(game, {
+      title: 'Nomiss 结算',
+      body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch?.name ?? '—'}\n得分：${game.score}\n${localStatsText(game.stats)}`,
+      retryChapter: ch?.id ?? 1,
+      actions: ['retry', 'menu'],
+    });
+    return;
+  }
   const ch = game.chapters[game.chapterIndex];
   if (ch.loseDialogue && game.dialogues[ch.loseDialogue]) {
     openDialogue(game, game.dialogues[ch.loseDialogue], () => finalizeGameOver(game));
@@ -607,8 +658,19 @@ export function gameOver(game) {
 export function gameClear(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
   saveHiscore(game.score);
-  submitRanking(game, { cleared: true });
   game.audio.stopMusic(0.8);
+  if (game.mode === 'nomiss') {
+    // Nomiss：不入榜、不弹排行榜，直接结算；清空进度（下次从头）
+    saveNomissProgress(null);
+    openResult(game, {
+      title: 'All Clear',
+      body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}\n${localStatsText(game.stats)}`,
+      retryChapter: 1,
+      actions: ['retry', 'menu'],
+    });
+    return;
+  }
+  submitRanking(game, { cleared: true });
   const openFinal = () => {
     const statsLines = formatRunStats(game.stats || {});
     const body = `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`
@@ -617,6 +679,7 @@ export function gameClear(game) {
       title: 'All Clear',
       body,
       retryChapter: 1,
+      actions: ['save-replay', 'retry', 'menu'],
     });
   };
   openScoreRanking(game, openFinal);
@@ -625,12 +688,12 @@ export function gameClear(game) {
 /* ========== 本地排行榜（与录像完全独立） ========== */
 
 /**
- * 对局结束统一入榜判定。练习不入榜。
+ * 对局结束统一入榜判定。练习 / Nomiss 不入榜。
  * 仅预判名次并暂存到 game._rankingResult，真正写盘在成绩排行屏「保存」时（scoreRanking → ranking.js commitRankingEntry）。
  */
 export function submitRanking(game, { cleared = false } = {}) {
   game._endCleared = !!cleared;
-  if (game.mode === 'practice') {
+  if (game.mode === 'practice' || game.mode === 'nomiss') {
     game._rankingResult = null;
     return null;
   }

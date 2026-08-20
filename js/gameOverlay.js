@@ -4,7 +4,28 @@
  */
 import { BALANCE } from './config.js';
 import { startChapter } from './chapterFlow.js';
-import { saveHiscore } from './storage.js';
+import { saveHiscore, saveNomissProgress } from './storage.js';
+
+/**
+ * 对局统计简版两行（本 PR 内建；若后续 runStats.js 统一模块合并则收敛）。
+ * game.stats 由并行 PR 提供，此处容错读取（缺失字段按 0）。
+ * 行1：擦弹/击破/道具；行2：Bomb/Miss/NMNB/最大连击/用时。
+ */
+export function localStatsText(stats) {
+  const s = stats || {};
+  const graze = s.graze ?? 0;
+  const kills = s.kills ?? 0;
+  const items = s.items ?? 0;
+  const bombs = s.bombs ?? 0;
+  const misses = s.misses ?? 0;
+  const nmnb = s.nmnb ?? 0;
+  const combo = s.maxCombo ?? 0;
+  const t = Number(s.time);
+  const timeStr = Number.isFinite(t) && t > 0
+    ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
+    : '—';
+  return `擦弹 ${graze} · 击破 ${kills} · 道具 ${items}\nBomb ${bombs} · Miss ${misses} · NMNB ${nmnb} · 最大连击 ${combo} · 用时 ${timeStr}`;
+}
 
 export function bindOverlayClicks(game) {
   if (game._overlayBound) return;
@@ -43,6 +64,7 @@ export function showOverlay(game, { mode, title, body = '', actions, hint }) {
     const show = want.has(id);
     btn.classList.toggle('hidden', !show);
     if (id === 'resume') btn.textContent = '继续';
+    if (id === 'settle') btn.textContent = '结算';
     if (id === 'continue') btn.textContent = '继续';
     if (id === 'settings') btn.textContent = '设置';
     if (id === 'retry') btn.textContent = mode === 'pause' ? '重开本章' : '再试一次';
@@ -62,11 +84,15 @@ export function openPause(game) {
   if (game.overlayMode === 'result' || game.overlayMode === 'pause') return;
   if (game.state !== 'playing' && game.state !== 'dialogue' && game.state !== 'stageTransit') return;
   game.paused = true;
+  const isNomiss = game.mode === 'nomiss';
   showOverlay(game, {
     mode: 'pause',
     title: 'PAUSED',
     body: '',
-    actions: ['resume', 'save-replay', 'settings', 'retry', 'menu'],
+    // 常规模式暂停菜单不提供「重开本章」（retry 仅 Nomiss 保留，配合自动重开机制）
+    actions: isNomiss
+      ? ['resume', 'settle', 'settings', 'retry']
+      : ['resume', 'save-replay', 'settings', 'menu'],
     hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
   });
 }
@@ -114,6 +140,21 @@ export function runOverlayAction(game, action) {
   }
   if (action === 'resume') {
     if (game.overlayMode === 'pause') hideOverlay(game);
+    return;
+  }
+  if (action === 'settle') {
+    // Nomiss 手动结算：仅暂停菜单可用；不开排行榜、不入榜；清空进度（下次从头第 1 章）
+    if (game.mode !== 'nomiss' || game.overlayMode !== 'pause') return;
+    hideOverlay(game);
+    saveNomissProgress(null);
+    saveHiscore(game.score);
+    const ch = game.chapters[game.chapterIndex];
+    openResult(game, {
+      title: 'Nomiss 结算',
+      body: `难度：${game.diff.rank} ${game.diff.name}\n进度：${ch?.name ?? '—'}\n${localStatsText(game.stats)}`,
+      retryChapter: ch?.id ?? 1,
+      actions: ['retry', 'menu'],
+    });
     return;
   }
   if (action === 'settings') {
@@ -213,7 +254,7 @@ export function handleOverlayInput(game, wantPause) {
     if (id) runOverlayAction(game, id);
     return true;
   }
-  if (game.overlayMode === 'pause' && game.input.justPressed('KeyR')) {
+  if (game.overlayMode === 'pause' && game.mode === 'nomiss' && game.input.justPressed('KeyR')) {
     runOverlayAction(game, 'retry');
     return true;
   }
