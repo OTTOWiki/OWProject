@@ -259,7 +259,13 @@ export function drawGameFrame(game) {
     return;
   }
 
-  // 先清除整个逻辑画布（未平移坐标系），避免震屏留下边缘残影
+  // 先清除整个逻辑画布（未平移坐标系），避免震屏留下边缘残影；
+  // 必须位于版面背景绘制之前，否则每帧会把刚画好的背景擦成黑屏
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.restore();
+
   if (game.playBg) {
     game.playBg.draw(ctx);
   } else {
@@ -268,11 +274,6 @@ export function drawGameFrame(game) {
   }
 
   // 震屏：整场绘制统一平移（纯视觉；帧末 restore 配对）
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-  ctx.restore();
-
   const shakeActive = game._shakeT > 0;
   if (shakeActive) {
     ctx.save();
