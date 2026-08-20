@@ -5,7 +5,7 @@ import {
 import {
   loadKeys, saveKeys, saveSettings,
   loadPracticePrefs, savePracticePrefs,
-  loadNomissProgress,
+  loadNomissProgress, loadPracticeBest,
 } from './storage.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -411,10 +411,11 @@ export class UI {
       btn.dataset.id = ch.id;
       btn.role = 'option';
       btn.setAttribute('aria-selected', 'false');
-      btn.textContent = `#${ch.id} ${ch.name}`;
+      btn.innerHTML = `#${ch.id} ${ch.name}<span class="pc-best"></span>`;
       btn.addEventListener('click', () => this._selectPracticeChapter(ch.id));
       list.appendChild(btn);
     }
+    this._refreshPracticeBests();
   }
 
   _practiceChapterIds() {
@@ -472,21 +473,32 @@ export class UI {
     });
     document.querySelector(`#practice-chapter-list .pc-item[data-id="${this.practiceChapterId}"]`)
       ?.scrollIntoView?.({ block: 'nearest' });
+    this._refreshPracticeBests();
+  }
+
+  /** 刷新练习章节列表里的各章最佳（当前难度） */
+  _refreshPracticeBests() {
+    const bests = loadPracticeBest();
+    document.querySelectorAll('#practice-chapter-list .pc-item').forEach((b) => {
+      const rec = bests[Number(b.dataset.id)]?.[this.practiceDiffId];
+      const span = b.querySelector('.pc-best');
+      if (!span) return;
+      span.textContent = rec ? `最佳 ${rec.score}${rec.perfect ? ' · NMNB' : ''}` : '';
+    });
   }
 
   _selectPracticeDiff(id) {
     this.practiceDiffId = id;
     this._refreshPracticeDiff();
+    this._refreshPracticeBests();
     this._savePracticePrefs();
     this._sfx('ok');
   }
 
   _cyclePracticeDiff(dir) {
     const i = DIFFICULTY_ORDER.indexOf(this.practiceDiffId);
-    this.practiceDiffId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
-    this._refreshPracticeDiff();
-    this._savePracticePrefs();
-    this._sfx('ok');
+    const newId = DIFFICULTY_ORDER[wrapIndex(i < 0 ? 0 : i + dir, DIFFICULTY_ORDER.length)];
+    this._selectPracticeDiff(newId);
   }
 
   _refreshPracticeDiff() {
@@ -781,8 +793,10 @@ export class UI {
     this.playerIndex = clampIndex(this.playerIndex, items.length);
     items.forEach((it, i) => {
       const on = i === this.playerIndex;
-      it.el.classList.toggle('selected', on && (it.type === 'card' || it.type === 'button'));
+      // 所有类型：wrapping element 切换 selected（含 checkbox 的 player-nomiss-row）
       it.wrap?.classList.toggle('selected', on);
+      // card/button：element 自身也切换 selected
+      it.el.classList.toggle('selected', on && (it.type === 'card' || it.type === 'button'));
     });
   }
 

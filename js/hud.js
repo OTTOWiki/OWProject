@@ -16,6 +16,7 @@ export function createHudCache() {
     unstable: null,
     tendency: null,
     chapter: null,
+    combo: null,
     difficulty: null,
     difficultyColor: null,
     letterRemain: null,
@@ -76,6 +77,12 @@ export function updateGameHud(game) {
 
   setText(el.unstable, game.unstableFx ? game.unstableFx.label : '关', 'unstable', cache);
   setText(el.tendency, `${game.totalTendency.toFixed(0)}%`, 'tendency', cache);
+  setText(
+    el.combo,
+    game.combo > 1 ? `COMBO ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}` : '—',
+    'combo',
+    cache,
+  );
 
   const ch = game.chapters[game.chapterIndex];
   setText(el.chapter, ch ? ch.name : '—', 'chapter', cache);
@@ -130,6 +137,9 @@ export function updateLetterHud(game) {
       el.letterBonus.style.opacity = op;
     }
   }
+
+  // 注：letterRate 收率文本由 chapterFlow.startChapter 章首一次性写入 DOM，
+  // 不在此每帧读取 localStorage（移动端存储 I/O 会阻塞主线程）。
 
   const p = game.player;
   if (p) {
