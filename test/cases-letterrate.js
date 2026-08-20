@@ -104,3 +104,76 @@ test('storage 无 localStorage 环境：loadLetterRate 不抛', () => {
     globalThis.localStorage = prev;
   }
 });
+
+test('loadLetterRate：丢弃 captures > tries 的不合法项', () => {
+  const raw = JSON.stringify({
+    '1': { tries: 5, captures: 3 },   // 合法
+    '2': { tries: 2, captures: 5 },   // captures > tries → 丢弃
+    '3': { tries: 0, captures: 1 },   // captures > tries → 丢弃
+    '4': { tries: 10, captures: 10 }, // 边界：captures == tries 合法
+    '5': { tries: 1, captures: 0 },   // 合法
+  });
+  const rate = withStorage({ [STORAGE_KEYS.letterRate]: raw }, () => loadLetterRate());
+  assertEqual(rate['1'].tries, 5);
+  assertEqual(rate['1'].captures, 3);
+  assert(rate['2'] === undefined, '不合法项 2 应被丢弃');
+  assert(rate['3'] === undefined, '不合法项 3 应被丢弃');
+  assertEqual(rate['4'].tries, 10);
+  assertEqual(rate['4'].captures, 10);
+  assertEqual(rate['5'].tries, 1);
+  assertEqual(rate['5'].captures, 0);
+  assertEqual(Object.keys(rate).length, 3);
+});
+
+test('recordLetterCapture：无记录时成功收取自动设置 tries=1', () => {
+  withStorage({}, () => {
+    // 无记录时直接收取成功（实际场景可能异常，但须确保不违背不变量）
+    recordLetterCapture('99');
+    const rate = loadLetterRate();
+    assertEqual(rate['99'].tries, 1);
+    assertEqual(rate['99'].captures, 1);
+  });
+});
+
+test('recordLetterCapture：不允许 captures 超过 tries', () => {
+  withStorage({}, () => {
+    // 正常场景：先记录 2 次尝试，再记录 1 次成功
+    recordLetterTry('50');
+    recordLetterTry('50');
+    recordLetterCapture('50');
+    let rate = loadLetterRate();
+    assertEqual(rate['50'].tries, 2);
+    assertEqual(rate['50'].captures, 1);
+
+    // 再记录 1 次成功，仍在范围内
+    recordLetterCapture('50');
+    rate = loadLetterRate();
+    assertEqual(rate['50'].tries, 2);
+    assertEqual(rate['50'].captures, 2);
+
+    // 尝试记录第 3 次成功：应自动递增 tries 以保持不变量
+    recordLetterCapture('50');
+    rate = loadLetterRate();
+    assertEqual(rate['50'].tries, 3);
+    assertEqual(rate['50'].captures, 3);
+  });
+});
+
+test('recordLetterCapture：从损坏数据恢复后正确运行', () => {
+  // 存储中有损坏数据（captures > tries），loadLetterRate 会丢弃它
+  const raw = JSON.stringify({
+    '7': { tries: 1, captures: 5 }, // 损坏项
+  });
+  withStorage({ [STORAGE_KEYS.letterRate]: raw }, () => {
+    // 加载时损坏项被丢弃
+    let rate = loadLetterRate();
+    assert(rate['7'] === undefined, '损坏项应被丢弃');
+
+    // 之后正常记录
+    recordLetterTry('7');
+    recordLetterCapture('7');
+    rate = loadLetterRate();
+    assertEqual(rate['7'].tries, 1);
+    assertEqual(rate['7'].captures, 1);
+  });
+});

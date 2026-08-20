@@ -185,6 +185,7 @@ export function loadLetterRate() {
       const { tries, captures } = entry;
       if (!Number.isInteger(tries) || tries < 0) continue;
       if (!Number.isInteger(captures) || captures < 0) continue;
+      if (captures > tries) continue; // 丢弃不合法的 captures > tries 项
       out[key] = { tries, captures };
     }
     return out;
@@ -208,7 +209,10 @@ export function recordLetterCapture(chapterId) {
     const rate = loadLetterRate();
     const id = String(chapterId);
     const cur = rate[id] || { tries: 0, captures: 0 };
-    rate[id] = { tries: cur.tries, captures: cur.captures + 1 };
+    // 确保 captures 不超过 tries；无记录时成功收取意味至少尝试过 1 次
+    const newCaptures = cur.captures + 1;
+    const newTries = Math.max(cur.tries, newCaptures);
+    rate[id] = { tries: newTries, captures: newCaptures };
     localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
   } catch { /* ignore quota / private mode */ }
 }
