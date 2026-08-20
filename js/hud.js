@@ -138,6 +138,9 @@ export function updateLetterHud(game) {
     }
   }
 
+  // 注：letterRate 收率文本由 chapterFlow.startChapter 章首一次性写入 DOM，
+  // 不在此每帧读取 localStorage（移动端存储 I/O 会阻塞主线程）。
+
   const p = game.player;
   if (p) {
     const rx = p.x / LOGICAL_W;

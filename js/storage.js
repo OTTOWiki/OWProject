@@ -168,6 +168,62 @@ export function savePracticePrefs(prefs) {
 }
 
 /**
+ * Letter 卡收取记录（{ [chapterId]: { tries, captures } }）
+ * 实战与练习共用一份；回放不计数。损坏数据丢弃，解析失败返回 {}。
+ */
+export function loadLetterRate() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.letterRate);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out = {};
+    for (const key of Object.keys(parsed)) {
+      if (!/^\d+$/.test(key)) continue; // chapterId 须为数字字符串键
+      const entry = parsed[key];
+      if (!entry || typeof entry !== 'object') continue;
+      const { tries, captures } = entry;
+      if (!Number.isInteger(tries) || tries < 0) continue;
+      if (!Number.isInteger(captures) || captures < 0) continue;
+      if (captures > tries) continue; // 丢弃不合法的 captures > tries 项
+      out[key] = { tries, captures };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function recordLetterTry(chapterId) {
+  try {
+    const rate = loadLetterRate();
+    const id = String(chapterId);
+    const cur = rate[id] || { tries: 0, captures: 0 };
+    rate[id] = { tries: cur.tries + 1, captures: cur.captures };
+    localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
+  } catch { /* ignore quota / private mode */ }
+}
+
+export function recordLetterCapture(chapterId) {
+  try {
+    const rate = loadLetterRate();
+    const id = String(chapterId);
+    const cur = rate[id] || { tries: 0, captures: 0 };
+    // 确保 captures 不超过 tries；无记录时成功收取意味至少尝试过 1 次
+    const newCaptures = cur.captures + 1;
+    const newTries = Math.max(cur.tries, newCaptures);
+    rate[id] = { tries: newTries, captures: newCaptures };
+    localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
+  } catch { /* ignore quota / private mode */ }
+}
+
+/** Letter 收取率文案；无记录时显示占位 */
+export function letterRateText(tries, captures) {
+  if (!(tries > 0)) return '暂无收取记录';
+  return `成功 ${captures} / 尝试 ${tries} = ${Math.round((captures / tries) * 100)}%`;
+}
+
+/**
  * 练习模式各章最佳：{ [chapterId]: { [diffId]: { score, perfect, date } } }
  * 校验：chapterId 数字、diffId 字符串、score 有限数字、perfect 布尔；坏数据丢弃，解析失败返回 {}。
  */

@@ -87,7 +87,7 @@ npm run test:bun       # 强制 bun test（入口 test/run-bun.test.mjs）
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|runstats|assets|ranking|replay|smoke|load.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step
@@ -231,6 +231,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_ranking_name` | 上次入榜昵称（3 字） |
 | `gunwei_replays_index` | 录像索引（元数据；帧数据在 IndexedDB `owproject-replays`） |
 | `gunwei_practice` | 练习模式上次选择（章节 id + 难度） |
+| `gunwei_letter_rate` | Letter 卡收取记录（成功收取/总尝试次数） |
 | `gunwei_practice_best` | 练习模式各章最佳（得分 + 是否 NMNB） |
 
 ---

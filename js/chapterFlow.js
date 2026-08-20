@@ -8,7 +8,7 @@ import {
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute, savePracticeBest } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
 import { formatRunStats } from './runStats.js';
@@ -109,6 +109,7 @@ export function startChapter(game) {
 
   game.letterTimeMax = ch.letterTime || 0;
   game.letterTimeLeft = game.letterTimeMax;
+  if (game.letterTimeMax > 0 && !game.replaying) recordLetterTry(ch.id);
   game.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
   const isBoss = ch.kind === 'boss';
@@ -124,6 +125,11 @@ export function startChapter(game) {
     game.el.letterBanner.classList.remove('hidden');
     game.el.letterBanner.style.opacity = '1';
     game.el.letterName.textContent = ch.letter;
+    // 章首一次性读取收取记录写入 DOM（Letter 战不再每帧读 localStorage）
+    if (game.el.letterRate) {
+      const rate = loadLetterRate()[ch.id];
+      game.el.letterRate.textContent = letterRateText(rate?.tries ?? 0, rate?.captures ?? 0);
+    }
     updateLetterHud(game);
     game.audio.sfx('letter');
   } else {
@@ -302,6 +308,7 @@ export function finishChapter(game, success) {
       addShake(game, ...BALANCE.feedback.shake.letter);
     }
     grantLetterResource(game, ch, true, true);
+    if (!game.replaying) recordLetterCapture(ch.id);
   }
 
   if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {

@@ -20,6 +20,8 @@ export const STORAGE_KEYS = {
   replayIndex: 'gunwei_replays_index',
   /** 练习模式上次选择（章节 id + 难度），进练习直接跳回 */
   practice: 'gunwei_practice',
+  /** Letter 卡收取记录（{ [chapterId]: { tries, captures } }） */
+  letterRate: 'gunwei_letter_rate',
   /** 练习模式各章最佳（得分 + 是否 NMNB） */
   practiceBest: 'gunwei_practice_best',
 };
@@ -468,6 +470,7 @@ export const MANUAL_CHAPTERS = [
 · Combo：击破敌机累积连击，3 秒内未再击破则中断。连击越高得分倍率越高（每连击 +1%），倍率只作用于实时得分、不计入基础分（不影响 Extend 阈值）。
 · 续关：每次 Game Over 都先过成绩排行。还有续关次数（至多 2 次，练习除外）时可在结算选择继续：续关后以 2 残 2 Bomb 重新开始本章，**分数清零**（最高分 hiscore 保留）；续关对局在排行榜中标注「续」，且不再录制录像。
 · Letter 红利：Boss / 道中精英限时卡内击破且无 Miss 无 Bomb 时获得。随剩余时间线性递减，并随关卡进程提高（终面约 2 倍于 1 面）。
+· Letter 收取记录：Letter 卡名下方显示该卡的「成功收取 / 总尝试 = 收率%」，实战与练习共用一份持久记录。
 · 审核中（决死）：被弹后有极短「审核中」窗口，此时按 Bomb 可免死并全清弹幕。
 · 编辑度：判定点靠近子弹（擦弹）积攒编辑度；满槽按 Item 触发编辑战。
 · 收点线：版面上方浅色虚线。自机越过收点线后，场上得分道具永久被吸引。
