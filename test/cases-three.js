@@ -39,7 +39,10 @@ test('镜像回退顺序 jsdelivr → unpkg → esm.sh', () => {
 
 test('StageBackground 初始 mode 为 null：首次 setMode（含 s1_mid）必触发重建', () => {
   const hadWindow = typeof globalThis.window !== 'undefined';
-  if (!hadWindow) globalThis.window = globalThis;
+  if (!hadWindow) {
+    // CI Node 无 window：StageBackground 构造器注册 resize 监听，需最小 shim（勿用 globalThis，它没有 addEventListener）
+    globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  }
   try {
     // 最小 THREE 假实现：只覆盖构造器 _resize 所需成员，不跑真实场景构建
     setThree({
