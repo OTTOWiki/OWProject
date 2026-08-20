@@ -2,7 +2,7 @@
  * Three.js 左侧关卡印象 — StageBackground 类
  * mode 登记：js/bgModes.js；场景 builder 见 scenes.js + STAGE_BG_BUILDERS
  */
-import * as THREE from 'three';
+import { THREE } from './threeLoader.js';
 import { resolveBgMode } from '../bgModes.js';
 import { STAGE_BG_BUILDERS } from './builders.js';
 import { makeTextTexture } from './textTexture.js';
@@ -20,7 +20,10 @@ export class StageBackground {
     this.scene.add(this.root);
     this.particles = null;
     this.timer = new THREE.Timer(); // r185 起 Clock 弃用，改用 Timer
-    this.mode = 's1_mid';
+    // mode 初始为 null：首个 setMode（boot 的 s1_mid）必须触发 _rebuild。
+    // 若默认 's1_mid'，boot 与第一章的 setMode('s1_mid') 都会因相等提前 return，
+    // 刷新后第一面印象场景一直空白，直到首次切场景才恢复（回归见 test/cases-three.js）。
+    this.mode = null;
     this.tendency = { a: 0, b: 0, pct: 0 };
     this.extras = [];
     this.labels = [];

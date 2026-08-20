@@ -279,6 +279,11 @@
       <div class="game-layout">
         <aside class="panel-left" id="stage-impression">
           <canvas id="bg3d"></canvas>
+          <div id="bg3d-fallback" class="hidden">
+            <p>印象场景加载失败</p>
+            <p id="bg3d-fallback-err"></p>
+            <button type="button" id="bg3d-fallback-retry">点击重试</button>
+          </div>
           <div class="overlay-fx" id="bg-overlay"></div>
           <div class="stage-label" id="stage-label">Stage 1</div>
         </aside>
@@ -379,7 +384,6 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
       "tweakpane": "https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpane.js"
     }
   }
