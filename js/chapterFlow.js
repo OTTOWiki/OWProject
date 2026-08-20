@@ -582,7 +582,7 @@ export function showEnding(game, which) {
       openResult(game, {
         title: 'Nomiss 完成',
         body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}\n${localStatsText(game.stats)}`,
-        actions: ['menu'],
+        actions: ['retry', 'menu'],
       });
       return;
     }
@@ -599,6 +599,7 @@ export function showEnding(game, which) {
         title,
         body,
         retryChapter,
+        actions: ['save-replay', 'retry', 'menu'],
       });
     };
     openScoreRanking(game, openFinal);
@@ -642,6 +643,7 @@ export function gameOver(game) {
       title: 'Nomiss 结算',
       body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch?.name ?? '—'}\n得分：${game.score}\n${localStatsText(game.stats)}`,
       retryChapter: ch?.id ?? 1,
+      actions: ['retry', 'menu'],
     });
     return;
   }
@@ -664,6 +666,7 @@ export function gameClear(game) {
       title: 'All Clear',
       body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}\n${localStatsText(game.stats)}`,
       retryChapter: 1,
+      actions: ['retry', 'menu'],
     });
     return;
   }
@@ -676,6 +679,7 @@ export function gameClear(game) {
       title: 'All Clear',
       body,
       retryChapter: 1,
+      actions: ['save-replay', 'retry', 'menu'],
     });
   };
   openScoreRanking(game, openFinal);

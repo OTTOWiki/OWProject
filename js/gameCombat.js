@@ -11,7 +11,7 @@ import {
   debugBlocksHit, debugLocksLives, debugLocksBombs, debugAutoEdit,
 } from './debug.js';
 import { acquireParticle } from './particlePool.js';
-import { acquireItem } from './itemPool.js';
+import { acquireItem, releaseItemList } from './itemPool.js';
 import { updateGameHud, updateLetterHud } from './hud.js';
 import { finishChapter, gameOver, startChapter, softClearForNextChapter } from './chapterFlow.js';
 import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
@@ -414,7 +414,8 @@ export function nomissRestart(game) {
   if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
   flashMsg(game, '无伤重开', 1.2);
 
-  softClearForNextChapter(game, { convert: true });
+  softClearForNextChapter(game, { convert: false });
+  releaseItemList(game.items);
   startChapter(game);
 }
 

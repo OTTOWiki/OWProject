@@ -153,6 +153,7 @@ export function runOverlayAction(game, action) {
       title: 'Nomiss 结算',
       body: `难度：${game.diff.rank} ${game.diff.name}\n进度：${ch?.name ?? '—'}\n${localStatsText(game.stats)}`,
       retryChapter: ch?.id ?? 1,
+      actions: ['retry', 'menu'],
     });
     return;
   }
