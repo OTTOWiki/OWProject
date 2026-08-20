@@ -275,6 +275,10 @@ async function boot() {
       try {
         await loadThreeModule();
         const nb = initBackground();
+        // 继承当前背景模式（setMode 在 initBackground 内已设默认 's1_mid'）
+        if (game?.background?.mode) {
+          nb.setMode(game.background.mode);
+        }
         hideBgFallback();
         if (game) game.background = nb;
       } catch (err) {

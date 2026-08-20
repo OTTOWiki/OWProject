@@ -50,7 +50,12 @@ export async function loadThreeModule() {
   const errors = [];
   for (const url of THREE_MIRRORS) {
     try {
-      const mod = await import(url);
+      const mod = await Promise.race([
+        import(url),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 15000)
+        ),
+      ]);
       setThree(mod);
       return mod;
     } catch (err) {
