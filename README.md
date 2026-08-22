@@ -42,7 +42,7 @@ python -m http.server 8080
 - **Nomiss 无伤模式**：Start Game → 选难度 → **自机选择页勾选「Nomiss 无伤模式」**进入；被弹自动重开当前章（不扣残机、不 Game Over、资源回滚至进章状态、BGM 回带、Unstable 还原）；进度持久化可续章；仅暂停手动结算或通关结局结算；不录制、不入榜
 - Letter 卡收取记录（成功收取 / 总尝试 = 收率%，实战与练习共用一份持久记录）
 - 击破连击 Combo、续关（续关后分数清零）、结算统计、练习各章最佳记录
-- 左侧 Three.js 关卡印象；BGM 为 **OGG**（`assets/bgm/*.ogg`）
+- 左侧 Three.js 关卡印象；BGM 为 **OGG**（`assets/bgm/*.ogg`，东方 Project 原作音乐，见 `assets/NOTICE.md`）
 - 高分 / 键位 / 设置 / 排行榜 localStorage 存档；录像帧数据存 IndexedDB
 - History 依赖 Cloudflare Pages Functions（`functions/api/`），本地纯静态可能不可用
 
@@ -56,15 +56,23 @@ python -m http.server 8080
 ## 目录
 
 ```
-CONTRIBUTING.md   # 贡献指南
-AGENTS.md         # 架构与开发约定
+LICENSE            # GPL-3.0-or-later（代码）
+CONTRIBUTING.md    # 贡献指南
+AGENTS.md          # 架构与开发约定
 index.html / css/style.css
 js/               # 游戏逻辑
 test/             # 零依赖自动化测试（npm test）
-assets/           # 贴图（AVIF）+ OGG
+assets/           # 贴图（AVIF）+ OGG；NOTICE.md = 素材授权说明
 tools/ docs/ functions/api/
 参考/             # 过时设计稿（非权威）
 ```
+
+## 授权与素材
+
+- 代码：**GPL-3.0-or-later**，全文见 `LICENSE`。
+- BGM：东方 Project **原作游戏音乐**，著作权归上海爱丽丝幻乐团（上海アリス幻樂団 / Team Shanghai Alice）。本项目作为二次创作使用，详见 `assets/NOTICE.md`（含官方指南中「原作游戏素材」的相关提示）。
+- 立绘 / 背景：AI 生成的东方 Project **同人创作素材**，不随代码 GPL 授权；详见 `assets/NOTICE.md`。
+- 本作是基于东方 Project 的 fan work，遵循官方《東方Projectの二次創作ガイドライン》（https://touhou-project.news/guideline/ ，2024-05-31 更新）。
 
 ## 平衡与开发
 

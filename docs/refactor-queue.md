@@ -789,4 +789,16 @@ Phase E 含可选 backlog 已全部收尾。
 | **验收（自动）** | `npm test` 119/119；`npm run test:e2e` 7/7；`/test/` 能读到 e2e.json 并渲染汇总 |
 | **验收（CI）** | `Test` + `E2E` 两 check 均绿 |
 
+---
+
+## 阶段 H — 开源许可证与素材标注（2026-08-22）
+
+### H01 GPL-3.0-or-later + 素材授权说明
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | 根目录 `LICENSE`（GPL-3.0-or-later，仅代码）；`assets/NOTICE.md` 标注 BGM 为东方 Project 原作音乐、立绘/背景为 AI 同人素材；README/AGENTS 目录树与「授权」段落同步；引用官方《東方Projectの二次創作ガイドライン》（2024-05-31，touhou-project.news/guideline/） |
+| **不做** | 不删除/替换任何素材；不改游戏行为 |
+| **验收（自动）** | `npm test` 119/119（纯文档改动不回归） |
+
 **手测要点**：跑一遍通用清单（主菜单→Story 1 面→暂停/继续→练习一章→Stage Select→Extra 开局），重点确认弹幕/敌机/道具/版面绘制与改前观感一致（F01/F03/F11/F12 涉及运行时路径）。
