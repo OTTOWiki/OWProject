@@ -24,7 +24,11 @@ const CORE_MODULES = [
   '../js/patterns.js',
   '../js/entities.js',
   '../js/draw/index.js',
-  '../js/draw/entitiesDraw.js',
+  '../js/draw/drawUtils.js',
+  '../js/draw/bulletDraw.js',
+  '../js/draw/playerDraw.js',
+  '../js/draw/enemyDraw.js',
+  '../js/draw/itemDraw.js',
   '../js/collision.js',
 ];
 

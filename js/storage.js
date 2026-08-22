@@ -3,15 +3,24 @@ import {
   PLAYER_BULLET_OPACITY_MIN, FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED,
 } from './config.js';
 
-export function loadKeys() {
+/**
+ * localStorage JSON 读取：缺失/坏 JSON 返回 undefined；合法 JSON 原样返回（含 null）。
+ * 各 loader 只保留自己的 shape 校验，不再重复 try/catch。
+ */
+export function parseStored(key) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.keys);
-    if (!raw) return { ...DEFAULT_KEYS };
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_KEYS, ...parsed };
+    const raw = localStorage.getItem(key);
+    if (raw == null) return undefined;
+    return JSON.parse(raw);
   } catch {
-    return { ...DEFAULT_KEYS };
+    return undefined;
   }
+}
+
+export function loadKeys() {
+  const parsed = parseStored(STORAGE_KEYS.keys);
+  if (parsed == null) return { ...DEFAULT_KEYS };
+  return { ...DEFAULT_KEYS, ...parsed };
 }
 
 export function saveKeys(keys) {
@@ -57,22 +66,17 @@ export function sliderToFpsLimit(sliderVal) {
 }
 
 export function loadSettings() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.settings);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw);
-    return {
-      musicVolume: clamp01(parsed.musicVolume, DEFAULT_SETTINGS.musicVolume),
-      playerBulletOpacity: clampBulletOpacity(
-        parsed.playerBulletOpacity,
-        DEFAULT_SETTINGS.playerBulletOpacity,
-      ),
-      shotToggle: !!parsed.shotToggle,
-      fpsLimit: normalizeFpsLimit(parsed.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
-    };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
+  const parsed = parseStored(STORAGE_KEYS.settings);
+  if (parsed == null) return { ...DEFAULT_SETTINGS };
+  return {
+    musicVolume: clamp01(parsed.musicVolume, DEFAULT_SETTINGS.musicVolume),
+    playerBulletOpacity: clampBulletOpacity(
+      parsed.playerBulletOpacity,
+      DEFAULT_SETTINGS.playerBulletOpacity,
+    ),
+    shotToggle: !!parsed.shotToggle,
+    fpsLimit: normalizeFpsLimit(parsed.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
+  };
 }
 
 export function saveSettings(settings) {
@@ -105,22 +109,17 @@ export function saveHiscore(score) {
 /** 进度记录（Stage Select 不门禁；见 AGENTS.md）。损坏数据时回落默认 */
 export function loadUnlocked() {
   const fallback = { stage: 1, routes: { A: false, B: false } };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.unlocked);
-    if (!raw) return { ...fallback, routes: { ...fallback.routes } };
-    const u = JSON.parse(raw);
-    const stage = Number(u?.stage);
-    const routes = u?.routes && typeof u.routes === 'object' ? u.routes : {};
-    return {
-      stage: Number.isFinite(stage) && stage >= 1 ? stage : 1,
-      routes: {
-        A: !!routes.A,
-        B: !!routes.B,
-      },
-    };
-  } catch {
-    return { ...fallback, routes: { ...fallback.routes } };
-  }
+  const u = parseStored(STORAGE_KEYS.unlocked);
+  if (u == null) return { ...fallback, routes: { ...fallback.routes } };
+  const stage = Number(u?.stage);
+  const routes = u?.routes && typeof u.routes === 'object' ? u.routes : {};
+  return {
+    stage: Number.isFinite(stage) && stage >= 1 ? stage : 1,
+    routes: {
+      A: !!routes.A,
+      B: !!routes.B,
+    },
+  };
 }
 
 export function unlockStage(stage) {
@@ -144,18 +143,12 @@ export function unlockRoute(route) {
 
 /** 练习模式上次选择（章节 id + 难度）；损坏/缺失回落 null */
 export function loadPracticePrefs() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.practice);
-    if (!raw) return null;
-    const p = JSON.parse(raw);
-    if (!p || !Number.isInteger(p.chapter)) return null;
-    return {
-      chapter: p.chapter,
-      diff: typeof p.diff === 'string' ? p.diff : null,
-    };
-  } catch {
-    return null;
-  }
+  const p = parseStored(STORAGE_KEYS.practice);
+  if (!p || !Number.isInteger(p.chapter)) return null;
+  return {
+    chapter: p.chapter,
+    diff: typeof p.diff === 'string' ? p.diff : null,
+  };
 }
 
 export function savePracticePrefs(prefs) {
@@ -172,16 +165,10 @@ export function savePracticePrefs(prefs) {
  * @returns {number|null} 下一章 id（正整数），无进度时 null
  */
 export function loadNomissProgress() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.nomissProgress);
-    if (!raw) return null;
-    const p = JSON.parse(raw);
-    const id = Number(p?.nextChapterId);
-    if (!Number.isInteger(id) || id <= 0) return null;
-    return id;
-  } catch {
-    return null;
-  }
+  const p = parseStored(STORAGE_KEYS.nomissProgress);
+  const id = Number(p?.nextChapterId);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
 }
 
 /**
@@ -205,26 +192,20 @@ export function saveNomissProgress(id) {
  * 实战与练习共用一份；回放不计数。损坏数据丢弃，解析失败返回 {}。
  */
 export function loadLetterRate() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.letterRate);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const out = {};
-    for (const key of Object.keys(parsed)) {
-      if (!/^\d+$/.test(key)) continue; // chapterId 须为数字字符串键
-      const entry = parsed[key];
-      if (!entry || typeof entry !== 'object') continue;
-      const { tries, captures } = entry;
-      if (!Number.isInteger(tries) || tries < 0) continue;
-      if (!Number.isInteger(captures) || captures < 0) continue;
-      if (captures > tries) continue; // 丢弃不合法的 captures > tries 项
-      out[key] = { tries, captures };
-    }
-    return out;
-  } catch {
-    return {};
+  const parsed = parseStored(STORAGE_KEYS.letterRate);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const out = {};
+  for (const key of Object.keys(parsed)) {
+    if (!/^\d+$/.test(key)) continue; // chapterId 须为数字字符串键
+    const entry = parsed[key];
+    if (!entry || typeof entry !== 'object') continue;
+    const { tries, captures } = entry;
+    if (!Number.isInteger(tries) || tries < 0) continue;
+    if (!Number.isInteger(captures) || captures < 0) continue;
+    if (captures > tries) continue; // 丢弃不合法的 captures > tries 项
+    out[key] = { tries, captures };
   }
+  return out;
 }
 
 export function recordLetterTry(chapterId) {
@@ -261,34 +242,28 @@ export function letterRateText(tries, captures) {
  * 校验：chapterId 数字、diffId 字符串、score 有限数字、perfect 布尔；坏数据丢弃，解析失败返回 {}。
  */
 export function loadPracticeBest() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.practiceBest);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const out = {};
-    for (const [chKey, diffs] of Object.entries(parsed)) {
-      const chapterId = Number(chKey);
-      if (!Number.isInteger(chapterId)) continue;
-      if (!diffs || typeof diffs !== 'object' || Array.isArray(diffs)) continue;
-      const diffMap = {};
-      for (const [diffId, rec] of Object.entries(diffs)) {
-        if (typeof diffId !== 'string' || !rec || typeof rec !== 'object') continue;
-        const score = Number(rec.score);
-        if (!Number.isFinite(score)) continue;
-        if (typeof rec.perfect !== 'boolean') continue;
-        diffMap[diffId] = {
-          score: Math.floor(score),
-          perfect: rec.perfect,
-          date: Number.isFinite(Number(rec.date)) ? Number(rec.date) : Date.now(),
-        };
-      }
-      if (Object.keys(diffMap).length) out[chapterId] = diffMap;
+  const parsed = parseStored(STORAGE_KEYS.practiceBest);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const out = {};
+  for (const [chKey, diffs] of Object.entries(parsed)) {
+    const chapterId = Number(chKey);
+    if (!Number.isInteger(chapterId)) continue;
+    if (!diffs || typeof diffs !== 'object' || Array.isArray(diffs)) continue;
+    const diffMap = {};
+    for (const [diffId, rec] of Object.entries(diffs)) {
+      if (typeof diffId !== 'string' || !rec || typeof rec !== 'object') continue;
+      const score = Number(rec.score);
+      if (!Number.isFinite(score)) continue;
+      if (typeof rec.perfect !== 'boolean') continue;
+      diffMap[diffId] = {
+        score: Math.floor(score),
+        perfect: rec.perfect,
+        date: Number.isFinite(Number(rec.date)) ? Number(rec.date) : Date.now(),
+      };
     }
-    return out;
-  } catch {
-    return {};
+    if (Object.keys(diffMap).length) out[chapterId] = diffMap;
   }
+  return out;
 }
 
 /** 写练习各章最佳（覆盖同章同难度）；异常静默 */

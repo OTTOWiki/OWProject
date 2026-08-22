@@ -28,44 +28,41 @@ export function scaleBulletCount(game, n, parity = null) {
 }
 
 /**
+ * 扇形狙统一实现：base + (i - (n-1)/2) * spread。
+ * n 为奇数时中心路对准 base；n 为偶数时 (n-1)/2 为半步，无弹正对 base。
+ */
+export function fan(base, n, spread) {
+  const a = [];
+  const mid = (n - 1) / 2;
+  for (let i = 0; i < n; i++) a.push(base + (i - mid) * spread);
+  return a;
+}
+
+/** 以自机为 base 的扇形狙（oddAim / evenAim 的公共实现） */
+function fanFrom(from, player, n, spread) {
+  return fan(aimAngle(from, player), n, spread);
+}
+
+/**
  * 奇数路扇形狙：等角间隔，中心路对准自机（n 为奇数时；n 为偶数时几何与 evenAim 相同）。
  * 角度 = base + (i - (n-1)/2) * spread
  */
 export function oddAim(from, player, n, spread = 0.18) {
-  const base = aimAngle(from, player);
-  const bullets = [];
-  const mid = (n - 1) / 2;
-  for (let i = 0; i < n; i++) {
-    bullets.push(base + (i - mid) * spread);
-  }
-  return bullets;
+  return fanFrom(from, player, n, spread);
 }
 
 /**
- * 偶数路扇形狙：与 oddAim 同一公式。
+ * 偶数路扇形狙：与 oddAim 同一公式（默认 spread 不同）。
  * n 为偶数时 (n-1)/2 为半步，无弹正对 base，自机方向在中心两弹夹缝。
  * n 为奇数时中心路对准 base（与 oddAim 一致）。历史上曾有空 if 分支，已删除以免误导。
  */
 export function evenAim(from, player, n, spread = 0.2) {
-  const base = aimAngle(from, player);
-  const bullets = [];
-  const mid = (n - 1) / 2;
-  for (let i = 0; i < n; i++) {
-    bullets.push(base + (i - mid) * spread);
-  }
-  return bullets;
+  return fanFrom(from, player, n, spread);
 }
 
 export function ring(n, baseAngle = 0) {
   const a = [];
   for (let i = 0; i < n; i++) a.push(baseAngle + (i / n) * Math.PI * 2);
-  return a;
-}
-
-export function fan(base, n, spread) {
-  const a = [];
-  const mid = (n - 1) / 2;
-  for (let i = 0; i < n; i++) a.push(base + (i - mid) * spread);
   return a;
 }
 
@@ -96,10 +93,8 @@ export function spawnAimed(game, from, player, opts) {
     angles = ring(nn, baseAngle ?? 0);
   } else if (parity === 'fixed') {
     angles = fan(baseAngle ?? Math.PI / 2, nn, spread);
-  } else if (parity === 'even') {
-    angles = evenAim(from, player, nn, spread);
   } else {
-    angles = oddAim(from, player, nn, spread);
+    angles = fanFrom(from, player, nn, spread);
   }
 
   for (const ang of angles) {

@@ -4,8 +4,12 @@
  * 与录像完全独立（排行榜不引用 replayId）。
  */
 import { STORAGE_KEYS, RANKING_LIMIT } from './config.js';
+import { parseStored } from './storage.js';
 
 const MAX_NAME_CHARS = 3;
+
+/** 路线 → 显示标签（排行榜 / 成绩排行共用） */
+export const ROUTE_LABEL = { A: 'A线', B: 'B线', EX: 'EX' };
 
 function clean(s) {
   return Array.from(String(s ?? ''))
@@ -24,14 +28,8 @@ export function normalizeName(name, fallback = '') {
 }
 
 export function loadRanking() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.ranking);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+  const parsed = parseStored(STORAGE_KEYS.ranking);
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 }
 
 export function saveRanking(ranking) {

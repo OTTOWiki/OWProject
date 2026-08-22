@@ -137,6 +137,21 @@ function dismissLoadScreen() {
   setTimeout(() => elLoad.remove(), 700);
 }
 
+/** 启动失败：把加载屏替换为错误信息（boot 内 catch 与最后兜底共用） */
+function showBootFailure(e) {
+  if (!elLoad) return;
+  elLoad.dataset.dismissed = '';
+  elLoad.classList.remove('done');
+  elLoad.replaceChildren();
+  const box = document.createElement('div');
+  box.style.cssText = 'color:#f87171;font-size:16px;text-align:center;padding:40px';
+  box.append('启动失败', document.createElement('br'));
+  const small = document.createElement('small');
+  small.textContent = e?.message || String(e);
+  box.append(small);
+  elLoad.append(box);
+}
+
 /**
  * Initializes the audio, input, background, game, and user interface systems.
  *
@@ -327,14 +342,6 @@ async function boot() {
       }
     }
 
-    const unlock = () => {
-      audio.ensure();
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-    };
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
-
     // 对话/选线的点击改走 input.tap（会进录像快照），不直调 game 方法，
     // 否则点击绕过 withSeededRng + 快照，回放会卡对话/卡选线且种子流偏移。
     const setTap = (x) => { if (game) game.input.tap = { x, y: 0 }; };
@@ -363,15 +370,15 @@ async function boot() {
       routePickFromClientX(e.clientX);
     });
 
-    const unlockAudio = () => {
+    const unlockTrackPreload = () => {
       audio.ensure()
         .then(() => audio.loadTrackData('s1_mid'))
         .catch(() => {});
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('pointerdown', unlockTrackPreload);
+      window.removeEventListener('keydown', unlockTrackPreload);
     };
-    window.addEventListener('pointerdown', unlockAudio);
-    window.addEventListener('keydown', unlockAudio);
+    window.addEventListener('pointerdown', unlockTrackPreload);
+    window.addEventListener('keydown', unlockTrackPreload);
 
     const art = document.getElementById('menu-title-art');
     if (art) art.classList.add('ready');
@@ -384,31 +391,11 @@ async function boot() {
     );
   } catch (e) {
     console.error('Boot failed:', e);
-    if (elLoad) {
-      elLoad.dataset.dismissed = '';
-      elLoad.classList.remove('done');
-      elLoad.replaceChildren();
-      const box = document.createElement('div');
-      box.style.cssText = 'color:#f87171;font-size:16px;text-align:center;padding:40px';
-      box.append('启动失败', document.createElement('br'));
-      const small = document.createElement('small');
-      small.textContent = e?.message || String(e);
-      box.append(small);
-      elLoad.append(box);
-    }
+    showBootFailure(e);
   }
 }
 
 boot().catch((e) => {
   console.error('Boot crashed:', e);
-  if (elLoad) {
-    elLoad.replaceChildren();
-    const box = document.createElement('div');
-    box.style.cssText = 'color:#f87171;font-size:16px;text-align:center;padding:40px';
-    box.append('启动失败', document.createElement('br'));
-    const small = document.createElement('small');
-    small.textContent = e?.message || String(e);
-    box.append(small);
-    elLoad.append(box);
-  }
+  showBootFailure(e);
 });

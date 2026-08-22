@@ -109,16 +109,17 @@ js/
   gameDraw.js / gameOverlay.js / gameCombat.js / chapterFlow.js / chapterEnd.js / hud.js
   runStats.js          # 对局统计纯格式化（formatRunTime / formatRunStats）
   collision.js / patterns.js / entities.js / spawnScale.js
-  draw/                # 实体绘制
-  stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_*；_shared + stageContext
+  draw/                # drawUtils + bulletDraw / enemyDraw / playerDraw / itemDraw（index 聚合）
+  stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_van/ex_mid/ex_mid_0_31/ex_mid_32_61/ex_shared；_shared + stageContext
   ui.js / menuNav.js / settingsForm.js / startMode.js
   historyScreen.js / historyVersions.js
   ranking.js / rankingScreen.js / scoreRanking.js / replay.js / replayStore.js / replayScreen.js / rng.js
   input.js / audio.js / storage.js / debug.js
   backgrounds.js       # re-export → backgrounds/*
-  backgrounds/         # StageBackground、builders、scenes
+  backgrounds/         # StageBackground、builders、scenes、textTexture、threeLoader
   bgModes.js / playfieldBg.js / playfieldBgThemes.js
   sprites.js / assets.js
+  pool.js              # 泛型对象池（bullet/item/particle 共用）
   bulletPool.js / itemPool.js / particlePool.js
   dialogue.js
 test/                  # 零第三方自动化测试
@@ -156,6 +157,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `stages/*` | 章节定义 + 刷怪 | 全局状态机 |
 | `patterns.js` | 弹幕工具 | UI / 存档 |
 | `entities.js` | 实体 update | 绘制（在 `draw/`） |
+| `pool.js` | 泛型对象池（bullet/item/particle 共用 acquire/release/purge） | 实体语义 |
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
 | `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |

@@ -5,27 +5,7 @@
 import { BALANCE } from './config.js';
 import { startChapter } from './chapterFlow.js';
 import { saveHiscore, saveNomissProgress } from './storage.js';
-
-/**
- * 对局统计简版两行（本 PR 内建；若后续 runStats.js 统一模块合并则收敛）。
- * game.stats 由并行 PR 提供，此处容错读取（缺失字段按 0）。
- * 行1：擦弹/击破/道具；行2：Bomb/Miss/NMNB/最大连击/用时。
- */
-export function localStatsText(stats) {
-  const s = stats || {};
-  const graze = s.graze ?? 0;
-  const kills = s.kills ?? 0;
-  const items = s.items ?? 0;
-  const bombs = s.bombs ?? 0;
-  const misses = s.misses ?? 0;
-  const nmnb = s.nmnb ?? 0;
-  const combo = s.maxCombo ?? 0;
-  const t = Number(s.time);
-  const timeStr = Number.isFinite(t) && t > 0
-    ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
-    : '—';
-  return `擦弹 ${graze} · 击破 ${kills} · 道具 ${items}\nBomb ${bombs} · Miss ${misses} · NMNB ${nmnb} · 最大连击 ${combo} · 用时 ${timeStr}`;
-}
+import { formatRunStatsShort } from './runStats.js';
 
 export function bindOverlayClicks(game) {
   if (game._overlayBound) return;
@@ -151,7 +131,7 @@ export function runOverlayAction(game, action) {
     const ch = game.chapters[game.chapterIndex];
     openResult(game, {
       title: 'Nomiss 结算',
-      body: `难度：${game.diff.rank} ${game.diff.name}\n进度：${ch?.name ?? '—'}\n${localStatsText(game.stats)}`,
+      body: `难度：${game.diff.rank} ${game.diff.name}\n进度：${ch?.name ?? '—'}\n${formatRunStatsShort(game.stats)}`,
       retryChapter: ch?.id ?? 1,
       actions: ['retry', 'menu'],
     });

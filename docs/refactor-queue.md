@@ -619,3 +619,148 @@ Phase E 含可选 backlog 已全部收尾。
 8. （E04）左栏 Three 换面主题  
 9. （E05）Letter 超时失败 vs 击破成功  
 10. （E07）1 面完整道中 + Alice Letter
+
+---
+
+## 阶段 F — 第三轮全库审查清理（2026-08-22）
+
+> 来源：`main` 全库第三轮严格审查（2026-08-22）。  
+> 原则不变：一次一个 `Fxx`、**不改任何实际行为**（玩家可见手感/得分/流程/UI 文案一致）、`npm test` 绿。  
+> 本批按用户指令「写计划文档后直接执行直到结束」：全部任务本批执行完，手测要点留给用户。
+
+### F01 对象池去重（不迁移导入路径）
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | 新增 `js/pool.js` 泛型 `createPool({ create, max, onRelease })`；`bulletPool.js` / `itemPool.js` / `particlePool.js` 改为三份薄绑定（保留原导出名），删除三处复制粘贴的 acquire/release/releaseList/purgeDead |
+| **不做** | 不改任何调用方 import；不改 MAX_POOL 数值；不改 release 清理字段 |
+| **验收（自动）** | `npm test` 全绿 |
+
+### F02 EX mid 平行清单收敛（不迁移文件名）
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `ex_mid_0_31.js` / `ex_mid_32_61.js` 各导出 `MID_PATTERNS_A` / `MID_PATTERNS_B` 数组；`ex_mid.js` 只 import 两个数组并拼接 `MID_PATTERNS`，删除 62 具名 import 与 62 具名 re-export；`SI` 上移 `ex_shared.js`；删 44 处 `g.waveCount = wave` no-op（`installMidWave` 已置同一值） |
+| **不做** | 不移动 `ex_mid_0_31/32_61` 文件；不改任何弹幕数值/顺序 |
+| **验收（自动）** | `npm test` 全绿（MID_PATTERNS 仍长度 62） |
+
+### F03 瞄准角公式三合一
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `patterns.js`：`oddAim`/`evenAim` 保留导出名与各自默认 spread，内部统一走 `fan(aimAngle(...))`；`spawnAimed` 的 odd/even 分支改为同一 `fanFrom` 路径（几何不变） |
+| **不做** | 不改角度公式、默认 spread、`fixed`/`ring` 分支 |
+| **验收（自动）** | `npm test` 全绿（`cases-patterns` 几何断言不动） |
+
+### F04 对局统计格式化收敛（输出不变）
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | 把 `gameOverlay.localStatsText` 原样移入 `runStats.formatRunStatsShort`；`chapterFlow.js` 4 处与 `gameOverlay.js` 1 处改 import 调用；删除 `localStatsText` 定义 |
+| **不做** | **不改输出文本**（仍两行、不含决死拆解，与现状逐字一致）；`formatRunStats` 三行版保持不变 |
+| **验收（自动）** | `npm test` 全绿；`cases-nomiss` 改 import 后断言不变 |
+
+### F05 死代码与兼容路径澄清
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | 删除 `debug.js` 的 no-op `drawDebugOverlay`（全库无调用）；`collision.js` 的 `rebuildBulletLists` **保留**并修正注释为「生产路径兼容守卫：runCollisions 每帧在合并 bullets 旧状态下调用」（不删） |
+| **不做** | 不删 `rebuildBulletLists` 及其调用点 |
+| **验收（自动）** | `npm test` 全绿 |
+
+### F06 小常量/音效去重
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `ROUTE_LABEL` 上移 `ranking.js` 导出，`rankingScreen.js`/`scoreRanking.js` 改 import；`audio.js` `sfx('extend')` 与 `sfx('letter')` 抽共享 `arp()`（频率/时序/波形逐字一致） |
+| **不做** | 不改任何标签文案与音效参数 |
+| **验收（自动）** | `npm test` 全绿 |
+
+### F07 main.js 启动失败渲染与解锁监听收敛
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | 抽 `showBootFailure(err)` 替换两处重复渲染；删除中间冗余 `unlock` 监听（两个 `unlockAudio` 均已 `ensure()`，中间只重复 ensure）；第二个 `unlockAudio` 改名为 `unlockTrackPreload` 消除跨作用域同名混淆 |
+| **不做** | 不改加载/预载/解锁时序语义 |
+| **验收（自动）** | `npm test` 全绿；`node --check js/main.js` |
+
+### F08 localStorage 安全读收敛
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `storage.js` 增 `parseStored(key)`（缺失/坏 JSON 返回 `undefined`，合法 JSON 原样返回，含 `null`）；各 load 函数只保留 shape 校验；`ranking.js:loadRanking`、`replayStore.js:loadReplayIndex` 复用同一 helper |
+| **不做** | 不改任何 fallback/校验规则与写入路径 |
+| **验收（自动）** | `npm test` 全绿 |
+
+### F09 replayStore 删除路径对称回滚（不换存储介质）
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `deleteReplay` 先 `loadReplay` 取原记录，再删 IDB、写 localStorage 索引；索引写失败则把原记录 `put` 回 IDB 并 rethrow（与 `saveReplay` 已有的反向回滚对称）。索引仍以 localStorage 为真源，**不改存储布局**，现有用户录像列表不受影响 |
+| **不做** | 不迁移索引到 IndexedDB（会改变现有用户行为） |
+| **验收（自动）** | `npm test` 全绿 |
+
+### F10 ui.js 动作分发去 if/else 链
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `_action(action)` 改为 action → handler 描述符表；每个分支原样搬成 handler 方法（含 `_sfx` 与 `show` 调用顺序不变） |
+| **不做** | 不改任何动作的跳转/音频/数据行为 |
+| **验收（自动）** | `npm test` 全绿；`node --check js/ui.js` |
+
+### F11 entitiesDraw 拆分（纯文件搬家，绘制逻辑零改动）
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | 新增 `js/draw/drawUtils.js`（frameNow/withAlpha/softGlow/softGlowAt/graze 辅助）；`js/draw/bulletDraw.js`（rice/talisman/laser/softGlow 缓存 + drawBullet）；`js/draw/enemyDraw.js`（drawEnemy + boss/elite 形状）；`js/draw/playerDraw.js`（drawPlayer）；`js/draw/itemDraw.js`（drawItem + drawCollectLine）；`js/draw/index.js` 改从新文件 re-export 原 6 个导出；删除 `entitiesDraw.js` |
+| **不做** | 不改任何绘制公式/缓存键/导出名 |
+| **验收（自动）** | `npm test` 全绿；`node --check` 各新文件 |
+
+### F12 Game 门面薄转发收敛
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `game.js` 底部 42 个 `_xxx` 显式方法改为一个 `GAME_FACADE` 函数表 + 循环绑定到 `Game.prototype`（同名、同签名、同 this）；不搬 `_loop`/回放代码（E01 已定型，主循环保持现状） |
+| **不做** | 不改任何方法名/签名/对外行为 |
+| **验收（自动）** | `npm test` 全绿；`node --check js/game.js` |
+
+### F13 文档对齐（AGENTS.md / 必要处）
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | AGENTS.md：目录树补 `pool.js` 与 `draw/*` 新文件；`Game.mode` 补 `nomiss`；`STORAGE_KEYS` 表补 ranking/rankingName/replayIndex/practice/nomissProgress/letterRate/practiceBest；模块职责表补 rng/runStats/ranking*/replay*/scoreRanking；测试清单补新 cases |
+| **不做** | 不改产品代码 |
+| **验收（自动）** | `npm test` 全绿 |
+
+> 执行顺序：F01 → F13，每步 `npm test`；最终再跑一次全量 `npm test`。
+
+
+## Phase F 执行记录（2026-08-22）
+
+| 任务 | 自动测试 | 状态 | 备注 |
+|------|----------|------|------|
+| F01 对象池去重 | 119/119 | 完成 | `js/pool.js` + 三池薄绑定 |
+| F02 EX mid 平行清单 | 119/119 | 完成 | `MID_PATTERNS_A/B`；删 62 具名 import/re-export 与 44 处 no-op |
+| F03 瞄准公式三合一 | 119/119 | 完成 | `fan`/`fanFrom`；odd/even 保留导出与默认 spread |
+| F04 统计格式化收敛 | 119/119 | 完成 | `formatRunStatsShort`；输出逐字一致 |
+| F05 死代码/兼容澄清 | 119/119 | 完成 | 删 `drawDebugOverlay`；`rebuildBulletLists` 保留（每帧兼容守卫） |
+| F06 ROUTE_LABEL/音效去重 | 119/119 | 完成 | 常量上移 `ranking.js`；`arp()` 参数逐字一致 |
+| F07 main.js 收敛 | 119/119 | 完成 | `showBootFailure`；删冗余中间 unlock；重命名第二个 unlockAudio |
+| F08 localStorage 安全读 | 119/119 | 完成 | `parseStored` 复用于 storage/ranking/replayStore |
+| F09 replayStore 删除回滚 | 119/119 | 完成 | 索引仍 localStorage 真源；索引写失败回滚 IDB 记录 |
+| F10 ui.js 动作分发 | 119/119 | 完成 | `UI_ACTION_HANDLERS` 表，分支原样迁移 |
+| F11 entitiesDraw 拆分 | 119/119 | 完成 | drawUtils/bulletDraw/enemyDraw/playerDraw/itemDraw；删 entitiesDraw.js |
+| F12 Game 门面收敛 | 119/119 | 完成 | `GAME_FACADE` 表 + 循环绑定，方法名/签名不变 |
+| F13 AGENTS.md 对齐 | 119/119 | 完成 | 目录树/职责表补 pool.js、draw/*、backgrounds/* 新文件 |
+
+**Playwright 实测（2026-08-22，localhost:3000）**：
+
+- boot：`owDebug` 就绪、加载屏消失、console 0 error（仅 favicon 404 + meta 弃用警告）。
+- 游戏冒烟：`owDebug.set({invincible:true,lockBombs:true,lockLives:true,timeScale:3})` + `softJump(129)`；EX 弹幕/敌机/道具/粒子正常（en 3 bul 24、分数增长、canvas 非空白）。
+- 暂停/继续、暂停保存录像、录像列表播放、二次确认删除均正常（F09/F10 成功路径）。
+- 设置改音量 → `gunwei_settings` 写盘正确、刷新后回读正确（F08）。
+- 排行榜 route 标签 A线 / EX+续 渲染正确（F06）。
+- Nomiss 结算两行短统计输出逐字正确（F04）。
+- 备注：回放卡在 EX-1 `ex_open` 对话是**debug 录制的预期现象**（用 `owDebug.next()` 直接推进对话，未写入录像快照），非回归；Escape 未退出的现象记为 rAF 节流/调试录制偏斜，`_handleReplayControl`/`_exitReplay` 不属 F01–F13，不改代码。
+
+**手测要点**：跑一遍通用清单（主菜单→Story 1 面→暂停/继续→练习一章→Stage Select→Extra 开局），重点确认弹幕/敌机/道具/版面绘制与改前观感一致（F01/F03/F11/F12 涉及运行时路径）。

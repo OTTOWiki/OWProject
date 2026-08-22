@@ -433,16 +433,6 @@ function refreshHudLine() {
   ].filter(Boolean).join(' · ');
 }
 
-/** 画在 canvas 上的角标（可选，HUD DOM 已有） */
-export function drawDebugOverlay(ctx) {
-  if (!debugShowOverlay()) return;
-  const game = g();
-  if (!game?.running) return;
-  void ctx;
-  void LOGICAL_W;
-  void LOGICAL_H;
-}
-
 /* ---------- 开关 / 热键 / 控制台 ---------- */
 
 export function setDebugEnabled(on, { openPanel = true } = {}) {
