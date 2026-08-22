@@ -1,8 +1,8 @@
 # 纯逻辑 + mock 冒烟（node test/run-node.mjs）+ Playwright e2e（test/e2e）
 # 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
 #
-# 分支保护 required check 名：**Test**（本 job 的 name）。
-# 以后加测：在本 job 里加 step（或 matrix），保持 job name 仍为 Test，不必再拆并列 job。
+# 分支保护 required checks：**Test**（逻辑）+ **E2E**（Playwright）+ CodeRabbit。
+# 以后加测：逻辑进 test job，浏览器 e2e 进 e2e job。
 name: Test
 
 on:
@@ -18,6 +18,22 @@ concurrency:
 jobs:
   test:
     name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+
+      - name: Run logic tests
+        run: npm test
+
+  e2e:
+    name: E2E
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -35,8 +51,13 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run logic tests
-        run: npm test
-
       - name: Run Playwright e2e
         run: npm run test:e2e
+
+      - name: Upload e2e report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-results
+          path: test-results
+          retention-days: 7

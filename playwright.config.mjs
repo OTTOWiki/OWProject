@@ -7,7 +7,11 @@ export default defineConfig({
   // 游戏页面单实例 + 单 worker，避免并发抢端口/共享 localStorage 状态
   fullyParallel: false,
   workers: 1,
-  reporter: 'list',
+  reporter: [
+    ['list'],
+    // /test/ 页面会读取这份 JSON 展示 e2e 结果
+    ['json', { outputFile: 'test-results/e2e.json' }],
+  ],
   use: {
     baseURL: 'http://127.0.0.1:3000',
     headless: true,
