@@ -87,12 +87,12 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 - 分发：`test/run-tests.mjs` — 有 bun 跑 `bun test`，否则 node `check-syntax` + `run-node`
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
-- 浏览器：`test/index.html` → `run.js` + `cases.js`
-- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（smoke/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve
+- 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
+- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（smoke/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
-- CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm ci` + Playwright Chromium + `npm test` + `npm run test:e2e`（本地仍 `npm test`）
-- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step
+- CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。本地仍 `npm test`
+- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job，浏览器 e2e 进 `E2E` job
 
 ---
 
@@ -125,7 +125,7 @@ js/
   pool.js              # 泛型对象池（bullet/item/particle 共用）
   bulletPool.js / itemPool.js / particlePool.js
   dialogue.js
-test/                  # 零第三方自动化测试；test/e2e/ = Playwright e2e
+test/                  # 零第三方自动化测试；test/e2e/ = Playwright e2e；e2e-results.js = /test 页展示 e2e 结果
 assets/                # bg portraits sprites ui + bgm/*.ogg
 tools/                 # inject-deploy-hash、hooks、bump-version、to-avif
 functions/api/         # CF Pages Functions（History 等）

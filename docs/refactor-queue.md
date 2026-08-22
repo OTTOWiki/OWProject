@@ -780,4 +780,13 @@ Phase E 含可选 backlog 已全部收尾。
 
 **Playwright 用例覆盖**：boot 无错误 / EX 冒烟（敌弹/分数/canvas）/ 暂停继续 / 录像保存-列表-播放-删除 / 设置持久化 / 排行榜 A线+EX续标签 / Nomiss 两行短统计。
 
+### G02 E2E 独立门禁 + /test 页展示
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | CI 拆两个 job：`Test`（逻辑）+ `E2E`（Playwright，上传 test-results Artifact）；ruleset `protect-main` required checks 增加 `E2E`；Playwright JSON reporter 写 `test-results/e2e.json`；`/test/` 页面新增 Playwright 结果区（`test/e2e-results.js`） |
+| **不做** | 不改游戏运行行为 |
+| **验收（自动）** | `npm test` 119/119；`npm run test:e2e` 7/7；`/test/` 能读到 e2e.json 并渲染汇总 |
+| **验收（CI）** | `Test` + `E2E` 两 check 均绿 |
+
 **手测要点**：跑一遍通用清单（主菜单→Story 1 面→暂停/继续→练习一章→Stage Select→Extra 开局），重点确认弹幕/敌机/道具/版面绘制与改前观感一致（F01/F03/F11/F12 涉及运行时路径）。
