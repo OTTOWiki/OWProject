@@ -99,6 +99,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 ## 目录（要点）
 
 ```
+LICENSE                # GPL-3.0-or-later（代码）
 CONTRIBUTING.md        # 贡献流程与红线
 AGENTS.md / README.md
 index.html
@@ -126,7 +127,7 @@ js/
   bulletPool.js / itemPool.js / particlePool.js
   dialogue.js
 test/                  # 零第三方自动化测试；test/e2e/ = Playwright e2e；e2e-results.js = /test 页展示 e2e 结果
-assets/                # bg portraits sprites ui + bgm/*.ogg
+assets/                # bg portraits sprites ui + bgm/*.ogg；NOTICE.md = 素材授权说明
 tools/                 # inject-deploy-hash、hooks、bump-version、to-avif
 functions/api/         # CF Pages Functions（History 等）
 docs/                  # 内部改造队列等（非运行时）
@@ -134,6 +135,8 @@ docs/                  # 内部改造队列等（非运行时）
 ```
 
 兼容 re-export：`stages/a4_menbailiang.js` 等 → 对应 `a4/`… 子目录，新增内容改子目录。
+
+**授权**：代码 GPL-3.0-or-later（见 `LICENSE`）。BGM 为东方 Project **原作游戏音乐**（版权归上海爱丽丝幻乐团）、立绘/背景为 AI 生成的同人素材，均**不随代码 GPL 授权**，来源与合规提示见 `assets/NOTICE.md`；本作遵循官方《東方Projectの二次創作ガイドライン》（2024-05-31 更新）。
 
 ---
 
