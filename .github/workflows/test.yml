@@ -1,5 +1,4 @@
-# 纯逻辑 + mock 冒烟（node test/run-node.mjs）
-# 无 npm 依赖安装；与本地 `npm test` 一致
+# 纯逻辑 + mock 冒烟（node test/run-node.mjs）+ Playwright e2e（test/e2e）
 # 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
 #
 # 分支保护 required check 名：**Test**（本 job 的 name）。
@@ -20,7 +19,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,5 +29,14 @@ jobs:
         with:
           node-version: '26'
 
-      - name: Run tests
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run logic tests
         run: npm test
+
+      - name: Run Playwright e2e
+        run: npm run test:e2e

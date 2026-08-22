@@ -30,3 +30,8 @@ venv/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Node / Playwright (test-only)
+node_modules/
+playwright-report/
+test-results/
