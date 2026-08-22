@@ -755,51 +755,64 @@ export class Game {
     }
   }
 
-  /* ========== 对外 / debug / main 薄入口（模块内已直调，不再经此绕圈） ========== */
+  /* ========== 对外 / debug / main 薄入口：由 GAME_FACADE 表统一绑定 ========== */
+}
 
-  _startChapter() { startChapter(this); }
-  _softClearForNextChapter(opts) { softClearForNextChapter(this, opts); }
-  _openDialogue(lines, after) { openDialogue(this, lines, after); }
-  _showDialogueLine() { showDialogueLine(this); }
-  _advanceDialogue() { advanceDialogue(this); }
-  _finishChapter(success) { finishChapter(this, success); }
-  _scheduleAdvance(sec, fn) { scheduleAdvance(this, sec, fn); }
-  _cancelAdvance() { cancelAdvance(this); }
-  _tickAdvance(dt) { tickAdvance(this, dt); }
-  _nextChapterOrEnd(ch) { nextChapterOrEnd(this, ch); }
-  _skipToValidChapter() { skipToValidChapter(this); }
-  _afterStage3() { afterStage3(this); }
-  _enterRouteSelect() { enterRouteSelect(this); }
-  _chooseRoute(route) { chooseRoute(this, route); }
-  _jumpToStage(stageKey) { jumpToStage(this, stageKey); }
-  _setEndingCinematic(on) { setEndingCinematic(this, on); }
-  _showEnding(which) { showEnding(this, which); }
-  _gameOver() { gameOver(this); }
-  _gameClear() { gameClear(this); }
-  _wrapWaveFn(raw) { return wrapWaveFn(this, raw); }
+/**
+ * debug / main / hud 的薄入口表：模块内已直调，这些方法只供外部兼容。
+ * 新增导出只需在表中加一行，循环绑定到 Game.prototype，避免手写同名转发。
+ */
+const GAME_FACADE = {
+  _startChapter: startChapter,
+  _softClearForNextChapter: softClearForNextChapter,
+  _openDialogue: openDialogue,
+  _showDialogueLine: showDialogueLine,
+  _advanceDialogue: advanceDialogue,
+  _finishChapter: finishChapter,
+  _scheduleAdvance: scheduleAdvance,
+  _cancelAdvance: cancelAdvance,
+  _tickAdvance: tickAdvance,
+  _nextChapterOrEnd: nextChapterOrEnd,
+  _skipToValidChapter: skipToValidChapter,
+  _afterStage3: afterStage3,
+  _enterRouteSelect: enterRouteSelect,
+  _chooseRoute: chooseRoute,
+  _jumpToStage: jumpToStage,
+  _setEndingCinematic: setEndingCinematic,
+  _showEnding: showEnding,
+  _gameOver: gameOver,
+  _gameClear: gameClear,
+  _wrapWaveFn: wrapWaveFn,
+  _bulletsToPointsAndAttract: bulletsToPointsAndAttract,
+  _updateStageTransit: updateStageTransit,
+  _update: updateCombat,
+  _tickChapterBanner: tickChapterBanner,
+  _tryBomb: tryBomb,
+  _miss: miss,
+  _hitPlayer: hitPlayer,
+  _collectItem: collectItem,
+  _checkExtend: checkExtend,
+  _flashMsg: flashMsg,
+  _defaultKillDrop: defaultKillDrop,
+  _isLastLetterOfStage: isLastLetterOfStage,
+  _letterProgressInStage: letterProgressInStage,
+  _grantLetterResource: grantLetterResource,
+  _burst: burst,
+  _hideOverlay: hideOverlay,
+  _openPause: openPause,
+  _openResult: openResult,
+  _updateLetterHud: updateLetterHud,
+  _updateHUD: updateGameHud,
+  _draw: drawGameFrame,
+  _drawFps: drawFps,
+};
 
-  _bulletsToPointsAndAttract() { bulletsToPointsAndAttract(this); }
-  _updateStageTransit(dt) { updateStageTransit(this, dt); }
-  _update(dt) { updateCombat(this, dt); }
-  _tickChapterBanner(dt) { tickChapterBanner(this, dt); }
-  _tryBomb(isDeath) { return tryBomb(this, isDeath); }
-  _miss() { miss(this); }
-  _hitPlayer() { hitPlayer(this); }
-  _collectItem(it) { collectItem(this, it); }
-  _checkExtend() { checkExtend(this); }
-  _flashMsg(text, sec = 1.2) { flashMsg(this, text, sec); }
-  _defaultKillDrop(e) { return defaultKillDrop(this, e); }
-  _isLastLetterOfStage(ch) { return isLastLetterOfStage(this, ch); }
-  _letterProgressInStage(ch) { return letterProgressInStage(this, ch); }
-  _grantLetterResource(ch, perfect, success) { grantLetterResource(this, ch, perfect, success); }
-  _burst(x, y, color, n) { burst(this, x, y, color, n); }
-
-  _hideOverlay() { hideOverlay(this); }
-  _openPause() { openPause(this); }
-  _openResult(opts) { openResult(this, opts); }
-
-  _updateLetterHud() { updateLetterHud(this); }
-  _updateHUD() { updateGameHud(this); }
-  _draw() { drawGameFrame(this); }
-  _drawFps(ctx) { drawFps(this, ctx); }
+for (const [name, fn] of Object.entries(GAME_FACADE)) {
+  Object.defineProperty(Game.prototype, name, {
+    value: function facade(...args) {
+      return fn(this, ...args);
+    },
+    writable: true,
+    configurable: true,
+  });
 }

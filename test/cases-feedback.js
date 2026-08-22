@@ -7,7 +7,7 @@
 import { BALANCE } from '../js/config.js';
 import { runCollisions } from '../js/collision.js';
 import { addHitStop, addShake } from '../js/gameCombat.js';
-import { drawEnemy } from '../js/draw/entitiesDraw.js';
+import { drawEnemy } from '../js/draw/enemyDraw.js';
 import { test, assert, assertEqual } from './assert.js';
 
 test('addHitStop：max 语义 + cap，不叠加', () => {

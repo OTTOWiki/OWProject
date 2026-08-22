@@ -130,8 +130,8 @@ export function forEnemiesNear(g, x, y, radius, visit) {
 }
 
 /**
- * 兼容：若仍传入合并 bullets，按 from 填充分表。
- * 正常路径分表已是权威，无需每帧调用。
+ * 生产路径兼容守卫：runCollisions 每帧在「合并 bullets 旧状态」下调用。
+ * 正常分表（playerBullets/enemyBullets）已是权威时本函数直接返回。
  */
 export function rebuildBulletLists(game) {
   const player = game.playerBullets || (game.playerBullets = []);

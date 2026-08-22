@@ -2,7 +2,7 @@
  * Nomiss 无伤模式：
  * - 章节进度存档校验（load/saveNomissProgress）
  * - miss() 的 nomiss 分支：不扣残机、自动重开当前章（还原 Unstable + BGM 回带）
- * - 相关常量 / localStatsText
+ * - 相关常量 / formatRunStatsShort
  */
 import { BALANCE, STORAGE_KEYS } from '../js/config.js';
 import {
@@ -11,7 +11,8 @@ import {
 import { miss, spawnItem, collectItem } from '../js/gameCombat.js';
 import { startChapter } from '../js/chapterFlow.js';
 import { wrapMusicPos } from '../js/audio.js';
-import { localStatsText, runOverlayAction } from '../js/gameOverlay.js';
+import { runOverlayAction } from '../js/gameOverlay.js';
+import { formatRunStatsShort } from '../js/runStats.js';
 import { isExtraRestrictedMode } from '../js/startMode.js';
 import { createMockGame } from './mockGame.js';
 import { test, assert, assertEqual } from './assert.js';
@@ -221,8 +222,8 @@ test('startChapter（非 Nomiss）：不写 _nomissBgmPos', () => {
   assertEqual(g._nomissBgmPos, 42, '非 nomiss 不动回带位置');
 });
 
-test('localStatsText：统计两行简版（容错缺失字段）', () => {
-  const two = localStatsText({
+test('formatRunStatsShort：统计两行简版（容错缺失字段）', () => {
+  const two = formatRunStatsShort({
     graze: 12, kills: 30, items: 8, bombs: 2, misses: 1, nmnb: 3, maxCombo: 45, time: 90,
   });
   assertEqual(two.split('\n').length, 2);
@@ -235,8 +236,8 @@ test('localStatsText：统计两行简版（容错缺失字段）', () => {
   assert(two.includes('最大连击 45'));
   assert(two.includes('用时 1:30'));
   // 空 / 缺失字段不抛
-  assert(localStatsText(undefined).length > 0);
-  assert(localStatsText({}).length > 0);
+  assert(formatRunStatsShort(undefined).length > 0);
+  assert(formatRunStatsShort({}).length > 0);
 });
 
 test('settle：Nomiss 手动结算清空进度（下次重进从第 1 章）', () => {

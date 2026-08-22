@@ -15,6 +15,9 @@ export const EX = {
   time: 0.5,
 };
 
+/** 刷怪间隔缩放：道中波次统一用 EX.spawn */
+export const SI = (n) => n * EX.spawn;
+
 export const C = {
   red: '#f87171',
   orange: '#fb923c',

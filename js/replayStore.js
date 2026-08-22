@@ -3,6 +3,7 @@
  * 排行榜与录像完全独立，互不引用。
  */
 import { STORAGE_KEYS } from './config.js';
+import { parseStored } from './storage.js';
 
 const DB_NAME = 'owproject-replays';
 const STORE = 'replays';
@@ -39,14 +40,8 @@ async function withStore(mode, fn) {
 }
 
 export function loadReplayIndex() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.replayIndex);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = parseStored(STORAGE_KEYS.replayIndex);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function saveReplayIndex(list) {
@@ -102,10 +97,23 @@ export async function loadReplay(replayId) {
 }
 
 export async function deleteReplay(replayId) {
+  const original = await loadReplay(replayId);
   await withStore('readwrite', (store) => new Promise((resolve, reject) => {
     const req = store.delete(replayId);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   }));
-  saveReplayIndex(loadReplayIndex().filter((it) => it.replayId !== replayId));
+  try {
+    saveReplayIndex(loadReplayIndex().filter((it) => it.replayId !== replayId));
+  } catch (err) {
+    // 索引写失败：把已删的帧记录放回，与 saveReplay 的反向回滚对称，避免半应用
+    if (original) {
+      await withStore('readwrite', (store) => new Promise((resolve, reject) => {
+        const req = store.put(original);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      }));
+    }
+    throw err;
+  }
 }

@@ -25,6 +25,98 @@ import { SettingsForm } from './settingsForm.js';
 import { RankingScreen } from './rankingScreen.js';
 import { ReplayScreen } from './replayScreen.js';
 
+const UI_ACTION_HANDLERS = {
+  start(ui) {
+    ui.pendingStart = { startChapter: 1, mode: 'story' };
+    ui.show('difficulty');
+  },
+  'extra-start'(ui) {
+    ui.pendingStart = { startChapter: ui._extraStartChapter(), mode: 'extra' };
+    ui.show('difficulty');
+  },
+  'stage-select'(ui) {
+    ui.show('stage');
+  },
+  manual(ui) {
+    ui.show('manual');
+  },
+  history(ui) {
+    ui.show('history');
+    ui.history.load();
+  },
+  'history-refresh'(ui) {
+    ui.history.load(true);
+  },
+  ranking(ui) {
+    ui.show('ranking');
+  },
+  replay(ui) {
+    ui.show('replay');
+  },
+  'replay-import'(ui) {
+    ui.replay._importReplays();
+  },
+  settings(ui) {
+    ui.settingsReturn = null;
+    ui.binding = null;
+    document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
+    ui.refreshSettingsForm();
+    ui.refreshKeyLabels();
+    ui.show('settings');
+  },
+  'key-config'(ui) {
+    UI_ACTION_HANDLERS.settings(ui);
+  },
+  practice(ui) {
+    ui.show('practice');
+  },
+  'practice-start'(ui) {
+    const rawLives = Number(document.getElementById('practice-lives').value);
+    // 练习残机不封顶（仅下限 0）；空/非法回落 2
+    const lives = Number.isFinite(rawLives) ? Math.max(0, Math.floor(rawLives)) : 2;
+    const unstable = document.getElementById('practice-unstable').checked;
+    ui.pendingStart = {
+      startChapter: ui.practiceChapterId,
+      mode: 'practice',
+      lives,
+      unstable,
+      singleChapter: true,
+    };
+    ui.pendingDifficulty = ui.practiceDiffId;
+    ui.show('player');
+  },
+  'settings-reset'(ui) {
+    const next = saveSettings({ ...DEFAULT_SETTINGS });
+    ui.refreshSettingsForm();
+    ui.onSettingsChange?.(next);
+    saveKeys({ ...DEFAULT_KEYS });
+    ui.refreshKeyLabels();
+  },
+  exit(ui) {
+    if (confirm('确定退出 OTTOWiki Project？')) {
+      window.close();
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c10;color:#c9b896;font-family:serif">已退出 · 可关闭标签页</div>';
+    }
+  },
+  back(ui) {
+    if (ui.settingsReturn) {
+      const cb = ui.settingsReturn;
+      ui.settingsReturn = null;
+      cb();
+    } else {
+      ui.show('menu');
+    }
+  },
+  'back-diff'(ui) {
+    // 练习难度内联在练习页，返回直接回练习屏
+    if (ui.pendingStart?.mode === 'practice') {
+      ui.show('practice');
+    } else {
+      ui.show('difficulty');
+    }
+  },
+};
+
 export class UI {
   constructor({ onStartGame, onSettingsChange, audio, onPlayReplay }) {
     this.onStartGame = onStartGame;
@@ -607,78 +699,8 @@ export class UI {
     // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
     const isCancel = action === 'back' || action === 'back-diff';
     this._sfx(isCancel ? 'cancel' : 'ok');
-
-    if (action === 'start') {
-      this.pendingStart = { startChapter: 1, mode: 'story' };
-      this.show('difficulty');
-    } else if (action === 'extra-start') {
-      this.pendingStart = { startChapter: this._extraStartChapter(), mode: 'extra' };
-      this.show('difficulty');
-    } else if (action === 'stage-select') {
-      this.show('stage');
-    } else if (action === 'manual') {
-      this.show('manual');
-    } else if (action === 'history') {
-      this.show('history');
-      this.history.load();
-    } else if (action === 'history-refresh') {
-      this.history.load(true);
-    } else if (action === 'ranking') {
-      this.show('ranking');
-    } else if (action === 'replay') {
-      this.show('replay');
-    } else if (action === 'replay-import') {
-      this.replay._importReplays();
-    } else if (action === 'settings' || action === 'key-config') {
-      this.settingsReturn = null;
-      this.binding = null;
-      document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
-      this.refreshSettingsForm();
-      this.refreshKeyLabels();
-      this.show('settings');
-    } else if (action === 'practice') {
-      this.show('practice');
-    } else if (action === 'practice-start') {
-      const rawLives = Number(document.getElementById('practice-lives').value);
-      // 练习残机不封顶（仅下限 0）；空/非法回落 2
-      const lives = Number.isFinite(rawLives) ? Math.max(0, Math.floor(rawLives)) : 2;
-      const unstable = document.getElementById('practice-unstable').checked;
-      this.pendingStart = {
-        startChapter: this.practiceChapterId,
-        mode: 'practice',
-        lives,
-        unstable,
-        singleChapter: true,
-      };
-      this.pendingDifficulty = this.practiceDiffId;
-      this.show('player');
-    } else if (action === 'settings-reset') {
-      const next = saveSettings({ ...DEFAULT_SETTINGS });
-      this.refreshSettingsForm();
-      this.onSettingsChange?.(next);
-      saveKeys({ ...DEFAULT_KEYS });
-      this.refreshKeyLabels();
-    } else if (action === 'exit') {
-      if (confirm('确定退出 OTTOWiki Project？')) {
-        window.close();
-        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c10;color:#c9b896;font-family:serif">已退出 · 可关闭标签页</div>';
-      }
-    } else if (action === 'back') {
-      if (this.settingsReturn) {
-        const cb = this.settingsReturn;
-        this.settingsReturn = null;
-        cb();
-      } else {
-        this.show('menu');
-      }
-    } else if (action === 'back-diff') {
-      // 练习难度内联在练习页，返回直接回练习屏
-      if (this.pendingStart?.mode === 'practice') {
-        this.show('practice');
-      } else {
-        this.show('difficulty');
-      }
-    }
+    const handler = UI_ACTION_HANDLERS[action];
+    if (handler) handler(this);
   }
 
   _practiceItems() {

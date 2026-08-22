@@ -3,9 +3,7 @@
  * 保存/取消后再进入常规 game over / all clear / 结局 结算。
  */
 import { DIFFICULTIES, RANKING_LIMIT } from './config.js';
-import { loadRanking, commitRankingEntry, loadName } from './ranking.js';
-
-const ROUTE_LABEL = { A: 'A线', B: 'B线', EX: 'EX' };
+import { loadRanking, commitRankingEntry, loadName, ROUTE_LABEL } from './ranking.js';
 
 let bound = false;
 let done = null;

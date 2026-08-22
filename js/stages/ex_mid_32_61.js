@@ -8,16 +8,14 @@ import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
 import { acquireBullet } from '../bulletPool.js';
-import { C, exHp, exSp, exN, exFire, EX } from './ex_shared.js';
+import { C, exHp, exSp, exN, exFire, SI } from './ex_shared.js';
 
-const SI = (s) => s * EX.spawn;
 
 export function mid_diagReturn(g) {
   installMidWave(g, {
     interval: SI(0.7),
     maxWaves: 8,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(-15, -15, exHp(30), C.blue);
       e.vx = 1.5;
       e.vy = 1.8;
@@ -42,7 +40,6 @@ export function mid_ringGap(g) {
     interval: SI(1.5),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W / 2, y: 90,
         hp: exHp(220), color: C.violet, kind: 'generic',
@@ -74,7 +71,6 @@ export function mid_zigzagDual(g) {
     interval: SI(1.1),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const cx = LOGICAL_W / 2;
       for (const [dx, col] of [[-70, C.cyan], [70, C.orange]]) {
         const e = mob(cx + dx, -18, exHp(30), col);
@@ -137,7 +133,6 @@ export function mid_fanEcho(g) {
     interval: SI(1.0),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(80 + (g.waveCount % 4) * 85, -18, exHp(36), C.pink);
       e.vy = 0.9;
       e.script = (en, d, game) => {
@@ -197,7 +192,6 @@ export function mid_barrageRing(g) {
     interval: SI(1.2),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const yL = 70 + (g.waveCount * 25) % 200;
       const yR = 60 + (g.waveCount * 35) % 200;
       const left = mob(30, yL, exHp(34), C.red);
@@ -236,7 +230,6 @@ export function mid_spiralAfter(g) {
     interval: SI(1.8),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W / 2 + (g.waveCount % 2 ? -50 : 50), y: 100,
         hp: exHp(230), color: C.violet, kind: 'generic',
@@ -269,7 +262,6 @@ export function mid_altAfter(g) {
     interval: SI(1.0),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const side of [-1, 1]) {
         const e = mob(LOGICAL_W / 2 + side * 150, -18, exHp(32), C.green);
         e.vy = 1.1;
@@ -292,7 +284,6 @@ export function mid_randomAfter(g) {
     interval: SI(0.9),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(50 + Math.random() * (LOGICAL_W - 100), -18, exHp(34), C.cyan);
       e.vy = 1.0;
       e.script = (en, d, game) => {
@@ -325,7 +316,6 @@ export function mid_dualAfter(g) {
     interval: SI(1.0),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const side of [-1, 1]) {
         const e = mob(LOGICAL_W / 2 + side * 100, -15, exHp(30), side < 0 ? C.blue : C.orange);
         e.vy = 1.1;
@@ -352,7 +342,6 @@ export function mid_hoverRingAfter(g) {
     interval: SI(1.3),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const x = 90 + ((g.waveCount - 1) % 3) * 130;
       const e = mob(x, -20, exHp(48), C.gold);
       e.vy = 1.0;
@@ -418,7 +407,6 @@ export function mid_hoverEliteAfter(g) {
     interval: SI(2.0),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: 80 + Math.random() * (LOGICAL_W - 160), y: 75,
         hp: exHp(200), color: C.pink, kind: 'generic',
@@ -453,7 +441,6 @@ export function mid_laserAfter(g) {
     interval: SI(1.4),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(50 + (g.waveCount * 70) % (LOGICAL_W - 100), 55, exHp(40), C.violet);
       e.vy = 0.2;
       e.script = (en, d, game) => {
@@ -500,7 +487,6 @@ export function mid_vFormAfter(g) {
     interval: SI(1.4),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const cx = LOGICAL_W / 2;
       for (let k = -2; k <= 2; k++) {
         const e = mob(cx + k * 38, -20 - Math.abs(k) * 12, exHp(28), C.blue);
@@ -536,7 +522,6 @@ export function mid_sideStreamAfter(g) {
     interval: SI(0.5),
     maxWaves: 10,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const fromLeft = g.waveCount <= 5;
       const e = mob(fromLeft ? -15 : LOGICAL_W + 15, 60 + ((g.waveCount - 1) % 5) * 30, exHp(30), C.pink);
       e.vx = fromLeft ? 1.8 : -1.8;
@@ -559,7 +544,6 @@ export function mid_splitAfter(g) {
     interval: SI(1.6),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: 70 + Math.random() * (LOGICAL_W - 140), y: 90,
         hp: exHp(180), color: C.orange, kind: 'generic',
@@ -606,7 +590,6 @@ export function mid_diagAfter(g) {
     interval: SI(0.7),
     maxWaves: 8,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const fromLeft = g.waveCount % 2 === 1;
       const e = mob(fromLeft ? -10 : LOGICAL_W + 10, -10, exHp(32), C.cyan);
       e.vx = fromLeft ? 1.4 : -1.4;
@@ -633,7 +616,6 @@ export function mid_ringEvenAfter(g) {
     interval: SI(1.5),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W * (0.3 + (g.waveCount % 3) * 0.2), y: 95,
         hp: exHp(210), color: C.violet, kind: 'generic',
@@ -663,7 +645,6 @@ export function mid_zigzagAfter(g) {
     interval: SI(0.95),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(LOGICAL_W / 2, -18, exHp(34), C.red);
       e.vy = 1.1;
       e.data = { phase: g.waveCount * 0.7 };
@@ -719,7 +700,6 @@ export function mid_fanAfter(g) {
     interval: SI(1.1),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(70 + (g.waveCount % 4) * 90, -18, exHp(38), C.blue);
       e.vy = 0.95;
       e.script = (en, d, game) => {
@@ -780,7 +760,6 @@ export function mid_barrageAfter(g) {
     interval: SI(1.3),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const side of [-1, 1]) {
         const e = mob(side < 0 ? 40 : LOGICAL_W - 40, 60 + g.waveCount * 8, exHp(36), C.orange);
         e.vy = 0.7;
@@ -815,7 +794,6 @@ export function mid_spiralFinale(g) {
     interval: SI(1.8),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W / 2 + (g.waveCount % 2 ? -60 : 60), y: 100,
         hp: exHp(240), color: C.pink, kind: 'generic',
@@ -920,3 +898,36 @@ export function mid_overwriteEve(g) {
   });
 }
 void LOGICAL_H;
+
+export const MID_PATTERNS_B = [
+  mid_diagReturn,
+  mid_ringGap,
+  mid_zigzagDual,
+  mid_coreSpin,
+  mid_fanEcho,
+  mid_wallRebuild,
+  mid_barrageRing,
+  mid_spiralAfter,
+  mid_altAfter,
+  mid_randomAfter,
+  mid_dualAfter,
+  mid_hoverRingAfter,
+  mid_rainAfter,
+  mid_crossAfter,
+  mid_hoverEliteAfter,
+  mid_laserAfter,
+  mid_hLaserAfter,
+  mid_vFormAfter,
+  mid_sideStreamAfter,
+  mid_splitAfter,
+  mid_diagAfter,
+  mid_ringEvenAfter,
+  mid_zigzagAfter,
+  mid_centerAfter,
+  mid_fanAfter,
+  mid_wallAfter,
+  mid_barrageAfter,
+  mid_spiralFinale,
+  mid_sanctuary,
+  mid_overwriteEve,
+];

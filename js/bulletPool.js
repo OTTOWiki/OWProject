@@ -3,56 +3,26 @@
  * 上限防无限涨；超限直接 new。
  */
 import { Bullet } from './entities.js';
+import { createPool } from './pool.js';
 
-const pool = [];
 const MAX_POOL = 4096;
 
+const pool = createPool({
+  create: (opts) => new Bullet(opts),
+  max: MAX_POOL,
+  onRelease(b) {
+    b.onSplit = null;
+    b.owner = null;
+    b._hitIds = null;
+  },
+});
+
 /** @param {object} opts Bullet 构造参数 */
-export function acquireBullet(opts) {
-  const b = pool.length > 0 ? pool.pop() : null;
-  if (b) {
-    b._pooled = false;
-    b.reset(opts);
-    return b;
-  }
-  return new Bullet(opts);
-}
-
+export const acquireBullet = (opts) => pool.acquire(opts);
 /** @param {object|null|undefined} b */
-export function releaseBullet(b) {
-  if (!b || b._pooled) return;
-  b.onSplit = null;
-  b.owner = null;
-  b._hitIds = null;
-  b.dead = true;
-  if (pool.length < MAX_POOL) {
-    b._pooled = true;
-    pool.push(b);
-  }
-}
-
+export const releaseBullet = (b) => pool.release(b);
 /** 清空列表并全部归还池 */
-export function releaseBulletList(arr) {
-  if (!arr) return;
-  for (let i = 0; i < arr.length; i++) releaseBullet(arr[i]);
-  arr.length = 0;
-}
-
+export const releaseBulletList = (arr) => pool.releaseList(arr);
 /** 仅移除 dead 并归还（swap-remove，O(n)） */
-export function purgeDeadBullets(arr) {
-  if (!arr) return;
-  let w = 0;
-  for (let i = 0; i < arr.length; i++) {
-    const b = arr[i];
-    if (b.dead) {
-      releaseBullet(b);
-    } else {
-      arr[w++] = b;
-    }
-  }
-  arr.length = w;
-}
-
-export function bulletPoolStats() {
-  return { pooled: pool.length, max: MAX_POOL };
-}
+export const purgeDeadBullets = (arr) => pool.purgeDead(arr);
+export const bulletPoolStats = () => pool.stats();

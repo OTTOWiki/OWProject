@@ -8,16 +8,14 @@ import {
   spawnAimed, spawnRingAt, spawnAimedLaser, spawnGravityRain, spawnHLaser, spawnCrossFall,
 } from '../patterns.js';
 import { acquireBullet } from '../bulletPool.js';
-import { C, exHp, exSp, exN, exFire, EX } from './ex_shared.js';
+import { C, exHp, exSp, exN, exFire, SI } from './ex_shared.js';
 
-const SI = (s) => s * EX.spawn;
 
 export function mid_altSides(g) {
   installMidWave(g, {
     interval: SI(0.9),
     maxWaves: 7,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const left = g.waveCount % 2 === 1;
       const e = mob(left ? 70 : LOGICAL_W - 70, -18, exHp(34), C.green);
       e.vy = 1.2;
@@ -38,7 +36,6 @@ export function mid_randomEven(g) {
     interval: SI(0.85),
     maxWaves: 7,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(50 + Math.random() * (LOGICAL_W - 100), -18, exHp(36), C.cyan);
       e.vy = 1.05;
       e.script = (en, d, game) => {
@@ -59,7 +56,6 @@ export function mid_dualFlank(g) {
     interval: SI(1.0),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const side of [-1, 1]) {
         const e = mob(LOGICAL_W / 2 + side * 100, -15, exHp(32), side < 0 ? C.blue : C.orange);
         e.vy = 1.15;
@@ -82,7 +78,6 @@ export function mid_hoverRing(g) {
     interval: SI(1.35),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const x = 90 + ((g.waveCount - 1) % 3) * 130;
       const e = mob(x, -20, exHp(50), C.gold);
       e.vy = 1.0;
@@ -109,7 +104,6 @@ export function mid_rainSparse(g) {
       }
     },
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(60 + Math.random() * (LOGICAL_W - 120), -18, exHp(34), C.violet);
       e.vy = 1.0;
       e.script = (en, d, game) => {
@@ -149,7 +143,6 @@ export function mid_hoverElite(g) {
     interval: SI(2.2),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: 80 + Math.random() * (LOGICAL_W - 160), y: 75,
         hp: exHp(200), color: C.pink, kind: 'generic',
@@ -173,7 +166,6 @@ export function mid_laserSniper(g) {
     interval: SI(1.4),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(50 + (g.waveCount * 70) % (LOGICAL_W - 100), 55, exHp(40), C.gold);
       e.vy = 0.2;
       e.script = (en, d, game) => {
@@ -219,7 +211,6 @@ export function mid_vForm(g) {
     interval: SI(1.5),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const cx = LOGICAL_W / 2;
       for (let k = -2; k <= 2; k++) {
         const e = mob(cx + k * 38, -20 - Math.abs(k) * 12, exHp(28), C.blue);
@@ -242,7 +233,6 @@ export function mid_sideStream(g) {
     interval: SI(0.55),
     maxWaves: 10,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const fromLeft = g.waveCount <= 5;
       const e = mob(fromLeft ? -15 : LOGICAL_W + 15, 80 + (g.waveCount % 4) * 35, exHp(30), C.pink);
       e.vx = fromLeft ? 1.6 : -1.6;
@@ -264,7 +254,6 @@ export function mid_splitLarge(g) {
     interval: SI(1.6),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: 70 + Math.random() * (LOGICAL_W - 140), y: 90,
         hp: exHp(180), color: C.orange, kind: 'generic',
@@ -294,7 +283,6 @@ export function mid_diagCross(g) {
     interval: SI(0.75),
     maxWaves: 8,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const fromLeft = g.waveCount % 2 === 1;
       const e = mob(fromLeft ? -10 : LOGICAL_W + 10, -10, exHp(32), C.cyan);
       e.vx = fromLeft ? 1.4 : -1.4;
@@ -318,7 +306,6 @@ export function mid_ringEven(g) {
     interval: SI(1.5),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W * (0.3 + (g.waveCount % 3) * 0.2), y: 95,
         hp: exHp(210), color: C.violet, kind: 'generic',
@@ -345,7 +332,6 @@ export function mid_zigzag(g) {
     interval: SI(0.95),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(LOGICAL_W / 2, -18, exHp(34), C.red);
       e.vy = 1.1;
       e.data = { phase: g.waveCount * 0.7 };
@@ -401,7 +387,6 @@ export function mid_fixedFan(g) {
     interval: SI(1.1),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = mob(70 + (g.waveCount % 4) * 90, -18, exHp(38), C.blue);
       e.vy = 0.95;
       e.script = (en, d, game) => {
@@ -456,7 +441,6 @@ export function mid_sideBarrage(g) {
     interval: SI(1.3),
     maxWaves: 5,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const side of [-1, 1]) {
         const e = mob(side < 0 ? 40 : LOGICAL_W - 40, 60 + g.waveCount * 8, exHp(36), C.orange);
         e.vy = 0.7;
@@ -483,7 +467,6 @@ export function mid_spiralLite(g) {
     interval: SI(1.8),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W / 2 + (g.waveCount % 2 ? -60 : 60), y: 100,
         hp: exHp(220), color: C.pink, kind: 'generic',
@@ -513,7 +496,6 @@ export function mid_echoSides(g) {
     interval: SI(0.8),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const side of [-1, 1]) {
         const e = mob(LOGICAL_W / 2 + side * 160, -18, exHp(30), C.green);
         e.vy = 1.0;
@@ -571,7 +553,6 @@ export function mid_dualColor(g) {
     interval: SI(2.0),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       [-1, 1].forEach((side, i) => {
         const e = elite({
           x: LOGICAL_W / 2 + side * 145, y: 80,
@@ -604,7 +585,6 @@ export function mid_hoverRingDuo(g) {
     interval: SI(1.4),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (let i = 0; i < 2; i++) {
         const x = 100 + i * 200 + (g.waveCount % 2) * 30;
         const e = mob(x, -20, exHp(45), i ? C.violet : C.gold);
@@ -688,7 +668,6 @@ export function mid_eliteFan(g) {
     interval: SI(2.0),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: LOGICAL_W / 2, y: 90,
         hp: exHp(220), color: C.gold, kind: 'generic',
@@ -785,7 +764,6 @@ export function mid_vFormHeavy(g) {
     interval: SI(1.4),
     maxWaves: 3,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const cx = LOGICAL_W / 2;
       for (let k = -2; k <= 2; k++) {
         const e = mob(cx + k * 35, -20 - Math.abs(k) * 10, exHp(26), C.blue);
@@ -820,7 +798,6 @@ export function mid_sideCross(g) {
     interval: SI(0.65),
     maxWaves: 6,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       for (const [dir, y] of [[1, 80], [-1, 180]]) {
         const e = mob(dir > 0 ? -15 : LOGICAL_W + 15, y, exHp(32), C.green);
         e.vx = dir * 1.8;
@@ -844,7 +821,6 @@ export function mid_splitRing(g) {
     interval: SI(1.6),
     maxWaves: 4,
     onWave: (g, wave) => {
-      g.waveCount = wave;
       const e = elite({
         x: 70 + Math.random() * (LOGICAL_W - 140), y: 80,
         hp: exHp(200), color: C.cyan, kind: 'generic',
@@ -868,3 +844,38 @@ export function mid_splitRing(g) {
     },
   });
 }
+
+export const MID_PATTERNS_A = [
+  mid_altSides,
+  mid_randomEven,
+  mid_dualFlank,
+  mid_hoverRing,
+  mid_rainSparse,
+  mid_crossLanes,
+  mid_hoverElite,
+  mid_laserSniper,
+  mid_hLaserRain,
+  mid_vForm,
+  mid_sideStream,
+  mid_splitLarge,
+  mid_diagCross,
+  mid_ringEven,
+  mid_zigzag,
+  mid_centerSides,
+  mid_fixedFan,
+  mid_gapWall,
+  mid_sideBarrage,
+  mid_spiralLite,
+  mid_echoSides,
+  mid_randomGap,
+  mid_dualColor,
+  mid_hoverRingDuo,
+  mid_rainSniper,
+  mid_columnLane,
+  mid_eliteFan,
+  mid_laserDot,
+  mid_wallRain,
+  mid_vFormHeavy,
+  mid_sideCross,
+  mid_splitRing,
+];

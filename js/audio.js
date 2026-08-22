@@ -306,6 +306,21 @@ export class AudioEngine {
       o.start(t);
       o.stop(t + d + 0.02);
     };
+    const arp = (freqs, typ, step, gain, rampDur, stopGap) => {
+      freqs.forEach((f, i) => {
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = typ;
+        o.frequency.value = f;
+        const tt = t + i * step;
+        g.gain.setValueAtTime(gain, tt);
+        g.gain.exponentialRampToValueAtTime(1e-4, tt + rampDur);
+        o.connect(g);
+        g.connect(this.sfxGain);
+        o.start(tt);
+        o.stop(tt + stopGap);
+      });
+    };
     if (type === 'shot') blip(880 + SFX_RANDOM() * 200, 0.04, 0.04);
     else if (type === 'bomb') {
       blip(120, 0.35, 0.12, 'sawtooth');
@@ -326,34 +341,10 @@ export class AudioEngine {
       blip(523, 0.08, 0.05);
       blip(784, 0.1, 0.05);
     } else if (type === 'extend') {
-      [523, 659, 784, 1046].forEach((f, i) => {
-        const o = this.ctx.createOscillator();
-        const g = this.ctx.createGain();
-        o.type = 'sine';
-        o.frequency.value = f;
-        const tt = t + i * 0.06;
-        g.gain.setValueAtTime(0.06, tt);
-        g.gain.exponentialRampToValueAtTime(1e-4, tt + 0.18);
-        o.connect(g);
-        g.connect(this.sfxGain);
-        o.start(tt);
-        o.stop(tt + 0.2);
-      });
+      arp([523, 659, 784, 1046], 'sine', 0.06, 0.06, 0.18, 0.2);
     } else if (type === 'cancel') blip(300, 0.1, 0.04);
     else if (type === 'letter') {
-      [523, 659, 784, 1046].forEach((f, i) => {
-        const o = this.ctx.createOscillator();
-        const g = this.ctx.createGain();
-        o.type = 'triangle';
-        o.frequency.value = f;
-        const tt = t + i * 0.07;
-        g.gain.setValueAtTime(0.05, tt);
-        g.gain.exponentialRampToValueAtTime(1e-4, tt + 0.14);
-        o.connect(g);
-        g.connect(this.sfxGain);
-        o.start(tt);
-        o.stop(tt + 0.16);
-      });
+      arp([523, 659, 784, 1046], 'triangle', 0.07, 0.05, 0.14, 0.16);
     }
   }
 }

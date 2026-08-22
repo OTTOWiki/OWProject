@@ -11,7 +11,7 @@ import { getEndingDialogue } from './dialogue.js';
 import { saveHiscore, unlockStage, unlockRoute, saveNomissProgress, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
-import { formatRunStats } from './runStats.js';
+import { formatRunStats, formatRunStatsShort } from './runStats.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './bgModes.js';
 import { portraitFor } from './assets.js';
@@ -24,7 +24,7 @@ import {
   bulletsToPointsAndAttract, checkExtend, grantLetterResource, addScore,
   addHitStop, addShake,
 } from './gameCombat.js';
-import { openResult, localStatsText } from './gameOverlay.js';
+import { openResult } from './gameOverlay.js';
 
 export function wrapWaveFn(game, raw) {
   return (dt) => {
@@ -581,7 +581,7 @@ export function showEnding(game, which) {
       saveNomissProgress(null);
       openResult(game, {
         title: 'Nomiss 完成',
-        body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}\n${localStatsText(game.stats)}`,
+        body: `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}\n${formatRunStatsShort(game.stats)}`,
         actions: ['retry', 'menu'],
       });
       return;
@@ -641,7 +641,7 @@ export function gameOver(game) {
     saveHiscore(game.score);
     openResult(game, {
       title: 'Nomiss 结算',
-      body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch?.name ?? '—'}\n得分：${game.score}\n${localStatsText(game.stats)}`,
+      body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch?.name ?? '—'}\n得分：${game.score}\n${formatRunStatsShort(game.stats)}`,
       retryChapter: ch?.id ?? 1,
       actions: ['retry', 'menu'],
     });
@@ -664,7 +664,7 @@ export function gameClear(game) {
     saveNomissProgress(null);
     openResult(game, {
       title: 'All Clear',
-      body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}\n${localStatsText(game.stats)}`,
+      body: `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}\n${formatRunStatsShort(game.stats)}`,
       retryChapter: 1,
       actions: ['retry', 'menu'],
     });

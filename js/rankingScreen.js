@@ -3,13 +3,11 @@
  * 数据来自 ranking.js 的 localStorage（与录像完全独立）。
  */
 import { DIFFICULTIES, DIFFICULTY_ORDER } from './config.js';
-import { loadRanking } from './ranking.js';
+import { loadRanking, ROUTE_LABEL } from './ranking.js';
 import {
   isBack, isNavNext, isNavPrev, isNavLeft, isNavRight,
   clampIndex, wrapIndex,
 } from './menuNav.js';
-
-const ROUTE_LABEL = { A: 'A线', B: 'B线', EX: 'EX' };
 
 export class RankingScreen {
   constructor({ audio, isActive, onBack }) {
