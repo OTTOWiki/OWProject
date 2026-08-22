@@ -9,7 +9,8 @@ import { spawnSync } from 'node:child_process';
 const hasBun = spawnSync('bun', ['--version'], { encoding: 'utf8' }).status === 0;
 
 if (hasBun) {
-  process.exit(spawnSync('bun', ['test'], { stdio: 'inherit' }).status ?? 1);
+  // 显式只跑 bun 入口：bun 默认会扫到 test/e2e/*.spec.js，e2e 由 Playwright 跑，不进 npm test
+  process.exit(spawnSync('bun', ['test', 'test/run-bun.test.mjs'], { stdio: 'inherit' }).status ?? 1);
 }
 
 for (const file of ['test/check-syntax.mjs', 'test/run-node.mjs']) {

@@ -8,10 +8,14 @@
     "test": "node test/run-tests.mjs",
     "test:unit": "node test/run-node.mjs",
     "test:syntax": "node test/check-syntax.mjs",
-    "test:bun": "bun test",
+    "test:bun": "bun test test/run-bun.test.mjs",
+    "test:e2e": "playwright test",
     "serve": "npx --yes serve .",
     "pages:build": "node tools/inject-deploy-hash.mjs",
     "inject-hash": "node tools/inject-deploy-hash.mjs",
     "hooks:install": "node tools/install-git-hooks.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

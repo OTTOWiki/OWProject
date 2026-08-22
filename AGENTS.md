@@ -46,7 +46,7 @@ npx --yes serve .
 python -m http.server 8080
 ```
 
-无打包步骤、无 npm 运行时依赖。改 JS/CSS/HTML 后刷新即可。部署短哈希注入见下文「版本号」。
+无打包步骤、无 npm 运行时依赖（测试用 devDependency `@playwright/test` 仅本地/CI e2e，不进浏览器产物）。改 JS/CSS/HTML 后刷新即可。部署短哈希注入见下文「版本号」。
 
 ### 首次克隆 / 新电脑（Git hooks）
 
@@ -80,6 +80,7 @@ npm test              # 优先 bun test；无 bun 退 node（语法 + 单元/冒
 npm run test:unit
 npm run test:syntax
 npm run test:bun       # 强制 bun test（入口 test/run-bun.test.mjs）
+npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spec.js）
 # 浏览器：serve 后打开 /test/
 ```
 
@@ -87,9 +88,10 @@ npm run test:bun       # 强制 bun test（入口 test/run-bun.test.mjs）
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`
+- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（smoke/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve
 - 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
-- CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm test`（本地仍 `npm test`）
+- CI：`.github/workflows/test.yml` — **唯一 job 名 `Test`**，内部执行 `npm ci` + Playwright Chromium + `npm test` + `npm run test:e2e`（本地仍 `npm test`）
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`** + **`CodeRabbit`**。加测优先在 `Test` job 内加 step
 
 ---
@@ -101,6 +103,7 @@ CONTRIBUTING.md        # 贡献流程与红线
 AGENTS.md / README.md
 index.html
 css/style.css
+playwright.config.mjs
 js/
   main.js              # 组装 Input / Audio / Background / Game / UI
   config.js            # LOGICAL_*、BALANCE、DIFFICULTIES、Unstable、说明书
@@ -122,7 +125,7 @@ js/
   pool.js              # 泛型对象池（bullet/item/particle 共用）
   bulletPool.js / itemPool.js / particlePool.js
   dialogue.js
-test/                  # 零第三方自动化测试
+test/                  # 零第三方自动化测试；test/e2e/ = Playwright e2e
 assets/                # bg portraits sprites ui + bgm/*.ogg
 tools/                 # inject-deploy-hash、hooks、bump-version、to-avif
 functions/api/         # CF Pages Functions（History 等）
@@ -298,7 +301,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 改排行榜 | `ranking.js` + `rankingScreen.js` + `scoreRanking.js` + `index.html` |
 | 改录像/回放 | `replay.js` + `replayStore.js` + `replayScreen.js` + `game.js` + `rng.js` |
 | 发版 | `VERSION_NAME` + hooks；CF `pages:build`；tag |
-| 测试 | `npm test`（优先 bun，无 bun 退 node）、`npm run test:bun` 或 `/test/` |
+| 测试 | `npm test`（优先 bun，无 bun 退 node）、`npm run test:e2e`（Playwright）、`npm run test:bun` 或 `/test/` |
 
 ---
 

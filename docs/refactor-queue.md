@@ -763,4 +763,21 @@ Phase E 含可选 backlog 已全部收尾。
 - Nomiss 结算两行短统计输出逐字正确（F04）。
 - 备注：回放卡在 EX-1 `ex_open` 对话是**debug 录制的预期现象**（用 `owDebug.next()` 直接推进对话，未写入录像快照），非回归；Escape 未退出的现象记为 rAF 节流/调试录制偏斜，`_handleReplayControl`/`_exitReplay` 不属 F01–F13，不改代码。
 
+---
+
+## 阶段 G — Playwright e2e（2026-08-22）
+
+> 目标：把 MCP 手测固化为 `@playwright/test` 脚本，`npm run test:e2e` 机械跑；CI 的 Test job 内加 step。
+
+### G01 Playwright 脚手架
+| | |
+|--|--|
+| **状态** | 完成 |
+| **范围** | `@playwright/test` devDependency + `playwright.config.mjs`；`test/e2e/{helpers,smoke,game,replay,settings,ranking-nomiss}.spec.js`；`test:run-tests.mjs` 限制 bun 只跑 `test/run-bun.test.mjs`（bun 默认会扫到 e2e spec）；`.gitignore` 加 node_modules/playwright-report/test-results |
+| **不做** | 不改任何产品代码；不动运行行为 |
+| **验收（自动）** | `npm test` 119/119；`npm run test:e2e` 7/7（本地 3000 serve 复用） |
+| **验收（CI）** | Test job 增加 `npm ci` + `npx playwright install --with-deps chromium` + `npm run test:e2e` |
+
+**Playwright 用例覆盖**：boot 无错误 / EX 冒烟（敌弹/分数/canvas）/ 暂停继续 / 录像保存-列表-播放-删除 / 设置持久化 / 排行榜 A线+EX续标签 / Nomiss 两行短统计。
+
 **手测要点**：跑一遍通用清单（主菜单→Story 1 面→暂停/继续→练习一章→Stage Select→Extra 开局），重点确认弹幕/敌机/道具/版面绘制与改前观感一致（F01/F03/F11/F12 涉及运行时路径）。
