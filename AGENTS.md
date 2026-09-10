@@ -88,7 +88,8 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
-- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（smoke/menu/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
+- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
+- E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
 - 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。本地仍 `npm test`

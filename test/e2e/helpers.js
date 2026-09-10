@@ -4,11 +4,45 @@
  * - rAF 在后台标签可能节流：测试内用 expect.poll / waitForFunction，别用页内长 setTimeout 等帧。
  */
 
-/** 等待初始化和首次菜单演出完成；需要测试跳过行为的用例单独观察入场。 */
+/** 等待初始化和首次菜单演出完成；可恢复资源失败时选择继续，致命启动失败时抛出真实状态。 */
 export async function waitForGameReady(page) {
-  await page.waitForFunction(() => typeof window.owDebug === 'function'
-    && !document.getElementById('load-screen')
-    && !document.getElementById('screen-menu')?.classList.contains('menu-entering'));
+  for (;;) {
+    const stateHandle = await page.waitForFunction(() => {
+      const load = document.getElementById('load-screen');
+      if (load) {
+        const status = document.getElementById('load-status')?.textContent?.trim() || '';
+        const continueButton = document.getElementById('load-continue');
+        if (continueButton && !continueButton.hidden && !continueButton.disabled) {
+          return { kind: 'recoverable', status };
+        }
+
+        const reloadButton = document.getElementById('load-reload');
+        if (reloadButton && !reloadButton.hidden && status) {
+          return { kind: 'fatal', status };
+        }
+        return false;
+      }
+
+      const menu = document.getElementById('screen-menu');
+      return typeof window.owDebug === 'function'
+        && menu
+        && menu.classList.contains('active')
+        && !menu.classList.contains('menu-entering')
+        ? { kind: 'ready' }
+        : false;
+    });
+    const state = await stateHandle.jsonValue();
+    await stateHandle.dispose();
+
+    if (state.kind === 'fatal') {
+      throw new Error(`waitForGameReady: #load-status ${state.status}`);
+    }
+    if (state.kind === 'ready') return;
+
+    const continueButton = page.locator('#load-continue');
+    await continueButton.waitFor({ state: 'visible' });
+    await continueButton.click();
+  }
 }
 
 /** 清空本测试域的 localStorage 与录像 IndexedDB，保证用例独立 */
