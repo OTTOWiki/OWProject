@@ -24,33 +24,139 @@ const pauseBtn = document.getElementById('btn-pause');
 const elLoad = document.getElementById('load-screen');
 const elFill = document.getElementById('load-fill');
 const elPct = document.getElementById('load-text');
+const elStatus = document.getElementById('load-status');
+const elProgress = document.getElementById('load-progress');
+const btnReload = document.getElementById('load-reload');
+const btnContinue = document.getElementById('load-continue');
+
+let pendingLoaderChoice = null;
+
+function errorText(error, fallback = '未知错误') {
+  const text = error?.message || (error == null ? '' : String(error));
+  return String(text || fallback).replace(/\s+/g, ' ').trim() || fallback;
+}
 
 /**
- * Updates the loading indicator with a percentage value.
- * @param {number} pct - The progress percentage, clamped to the range from 0 to 100.
+ * Updates the measurable resource progress indicator.
+ * @param {number} pct - Processed-resource percentage, clamped to 0..100.
  */
 function setLoadProgress(pct) {
   const p = Math.max(0, Math.min(100, Math.round(pct)));
   if (elFill) elFill.style.width = `${p}%`;
   if (elPct) elPct.textContent = `${p}%`;
+  if (elProgress) elProgress.setAttribute('aria-valuenow', String(p));
+}
+
+function setLoadProgressVisible(visible) {
+  if (elProgress) elProgress.hidden = !visible;
+  if (elPct) elPct.hidden = !visible;
+}
+
+function setLoadStatus(text) {
+  if (elStatus) elStatus.textContent = text;
+  else if (elLoad) elLoad.dataset.status = text;
+}
+
+function setRecoveryControls({ reload = false, continueEntry = false } = {}) {
+  if (btnReload) btnReload.hidden = !reload;
+  if (btnContinue) btnContinue.hidden = !continueEntry;
+  elLoad?.setAttribute('aria-busy', String(!reload && !continueEntry));
+  if (reload) btnReload?.focus();
+}
+
+function bindLoaderControls() {
+  if (btnReload && btnReload.dataset.bootReloadBound !== '1'
+    && btnReload.dataset.moduleReloadBound !== '1') {
+    btnReload.addEventListener('click', () => {
+      const resolve = pendingLoaderChoice;
+      pendingLoaderChoice = null;
+      resolve?.('reload');
+      window.location.reload();
+    });
+    btnReload.dataset.bootReloadBound = '1';
+  }
+  if (btnContinue && btnContinue.dataset.bootContinueBound !== '1') {
+    btnContinue.addEventListener('click', () => {
+      const resolve = pendingLoaderChoice;
+      if (!resolve) return;
+      pendingLoaderChoice = null;
+      setRecoveryControls();
+      resolve('continue');
+    });
+    btnContinue.dataset.bootContinueBound = '1';
+  }
+}
+
+function issueLabel(issue) {
+  if (issue.kind === 'three') return '场景背景加载失败，可使用简化背景游玩';
+  if (issue.kind === 'cache-timeout') return '部分图像准备超时';
+  if (issue.kind === 'cache-failure') return '部分图像不可用';
+  if (issue.type === 'audio') return `音乐${issue.status === 'timeout' ? '加载超时' : '加载失败'}`;
+  if (issue.type === 'image') return `图片${issue.status === 'timeout' ? '加载超时' : '加载失败'}`;
+  return errorText(issue.error || issue.message, '资源不可用');
+}
+
+function recoveryMessage(issues) {
+  const labels = issues.slice(0, 3).map(issueLabel);
+  const more = issues.length > labels.length ? `，另有 ${issues.length - labels.length} 项` : '';
+  return `部分资源未能准备完成：${labels.join('；')}${more}。`;
 }
 
 /**
- * Resolves with the first result from the operation or a timeout.
- * @param {Promise} promise - The operation to await.
- * @param {number} ms - The timeout duration in milliseconds.
- * @return {Promise<*>} The operation's result, or `undefined` if the timeout expires first.
- *   If the promise rejects before the timeout, the rejection will propagate.
+ * Waits for the user to choose whether a non-fatal startup issue is acceptable.
+ * The game and UI are initialized before this is offered, so Continue is usable.
  */
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((r) => setTimeout(r, ms)),
-  ]);
+function waitForLoaderChoice(issues) {
+  if (!issues.length) {
+    setRecoveryControls();
+    return Promise.resolve('continue');
+  }
+  bindLoaderControls();
+  setLoadProgressVisible(false);
+  setLoadStatus(`${recoveryMessage(issues)} 可选择“继续进入”或“重新加载”。`);
+  if (!btnContinue || !btnReload) {
+    console.warn('Loader recovery controls unavailable:', issues);
+    return Promise.resolve('continue');
+  }
+  setRecoveryControls({ reload: true, continueEntry: true });
+  return new Promise((resolve) => {
+    pendingLoaderChoice = resolve;
+  });
 }
 
 /**
- * Preloads artwork and OGG audio files while updating loading progress.
+ * A rejecting timeout wrapper. The timer is cleared for both outcomes; a timeout
+ * is observable by callers instead of silently turning an incomplete operation
+ * into success.
+ */
+function withTimeout(promise, ms, label = 'operation') {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      const error = new Error(`${label} timeout`);
+      error.code = 'TIMEOUT';
+      reject(error);
+    }, ms);
+    Promise.resolve(promise).then((value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    }, (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
+
+/**
+ * Preloads artwork and OGG audio files while updating processed-resource progress.
+ * Individual failures are returned as data so the caller can offer recovery after
+ * all initialization needed for Continue has completed.
  * @param {import('./audio.js').AudioEngine} [audio] - Audio engine used to decode and cache audio buffers.
  */
 async function preloadAll(audio) {
@@ -60,96 +166,161 @@ async function preloadAll(audio) {
     ...getPlayfieldBgPaths(),
   ])];
   const audioFilePaths = [...new Set(Object.values(AUDIO_FILE_MAP).filter(Boolean))];
-
-  const total = Math.max(1, imagePaths.length + audioFilePaths.length);
+  const total = imagePaths.length + audioFilePaths.length;
+  let processed = 0;
   let loaded = 0;
+  let unavailable = 0;
+  const failures = [];
 
-  const step = () => {
-    loaded = Math.min(total, loaded + 1);
-    setLoadProgress((loaded / total) * 100);
+  const note = (result) => {
+    processed += 1;
+    if (result.status === 'loaded') loaded += 1;
+    if (result.status === 'unavailable') unavailable += 1;
+    if (result.issue) failures.push(result);
+    setLoadProgress(total ? (processed / total) * 100 : 100);
+    const suffix = failures.length ? `（${failures.length} 项失败）` : '';
+    setLoadStatus(`正在加载资源 ${processed}/${total}${suffix}`);
   };
 
   setLoadProgress(0);
+  setLoadProgressVisible(true);
+  setLoadStatus(total ? `正在加载资源 0/${total}` : '无需加载资源');
 
-  const tasks = [];
-
-  for (const src of imagePaths) {
-    tasks.push(new Promise((resolve) => {
-      const img = new Image();
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        step();
-        resolve();
+  const imageTask = (src) => new Promise((resolve) => {
+    const img = new Image();
+    let timer = 0;
+    let settled = false;
+    const finish = (status, error = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      img.onload = null;
+      img.onerror = null;
+      const result = {
+        type: 'image',
+        path: src,
+        status,
+        issue: status === 'failed' || status === 'timeout',
+        error,
       };
-      img.onload = finish;
-      img.onerror = finish;
-      img.src = src;
-      // 缓存命中时可能已 complete 且 onload 不再触发
-      if (img.complete) finish();
-      else setTimeout(finish, 8000);
-    }));
-  }
-
-  // 预载音频文件（OGG）；路径含日文时分段 encode
-  for (const path of audioFilePaths) {
-    const ac = new AbortController();
-    let audioDone = false;
-    const stepAudio = () => {
-      if (audioDone) return;
-      audioDone = true;
-      clearTimeout(audioTimer);
-      step();
+      note(result);
+      resolve(result);
     };
-    const audioTimer = setTimeout(() => { ac.abort(); stepAudio(); }, 10000);
-    const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
-    tasks.push(
-      fetch(url, { signal: ac.signal })
-        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
-        .then(async (buf) => {
-          if (!audio?.ctx) return null;
-          try {
-            return await audio.ctx.decodeAudioData(buf.slice(0));
-          } catch {
-            return null;
-          }
-        })
-        .then((decoded) => {
-          if (decoded && audio) audio.cacheAudioBuffer(path, decoded);
-          stepAudio();
-        }, () => stepAudio())
+    img.onload = () => finish('loaded');
+    img.onerror = () => finish('failed', new Error(`图片加载失败: ${src}`));
+    timer = setTimeout(
+      () => finish('timeout', new Error(`图片加载超时: ${src}`)),
+      8000,
     );
-  }
+    try {
+      img.src = src;
+    } catch (error) {
+      finish('failed', error);
+      return;
+    }
+    // A cached success/error may not dispatch an event after handlers are set.
+    if (img.complete) {
+      queueMicrotask(() => {
+        if (img.naturalWidth) finish('loaded');
+        else if (img.complete) finish('failed', new Error(`图片加载失败: ${src}`));
+      });
+    }
+  });
 
-  await withTimeout(Promise.all(tasks), 30000);
-  setLoadProgress(100);
+  const audioTask = (path) => new Promise((resolve) => {
+    const abort = new AbortController();
+    let timer = 0;
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      note(result);
+      resolve(result);
+    };
+    timer = setTimeout(() => {
+      abort.abort();
+      finish({
+        type: 'audio',
+        path,
+        status: 'timeout',
+        issue: true,
+        error: new Error(`音频加载超时: ${path}`),
+      });
+    }, 10000);
+    const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
+    Promise.resolve()
+      .then(() => fetch(url, { signal: abort.signal }))
+      .then((response) => {
+        if (!response.ok) throw new Error(`音频加载失败: ${path} (${response.status})`);
+        return response.arrayBuffer();
+      })
+      .then(async (buffer) => {
+        // Fetch success is useful evidence even when mobile audio decoding must
+        // wait for a user gesture; that case is intentionally non-blocking.
+        if (!audio?.ctx || settled) {
+          return { type: 'audio', path, status: 'unavailable', issue: false };
+        }
+        try {
+          const decoded = await audio.ctx.decodeAudioData(buffer.slice(0));
+          if (!decoded || settled) {
+            return { type: 'audio', path, status: 'unavailable', issue: false };
+          }
+          audio.cacheAudioBuffer(path, decoded);
+          return { type: 'audio', path, status: 'loaded', issue: false };
+        } catch (error) {
+          return {
+            type: 'audio',
+            path,
+            status: 'unavailable',
+            issue: false,
+            error,
+          };
+        }
+      })
+      .then(finish, (error) => finish({
+        type: 'audio',
+        path,
+        status: 'failed',
+        issue: true,
+        error,
+      }));
+  });
+
+  const tasks = [
+    ...imagePaths.map(imageTask),
+    ...audioFilePaths.map(audioTask),
+  ];
+  await Promise.all(tasks);
+  if (total) setLoadProgress(100);
+  setLoadStatus(
+    failures.length
+      ? `资源处理完成（${loaded}/${total} 成功，${unavailable} 项待后续解码，${failures.length} 项失败）`
+      : `资源处理完成（${loaded}/${total} 成功，${unavailable} 项待后续解码）`,
+  );
+  return failures;
 }
-
 /**
- * Dismisses the loading screen after marking it complete.
+ * Dismisses the loading screen only after all startup work and recovery choices
+ * have completed. The element is removed synchronously so callers can then show
+ * the menu and start its entrance lifecycle.
  */
 function dismissLoadScreen() {
   if (!elLoad || elLoad.dataset.dismissed) return;
   elLoad.dataset.dismissed = '1';
-  setLoadProgress(100);
   elLoad.classList.add('done');
-  setTimeout(() => elLoad.remove(), 700);
+  elLoad.remove();
 }
 
-/** 启动失败：把加载屏替换为错误信息（boot 内 catch 与最后兜底共用） */
-function showBootFailure(e) {
+/** 启动失败：保留加载层与按钮，给出中文原因并允许重新加载。 */
+function showBootFailure(error) {
   if (!elLoad) return;
+  elLoad.setAttribute('aria-busy', 'false');
   elLoad.dataset.dismissed = '';
   elLoad.classList.remove('done');
-  elLoad.replaceChildren();
-  const box = document.createElement('div');
-  box.style.cssText = 'color:#f87171;font-size:16px;text-align:center;padding:40px';
-  box.append('启动失败', document.createElement('br'));
-  const small = document.createElement('small');
-  small.textContent = e?.message || String(e);
-  box.append(small);
-  elLoad.append(box);
+  setLoadProgressVisible(false);
+  setRecoveryControls({ reload: true });
+  setLoadStatus(`启动失败：${errorText(error)}。请点击“重新加载”。`);
 }
 
 /**
@@ -161,7 +332,11 @@ function showBootFailure(e) {
  * trigger the failure page, allowing startup to continue.
  */
 async function boot() {
+  bindLoaderControls();
+  const startupIssues = [];
   setLoadProgress(0);
+  setLoadProgressVisible(true);
+  setLoadStatus('正在准备启动资源');
 
   // Three.js 多 CDN 加载与资源预载并行（首个镜像成功即固化）；
   // 构造 StageBackground 前 await 落定：失败则走 #bg3d-fallback 可重试占位，游戏本体照常运行。
@@ -174,31 +349,62 @@ async function boot() {
   const input = new Input();
 
   try {
-    await audio.ensure();
+    try {
+      await audio.ensure();
+    } catch (e) {
+      // AudioContext may be blocked until a gesture; this is not a startup failure.
+      console.warn('AudioContext init:', e);
+      setLoadStatus('音频等待用户手势，继续准备其他资源');
+    }
+
+    try {
+      startupIssues.push(...await preloadAll(audio));
+    } catch (e) {
+      // The per-resource tasks settle locally; this is only for an unexpected
+      // preload controller failure, which still permits the existing fallbacks.
+      console.warn('Preload error:', e);
+      startupIssues.push({ kind: 'preload-failure', error: e });
+      setLoadProgressVisible(false);
+      setLoadStatus(`资源预载失败：${errorText(e)}`);
+    }
+
+    // Module caches are not byte-countable. Keep the real warmup, but do not
+    // present its completion as a percentage or allow a broken promise to hang boot.
+    setLoadProgressVisible(false);
+    setLoadStatus('正在准备游戏缓存');
+    try {
+      const warmResults = await withTimeout(
+        Promise.all([preloadArtAssets(), preloadSprites(), preloadPlayfieldBg()]),
+        10000,
+        '资源缓存预热',
+      );
+      const cacheFailed = warmResults.some((group) => (
+        Array.isArray(group) && group.some((item) => item == null)
+      ));
+      if (cacheFailed) {
+        const issue = { kind: 'cache-failure', error: new Error('部分缓存资源不可用') };
+        startupIssues.push(issue);
+        setLoadStatus('游戏缓存已准备，但有部分资源不可用');
+      } else {
+        setLoadStatus('游戏缓存已准备');
+      }
+    } catch (e) {
+      console.warn('Cache warm error:', e);
+      const issue = {
+        kind: e?.code === 'TIMEOUT' ? 'cache-timeout' : 'cache-failure',
+        error: e,
+      };
+      startupIssues.push(issue);
+      setLoadStatus(`缓存准备${issue.kind === 'cache-timeout' ? '超时' : '失败'}：${errorText(e)}`);
+    }
   } catch (e) {
-    console.warn('AudioContext init:', e);
+    console.error('Boot preparation failed:', e);
+    showBootFailure(e);
+    return;
   }
 
-  try {
-    await preloadAll(audio);
-  } catch (e) {
-    console.warn('Preload error:', e);
-  }
-
-  setLoadProgress(100);
-
-  try {
-    // 写入模块缓存；带超时避免某图永远不 complete 卡住加载屏
-    await withTimeout(
-      Promise.all([preloadArtAssets(), preloadSprites(), preloadPlayfieldBg()]),
-      10000,
-    );
-  } catch (e) {
-    console.warn('Cache warm error:', e);
-  }
-
-  dismissLoadScreen();
-  applyVersionToDom();
+  // The UI/game initialization below remains covered by the loader. The menu
+  // is inert until UI.showMenu() is called after dismissal at the end of boot.
 
   // 首次用户手势：resume + 补预载失败的 BGM（移动端 suspended 时常见）
   let audioUnlocked = false;
@@ -237,11 +443,14 @@ async function boot() {
 
     try {
       // three 加载失败时 loadThreeModule 抛聚合错误（含各镜像原因），占位 UI 展示
+      setLoadStatus('正在准备 Three 场景');
       await threeReady;
       if (threeErr) throw threeErr;
       background = initBackground();
     } catch (err) {
       console.warn('Three.js background failed:', err);
+      startupIssues.push({ kind: 'three', error: err });
+      setLoadStatus('Three 场景不可用，已启用简化背景');
       showBgFallback(err);
       background = { setMode() {}, setTendency() {}, update() {} };
     }
@@ -380,8 +589,11 @@ async function boot() {
     window.addEventListener('pointerdown', unlockTrackPreload);
     window.addEventListener('keydown', unlockTrackPreload);
 
-    const art = document.getElementById('menu-title-art');
-    if (art) art.classList.add('ready');
+    applyVersionToDom();
+    const choice = await waitForLoaderChoice(startupIssues);
+    if (choice !== 'continue') return;
+    dismissLoadScreen();
+    ui.showMenu();
 
     console.info(
       '%cOTTOWiki Project',

@@ -18,6 +18,9 @@ python -m http.server 8080
 
 浏览器访问提示的地址即可。
 
+主标题为「棍維何意味」，英文副标题为 OTTOWiki Project。首次进入及返回主菜单时播放入场演出，按确认键或点击即可跳过；该次输入只跳过演出，下一次才执行选项。返回会记住上次入口，系统开启减少动态效果时直接显示菜单。
+加载失败时可重新加载；部分图片或音乐不可用但游戏已准备好时，也可选择继续进入。Exit 显示可关闭标签页的提示，并保留返回主菜单。
+
 ## 操作
 
 | 键 | 功能 |
@@ -33,7 +36,7 @@ python -m http.server 8080
 
 ## 内容范围
 
-- 主菜单：Start Game / Extra Start / Stage Select / Manual / History / Ranking / Replay / Settings / Practice / Exit  
+- 主菜单：Start Game / Extra Start / Stage Select / Practice / Ranking / Replay / Manual / History / Settings / Exit  
   （键位在 **Settings** 内，非独立顶栏项）
 - 自机：饮泉思源 / 誓约沙玛（机制相同，剧情对应）
 - 前三面 + 中立拦截 + A/B 线 4–6 面 + EX + 双结局

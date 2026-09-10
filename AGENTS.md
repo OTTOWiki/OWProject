@@ -88,7 +88,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
-- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（smoke/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
+- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（smoke/menu/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。本地仍 `npm test`
@@ -183,6 +183,8 @@ docs/                  # 内部改造队列等（非运行时）
 
 **`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`  
 暂停：`paused` 标志（不是 state）。
+
+**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。新主菜单人物为明确占位。
 
 **`Game.mode`**：`story` | `practice` | `stage` | `extra` | `nomiss`
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。

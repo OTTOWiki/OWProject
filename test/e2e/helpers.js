@@ -4,9 +4,11 @@
  * - rAF 在后台标签可能节流：测试内用 expect.poll / waitForFunction，别用页内长 setTimeout 等帧。
  */
 
-/** 等待 boot 完成：owDebug 就绪（main.js 在 Game 构造后 installDebug） */
+/** 等待初始化和首次菜单演出完成；需要测试跳过行为的用例单独观察入场。 */
 export async function waitForGameReady(page) {
-  await page.waitForFunction(() => typeof window.owDebug === 'function');
+  await page.waitForFunction(() => typeof window.owDebug === 'function'
+    && !document.getElementById('load-screen')
+    && !document.getElementById('screen-menu')?.classList.contains('menu-entering'));
 }
 
 /** 清空本测试域的 localStorage 与录像 IndexedDB，保证用例独立 */
