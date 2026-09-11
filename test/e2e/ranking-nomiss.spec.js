@@ -45,6 +45,9 @@ test('Nomiss 结算：两行短统计输出', async ({ page }) => {
   await nomiss.check();
   await page.locator('.player-card[data-player="yinquan"]').click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#ui-mode-nomiss')).toBeVisible();
+  await expect(page.locator('#ui-difficulty')).toContainText('NORMAL');
+  await expect(page.locator('#ui-difficulty')).not.toContainText('Nomiss');
 
   await page.keyboard.press('Escape');
   await expect(page.locator('#game-overlay')).not.toHaveClass(/hidden/);

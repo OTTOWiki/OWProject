@@ -8,37 +8,67 @@ import { BALANCE, LOGICAL_W, LOGICAL_H, calcLetterBonus } from './config.js';
 export function createHudCache() {
   return {
     score: null,
+    scoreCompact: null,
+    scoreDetails: null,
     hiscore: null,
     lives: null,
     bombs: null,
     editPct: null,
     editFull: null,
     unstable: null,
+    chapterTendency: null,
+    chapterTendencyVisible: null,
     tendency: null,
-    chapter: null,
     combo: null,
+    comboActive: null,
+    chapter: null,
     difficulty: null,
-    difficultyColor: null,
+    mode: null,
+    playerName: null,
     letterRemain: null,
     letterTimer: null,
-    letterBonus: null,
     letterBonusOpacity: null,
-    letterBannerOpacity: null,
   };
 }
+function finiteInteger(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+}
 
-function setDots(el, count, className, cacheKey, cache) {
-  if (!el) return;
-  const n = Math.max(0, count | 0);
+function resourceParts(el, cache, cacheKey, resourceClass) {
+  if (!el) return null;
+  const refsKey = `${cacheKey}Refs`;
+  if (cache[refsKey]) return cache[refsKey];
+  const host = el.querySelector('.resource-cells');
+  const countEl = el.querySelector('.resource-count');
+  const overflowEl = el.querySelector('.resource-overflow');
+  if (!host || !countEl || !overflowEl) return null;
+  host.setAttribute('aria-hidden', 'true');
+  while (host.children.length > 8) host.lastElementChild.remove();
+  while (host.children.length < 8) {
+    const cell = document.createElement('span');
+    cell.className = `resource-cell ${resourceClass}`;
+    host.appendChild(cell);
+  }
+  cache[refsKey] = { cells: [...host.children], countEl, overflowEl };
+  return cache[refsKey];
+}
+
+function updateResource(el, count, cacheKey, cache, resourceClass) {
+  const refs = resourceParts(el, cache, cacheKey, resourceClass);
+  if (!refs) return;
+  const n = finiteInteger(count);
   if (cache[cacheKey] === n) return;
   cache[cacheKey] = n;
-  if (n === 0) {
-    el.textContent = '';
-    return;
+
+  const filled = Math.min(8, n);
+  for (let i = 0; i < refs.cells.length; i++) {
+    refs.cells[i].classList.toggle('filled', i < filled);
   }
-  let html = '';
-  for (let i = 0; i < n; i++) html += `<span class="icon-dot ${className}"></span>`;
-  el.innerHTML = html;
+  refs.countEl.textContent = String(n);
+  const overflow = n > 8 ? `+${n - 8}` : '';
+  refs.overflowEl.textContent = overflow;
+  refs.overflowEl.classList.toggle('hidden', !overflow);
 }
 
 function setText(el, value, cacheKey, cache) {
@@ -46,6 +76,53 @@ function setText(el, value, cacheKey, cache) {
   if (cache[cacheKey] === value) return;
   cache[cacheKey] = value;
   el.textContent = value;
+}
+
+function fullScore(value) {
+  return String(finiteInteger(value));
+}
+
+function compactScore(value) {
+  const n = finiteInteger(value);
+  if (n < 1000) return String(n);
+  const units = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  for (const [unit, suffix] of units) {
+    if (n < unit) continue;
+    const scaled = n / unit;
+    const digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+    const shown = Number(scaled.toFixed(digits));
+    return `${shown}${suffix}`;
+  }
+  return String(n);
+}
+
+function tendencyText(value) {
+  const n = Number(value);
+  const v = Number.isFinite(n) && Math.abs(n) >= 0.05 ? n : 0;
+  if (v < 0) return `A ${v.toFixed(1)}%`;
+  if (v > 0) return `B +${v.toFixed(1)}%`;
+  return '中立 0.0%';
+}
+
+function updateModeMarkers(el, game, cache) {
+  if (!el.mode) return;
+  const mode = String(game.mode || 'story');
+  const key = `${game.replaying ? 'replay' : ''}|${mode}`;
+  if (cache.mode === key) return;
+  cache.mode = key;
+  const markers = [
+    [el.modeReplay, !!game.replaying],
+    [el.modeNomiss, mode === 'nomiss'],
+    [el.modePractice, mode === 'practice'],
+    [el.modeStage, mode === 'stage'],
+  ];
+  let active = false;
+  for (const [marker, show] of markers) {
+    if (!marker) continue;
+    marker.classList.toggle('hidden', !show);
+    active ||= show;
+  }
+  el.mode.classList.toggle('hidden', !active);
 }
 
 /**
@@ -58,33 +135,56 @@ export function updateGameHud(game) {
   if (!p || !el) return;
   const cache = game._hudCache || (game._hudCache = createHudCache());
 
-  setText(el.score, String(Math.floor(game.score)), 'score', cache);
-  setText(el.hiscore, String(Math.floor(game.hiscore)), 'hiscore', cache);
-  setDots(el.lives, p.lives, 'life', 'lives', cache);
-  setDots(el.bombs, p.bombs, 'bomb', 'bombs', cache);
+  const score = fullScore(game.score);
+  setText(el.score, score, 'score', cache);
+  setText(el.scoreDetails, score, 'scoreDetails', cache);
+  const compact = compactScore(game.score);
+  setText(el.scoreCompact, compact, 'scoreCompact', cache);
+  if (el.scoreCompact && el.scoreCompact.title !== score) el.scoreCompact.title = score;
 
-  const pct = (p.edit / BALANCE.editMax) * 100;
+  setText(el.hiscore, fullScore(game.hiscore), 'hiscore', cache);
+  updateResource(el.lives, p.lives, 'lives', cache, 'life');
+  updateResource(el.bombs, p.bombs, 'bombs', cache, 'bomb');
+
+  const rawPct = (Number(p.edit) / Number(BALANCE.editMax || 100)) * 100;
+  const pct = Math.max(0, Math.min(100, Number.isFinite(rawPct) ? rawPct : 0));
   const pctKey = pct.toFixed(1);
   if (cache.editPct !== pctKey) {
     cache.editPct = pctKey;
+    const pctDisplay = pctKey.endsWith('.0') ? pctKey.slice(0, -2) : pctKey;
     if (el.edit) el.edit.style.width = `${pct}%`;
+    if (el.editValue) el.editValue.textContent = `${pctDisplay}%`;
+    if (el.editMeter) {
+      el.editMeter.setAttribute('aria-valuenow', pctKey);
+      el.editMeter.setAttribute('aria-valuetext', `${pctDisplay}%`);
+    }
   }
-  const full = p.edit >= BALANCE.editMax;
+  const full = pct >= 100;
   if (cache.editFull !== full) {
     cache.editFull = full;
     el.edit?.classList.toggle('full', full);
   }
 
+  setText(el.playerName, game.player?.def?.name || '—', 'playerName', cache);
   setText(el.unstable, game.unstableFx ? game.unstableFx.label : '关', 'unstable', cache);
-  setText(el.tendency, `${game.totalTendency.toFixed(0)}%`, 'tendency', cache);
-  setText(
-    el.combo,
-    game.combo > 1 ? `COMBO ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}` : '—',
-    'combo',
-    cache,
-  );
+  setText(el.tendency, tendencyText(game.totalTendency), 'tendency', cache);
+  const comboActive = game.combo > 1;
+  const comboText = comboActive
+    ? `${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`
+    : '—';
+  setText(el.combo, comboText, 'combo', cache);
+  if (cache.comboActive !== comboActive) {
+    cache.comboActive = comboActive;
+    el.comboRow?.classList.toggle('active', comboActive);
+  }
 
   const ch = game.chapters[game.chapterIndex];
+  const showChapterTendency = typeof ch?.stage === 'number' && ch.stage <= 3;
+  setText(el.chapterTendency, `本章 ${tendencyText(game.chapterTendency)}`, 'chapterTendency', cache);
+  if (cache.chapterTendencyVisible !== showChapterTendency) {
+    cache.chapterTendencyVisible = showChapterTendency;
+    el.chapterTendency?.classList.toggle('hidden', !showChapterTendency);
+  }
   setText(el.chapter, ch ? ch.name : '—', 'chapter', cache);
 
   if (el.difficulty && game.diff) {
@@ -93,12 +193,9 @@ export function updateGameHud(game) {
       cache.difficulty = dLabel;
       el.difficulty.textContent = dLabel;
     }
-    if (cache.difficultyColor !== game.diff.color) {
-      cache.difficultyColor = game.diff.color;
-      el.difficulty.style.color = game.diff.color;
-    }
   }
 
+  updateModeMarkers(el, game, cache);
   updateLetterHud(game);
 }
 
@@ -140,18 +237,6 @@ export function updateLetterHud(game) {
 
   // 注：letterRate 收率文本由 chapterFlow.startChapter 章首一次性写入 DOM，
   // 不在此每帧读取 localStorage（移动端存储 I/O 会阻塞主线程）。
-
-  const p = game.player;
-  if (p) {
-    const rx = p.x / LOGICAL_W;
-    const ry = p.y / LOGICAL_H;
-    const near = Math.max(0, (rx - 0.55) / 0.45) * Math.max(0, (0.42 - ry) / 0.42);
-    const op = String(1 - 0.78 * Math.min(1, near));
-    if (cache.letterBannerOpacity !== op) {
-      cache.letterBannerOpacity = op;
-      banner.style.opacity = op;
-    }
-  }
 }
 
 /**

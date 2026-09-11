@@ -88,7 +88,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
-- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
+- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/replay/settings/ranking-nomiss）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
 - 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
@@ -149,6 +149,8 @@ docs/                  # 内部改造队列等（非运行时）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
 - 移动端竖屏（`≤820px 且 portrait`）：单列——版面占满可用高度，HUD 压成底部横条
+- 版面画布无 CSS 边框，装饰由外围容器承载；Letter 信息使用版面上方独立区域，Boss 标记仍贴底边。
+- `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作。
 
 ### 模块职责
 
@@ -168,7 +170,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
 | `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
-| `backgrounds/*` | 左侧 Three 场景 | 版面 Canvas |
+| `backgrounds/*` | 共享舞台 Three 场景 | 版面 Canvas |
 | `playfieldBgThemes.js` | `MODE_THEME` 一行表 | Three 场景 |
 | `rng.js` | 种子 PRNG（mulberry32）+ `withSeededRng` | 业务逻辑 |
 | `ranking.js` | 排行榜纯函数 + localStorage（按难度 top10） | UI / 录像 |
@@ -228,7 +230,8 @@ docs/                  # 内部改造队列等（非运行时）
 ### 音频 / 视觉
 
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
-- 左 Three / 中 Canvas 版面 / 右 HUD+触屏
+- 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
+- `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo/倾向只保留 HUD 主读数，难度与 Replay/Nomiss/Practice/Stage 标识分开。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）
 - Boss：`DEDICATED_BOSS_BY_KIND`；占位 `PLACEHOLDER_BOSS_SPRITES`（`null`=几何）；未知 kind **禁止**默认爱丽丝脸
 
@@ -302,7 +305,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 改菜单 | `ui.js` + `index.html` |
 | 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
 | 改 BGM | `audio.js` |
-| 改左侧 3D | `backgrounds/*` + `bgModes.js` |
+| 改共享舞台 3D | `backgrounds/*` + `bgModes.js` |
 | 改版面主题色 | `playfieldBgThemes.js` |
 | 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
 | 改排行榜 | `ranking.js` + `rankingScreen.js` + `scoreRanking.js` + `index.html` |

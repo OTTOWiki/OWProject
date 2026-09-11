@@ -138,17 +138,28 @@ export class Game {
   _bindUI() {
     this.el = {
       score: document.getElementById('ui-score'),
+      scoreCompact: document.getElementById('ui-score-compact'),
+      scoreDetails: document.getElementById('ui-score-details'),
       hiscore: document.getElementById('ui-hiscore'),
       lives: document.getElementById('ui-lives'),
       bombs: document.getElementById('ui-bombs'),
       edit: document.getElementById('ui-edit'),
+      editValue: document.getElementById('ui-edit-value'),
+      editMeter: document.getElementById('ui-edit-meter'),
       unstable: document.getElementById('ui-unstable'),
       tendency: document.getElementById('ui-tendency'),
+      chapterTendency: document.getElementById('ui-chapter-tendency'),
       chapter: document.getElementById('ui-chapter'),
       bonus: document.getElementById('ui-bonus'),
       playerName: document.getElementById('ui-player-name'),
       difficulty: document.getElementById('ui-difficulty'),
       combo: document.getElementById('ui-combo'),
+      comboRow: document.getElementById('ui-combo-row'),
+      mode: document.getElementById('ui-mode'),
+      modeReplay: document.getElementById('ui-mode-replay'),
+      modeNomiss: document.getElementById('ui-mode-nomiss'),
+      modePractice: document.getElementById('ui-mode-practice'),
+      modeStage: document.getElementById('ui-mode-stage'),
       stageLabel: document.getElementById('stage-label'),
       dialogueBox: document.getElementById('dialogue-box'),
       dialogueName: document.getElementById('dialogue-name'),
@@ -320,16 +331,11 @@ export class Game {
     this.input.resetShotLatch();
     // 清真实输入的残留边沿（菜单 Esc/R 等），避免开局即暂停/误触发
     this.realInput.endFrame();
+    updateGameHud(this);
     setEndingCinematic(this, false);
     hideOverlay(this);
     this.el.flash.classList.add('hidden');
     this.el.dialogueBox.classList.add('hidden');
-    this.el.hiscore.textContent = String(this.hiscore);
-    this.el.playerName.textContent = this.player.def.name;
-    if (this.el.difficulty) {
-      this.el.difficulty.textContent = `${this.diff.rank} ${this.diff.name}`;
-      this.el.difficulty.style.color = this.diff.color;
-    }
 
     bindOverlayClicks(this);
     this.input.bindCanvas(this.canvas, () => ({ x: this.player.x, y: this.player.y }));
