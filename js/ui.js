@@ -863,6 +863,7 @@ export class UI {
     });
     window.addEventListener('keydown', (e) => {
       const name = this._activeScreenName();
+      if (!name || name === 'game') return;
       if (name === 'menu' && menu.inert) return;
       if ((name === 'menu' || name === 'exit') && e.repeat && (isConfirm(e) || isBack(e))) {
         e.preventDefault();
@@ -874,7 +875,6 @@ export class UI {
         e.stopImmediatePropagation();
         return;
       }
-      if (!name || name === 'game') return;
       if (this.binding && name === 'settings') return;
       if (isBack(e) || (name === 'exit' && isConfirm(e))) this._menuHeldConfirm = e.code;
       if (name === 'menu') {
