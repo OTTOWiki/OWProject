@@ -2203,7 +2203,7 @@ input, select, textarea {
   .resource-row { padding-block: 5px; }
   .touch-keys { display: grid; }
 }
-@media (max-width: 970px) and (orientation: portrait), (max-width: 520px) {
+@media (orientation: portrait), (max-width: 520px) {
   #screen-game { overflow-y: auto; overflow-x: hidden; touch-action: pan-y; }
   .game-layout {
     grid-template-columns: 1fr;

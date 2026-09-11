@@ -184,3 +184,25 @@ test('手机画布优先布局支持真实手指滚动访问下方 HUD', async (
     await cdp.detach();
   }
 });
+
+test('竖屏增加宽度不会在原970px断点缩小画布', async ({ page }) => {
+  await page.locator('[data-action="practice"]').click();
+  await page.locator('[data-action="practice-start"]').click();
+  await page.locator('.player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  let previousWidth = 0;
+  for (const width of [970, 971, 1024]) {
+    await page.setViewportSize({ width, height: 1366 });
+    await page.locator('#screen-game').evaluate(el => { el.scrollTop = 0; });
+    const canvas = await page.locator('#playfield').boundingBox();
+    const hud = await page.locator('.panel-right').boundingBox();
+    expect(canvas.width).toBeGreaterThanOrEqual(width - 24);
+    expect(canvas.width).toBeGreaterThanOrEqual(previousWidth);
+    expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
+    expect(hud.y).toBeGreaterThanOrEqual(canvas.y + canvas.height);
+    await expect(page.locator('#ui-details')).toHaveJSProperty('open', false);
+    await page.locator('#btn-pause').scrollIntoViewIfNeeded();
+    await expect(page.locator('#btn-pause')).toBeInViewport({ ratio: 1 });
+    previousWidth = canvas.width;
+  }
+});
