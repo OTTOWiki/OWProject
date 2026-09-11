@@ -78,3 +78,44 @@ test('章内移动倾向实时显示，累计倾向保留独立含义', async ({
     await page.keyboard.up('ArrowLeft');
   }
 });
+test('Practice portrait HUD stays reachable at tablet width', async ({ page }) => {
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.locator('#main-menu-nav [data-action="practice"]').click();
+  await page.locator('#practice-diffs [data-diff="hard"]').click();
+  await page.locator('#screen-practice [data-action="practice-start"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  const viewport = page.viewportSize();
+  const panel = await page.locator('.panel-right').boundingBox();
+  const bomb = await page.locator('#btn-bomb').boundingBox();
+  const canvas = await page.locator('#playfield').boundingBox();
+  for (const rect of [panel, bomb]) {
+    expect(rect).not.toBeNull();
+    expect(rect.x).toBeGreaterThanOrEqual(0);
+    expect(rect.y).toBeGreaterThanOrEqual(0);
+    expect(rect.x + rect.width).toBeLessThanOrEqual(viewport.width);
+    expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
+  }
+  expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
+  await expect(page.locator('#ui-difficulty')).toContainText('HARD');
+  await expect(page.locator('#ui-difficulty')).toHaveCSS('text-decoration-color', 'rgb(251, 191, 36)');
+  await expect(page.locator('#ui-difficulty')).not.toHaveCSS('color', 'rgb(251, 191, 36)');
+});
+
+test('HUD details follows desktop/mobile disclosure across resize', async ({ page }) => {
+  await page.locator('#main-menu-nav [data-action="practice"]').click();
+  await page.locator('#screen-practice [data-action="practice-start"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  const details = page.locator('#ui-details');
+  await expect(details).toHaveJSProperty('open', true);
+  await expect(page.locator('#ui-hiscore')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(details).toHaveJSProperty('open', false);
+  await expect(page.locator('#ui-hiscore')).toBeHidden();
+  await details.locator('summary').click();
+  await expect(page.locator('#ui-hiscore')).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(details).toHaveJSProperty('open', true);
+  await expect(page.locator('#ui-hiscore')).toBeVisible();
+});

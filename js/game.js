@@ -180,6 +180,13 @@ export class Game {
       flash: document.getElementById('flash-msg'),
       bossEnemyMarker: document.getElementById('boss-enemy-marker'),
     };
+    const details = document.getElementById('ui-details');
+    if (details) {
+      const compactHud = window.matchMedia('(max-width: 970px) and (orientation: portrait), (max-width: 520px)');
+      const syncDetails = () => { details.open = !compactHud.matches; };
+      compactHud.addEventListener('change', syncDetails);
+      syncDetails();
+    }
   }
 
   start(opts) {

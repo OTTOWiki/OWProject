@@ -2139,6 +2139,7 @@ input, select, textarea {
 .difficulty-sign { display: grid; gap: 4px; padding: 8px 12px; max-width: 170px; color: #173843; background: #b9d3cd; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
 .difficulty-sign > span { font: 10px var(--mono); letter-spacing: .06em; }
 .difficulty-sign strong { font: 600 16px/1.35 var(--font); overflow-wrap: anywhere; }
+#ui-difficulty { text-decoration: underline; text-decoration-color: var(--difficulty-color, #315f72); text-decoration-thickness: 3px; text-underline-offset: 4px; }
 .stage-label { grid-column: 1 / -1; text-align: right; font: 12px var(--mono); color: #4b645f; }
 .mode-markers { display: flex; flex-wrap: wrap; gap: 5px; }
 .hud-mode { color: #f5f0df; background: #406457; padding: 4px 9px; font: 12px/1.2 var(--mono); }
@@ -2177,7 +2178,6 @@ input, select, textarea {
 .tendency-values { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 #ui-chapter-tendency { color: #37636c; font: 12px/1.2 var(--mono); white-space: nowrap; }
 .hud-details { position: relative; border-top: 1px solid rgba(61, 80, 70, .3); }
-.hud-details::details-content { content-visibility: visible; display: block; }
 .hud-details summary { display: none; min-height: 44px; cursor: pointer; list-style: none; color: #294d53; font: 600 13px var(--font); }
 .hud-details summary::-webkit-details-marker { display: none; }
 .details-body { display: grid; gap: 2px; padding-top: 7px; }
@@ -2203,7 +2203,7 @@ input, select, textarea {
   .resource-row { padding-block: 5px; }
   .touch-keys { display: grid; }
 }
-@media (max-width: 820px) and (orientation: portrait), (max-width: 520px) {
+@media (max-width: 970px) and (orientation: portrait), (max-width: 520px) {
   .game-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0)); }
   .panel-left { display: none; }
   .panel-center { --letter-height: 62px; padding-bottom: 16px; }
@@ -2244,13 +2244,13 @@ input, select, textarea {
   .status-row strong { font-size: 12px; line-height: 1.35; }
   .hud-details { grid-column: 1; grid-row: auto; border: 0; align-self: stretch; }
   .hud-details summary { display: flex; align-items: center; justify-content: center; padding: 4px; text-align: center; border: 1px solid #667f73; font-size: 12px; }
-  .hud-details::details-content { content-visibility: hidden; display: none; }
-  .hud-details[open]::details-content { content-visibility: visible; display: block; }
   .hud-details[open] .details-body { position: absolute; bottom: 48px; left: 0; width: min(290px, calc(100vw - 36px)); max-height: 45dvh; overflow-y: auto; padding: 10px; background: #f4eddb; border: 1px solid #58756f; box-shadow: 0 4px 18px #17313b44; z-index: 40; touch-action: pan-y; }
   .touch-keys { grid-column: 2 / -1; display: grid; gap: 4px; }
   .touch-btn { font-size: 13px; padding: 5px 2px; }
-  .player-cards { grid-template-columns: 1fr; }
   #ui-chapter-tendency { font-size: 10px; }
+}
+@media (max-width: 820px) and (orientation: portrait), (max-width: 520px) {
+  .player-cards { grid-template-columns: 1fr; }
 }
 @media (max-width: 340px) {
   .game-layout { padding-inline: 8px; }

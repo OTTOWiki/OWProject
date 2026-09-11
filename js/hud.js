@@ -23,6 +23,7 @@ export function createHudCache() {
     comboActive: null,
     chapter: null,
     difficulty: null,
+    difficultyColor: null,
     mode: null,
     playerName: null,
     letterRemain: null,
@@ -192,6 +193,10 @@ export function updateGameHud(game) {
     if (cache.difficulty !== dLabel) {
       cache.difficulty = dLabel;
       el.difficulty.textContent = dLabel;
+    }
+    if (cache.difficultyColor !== game.diff.color) {
+      cache.difficultyColor = game.diff.color;
+      el.difficulty.style.setProperty('--difficulty-color', game.diff.color);
     }
   }
 
