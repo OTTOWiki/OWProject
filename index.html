@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=0.5, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>OTTOWiki Project</title>
   <link rel="stylesheet" href="css/style.css" />
@@ -10,48 +10,96 @@
 <body>
   <div id="app">
     <!-- 加载界面 -->
-    <div id="load-screen">
-      <div class="load-bg"></div>
-      <div class="load-band">
-        <h1 class="load-title">棍維<span>Project</span></h1>
-        <p class="load-sub">OTTOWiki Danmaku · Shrine Maiden</p>
-        <p class="load-notice">本游戏为虚构作品，登场人物、团体等均已幻想入。</p>
-        <p class="load-presented">Presented by</p>
-        <p class="load-maker">OTTOWiki 幻乐团</p>
-      </div>
-      <div class="load-corner">
-        <p class="load-pray">少女祈祷中</p>
-        <p class="load-now">Now Loading<span class="load-text" id="load-text">0%</span></p>
-        <div class="load-bar"><div class="load-fill" id="load-fill"></div></div>
+    <div id="load-screen" aria-busy="true">
+      <div class="load-bg" aria-hidden="true"></div>
+      <div class="load-sheet">
+        <div class="load-band">
+          <h1 class="load-title" lang="ja" aria-label="棍維何意味"><span class="title-glyph title-glyph-1">棍</span><span class="title-glyph title-glyph-2">維</span><span class="title-glyph title-glyph-3">何</span><span class="title-glyph title-glyph-4">意</span><span class="title-glyph title-glyph-5">味</span></h1>
+          <p class="load-sub">OTTOWiki Project</p>
+          <p class="load-notice">本游戏为虚构作品，登场人物、团体等均为幻想设定。</p>
+          <p class="load-presented">Presented by</p>
+          <p class="load-maker">OTTOWiki 幻乐团</p>
+        </div>
+        <div class="load-progress-panel">
+          <p class="load-pray">少女祈祷中</p>
+          <p class="load-now">Now Loading <span class="load-text" id="load-text">0%</span></p>
+          <div id="load-progress" role="progressbar" aria-label="加载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="load-fill" id="load-fill"></div>
+          </div>
+          <p class="load-status" id="load-status" role="status" aria-live="polite">正在加载游戏资源</p>
+          <div class="load-actions">
+            <button type="button" class="load-action" id="load-reload" hidden>重新加载</button>
+            <button type="button" class="load-action load-action-secondary" id="load-continue" hidden>继续进入</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- 主菜单 -->
-    <div id="screen-menu" class="screen active">
-      <div class="menu-bg"></div>
-      <div class="menu-title-art" id="menu-title-art" aria-hidden="true"></div>
-      <div class="th-ornament top-left"></div>
-      <div class="th-ornament top-right"></div>
-      <div class="menu-panel th-panel">
-        <div class="th-panel-frame">
-          <h1 class="game-title">OTTOWiki <span>Project</span></h1>
-          <p class="game-subtitle">— OTTOWiki Danmaku —</p>
-          <nav class="menu-nav" id="main-menu-nav">
-            <button class="menu-btn" data-action="start"><span class="star">★</span> Start Game</button>
-            <button class="menu-btn" data-action="extra-start"><span class="star">★</span> Extra Start</button>
-            <button class="menu-btn" data-action="stage-select"><span class="star">★</span> Stage Select</button>
-            <button class="menu-btn" data-action="manual"><span class="star">★</span> Manual</button>
-            <button class="menu-btn" data-action="history"><span class="star">★</span> History</button>
-            <button class="menu-btn" data-action="ranking"><span class="star">★</span> Ranking</button>
-            <button class="menu-btn" data-action="replay"><span class="star">★</span> Replay</button>
-            <button class="menu-btn" data-action="settings"><span class="star">★</span> Settings</button>
-            <button class="menu-btn" data-action="practice"><span class="star">★</span> Practice</button>
-            <button class="menu-btn" data-action="exit"><span class="star">★</span> Exit</button>
-          </nav>
-          <p class="menu-hint">↑↓ 选择 · Z/Enter 决定 · Esc/X 返回</p>
-        </div>
+    <div id="screen-menu" class="screen title-scene active" inert>
+      <div class="menu-layer menu-far" id="menu-title-art" data-menu-layer="far" aria-hidden="true">
       </div>
+
+      <div class="menu-layer menu-ornament" data-menu-layer="ornament" aria-hidden="true">
+        <span class="ink-stroke ink-stroke-one"></span>
+        <span class="ink-stroke ink-stroke-two"></span>
+        <span class="paper-shard paper-shard-one"></span>
+        <span class="paper-shard paper-shard-two"></span>
+        <span class="seal seal-one">幻</span>
+        <span class="seal seal-two">夢</span>
+      </div>
+
+      <section class="menu-layer menu-portrait" data-menu-layer="portrait" aria-labelledby="portrait-placeholder-label">
+        <div class="portrait-placeholder" aria-hidden="true">
+          <span class="placeholder-sheet placeholder-sheet-back"></span>
+          <span class="placeholder-sheet placeholder-sheet-front"></span>
+          <span class="placeholder-figure"></span>
+          <span class="placeholder-brush"></span>
+        </div>
+        <p class="portrait-caption" id="portrait-placeholder-label">
+          <strong>饮泉思源</strong><span>· 立绘占位</span>
+        </p>
+      </section>
+
+      <header class="menu-layer menu-title" data-menu-layer="title">
+        <h1 class="game-title" lang="ja" aria-label="棍維何意味"><span class="title-glyph title-glyph-1">棍</span><span class="title-glyph title-glyph-2">維</span><span class="title-glyph title-glyph-3">何</span><span class="title-glyph title-glyph-4">意</span><span class="title-glyph title-glyph-5">味</span></h1>
+        <p class="game-subtitle">OTTOWiki Project</p>
+        <span class="title-brush" aria-hidden="true"></span>
+      </header>
+
+      <nav class="menu-layer menu-nav" id="main-menu-nav" data-menu-layer="nav" aria-label="主菜单">
+        <div class="menu-group" data-menu-group="play">
+          <button type="button" class="menu-btn" data-action="start"><span class="menu-entry"><span class="menu-label">Start Game</span><span class="menu-caption">开始游戏</span></span></button>
+          <button type="button" class="menu-btn" data-action="extra-start"><span class="menu-entry"><span class="menu-label">Extra Start</span><span class="menu-caption">EX 开始</span></span></button>
+          <button type="button" class="menu-btn" data-action="stage-select"><span class="menu-entry"><span class="menu-label">Stage Select</span><span class="menu-caption">选择关卡</span></span></button>
+          <button type="button" class="menu-btn" data-action="practice"><span class="menu-entry"><span class="menu-label">Practice</span><span class="menu-caption">练习模式</span></span></button>
+        </div>
+        <div class="menu-group" data-menu-group="records">
+          <button type="button" class="menu-btn" data-action="ranking"><span class="menu-entry"><span class="menu-label">Ranking</span><span class="menu-caption">排行榜</span></span></button>
+          <button type="button" class="menu-btn" data-action="replay"><span class="menu-entry"><span class="menu-label">Replay</span><span class="menu-caption">录像回放</span></span></button>
+          <button type="button" class="menu-btn" data-action="manual"><span class="menu-entry"><span class="menu-label">Manual</span><span class="menu-caption">说明书</span></span></button>
+        </div>
+        <div class="menu-group" data-menu-group="archive">
+          <button type="button" class="menu-btn" data-action="history"><span class="menu-entry"><span class="menu-label">History</span><span class="menu-caption">历史构建</span></span></button>
+          <button type="button" class="menu-btn" data-action="settings"><span class="menu-entry"><span class="menu-label">Settings</span><span class="menu-caption">设置</span></span></button>
+        </div>
+        <div class="menu-group menu-group-exit" data-menu-group="exit">
+          <button type="button" class="menu-btn" data-action="exit"><span class="menu-entry"><span class="menu-label">Exit</span><span class="menu-caption">退出</span></span></button>
+        </div>
+        <p class="menu-hint">↑↓ 选择 · Z / Enter 决定 · Esc / X 返回</p>
+      </nav>
+
       <p class="version-badge" data-app-version>v0.4.2</p>
+    </div>
+
+    <!-- 退出反馈 -->
+    <div id="screen-exit" class="screen exit-screen" aria-labelledby="exit-title">
+      <div class="exit-sheet">
+        <p class="exit-kicker">OTTOWiki Project</p>
+        <h2 id="exit-title">已退出</h2>
+        <p class="exit-message">可关闭此标签页</p>
+        <button type="button" class="menu-btn" data-action="back">返回主菜单</button>
+      </div>
     </div>
 
     <!-- 难度选择 -->
@@ -388,6 +436,6 @@
     }
   }
   </script>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js" onerror="var l=document.getElementById('load-screen');if(!l)return;document.getElementById('load-status').textContent='核心程序加载失败，请重新加载';document.getElementById('load-progress').hidden=true;var r=document.getElementById('load-reload');r.hidden=false;r.onclick=function(){location.reload();};l.setAttribute('aria-busy','false');r.focus();"></script>
 </body>
 </html>

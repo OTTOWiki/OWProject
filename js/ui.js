@@ -19,11 +19,18 @@ import {
   clampIndex,
   wrapIndex,
   highlightButtons,
+  isConfirm,
+  isBack,
+  isNavNext,
+  isNavPrev,
+  isNavLeft,
+  isNavRight,
 } from './menuNav.js';
 import { HistoryScreen } from './historyScreen.js';
 import { SettingsForm } from './settingsForm.js';
 import { RankingScreen } from './rankingScreen.js';
 import { ReplayScreen } from './replayScreen.js';
+
 
 const UI_ACTION_HANDLERS = {
   start(ui) {
@@ -93,10 +100,8 @@ const UI_ACTION_HANDLERS = {
     ui.refreshKeyLabels();
   },
   exit(ui) {
-    if (confirm('确定退出 OTTOWiki Project？')) {
-      window.close();
-      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0c10;color:#c9b896;font-family:serif">已退出 · 可关闭标签页</div>';
-    }
+    // 浏览器不能可靠地关闭当前标签页，改为可兑现的退出提示页。
+    ui.show('exit');
   },
   back(ui) {
     if (ui.settingsReturn) {
@@ -124,6 +129,16 @@ export class UI {
     this.onPlayReplay = onPlayReplay || null;
     this.audio = audio;
     this.menuIndex = 0;
+    this.menuEntering = false;
+    this._menuAnimations = [];
+    this._menuAnimationGeneration = 0;
+    this._menuStarted = false;
+    this._menuHeldConfirm = null;
+    this._menuSkipPointer = null;
+    this._menuMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    this._menuMotionQuery.addEventListener('change', () => {
+      if (this._menuMotionQuery.matches) this._finishMenuEntrance();
+    });
     this.pendingStart = null;
     this.pendingDifficulty = 'normal';
     this.binding = null;
@@ -154,8 +169,11 @@ export class UI {
       history: document.getElementById('screen-history'),
       ranking: document.getElementById('screen-ranking'),
       replay: document.getElementById('screen-replay'),
+      exit: document.getElementById('screen-exit'),
       game: document.getElementById('screen-game'),
     };
+    // BootFlow 在所有初始化完成后通过 showMenu() 解除 inert 并开始首次入场。
+    if (this.screens.menu) this.screens.menu.inert = true;
 
     this.history = new HistoryScreen({
       audio,
@@ -211,7 +229,14 @@ export class UI {
         index: this.menuIndex,
         setIndex: (i) => { this.menuIndex = i; },
         highlight: (list) => this._highlightMenu(list),
+        onBack: () => this._action('exit'),
       }),
+      exit: (e) => {
+        if (isBack(e) || isConfirm(e)) {
+          e.preventDefault();
+          this._action('back');
+        }
+      },
       difficulty: (e) => handleListScreen(e, {
         getItems: () => this._diffItems(),
         index: this.diffIndex,
@@ -617,7 +642,7 @@ export class UI {
     window.addEventListener('keydown', (e) => {
       if (!this.binding || !this.screens.settings?.classList.contains('active')) return;
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       if (e.code === 'Escape') {
         document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
         this.binding = null;
@@ -795,18 +820,111 @@ export class UI {
   }
 
   _bindKeyboardNav() {
+    const menu = this.screens.menu;
+    const items = [...document.querySelectorAll('#main-menu-nav .menu-btn')];
+    const select = (button, focus = false) => {
+      const index = items.indexOf(button);
+      if (index < 0 || menu.inert) return;
+      this.menuIndex = index;
+      this._highlightMenu(items, focus);
+    };
+    items.forEach((button) => {
+      button.addEventListener('pointerenter', (e) => {
+        if (e.pointerType === 'mouse' && !this.menuEntering) select(button, true);
+      });
+      button.addEventListener('focus', () => select(button));
+    });
+    menu.addEventListener('pointerdown', (e) => {
+      this._menuSkipPointer = null;
+      if (e.button !== 0 || !this.menuEntering) return;
+      this._menuSkipPointer = e.pointerId;
+      this._finishMenuEntrance();
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+    menu.addEventListener('pointercancel', () => { this._menuSkipPointer = null; });
+    menu.addEventListener('click', (e) => {
+      if ((this._menuSkipPointer !== null && e.detail > 0) || this.menuEntering) {
+        this._menuSkipPointer = null;
+        this._finishMenuEntrance();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      const button = e.target.closest('.menu-btn');
+      if (button) select(button);
+    }, true);
+    window.addEventListener('keyup', (e) => {
+      if (e.code === this._menuHeldConfirm) this._menuHeldConfirm = null;
+    }, true);
+    window.addEventListener('blur', () => {
+      this._menuHeldConfirm = null;
+      this._menuSkipPointer = null;
+    });
     window.addEventListener('keydown', (e) => {
-      if (this.screens.game?.classList.contains('active')) return;
-      if (this.binding && this.screens.settings?.classList.contains('active')) return;
       const name = this._activeScreenName();
       if (!name || name === 'game') return;
+      if (name === 'menu' && menu.inert) return;
+      if ((name === 'menu' || name === 'exit') && e.repeat && (isConfirm(e) || isBack(e))) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      if (this._menuHeldConfirm === e.code) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      if (this.binding && name === 'settings') return;
+      if (isBack(e) || (name === 'exit' && isConfirm(e))) this._menuHeldConfirm = e.code;
+      if (name === 'menu') {
+        if (isConfirm(e)) {
+          this._menuHeldConfirm = e.code;
+          if (this.menuEntering) {
+            this._finishMenuEntrance();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+          }
+        } else if (isNavNext(e) || isNavPrev(e) || isNavLeft(e) || isNavRight(e)) {
+          this._finishMenuEntrance();
+        }
+      }
       this._navHandlers[name]?.(e);
-    });
-    this._highlightMenu([...document.querySelectorAll('#main-menu-nav .menu-btn')]);
+    }, true);
+    this._highlightMenu(items, false);
   }
 
-  _highlightMenu(list) {
+  _highlightMenu(list, focus = true) {
     highlightButtons(list, this.menuIndex);
+    const selected = list[this.menuIndex];
+    list.forEach((button, index) => { button.tabIndex = index === this.menuIndex ? 0 : -1; });
+    if (focus && selected && !this.screens.menu.inert) {
+      selected.focus({ preventScroll: true });
+      selected.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  _finishMenuEntrance() {
+    this._menuAnimationGeneration += 1;
+    this.menuEntering = false;
+    this.screens.menu.classList.remove('menu-entering');
+    this._menuAnimations.forEach((animation) => animation.cancel());
+    this._menuAnimations = [];
+  }
+
+  _enterMenu() {
+    this._finishMenuEntrance();
+    this._menuStarted = true;
+    this._highlightMenu([...document.querySelectorAll('#main-menu-nav .menu-btn')]);
+    if (this._menuMotionQuery.matches) return;
+    this.menuEntering = true;
+    this.screens.menu.classList.add('menu-entering');
+    this._menuAnimations = this.screens.menu.getAnimations({ subtree: true });
+    const generation = this._menuAnimationGeneration;
+    Promise.allSettled(this._menuAnimations.map((animation) => animation.finished)).then(() => {
+      if (generation === this._menuAnimationGeneration) this._finishMenuEntrance();
+    });
   }
 
   _highlightPlayer() {
@@ -846,9 +964,17 @@ export class UI {
   }
 
   show(name) {
+    const enteringMenu = name === 'menu'
+      && (!this._menuStarted || this._activeScreenName() !== 'menu');
+    if (name !== 'menu') this._finishMenuEntrance();
     if (name === 'difficulty') this._rebuildDifficulty();
-    Object.values(this.screens).forEach((s) => s?.classList.remove('active'));
-    this.screens[name]?.classList.add('active');
+    Object.entries(this.screens).forEach(([key, screen]) => {
+      if (!screen) return;
+      screen.classList.toggle('active', key === name);
+      screen.inert = key !== name;
+    });
+    if (enteringMenu) this._enterMenu();
+    if (name === 'exit') this.screens.exit.querySelector('button')?.focus();
     if (name === 'difficulty') this._highlightDiff();
     if (name === 'player') {
       this.playerIndex = 0;
