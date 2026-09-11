@@ -148,7 +148,7 @@ docs/                  # 内部改造队列等（非运行时）
 - `LOGICAL_W=450`, `LOGICAL_H=600`（`config.js`）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
-- 战斗竖屏（`≤970px 且 portrait`，或宽度 `≤520px`）：单列版面与底部 HUD；覆盖手机及 834px 平板竖屏。其他菜单的既有断点不变。
+- 画布显示尺寸不受 450×600 CSS 像素上限限制，逻辑尺寸不变。桌面中央版面优先利用可用宽高；战斗竖屏（`≤970px 且 portrait`，或宽度 `≤520px`）按可用宽度显示，HUD 在下方，不用 HUD 高度压缩画布。窄屏通过画布外的 HUD／空白区纵向手势滚动，画布内手势继续控制自机；其他菜单断点不变。
 - 版面画布无 CSS 边框，装饰由外围容器承载；Letter 信息使用版面上方独立区域，Boss 标记仍贴底边。
 - `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作。
 - HUD 详情使用原生 `details.open`：桌面展开，进入紧凑断点时折叠，玩家可手动展开；不依赖 `::details-content` 才显示低频信息。

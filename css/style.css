@@ -1656,7 +1656,7 @@ input, select, textarea {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(450px, 500px) minmax(260px, 1fr);
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 2.5fr) minmax(260px, 1fr);
   gap: 24px;
   width: 100%;
   height: 100%;
@@ -1778,7 +1778,7 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: min(450px, 100cqw);
+  width: 100cqw;
   height: var(--letter-height);
   flex: 0 0 var(--letter-height);
   overflow: visible;
@@ -1798,8 +1798,8 @@ input, select, textarea {
   position: relative;
   display: grid;
   place-items: stretch;
-  width: min(450px, 100cqw, calc((100cqh - var(--letter-height) - 18px) * 0.75));
-  height: min(600px, calc(100cqw * 4 / 3), calc(100cqh - var(--letter-height) - 18px));
+  width: min(100cqw, calc((100cqh - var(--letter-height) - 18px) * 0.75));
+  height: min(calc(100cqw * 4 / 3), calc(100cqh - var(--letter-height) - 18px));
   flex: 0 0 auto;
   aspect-ratio: 3 / 4;
   min-width: 0;
@@ -2204,15 +2204,46 @@ input, select, textarea {
   .touch-keys { display: grid; }
 }
 @media (max-width: 970px) and (orientation: portrait), (max-width: 520px) {
-  .game-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0)); }
+  #screen-game { overflow-y: auto; overflow-x: hidden; touch-action: pan-y; }
+  .game-layout {
+    grid-template-columns: 1fr;
+    --playfield-width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    grid-template-rows: auto auto;
+    align-content: start;
+    height: auto;
+    min-height: 100%;
+    flex-shrink: 0;
+    overflow: visible;
+    touch-action: pan-y;
+    padding: 10px 12px calc(18px + env(safe-area-inset-bottom, 0));
+  }
   .panel-left { display: none; }
-  .panel-center { --letter-height: 62px; padding-bottom: 16px; }
-  .letter-track { width: 100%; }
+  .panel-center {
+    --letter-height: 62px;
+    container-type: normal;
+    display: flex;
+    flex: 0 0 auto;
+    align-self: start;
+    justify-content: flex-start;
+    width: 100%;
+    height: auto;
+    min-height: calc(var(--letter-height) + var(--playfield-width) * 4 / 3 + 20px);
+    padding: 0 0 20px;
+  }
+  .letter-track { width: 100%; height: 62px; flex: 0 0 62px; }
   .letter-banner { padding: 2px 0 6px; gap: 1px 6px; }
   .letter-name { font-size: 13px; }
   .letter-remain, .letter-bonus { font-size: 11px; }
   .letter-rate { font-size: 10px; }
-  .panel-right { overflow: visible; }
+  .playfield-wrap {
+    width: var(--playfield-width);
+    height: calc(var(--playfield-width) * 4 / 3);
+    flex: 0 0 auto;
+    aspect-ratio: 3 / 4;
+  }
+  .panel-right { align-self: start; width: 100%; overflow: visible; }
+  #playfield, .touch-keys, .touch-btn { touch-action: none; }
+  #ui-chapter-tendency { font-size: 10px; }
   .score-panel { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px 4px; padding: 5px 6px; box-shadow: none; border-block-width: 1px; }
   .hud-heading { grid-column: 1 / 4; display: flex; gap: 4px; min-width: 0; }
   .th-score-title, .stage-label, .difficulty-sign > span { display: none; }
@@ -2247,13 +2278,12 @@ input, select, textarea {
   .hud-details[open] .details-body { position: absolute; bottom: 48px; left: 0; width: min(290px, calc(100vw - 36px)); max-height: 45dvh; overflow-y: auto; padding: 10px; background: #f4eddb; border: 1px solid #58756f; box-shadow: 0 4px 18px #17313b44; z-index: 40; touch-action: pan-y; }
   .touch-keys { grid-column: 2 / -1; display: grid; gap: 4px; }
   .touch-btn { font-size: 13px; padding: 5px 2px; }
-  #ui-chapter-tendency { font-size: 10px; }
 }
 @media (max-width: 820px) and (orientation: portrait), (max-width: 520px) {
   .player-cards { grid-template-columns: 1fr; }
 }
 @media (max-width: 340px) {
-  .game-layout { padding-inline: 8px; }
+  .game-layout { --playfield-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); padding-inline: 8px; }
   .score-panel { padding-inline: 4px; }
   .stat-block { column-gap: 6px; }
   .resource-cell { width: 8px; flex-basis: 8px; }

@@ -87,16 +87,14 @@ test('Practice portrait HUD stays reachable at tablet width', async ({ page }) =
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
   const viewport = page.viewportSize();
   const panel = await page.locator('.panel-right').boundingBox();
-  const bomb = await page.locator('#btn-bomb').boundingBox();
   const canvas = await page.locator('#playfield').boundingBox();
-  for (const rect of [panel, bomb]) {
-    expect(rect).not.toBeNull();
-    expect(rect.x).toBeGreaterThanOrEqual(0);
-    expect(rect.y).toBeGreaterThanOrEqual(0);
-    expect(rect.x + rect.width).toBeLessThanOrEqual(viewport.width);
-    expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
-  }
+  expect(canvas.width).toBeGreaterThanOrEqual(viewport.width - 24);
   expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
+  expect(panel.y).toBeGreaterThanOrEqual(canvas.y + canvas.height);
+  expect(panel.x).toBeGreaterThanOrEqual(0);
+  expect(panel.x + panel.width).toBeLessThanOrEqual(viewport.width);
+  await page.locator('#btn-bomb').scrollIntoViewIfNeeded();
+  await expect(page.locator('#btn-bomb')).toBeInViewport({ ratio: 1 });
   await expect(page.locator('#ui-difficulty')).toContainText('HARD');
   await expect(page.locator('#ui-difficulty')).toHaveCSS('text-decoration-color', 'rgb(251, 191, 36)');
   await expect(page.locator('#ui-difficulty')).not.toHaveCSS('color', 'rgb(251, 191, 36)');
@@ -118,4 +116,71 @@ test('HUD details follows desktop/mobile disclosure across resize', async ({ pag
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(details).toHaveJSProperty('open', true);
   await expect(page.locator('#ui-hiscore')).toBeVisible();
+});
+
+test('手机画布按可用宽度显示，HUD 与操作区在其下方', async ({ page }) => {
+  for (const { width, height } of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await waitForGameReady(page);
+    await cleanStorage(page);
+    await page.locator('#main-menu-nav [data-action="practice"]').click();
+    await page.locator('#screen-practice [data-action="practice-start"]').click();
+    await page.locator('#screen-player-select .player-card').first().click();
+    await expect(page.locator('#screen-game')).toHaveClass(/active/);
+    const canvas = await page.locator('#playfield').boundingBox();
+    const panel = await page.locator('.panel-right').boundingBox();
+    expect(canvas.width).toBeGreaterThanOrEqual(width - 24);
+    expect(canvas.width).toBeLessThanOrEqual(width);
+    expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
+    await expect(page.locator('#playfield')).toHaveJSProperty('width', 450);
+    await expect(page.locator('#playfield')).toHaveJSProperty('height', 600);
+    expect(panel.y).toBeGreaterThan(canvas.y + canvas.height - 1);
+    if (width === 320) {
+      expect(await page.locator('#screen-game').evaluate((el) => el.scrollHeight)).toBeGreaterThan(height);
+    }
+    for (const id of ['btn-item', 'btn-bomb', 'btn-pause']) {
+      const button = page.locator(`#${id}`);
+      await button.scrollIntoViewIfNeeded();
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const bounds = await button.boundingBox();
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
+test('手机画布优先布局支持真实手指滚动访问下方 HUD', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="practice"]').click();
+  await page.locator('#screen-practice [data-action="practice-start"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  const scroller = page.locator('#screen-game');
+  const before = await scroller.evaluate(el => el.scrollTop);
+  const panel = await page.locator('.panel-right').boundingBox();
+  // Start on the HUD, outside the canvas whose touch gestures move the player.
+  const x = panel.x + 10;
+  const y = Math.min(panel.y + 32, 548);
+  const cdp = await page.context().newCDPSession(page);
+  let touching = false;
+  try {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart', touchPoints: [{ x, y, id: 1 }],
+    });
+    touching = true;
+    for (let step = 1; step <= 6; step++) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove', touchPoints: [{ x, y: y - step * 48, id: 1 }],
+      });
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    touching = false;
+    await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(before);
+    await expect(page.locator('#btn-pause')).toBeInViewport({ ratio: 1 });
+  } finally {
+    if (touching) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+    await cdp.detach();
+  }
 });
