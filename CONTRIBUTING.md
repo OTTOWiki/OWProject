@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. **`Test`** 与 **`CodeRabbit`** 通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
+4. **`Test`**、**`E2E`** 与 **`CodeRabbit`** 均通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）
 
 ```bash
 git fetch origin
@@ -117,7 +117,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 | 关卡文件 | 新内容写 `js/stages/` 对应子目录；`a4_menbailiang.js` 等仅为兼容 re-export |
 
 **状态**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`（暂停用 `paused` 标志）。  
-**模式**：`story` | `practice` | `stage` | `extra`。
+**模式**：`story` | `practice` | `stage` | `extra` | `nomiss`（无伤）。
 
 ---
 
@@ -183,13 +183,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - **禁止** `git push` 到 `main`（见 §0）  
 - 日常在功能分支上多 commit 迭代；推远程分支后开 PR  
 - 涉及玩法/UI：作者先手测，再在 PR 里写手测要点；Reviewer 抽查  
-- 合并前 PR 上 **`Test`** 与 **`CodeRabbit`** 须通过（本地可先跑 `npm test`）  
+- 合并前 PR 上 **`Test`**、**`E2E`** 与 **`CodeRabbit`** 须通过（本地可先跑 `npm test`）
 - 队列任务：测绿 → 等手测 → PR 合并后再开下一项  
 
 ### PR 建议自检（作者）
 
 - [ ] 目标分支是 **`main`**，且分支基于较新的 `main`  
-- [ ] 本地 `npm test` 通过；PR 上 **`Test`**、**`CodeRabbit`** 绿  
+- [ ] 本地 `npm test` 通过；PR 上 **`Test`**、**`E2E`**、**`CodeRabbit`** 绿
 - [ ] 未改 playfield 画布逻辑尺寸  
 - [ ] 出怪/出弹走 spawn API  
 - [ ] 有意行为变化已写在 PR 说明里  

@@ -29,7 +29,7 @@ python -m http.server 8080
 | Shift | 低速（显示判定点） |
 | Z（可改） | 射击 |
 | X（可改） | Bomb |
-| C（可改） | 编辑战（满编辑度消半径 50 弹） |
+| C（可改） | 编辑战（满编辑度消半径 150 弹） |
 | Esc | 暂停 |
 
 移动端：版面内相对滑动移动（自机移动比手指略快），按住自动射击；松开、取消触控或离开页面会释放按住状态。竖屏画布优先占用可用宽度，HUD 与 Item / Bomb / 暂停按钮位于画布下方；屏幕较矮时，在画布外的 HUD 或空白区上下滑动访问，画布内滑动仍用于移动自机。桌面画布可随可用空间放大，逻辑尺寸保持 450×600。
@@ -66,11 +66,15 @@ CONTRIBUTING.md    # 贡献指南
 AGENTS.md          # 架构与开发约定
 index.html / css/style.css
 js/               # 游戏逻辑
-test/             # 零依赖自动化测试（npm test）
+test/             # CLI 自动化测试（无 npm 包/浏览器依赖；npm test）
 assets/           # 贴图（AVIF）+ OGG；NOTICE.md = 素材授权说明
 tools/ docs/ functions/api/
 参考/             # 过时设计稿（非权威）
 ```
+### 测试依赖
+
+- **CLI**：`npm test`、`npm run test:unit` 与 `npm run test:syntax` 只使用 Node.js 与仓库内脚本，不需要 `node_modules`、浏览器或 Playwright。
+- **Playwright**：`npm run test:e2e` 依赖 `@playwright/test`（开发依赖）与 Chromium；需先安装 npm 依赖，再安装 Playwright 浏览器。它与 CLI 测试独立。
 
 ## 授权与素材
 
