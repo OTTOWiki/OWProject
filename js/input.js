@@ -51,6 +51,8 @@ export class Input {
     this._touchStart = null;
     this._touchLast = null;
     this._playerStart = null;
+    this._touchId = null;
+    this._touchDragged = false;
     this.virtualMove = null; // {x,y} absolute target from relative drag
     this.bombTap = false;
     this.itemTap = false;
@@ -61,6 +63,7 @@ export class Input {
     this.getPlayerPos = null;
     this._canvasBound = false;
     this._touchBtnsBound = false;
+    this._touchButtonReleases = [];
 
     this._onKeyDown = (e) => {
       // 表单控件获得焦点时不要吞方向键/空格（练习残机输入等）
@@ -85,9 +88,35 @@ export class Input {
         if (i >= 0) this._moveSeq.splice(i, 1);
       }
     };
+    this._onWindowBlur = () => this._releaseTransientInput();
+    this._onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') this._releaseTransientInput();
+    };
 
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
+    window.addEventListener('blur', this._onWindowBlur);
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  _releaseTransientInput() {
+    this.down.clear();
+    this.pressed.clear();
+    this.released.clear();
+    this._moveSeq.length = 0;
+    this.touchActive = false;
+    this.autoShot = false;
+    this.shotLatched = false;
+    this._touchStart = null;
+    this._touchLast = null;
+    this._playerStart = null;
+    this._touchId = null;
+    this._touchDragged = false;
+    this.virtualMove = null;
+    this.bombTap = false;
+    this.itemTap = false;
+    this.tap = null;
+    for (const release of this._touchButtonReleases) release();
   }
 
   reloadKeys() {
@@ -124,12 +153,38 @@ export class Input {
         y: clientY * (this.canvas.height / rect.height),
       };
     };
+    const findTouch = (touches, identifier) => {
+      for (let i = 0; i < (touches?.length || 0); i++) {
+        if (touches[i].identifier === identifier) return touches[i];
+      }
+      return null;
+    };
+    const clearTouch = (emitTap) => {
+      if (emitTap && this._touchStart && !this._touchDragged) {
+        const last = this._touchLast || this._touchStart;
+        const d = Math.hypot(last.x - this._touchStart.x, last.y - this._touchStart.y);
+        if (d < 22) this.tap = { x: this._touchStart.x, y: this._touchStart.y };
+      }
+      this.touchActive = false;
+      this.autoShot = false;
+      this._touchStart = null;
+      this._touchLast = null;
+      this._playerStart = null;
+      this._touchId = null;
+      this._touchDragged = false;
+      this.virtualMove = null;
+    };
 
     this._onTouchStart = (e) => {
       e.preventDefault();
-      if (!e.touches.length) return;
-      const p = logical(e.touches[0]);
+      // The first contact owns the gesture. Additional contacts must not reset it.
+      if (this._touchId != null) return;
+      const touch = e.changedTouches?.[0] || e.touches?.[0];
+      if (!touch) return;
+      const p = logical(touch);
       const pl = this.getPlayerPos?.() || { x: LOGICAL_W / 2, y: LOGICAL_H * 0.82 };
+      this._touchId = touch.identifier;
+      this._touchDragged = false;
       this.touchActive = true;
       this.autoShot = true;
       this._touchStart = p;
@@ -140,13 +195,19 @@ export class Input {
 
     this._onTouchMove = (e) => {
       e.preventDefault();
-      if (!e.touches.length || !this._touchStart || !this._playerStart) return;
-      const cur = logical(e.touches[0]);
+      if (this._touchId == null || !this._touchStart || !this._playerStart) return;
+      const touch = findTouch(e.touches, this._touchId)
+        || findTouch(e.changedTouches, this._touchId);
+      if (!touch) return;
+      const cur = logical(touch);
       this._touchLast = cur;
+      const rawDx = cur.x - this._touchStart.x;
+      const rawDy = cur.y - this._touchStart.y;
+      if (Math.hypot(rawDx, rawDy) >= 22) this._touchDragged = true;
       // 灵敏度：自机位移 = 手指位移 × TOUCH_SENSITIVITY（相对拖拽加速）。
       // 最终 virtualMove 仍为绝对逻辑坐标，录像快照/回放不受影响。
-      const dx = (cur.x - this._touchStart.x) * TOUCH_SENSITIVITY;
-      const dy = (cur.y - this._touchStart.y) * TOUCH_SENSITIVITY;
+      const dx = rawDx * TOUCH_SENSITIVITY;
+      const dy = rawDy * TOUCH_SENSITIVITY;
       this.virtualMove = {
         x: Math.max(0, Math.min(LOGICAL_W, this._playerStart.x + dx)),
         y: Math.max(0, Math.min(LOGICAL_H, this._playerStart.y + dy)),
@@ -155,18 +216,12 @@ export class Input {
 
     this._onTouchEnd = (e) => {
       e.preventDefault();
-      // 轻触（位移小）→ 记一次 tap，供路线选择等 UI 用
-      if (this._touchStart) {
-        const last = this._touchLast || this._touchStart;
-        const d = Math.hypot(last.x - this._touchStart.x, last.y - this._touchStart.y);
-        if (d < 22) this.tap = { x: this._touchStart.x, y: this._touchStart.y };
-      }
-      this.touchActive = false;
-      this.autoShot = false;
-      this._touchStart = null;
-      this._touchLast = null;
-      this._playerStart = null;
-      this.virtualMove = null;
+      if (this._touchId == null || !this._touchStart) return;
+      const primary = findTouch(e.changedTouches, this._touchId);
+      // A secondary contact ending must not release the primary gesture.
+      if (!primary && e.changedTouches?.length) return;
+      if (primary) this._touchLast = logical(primary);
+      clearTouch(e.type === 'touchend');
     };
 
     canvas.addEventListener('touchstart', this._onTouchStart, { passive: false });
@@ -181,21 +236,43 @@ export class Input {
     this._touchBtnsBound = true;
     const bind = (el, flag) => {
       if (!el) return;
-      const down = (e) => {
+      let activePointerId = null;
+      const press = (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const pointerId = e.pointerId ?? 'mouse';
+        if (activePointerId != null) return;
+        activePointerId = pointerId;
         e.preventDefault();
         e.stopPropagation();
         this[flag] = true;
         el.classList.add('active');
+        if (e.pointerId != null) {
+          try { el.setPointerCapture(e.pointerId); } catch (_) { /* detached button */ }
+        }
       };
-      const up = (e) => {
-        e.preventDefault();
+      const release = (e) => {
+        const pointerId = e.pointerId ?? 'mouse';
+        if (activePointerId != null && pointerId !== activePointerId) return;
+        activePointerId = null;
         el.classList.remove('active');
       };
-      el.addEventListener('touchstart', down, { passive: false });
-      el.addEventListener('mousedown', down);
-      el.addEventListener('touchend', up, { passive: false });
-      el.addEventListener('mouseup', up);
-      el.addEventListener('mouseleave', up);
+      this._touchButtonReleases.push(() => {
+        activePointerId = null;
+        el.classList.remove('active');
+      });
+      if (window.PointerEvent) {
+        el.addEventListener('pointerdown', press, { passive: false });
+        el.addEventListener('pointerup', release);
+        el.addEventListener('pointercancel', release);
+        el.addEventListener('lostpointercapture', release);
+      } else {
+        el.addEventListener('touchstart', press, { passive: false });
+        el.addEventListener('touchend', release, { passive: false });
+        el.addEventListener('touchcancel', release, { passive: false });
+        el.addEventListener('mousedown', press);
+        el.addEventListener('mouseup', release);
+        el.addEventListener('mouseleave', release);
+      }
     };
     bind(itemBtn, 'itemTap');
     bind(bombBtn, 'bombTap');

@@ -513,42 +513,75 @@ async function boot() {
       }
     });
 
-    // Item / Bomb 仍用帧内 flag；暂停在 pointerdown 立刻切换
-    // （触屏上 preventDefault 会吞掉 click，且 pointer+touch 双绑会连开连关）
+    // Item / Bomb use Input's one-shot frame flags; Pause owns one pointer press.
+    // Pointer events prevent touch compatibility mouse events from toggling twice.
     input.bindTouchButtons(itemBtn, bombBtn);
     if (pauseBtn) {
-      let pauseLock = false;
+      let activePointerId = null;
+      let legacyActive = false;
       const togglePause = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (pauseLock || !game.running) return;
-        pauseLock = true;
-        setTimeout(() => { pauseLock = false; }, 320);
+        if (!game.running) return;
         if (game.overlayMode === 'pause') game._hideOverlay();
         else if (!game.overlayMode) game._openPause();
       };
       const pressVis = () => pauseBtn.classList.add('active');
-      const releaseVis = () => pauseBtn.classList.remove('active');
+      const releaseVis = () => {
+        activePointerId = null;
+        legacyActive = false;
+        pauseBtn.classList.remove('active');
+      };
+      const pointerDown = (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (activePointerId != null) return;
+        activePointerId = e.pointerId;
+        pressVis();
+        togglePause(e);
+        try { pauseBtn.setPointerCapture(e.pointerId); } catch (_) { /* detached button */ }
+      };
+      const pointerRelease = (e) => {
+        if (activePointerId != null && e.pointerId !== activePointerId) return;
+        releaseVis();
+      };
+      const keyboardClick = (e) => {
+        // Native button activation (Enter/Space) has detail 0; pointer clicks do not.
+        if (e.detail !== 0) return;
+        input.pressed.delete('Enter');
+        input.pressed.delete('Space');
+        togglePause(e);
+      };
+      const clearOnFocusLoss = () => releaseVis();
       if (window.PointerEvent) {
-        pauseBtn.addEventListener('pointerdown', (e) => {
-          pressVis();
-          togglePause(e);
-        }, { passive: false });
-        pauseBtn.addEventListener('pointerup', releaseVis);
-        pauseBtn.addEventListener('pointercancel', releaseVis);
-        pauseBtn.addEventListener('pointerleave', releaseVis);
+        pauseBtn.addEventListener('pointerdown', pointerDown, { passive: false });
+        pauseBtn.addEventListener('pointerup', pointerRelease);
+        pauseBtn.addEventListener('pointercancel', pointerRelease);
+        pauseBtn.addEventListener('lostpointercapture', pointerRelease);
+        pauseBtn.addEventListener('pointerleave', pointerRelease);
       } else {
-        pauseBtn.addEventListener('touchstart', (e) => {
+        const legacyDown = (e) => {
+          if (e.type === 'mousedown' && e.button !== 0) return;
+          if (legacyActive) return;
+          legacyActive = true;
           pressVis();
           togglePause(e);
-        }, { passive: false });
-        pauseBtn.addEventListener('touchend', releaseVis, { passive: true });
-        pauseBtn.addEventListener('mousedown', (e) => {
-          pressVis();
-          togglePause(e);
-        });
-        pauseBtn.addEventListener('mouseup', releaseVis);
+        };
+        const legacyUp = () => {
+          if (!legacyActive) return;
+          releaseVis();
+        };
+        pauseBtn.addEventListener('touchstart', legacyDown, { passive: false });
+        pauseBtn.addEventListener('touchend', legacyUp, { passive: true });
+        pauseBtn.addEventListener('touchcancel', legacyUp, { passive: true });
+        pauseBtn.addEventListener('mousedown', legacyDown);
+        pauseBtn.addEventListener('mouseup', legacyUp);
+        pauseBtn.addEventListener('mouseleave', legacyUp);
       }
+      pauseBtn.addEventListener('click', keyboardClick);
+      window.addEventListener('blur', clearOnFocusLoss);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') clearOnFocusLoss();
+      });
     }
 
     // 对话/选线的点击改走 input.tap（会进录像快照），不直调 game 方法，

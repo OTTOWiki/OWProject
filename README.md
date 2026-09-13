@@ -32,7 +32,9 @@ python -m http.server 8080
 | C（可改） | 编辑战（满编辑度消半径 50 弹） |
 | Esc | 暂停 |
 
-移动端：版面内相对滑动移动（自机移动比手指略快），按住自动射击；Item / Bomb 虚拟键横屏在右侧、竖屏在版面下方的 HUD 横条内。
+移动端：版面内相对滑动移动（自机移动比手指略快），按住自动射击；松开、取消触控或离开页面会释放按住状态。竖屏画布优先占用可用宽度，HUD 与 Item / Bomb / 暂停按钮位于画布下方；屏幕较矮时，在画布外的 HUD 或空白区上下滑动访问，画布内滑动仍用于移动自机。桌面画布可随可用空间放大，逻辑尺寸保持 450×600。
+
+战斗 HUD：Lives 紫红格、Bomb 绿色格，每个亮格表示一份资源，最多显示 8 格；练习超过 8 残机时保留完整数量与额外份数。Edit 青蓝条表示真实 0–100 进度。Letter 名称、时间、奖励与收取进度集中在版面上沿；难度签与练习、无伤、录像标识分开。
 
 ## 内容范围
 
@@ -45,7 +47,7 @@ python -m http.server 8080
 - **Nomiss 无伤模式**：Start Game → 选难度 → **自机选择页勾选「Nomiss 无伤模式」**进入；被弹自动重开当前章（不扣残机、不 Game Over、资源回滚至进章状态、BGM 回带、Unstable 还原）；进度持久化可续章；仅暂停手动结算或通关结局结算；不录制、不入榜
 - Letter 卡收取记录（成功收取 / 总尝试 = 收率%，实战与练习共用一份持久记录）
 - 击破连击 Combo、续关（续关后分数清零）、结算统计、练习各章最佳记录
-- 左侧 Three.js 关卡印象；BGM 为 **OGG**（`assets/bgm/*.ogg`，东方 Project 原作音乐，见 `assets/NOTICE.md`）
+- 共享纸墨／Three.js 关卡舞台，左侧题字、中央版面、右侧资源与状态；BGM 为 **OGG**（`assets/bgm/*.ogg`，东方 Project 原作音乐，见 `assets/NOTICE.md`）
 - 高分 / 键位 / 设置 / 排行榜 localStorage 存档；录像帧数据存 IndexedDB
 - History 依赖 Cloudflare Pages Functions（`functions/api/`），本地纯静态可能不可用
 

@@ -324,19 +324,41 @@
 
     <!-- 游戏主界面 -->
     <div id="screen-game" class="screen">
+      <div class="game-backdrop" id="game-backdrop">
+        <canvas id="bg3d"></canvas>
+        <div class="overlay-fx" id="bg-overlay"></div>
+      </div>
+                <div id="bg3d-fallback" class="hidden">
+                  <p>印象场景加载失败</p>
+                  <p id="bg3d-fallback-err"></p>
+                  <button type="button" id="bg3d-fallback-retry">点击重试</button>
+                </div>
+
       <div class="game-layout">
         <aside class="panel-left" id="stage-impression">
-          <canvas id="bg3d"></canvas>
-          <div id="bg3d-fallback" class="hidden">
-            <p>印象场景加载失败</p>
-            <p id="bg3d-fallback-err"></p>
-            <button type="button" id="bg3d-fallback-retry">点击重试</button>
+          <div class="title-rail" aria-label="棍維何意味">
+            <h1 class="game-title" aria-label="棍維何意味">
+              <span class="game-title-glyph game-title-glyph-1">棍</span>
+              <span class="game-title-glyph game-title-glyph-2">維</span>
+              <span class="game-title-glyph game-title-glyph-3">何</span>
+              <span class="game-title-glyph game-title-glyph-4">意</span>
+              <span class="game-title-glyph game-title-glyph-5">味</span>
+            </h1>
+            <span class="game-subtitle">OTTOWiki Project</span>
+            <span class="title-rule" aria-hidden="true"></span>
           </div>
-          <div class="overlay-fx" id="bg-overlay"></div>
-          <div class="stage-label" id="stage-label">Stage 1</div>
         </aside>
 
         <main class="panel-center">
+          <div class="letter-track">
+            <div id="letter-banner" class="letter-banner hidden">
+              <div class="letter-remain" id="letter-remain"></div>
+              <div class="letter-name" id="letter-name"></div>
+              <div class="letter-rate" id="letter-rate"></div>
+              <div class="letter-bonus" id="letter-bonus">—</div>
+              <div class="letter-timer" id="letter-timer"></div>
+            </div>
+          </div>
           <div class="playfield-wrap">
             <canvas id="playfield" width="450" height="600"></canvas>
             <div id="boss-enemy-marker" class="boss-enemy-marker hidden" aria-hidden="true"><span>ENEMY</span></div>
@@ -370,37 +392,65 @@
               </div>
               <p class="version-badge version-badge-overlay" data-app-version>v0.4.2</p>
             </div>
-            <div id="letter-banner" class="letter-banner hidden">
-              <div class="letter-remain" id="letter-remain"></div>
-              <div class="letter-name" id="letter-name"></div>
-              <div class="letter-rate" id="letter-rate"></div>
-              <div class="letter-bonus" id="letter-bonus">BONUS 0</div>
-              <div class="letter-timer" id="letter-timer"></div>
-            </div>
             <div id="flash-msg" class="flash-msg hidden"></div>
           </div>
         </main>
 
         <aside class="panel-right">
           <div class="score-panel th-score">
-            <div class="th-score-title">OTTOWiki Project</div>
-            <div class="stat-block">
-              <div class="stat-row th-hi"><span>HiScore</span><strong id="ui-hiscore">0</strong></div>
-              <div class="stat-row th-sc"><span>Score</span><strong id="ui-score">0</strong></div>
-              <div class="stat-row"><span>Player</span><strong id="ui-player-name">—</strong></div>
-              <div class="stat-row"><span>Rank</span><strong id="ui-difficulty">NORMAL 白银</strong></div>
-              <div class="stat-row lives"><span>Player</span><div id="ui-lives" class="icon-row"></div></div>
-              <div class="stat-row bombs"><span>Bomb</span><div id="ui-bombs" class="icon-row"></div></div>
-              <div class="stat-row">
-                <span>Edit</span>
-                <div class="edit-bar"><div id="ui-edit" class="edit-fill"></div></div>
+            <div class="hud-heading">
+              <div class="th-score-title">OTTOWiki Project</div>
+              <div class="difficulty-sign" aria-label="Difficulty">
+                <span>Difficulty</span>
+                <strong id="ui-difficulty">—</strong>
               </div>
-              <div class="stat-row"><span>Combo</span><strong id="ui-combo">—</strong></div>
-              <div class="stat-row"><span>Unstable</span><strong id="ui-unstable">关</strong></div>
-              <div class="stat-row"><span>A / B</span><strong id="ui-tendency">0 / 0</strong></div>
-              <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>
-              <div class="stat-row"><span>Bonus</span><strong id="ui-bonus">—</strong></div>
+              <div class="stage-label" id="stage-label">—</div>
             </div>
+            <div id="ui-mode" class="mode-markers" aria-label="对局模式">
+              <span id="ui-mode-replay" class="hud-mode hidden">Replay</span>
+              <span id="ui-mode-nomiss" class="hud-mode hidden">Nomiss</span>
+              <span id="ui-mode-practice" class="hud-mode hidden">Practice</span>
+              <span id="ui-mode-stage" class="hud-mode hidden">Stage</span>
+            </div>
+            <div class="stat-block">
+              <div class="stat-row score-row th-sc"><span>Score</span><strong id="ui-score">—</strong><strong id="ui-score-compact" class="score-compact" title="—">—</strong></div>
+              <div class="stat-row resource-row lives">
+                <span class="stat-label">Lives <small>残机</small></span>
+                <div id="ui-lives" class="resource-control" data-resource="lives">
+                  <span class="resource-cells" aria-hidden="true"></span>
+                  <strong class="resource-count">—</strong>
+                  <span class="resource-overflow" aria-hidden="true"></span>
+                </div>
+              </div>
+              <div class="stat-row resource-row bombs">
+                <span class="stat-label">Bomb <small>符卡</small></span>
+                <div id="ui-bombs" class="resource-control" data-resource="bombs">
+                  <span class="resource-cells" aria-hidden="true"></span>
+                  <strong class="resource-count">—</strong>
+                  <span class="resource-overflow" aria-hidden="true"></span>
+                </div>
+              </div>
+              <div class="stat-row edit-row">
+                <span class="stat-label">Edit <small>编辑度</small></span>
+                <strong id="ui-edit-value" class="edit-value">—</strong>
+                <div id="ui-edit-meter" class="edit-meter" role="progressbar" aria-label="Edit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="—">
+                  <div id="ui-edit" class="edit-fill"></div>
+                </div>
+              </div>
+              <div id="ui-combo-row" class="stat-row combo-row"><span>Combo</span><strong id="ui-combo">—</strong></div>
+              <div class="stat-row status-row"><span>Unstable</span><strong id="ui-unstable">—</strong></div>
+              <div class="stat-row status-row"><span>Tendency</span><div class="tendency-values"><strong id="ui-tendency">—</strong><small id="ui-chapter-tendency" class="hidden"></small></div></div>
+            </div>
+            <details id="ui-details" class="hud-details" open>
+              <summary>详情</summary>
+              <div class="details-body">
+                <div class="stat-row score-detail"><span>Score</span><strong id="ui-score-details">—</strong></div>
+                <div class="stat-row th-hi"><span>HiScore</span><strong id="ui-hiscore">—</strong></div>
+                <div class="stat-row"><span>Player</span><strong id="ui-player-name">—</strong></div>
+                <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>
+                <div class="stat-row"><span>Bonus</span><strong id="ui-bonus">—</strong></div>
+              </div>
+            </details>
             <div class="touch-keys">
               <button type="button" id="btn-item" class="touch-btn">Item</button>
               <button type="button" id="btn-bomb" class="touch-btn bomb">Bomb</button>

@@ -35,6 +35,8 @@ test('录像：暂停保存 → 列表 → 播放 → 二次确认删除', async
   await page.locator('#replay-list .replay-item').click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
   await expect(page.locator('#ui-chapter')).toHaveText(/EX-1/);
+  await expect(page.locator('#ui-mode-replay')).toBeVisible();
+  await expect(page.locator('#ui-difficulty')).not.toContainText('Replay');
 
   // 退出回放 → 删除（二次确认）
   await exitReplay(page);

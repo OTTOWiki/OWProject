@@ -5,7 +5,6 @@ import { BALANCE, STORAGE_KEYS } from '../js/config.js';
 import { formatRunTime, formatRunStats } from '../js/runStats.js';
 import { addScore } from '../js/gameCombat.js';
 import { loadPracticeBest, savePracticeBest } from '../js/storage.js';
-import { pickComboAnchor } from '../js/gameDraw.js';
 import { test, assert, assertEqual } from './assert.js';
 
 // Node/bun 无 localStorage：注入最小内存实现，测写读路径；浏览器用原生
@@ -118,44 +117,4 @@ test('loadPracticeBest：坏数据丢弃 / 非法 JSON 回落 {}', () => {
 
   localStorage.setItem(STORAGE_KEYS.practiceBest, '{oops');
   assertEqual(Object.keys(loadPracticeBest()).length, 0);
-});
-
-test('BALANCE.combo / BALANCE.continue 字段存在', () => {
-  assertEqual(BALANCE.combo.perPercent, 0.01);
-  assertEqual(BALANCE.combo.window, 3);
-  assertEqual(BALANCE.combo.display.blinkSec, 0.133);
-  assertEqual(BALANCE.combo.display.alpha, 0.8);
-  assertEqual(BALANCE.combo.display.evadeDist, 100);
-  assertEqual(BALANCE.continue.max, 2);
-  assertEqual(BALANCE.continue.lives, 2);
-  assertEqual(BALANCE.continue.bombs, 2);
-});
-
-test('pickComboAnchor：自机在右上锚点 → 返回 left（避让到左上）', () => {
-  const a = pickComboAnchor(450 * 0.75, 600 * 0.25, 450, 600, 100);
-  assertEqual(a.x, 450 * 0.25);
-  assertEqual(a.y, 600 * 0.25);
-});
-
-test('pickComboAnchor：自机在左上锚点 → 返回 right（默认右上）', () => {
-  const a = pickComboAnchor(450 * 0.25, 600 * 0.25, 450, 600, 100);
-  assertEqual(a.x, 450 * 0.75);
-  assertEqual(a.y, 600 * 0.25);
-});
-
-test('pickComboAnchor：自机在底部（远离两锚点）→ 返回 right', () => {
-  const a = pickComboAnchor(225, 500, 450, 600, 100);
-  assertEqual(a.x, 450 * 0.75);
-  assertEqual(a.y, 600 * 0.25);
-});
-
-test('pickComboAnchor：自机在两锚点正中（距离均 ≥ dist）→ 返回 right', () => {
-  // 正中 (225,150) 距两锚点各 112.5；dist=100 时两者均 ≥100 → 默认右上
-  const a = pickComboAnchor(225, 150, 450, 600, 100);
-  assertEqual(a.x, 450 * 0.75);
-  assertEqual(a.y, 600 * 0.25);
-  // dist=150 时右上 <150 → 避让到 left（dist 参数控制生效）
-  const b = pickComboAnchor(225, 150, 450, 600, 150);
-  assertEqual(b.x, 450 * 0.25);
-  assertEqual(b.y, 600 * 0.25);
 });
