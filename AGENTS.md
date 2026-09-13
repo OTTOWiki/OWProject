@@ -103,6 +103,8 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 LICENSE                # GPL-3.0-or-later（代码）
 CONTRIBUTING.md        # 贡献流程与红线
 AGENTS.md / README.md
+CONTEXT.md / DESIGN.md  # 领域术语 / UI 设计约束与待验收目标
+.scratch/ui-hud-redesign/ # 任务总览、规格与票据（非运行时）
 index.html
 css/style.css
 playwright.config.mjs
@@ -127,11 +129,11 @@ js/
   pool.js              # 泛型对象池（bullet/item/particle 共用）
   bulletPool.js / itemPool.js / particlePool.js
   dialogue.js
-test/                  # 零第三方自动化测试；test/e2e/ = Playwright e2e；e2e-results.js = /test 页展示 e2e 结果
+test/                  # CLI 逻辑/冒烟零第三方依赖；test/e2e/ 使用 Playwright；e2e-results.js 展示 E2E 结果
 assets/                # bg portraits sprites ui + bgm/*.ogg；NOTICE.md = 素材授权说明
 tools/                 # inject-deploy-hash、hooks、bump-version、to-avif
 functions/api/         # CF Pages Functions（History 等）
-docs/                  # 内部改造队列等（非运行时）
+docs/                  # 改造队列与 agents 工作流配置（非运行时）
 参考/                  # 过时设计稿
 ```
 
@@ -213,7 +215,7 @@ docs/                  # 内部改造队列等（非运行时）
 ### 核心机制
 
 - 章节 Perfect × `BALANCE.chapterPerfectMul`（1.05）；超时失败不发
-- 擦弹 → edit；满 100 按 Item → 半径 `editClearRadius`（50）消弹
+- 擦弹 → edit；满 100 按 Item → 按 `BALANCE.editClearRadius`（见 `js/config.js`）消弹
 - 决死窗：`BALANCE.deathBombWindow`
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
@@ -320,3 +322,9 @@ docs/                  # 内部改造队列等（非运行时）
 
 - 鉴权使用环境变量 `OTTOWIKI_GITHUB_PAT`
 - GitHub MCP 已配置 token 时无需再配
+
+## Agent skills
+
+- 读取或更新任务、规格、阻塞关系时，遵循 [Local Markdown tracker](docs/agents/issue-tracker.md) 和 [状态词汇](docs/agents/triage-labels.md)。UI 重构先读 [任务总览](.scratch/ui-hud-redesign/README.md)，区分实现、验收与 PR 状态。
+- 讨论领域术语或架构决策时，按 [领域文档规则](docs/agents/domain.md) 读取 `CONTEXT.md` 与相关 ADR。
+- 调整 UI 时先读 `DESIGN.md` 和任务总览中的最新用户结论。已实现 UI 的风格仍未获认可；先调整已做部分并取得视觉结论，再继续剩余 UI 票。已有功能验收保持有效，视觉结论单独记录。
