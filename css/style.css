@@ -2596,3 +2596,161 @@ input, select, textarea {
 .sr-player { color: #b8a888; font-size: 0.78rem; }
 .sr-route { color: #9ec9e8; font-size: 0.78rem; }
 .sr-score { color: #f3e7cd; font-family: var(--mono, monospace); text-align: right; }
+/* ===== User-approved #20 refinement: preserve zones and canvas geometry ===== */
+#screen-game {
+  --stage-paper: #1a1730;
+  --stage-wash: #5d3d68;
+  --stage-ink: #f2d8a1;
+  --stage-red: #f28cae;
+  --stage-gold: #f0c878;
+  --stage-blue: #8edce4;
+  --hud-text: #fff2df;
+  --hud-muted: #d1bfd0;
+  --hud-line: rgba(240, 200, 120, 0.5);
+  --hud-line-soft: rgba(240, 200, 120, 0.2);
+  --life-color: #f19acb;
+  --bomb-color: #a9e29e;
+  --edit-color: #8fe1eb;
+}
+#screen-game .game-backdrop {
+  background:
+    linear-gradient(148deg, rgba(225, 75, 126, 0.34), transparent 36%),
+    linear-gradient(28deg, rgba(40, 167, 177, 0.34), transparent 48%),
+    linear-gradient(118deg, #16142b 0%, #4b315c 48%, #182b49 100%);
+}
+#screen-game .game-backdrop::before {
+  background:
+    repeating-linear-gradient(122deg, transparent 0 74px, rgba(255, 220, 155, 0.13) 75px 77px, transparent 78px 154px),
+    repeating-linear-gradient(32deg, transparent 0 118px, rgba(127, 225, 223, 0.13) 119px 121px, transparent 122px 238px),
+    linear-gradient(36deg, transparent 0 58%, rgba(235, 102, 151, 0.19) 58.2% 65%, transparent 65.2%);
+  opacity: 0.9;
+}
+#screen-game .game-backdrop::after {
+  background:
+    linear-gradient(90deg, rgba(8, 7, 22, 0.62), transparent 23%, transparent 76%, rgba(8, 7, 22, 0.54)),
+    linear-gradient(180deg, rgba(255, 238, 192, 0.08), transparent 38%, rgba(7, 8, 23, 0.35));
+}
+#screen-game .overlay-fx {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 4px, rgba(255, 239, 202, 0.045) 5px 6px),
+    linear-gradient(112deg, rgba(255, 194, 148, 0.1), transparent 38%, rgba(128, 222, 225, 0.08));
+  opacity: 0.72;
+}
+#screen-game .playfield-wrap {
+  outline: 1px solid rgba(242, 205, 133, 0.38);
+  outline-offset: 6px;
+  box-shadow: 0 0 0 1px rgba(20, 15, 39, 0.8), 0 0 28px rgba(231, 99, 145, 0.16);
+}
+#screen-game .title-rail {
+  color: #f7e4b4;
+  text-shadow: 2px 3px 0 rgba(18, 13, 35, 0.9), 0 0 16px rgba(236, 123, 159, 0.28);
+}
+#screen-game .title-rail::before {
+  right: 2px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, #e783a7 18%, #f0c878 48%, #76d5db 78%, transparent);
+  box-shadow: 5px 0 0 rgba(240, 200, 120, 0.22);
+}
+#screen-game .title-rail::after {
+  left: -8px;
+  bottom: 2px;
+  width: 94px;
+  height: 16px;
+  background: rgba(229, 104, 145, 0.45);
+  box-shadow: 32px -9px 0 rgba(103, 207, 212, 0.23);
+}
+#screen-game .game-title {
+  font-size: 3.05rem;
+  letter-spacing: 0.08em;
+  text-shadow: 3px 4px 0 rgba(15, 11, 31, 0.9), 0 0 18px rgba(238, 126, 164, 0.24);
+}
+#screen-game .game-title-glyph {
+  -webkit-text-stroke: 1.5px rgba(255, 239, 195, 0.9);
+  paint-order: stroke fill;
+}
+#screen-game .game-title-glyph-1,
+#screen-game .game-title-glyph-2 {
+  color: #ed86a7;
+  text-shadow: 2px 2px 0 #8d3b64, 4px 5px 0 rgba(13, 10, 27, 0.8);
+}
+#screen-game .game-title-glyph-3,
+#screen-game .game-title-glyph-4,
+#screen-game .game-title-glyph-5 {
+  color: #9adfe3;
+  text-shadow: 2px 2px 0 #26345d, 4px 5px 0 rgba(13, 10, 27, 0.82);
+}
+#screen-game .game-subtitle { color: #f3d49b; text-shadow: 1px 2px 0 rgba(15, 11, 31, 0.88); }
+#screen-game .title-rule {
+  background: linear-gradient(180deg, transparent, #f0c878 24%, #76d5db 72%, transparent);
+  box-shadow: 4px 0 0 rgba(230, 111, 151, 0.25);
+}
+#screen-game .score-panel {
+  position: relative;
+  background:
+    linear-gradient(155deg, rgba(53, 30, 68, 0.72), transparent 42%),
+    linear-gradient(24deg, rgba(19, 80, 93, 0.34), transparent 68%);
+  box-shadow: inset 10px 0 0 rgba(19, 13, 37, 0.18), inset -10px 0 0 rgba(16, 25, 48, 0.18);
+}
+#screen-game .score-panel::before,
+#screen-game .score-panel::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+#screen-game .score-panel::before {
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #ed86a7, #f0c878 48%, #76d5db);
+  opacity: 0.78;
+}
+#screen-game .score-panel::after {
+  right: 0;
+  bottom: 0;
+  width: 42%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #76d5db);
+  opacity: 0.7;
+}
+#screen-game .th-score-title { color: #f2d79f; text-shadow: 2px 2px 0 rgba(17, 12, 35, 0.88); }
+#screen-game .difficulty-sign {
+  color: #fff3d7;
+  background: linear-gradient(135deg, rgba(88, 42, 91, 0.94), rgba(32, 75, 101, 0.9));
+  box-shadow: 3px 4px 0 rgba(13, 10, 28, 0.5);
+}
+#screen-game .difficulty-sign strong { text-shadow: 2px 2px 0 rgba(15, 11, 31, 0.9); }
+#screen-game .stage-label { color: #b9dce1; }
+#screen-game .hud-mode { box-shadow: 2px 2px 0 rgba(14, 11, 30, 0.36); }
+#screen-game .stat-block { background: linear-gradient(90deg, rgba(239, 139, 170, 0.08), transparent 38%, rgba(123, 219, 222, 0.08)); }
+#screen-game .stat-row { text-shadow: 2px 2px 0 rgba(15, 11, 31, 0.9); }
+#screen-game .stat-row strong {
+  color: #fff4df;
+  -webkit-text-stroke: 2px #19132d;
+  text-shadow: 2px 2px 0 #19132d, 0 0 10px rgba(237, 134, 167, 0.2);
+}
+#screen-game .score-row { background: linear-gradient(90deg, rgba(237, 134, 167, 0.13), transparent 55%); }
+#screen-game .resource-cell { box-shadow: inset 0 0 0 1px rgba(255, 246, 211, 0.16), 2px 2px 0 rgba(18, 12, 34, 0.38); }
+#screen-game .resource-cell.filled { box-shadow: inset 0 0 0 1px rgba(255, 246, 211, 0.42), 2px 2px 0 rgba(18, 12, 34, 0.46), 0 0 8px color-mix(in srgb, var(--life-color) 34%, transparent); }
+#screen-game .bombs .resource-cell.filled { box-shadow: inset 0 0 0 1px rgba(255, 246, 211, 0.42), 2px 2px 0 rgba(18, 12, 34, 0.46), 0 0 8px color-mix(in srgb, var(--bomb-color) 34%, transparent); }
+#screen-game .edit-meter { box-shadow: inset 0 0 0 1px rgba(16, 20, 45, 0.6), 2px 2px 0 rgba(18, 12, 34, 0.4); }
+#screen-game .edit-fill { box-shadow: inset 0 0 0 1px rgba(255, 246, 211, 0.36); }
+#screen-game .hud-details { border-top-color: rgba(240, 200, 120, 0.28); }
+#screen-game .touch-btn {
+  color: #fff1d5;
+  background: linear-gradient(135deg, rgba(76, 42, 83, 0.96), rgba(32, 76, 87, 0.96));
+  box-shadow: 2px 3px 0 rgba(16, 11, 31, 0.55);
+  text-shadow: 1px 2px 0 rgba(14, 10, 28, 0.8);
+}
+#screen-game .touch-btn.bomb { background: linear-gradient(135deg, rgba(42, 104, 73, 0.96), rgba(32, 79, 91, 0.96)); }
+#screen-game .touch-btn.pause { background: linear-gradient(135deg, rgba(117, 57, 89, 0.96), rgba(61, 45, 83, 0.96)); }
+#screen-game .touch-btn:focus-visible { outline-color: #f0c878; }
+#screen-game .letter-banner { text-shadow: 2px 2px 0 rgba(16, 11, 33, 0.8); filter: drop-shadow(0 2px 0 rgba(12, 9, 27, 0.5)); }
+#screen-game .letter-name { color: #f4d18e; }
+#screen-game .letter-remain { color: #93dce4; }
+#screen-game .letter-rate { color: #d8c8d5; }
+#screen-game .letter-bonus,
+#screen-game .letter-timer { color: #f0a6cb; }
+
+@media (max-width: 520px), (orientation: portrait) {
+  #screen-game .score-panel { background: linear-gradient(90deg, rgba(67, 32, 75, 0.46), transparent 48%), linear-gradient(270deg, rgba(28, 80, 89, 0.35), transparent 70%); box-shadow: none; }
+  #screen-game .touch-btn { box-shadow: 1px 2px 0 rgba(16, 11, 31, 0.5); }
+}
