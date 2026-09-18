@@ -2,6 +2,7 @@
 
 > 来源：`main` 全库严格代码审查（2026-07-18 Phase A–D；2026-07-19 Phase E）  
 > 原则见下文「工作方式」。一次只做一个任务；**未接到用户开工指令前只改本队列文档、不动产品代码**。
+> 文档维护：历史条目中的笔误路径可以直接修正文档；“建议 / 目标结构 / 改法建议”等只表示当时方案，不代表当前实现。当前路径以可运行代码和对应完成记录为准。
 
 ---
 
@@ -314,27 +315,29 @@ T12（拆 game，可分步提交）
 [已完成] T01…T11 · T12a–d · T13 · T14 · T15 · T16 · T17 · T18
   → Phase D 收尾完成
 
-[进行中] Phase E（2026-07-20 拍板顺序，见下「默认执行方案」）
+[已完成] Phase E（2026-07-20 拍板顺序；历史执行记录见下）
   E02手测 → E03a → E03b → E03c → E03d1 → E03d2
     → E07 → E01 → E05 → E04 → E06*（可选）
+  → Phase E 收尾完成
 ```
 
-当前：**Phase D 完成**；**Phase E 全部完成（默认主线 + E06a/b/c 已 push）**。  
+当前：**Phase D 完成**；**Phase E 已收尾（默认主线 + E06a/b/c 均已 push）**。
 原则不变：一次一个任务、`npm test` 绿 → 等手测 → 再开下一项。  
 **提交流程（用户约定）**：日常改动只本地 `git commit`；用户手测 OK 后再 `git push`。
 
 ---
 
-## 阶段 E — 关卡规范化主线 + 框架收束（2026-07-19 审查 / 2026-07-20 重排）
+## 阶段 E — 关卡规范化主线 + 框架收束（已收尾；2026-07-19 审查 / 2026-07-20 重排）
 
 > 来源：`main` 全库严格代码审查（第二轮）+ 关卡解耦讨论。  
 > 原则同上文「工作方式」：**一次一个 Exx**、不改手感、`npm test` 绿 → 等手测 → 再开下一项。  
 > **产品方向**：关卡 mid 壳统一 → EX 可浏览 → 薄 StageContext → 再收 Game / 章结束 / BG。
 
-### 默认执行方案（已拍板 · 不用再选）
+### 默认执行方案（历史计划，已收尾 · 不用再选）
 
 **策略一句话**：先把关卡 mid 写成同一种现代写法，再补契约层，最后收拾框架大文件。  
 **严格度**：中等（统一 wave 壳 + 拆大文件 + 薄 StageContext；**不做**弹幕 DSL / 构建工具）。
+> 本节记录历史执行顺序；Phase E 已收尾，以下“建议”与操作步骤不是当前进行项。
 
 | 步 | 任务 | 你要做的 | 为何这个顺序 |
 |----|------|----------|--------------|
@@ -357,7 +360,7 @@ T12（拆 game，可分步提交）
 - 不重写 Letter 弹幕内容；不引入打包器  
 - 关卡长期仍可 `build(g)`，E07 只是薄包装，不是插件引擎
 
-**你怎么用这份方案**
+**历史上如何使用这份方案**
 
 1. 打开游戏，按 E02 手测要点点一遍 → 回我「E02 OK」  
 2. 我说开工 **E03a** → 改完测绿 → 你手测 2/3 面  
@@ -365,7 +368,7 @@ T12（拆 game，可分步提交）
 
 ---
 
-### 推荐顺序（锁定 · 与上表一致）
+### 历史推荐顺序（锁定 · 与上表一致）
 
 ```
 E02 手测收口
@@ -511,7 +514,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测（本地 commit，未 push） |
+| **状态** | 实现已落地（历史日志记为完成；旧“等手测 / 本地 commit，未 push”描述已过时；本次不新增用户手测结论） |
 | **改动清单** | 新增 `js/stages/stageContext.js`；`s1_alice.js` 全章 `asStageContext` + `installWave`/`setBoss`；单测窄 API 转发 |
 | **目标** | 关卡不再直接把完整 `Game` 当沙箱；经窄 API 出怪/出弹/挂波次/设 Boss |
 | **严格度** | 中等：包装现有能力，**不**做插件加载器 / 弹幕 DSL |
@@ -525,6 +528,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 | **风险** | 中——ctx 漏转发字段会导致 script 读不到 player 等；试点面要打穿 |
 | **手测要点** | Stage Select 1 面打穿；道中刷怪；草稿精英；两张 Alice Letter 弹幕正常 |
 | **后续（不本任务）** | E06b 或 Phase F 再把 A/B/EX 迁到 ctx；patterns 进一步只收 `spawnBullet`+倍率 |
+> 历史对照：2026-07-20 进度日志已记录 E07“全绿 / 完成 / `1fced35` 已 push”；上面的旧状态仅作漂移说明，本次不新增用户手测结论。
 
 ---
 
@@ -773,7 +777,7 @@ Phase E 含可选 backlog 已全部收尾。
 | | |
 |--|--|
 | **状态** | 完成 |
-| **范围** | `@playwright/test` devDependency + `playwright.config.mjs`；`test/e2e/{helpers,smoke,game,replay,settings,ranking-nomiss}.spec.js`；`test:run-tests.mjs` 限制 bun 只跑 `test/run-bun.test.mjs`（bun 默认会扫到 e2e spec）；`.gitignore` 加 node_modules/playwright-report/test-results |
+| **范围** | `@playwright/test` devDependency + `playwright.config.mjs`；`test/e2e/{helpers,smoke,game,replay,settings,ranking-nomiss}.spec.js`；`test/run-tests.mjs` 限制 bun 只跑 `test/run-bun.test.mjs`（bun 默认会扫到 e2e spec）；`.gitignore` 加 node_modules/playwright-report/test-results |
 | **不做** | 不改任何产品代码；不动运行行为 |
 | **验收（自动）** | `npm test` 119/119；`npm run test:e2e` 7/7（本地 3000 serve 复用） |
 | **验收（CI）** | Test job 增加 `npm ci` + `npx playwright install --with-deps chromium` + `npm run test:e2e` |
