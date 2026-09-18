@@ -3082,3 +3082,205 @@ input, select, textarea {
   .game-overlay-body { font-size: 0.7rem; line-height: 1.4; }
   .game-overlay-actions .overlay-btn { min-width: 8.8rem; min-height: 2rem; font-size: 0.78rem; }
 }
+/* ===== 当前批准方向：自由错位选择页 + 单一当前立绘 + 左下状态簇 ===== */
+#screen-difficulty .diff-list {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0.8rem 0 1rem;
+  padding: 0.25rem 0 0.5rem;
+}
+#screen-difficulty .diff-btn {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  grid-template-areas: "rank name" "rank desc" "rank meta";
+  width: 84%;
+  min-height: 0;
+  padding: 0.55rem 0.5rem;
+  border: 0;
+  background: transparent;
+  transform: none;
+  transition: transform 0.14s, color 0.14s;
+}
+#screen-difficulty .diff-btn:nth-child(1) { margin-left: 0; width: 76%; }
+#screen-difficulty .diff-btn:nth-child(2) { margin-left: 11%; width: 86%; }
+#screen-difficulty .diff-btn:nth-child(3) { margin-left: 3%; width: 70%; }
+#screen-difficulty .diff-btn:nth-child(4) { margin-left: 17%; width: 80%; }
+#screen-difficulty .diff-btn:hover,
+#screen-difficulty .diff-btn.selected {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translateX(0.45rem);
+}
+#screen-difficulty .diff-btn:focus,
+#screen-difficulty .diff-btn:focus-visible { outline: none; }
+#screen-difficulty .diff-btn:focus-visible .diff-name,
+#screen-difficulty .diff-btn.selected .diff-name {
+  text-decoration: underline solid var(--diff-color, var(--gold)) 2px;
+  text-underline-offset: 0.22em;
+  text-shadow: 1px 2px 0 rgba(10, 10, 20, 0.78);
+}
+#screen-difficulty .diff-btn::before {
+  left: -0.7rem;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 1px solid var(--diff-color, var(--gold));
+  background: transparent;
+  opacity: 0;
+  transform: translateY(-50%) rotate(45deg);
+}
+#screen-difficulty .diff-btn.selected::before,
+#screen-difficulty .diff-btn:focus-visible::before { opacity: 1; }
+#screen-difficulty .diff-rank {
+  align-self: start;
+  padding-top: 0.15rem;
+  color: var(--diff-color, var(--gold));
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 0.95;
+  text-shadow: 2px 2px 0 rgba(10, 10, 20, 0.72);
+}
+#screen-difficulty .diff-name {
+  color: #fff6e0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+#screen-difficulty .diff-desc {
+  max-width: 34ch;
+  margin-top: 0.22rem;
+  font-size: 0.84rem;
+}
+#screen-difficulty .diff-meta {
+  margin-top: 0.32rem;
+  font-size: 0.7rem;
+}
+
+#screen-player-select .player-cards {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1.18fr) minmax(12rem, 0.82fr);
+  gap: clamp(1rem, 5vw, 3rem);
+  align-items: end;
+  margin: 1.1rem 0 1rem;
+}
+#screen-player-select .player-card {
+  order: 2;
+  display: grid;
+  align-content: end;
+  min-height: 14rem;
+  padding: 0 0 0.8rem 1rem;
+  border: 0;
+  border-bottom: 1px solid rgba(212, 181, 106, 0.28);
+  background: transparent;
+  box-shadow: none;
+}
+#screen-player-select .player-card.selected {
+  order: 1;
+  min-height: 22rem;
+  padding: 0 1rem 0.8rem 0;
+  border-bottom-color: var(--focus-border);
+}
+#screen-player-select .player-card:not(.selected) .player-portrait { display: none; }
+#screen-player-select .player-card.selected .player-portrait {
+  display: block;
+  width: min(100%, 250px);
+  max-height: 300px;
+  margin: 0 0 0.9rem;
+  border: 0;
+  border-bottom: 2px solid var(--focus-border);
+  filter: saturate(1) contrast(1.06);
+}
+#screen-player-select .player-card::before { display: none; }
+#screen-player-select .player-card:hover,
+#screen-player-select .player-card.selected {
+  transform: none;
+  background: transparent;
+  box-shadow: none;
+}
+#screen-player-select .player-card h3 {
+  margin: 0 0 0.24rem;
+  color: #f0d78c;
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+#screen-player-select .player-card.selected h3 {
+  text-decoration: underline solid var(--gold2) 2px;
+  text-underline-offset: 0.22em;
+}
+#screen-player-select .player-card p {
+  max-width: 28ch;
+  min-height: 0;
+  font-size: 0.84rem;
+}
+#screen-player-select .player-card:focus,
+#screen-player-select .player-card:focus-visible { outline: none; }
+#screen-player-select .player-card:focus-visible h3 {
+  color: #fff0bd;
+  text-decoration: underline solid var(--gold2) 2px;
+  text-underline-offset: 0.22em;
+  text-shadow: 1px 2px 0 rgba(10, 10, 20, 0.78);
+}
+
+.game-overlay-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.12rem;
+}
+.game-overlay-title { flex: 0 0 auto; margin-bottom: 0.22rem; }
+.game-overlay-body {
+  flex: 0 1 auto;
+  width: min(100%, 34ch);
+  max-height: min(42%, 15rem);
+  margin: 0 0 0.24rem;
+  font-size: 0.88rem;
+  touch-action: pan-y;
+}
+.game-overlay-actions { flex: 0 0 auto; }
+.game-overlay-actions .overlay-btn { min-height: 2.5rem; }
+.game-overlay-hint { flex: 0 0 auto; margin-top: 0.18rem; }
+
+@media (max-width: 560px) {
+  #screen-difficulty .diff-btn {
+    grid-template-columns: 5rem minmax(0, 1fr);
+    width: 92%;
+    padding-inline: 0.15rem;
+  }
+  #screen-difficulty .diff-btn:nth-child(1) { margin-left: 0; width: 88%; }
+  #screen-difficulty .diff-btn:nth-child(2) { margin-left: 5%; width: 94%; }
+  #screen-difficulty .diff-btn:nth-child(3) { margin-left: 2%; width: 86%; }
+  #screen-difficulty .diff-btn:nth-child(4) { margin-left: 8%; width: 90%; }
+  #screen-difficulty .diff-rank { font-size: 1.55rem; }
+  #screen-difficulty .diff-name { font-size: 1.08rem; }
+  #screen-difficulty .diff-desc { font-size: 0.76rem; }
+  #screen-player-select .player-cards {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+    align-items: stretch;
+  }
+  #screen-player-select .player-card,
+  #screen-player-select .player-card.selected {
+    order: initial;
+    min-height: 0;
+    padding: 0.2rem 0 0.7rem;
+  }
+  #screen-player-select .player-card.selected { order: -1; }
+  #screen-player-select .player-card.selected .player-portrait {
+    width: min(100%, 220px);
+    max-height: 220px;
+    margin-inline: auto;
+  }
+  #screen-player-select .player-card:not(.selected) .player-portrait { display: none; }
+  .game-overlay-body { max-height: 36%; font-size: 0.82rem; }
+  .game-overlay-actions .overlay-btn { min-height: 2.5rem; }
+}
+
+@media (max-width: 340px) {
+  #screen-difficulty .diff-rank { font-size: 1.35rem; }
+  #screen-difficulty .diff-name { font-size: 1rem; }
+  #screen-player-select .player-card.selected .player-portrait { max-height: 185px; }
+  .game-overlay-body { max-height: 34%; font-size: 0.8rem; }
+}
+.game-overlay-hint { align-self: flex-start; }
