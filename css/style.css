@@ -2994,6 +2994,15 @@ input, select, textarea {
 }
 
 @media (max-width: 340px) {
+  #screen-menu .menu-title {
+    left: 1rem;
+    width: calc(100vw - 2rem);
+  }
+  #screen-menu .game-title {
+    max-width: 100%;
+    font-size: clamp(2.8rem, 14vw, 3.8rem);
+  }
+  #screen-menu .placeholder-brush { display: none; }
   #screen-difficulty .panel-title,
   #screen-player-select .panel-title { font-size: 1.85rem; }
   #screen-difficulty .diff-rank { font-size: 1.45rem; }
