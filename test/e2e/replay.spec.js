@@ -25,6 +25,9 @@ test('录像：暂停保存 → 列表 → 播放 → 二次确认删除', async
 
   // 回菜单 → 录像列表
   await page.locator('#overlay-actions [data-overlay="menu"]').click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('[data-overlay="confirm-no"]')).toHaveClass(/selected/);
+  await page.locator('[data-overlay="confirm-yes"]').click();
   await expect(page.locator('#screen-menu')).toHaveClass(/active/);
   await waitForGameReady(page);
   await page.locator('button[data-action="replay"]').click();

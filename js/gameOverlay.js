@@ -13,7 +13,7 @@ export function bindOverlayClicks(game) {
   game.el.overlayActions?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-overlay]');
     if (!btn || !game.overlayMode) return;
-    runOverlayAction(game, btn.dataset.overlay);
+    requestOverlayAction(game, btn.dataset.overlay);
   });
 }
 
@@ -24,10 +24,107 @@ export function overlayButtons(game) {
 
 export function highlightOverlay(game) {
   const btns = overlayButtons(game);
-  btns.forEach((b, i) => b.classList.toggle('selected', i === game.overlayActionIndex));
+  const previous = btns.find(button => button.classList.contains('selected'));
+  btns.forEach((button, index) => {
+    const selected = index === game.overlayActionIndex;
+    button.classList.toggle('selected', selected);
+    button.classList.toggle('selection-change', selected && !!previous && previous !== button && !game._overlayTransition);
+  });
+}
+
+const CONFIRM_ACTIONS = new Set(['menu', 'retry', 'settle', 'continue']);
+
+async function transitionOverlay(game, update) {
+  if (game._overlayTransition) return;
+  const token = {};
+  game._overlayTransition = token;
+  const setDisabled = value => {
+    game.el.overlayActions?.querySelectorAll('[data-overlay]').forEach(button => { button.disabled = value; });
+  };
+  setDisabled(true);
+  const panel = game.el.overlay?.querySelector('.game-overlay-panel');
+  const reduced = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const animate = async (frames, duration) => {
+    if (!panel?.animate || reduced) return;
+    const animation = panel.animate(frames, { duration, easing: 'cubic-bezier(.22,.8,.25,1)', fill: 'forwards' });
+    try { await animation.finished; } catch { /* A detached panel may cancel the animation. */ }
+    return animation;
+  };
+  try {
+    const outgoing = await animate([{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: 'translateX(-24px)' }], 150);
+    if (game._overlayTransition !== token || !game.overlayMode) {
+      outgoing?.cancel();
+      return;
+    }
+    update();
+    outgoing?.cancel();
+    if (game.overlayMode && game._overlayTransition === token) {
+      const incoming = await animate([{ opacity: 0, transform: 'translateX(32px)' }, { opacity: 1, transform: 'translateX(0)' }], 240);
+      incoming?.cancel();
+    }
+  } finally {
+    if (game._overlayTransition === token) game._overlayTransition = null;
+    if (!game._overlayTransition) setDisabled(false);
+  }
+}
+
+function restoreOverlay(game) {
+  const pending = game._overlayConfirm;
+  if (!pending) return;
+  game._overlayConfirm = null;
+  showOverlay(game, pending.view);
+  game.overlayActionIndex = pending.index;
+  highlightOverlay(game);
+}
+
+function requestOverlayAction(game, action) {
+  if (game._overlayTransition || !game.overlayMode) return;
+  if (game._overlayConfirm) {
+    if (action !== 'confirm-yes' && action !== 'confirm-no') return;
+    const pending = game._overlayConfirm;
+    void transitionOverlay(game, () => {
+      restoreOverlay(game);
+      if (action === 'confirm-yes') runOverlayAction(game, pending.action);
+    });
+    return;
+  }
+  if (!overlayButtons(game).some(button => button.dataset.overlay === action)) return;
+  if (!CONFIRM_ACTIONS.has(action)) {
+    runOverlayAction(game, action);
+    return;
+  }
+  const view = game._overlayView;
+  const index = overlayButtons(game).findIndex(button => button.dataset.overlay === action);
+  const label = overlayButtons(game).find(button => button.dataset.overlay === action)?.textContent;
+  void transitionOverlay(game, () => {
+    showOverlay(game, { mode: view.mode, title: `确认${label}？`, body: '', actions: ['confirm-yes', 'confirm-no'], hint: 'Esc 返回 · ↑↓ 选择 · Z / Enter 确认' });
+    game._overlayConfirm = { action, view, index };
+    game.overlayActionIndex = 1;
+    game.el.overlay?.classList.add('mode-confirm');
+    highlightOverlay(game);
+  });
 }
 
 export function showOverlay(game, { mode, title, body = '', actions, hint }) {
+  game._overlayView = { mode, title, body, actions, hint };
+  game._overlayConfirm = null;
+  game.el.overlay?.classList.remove('mode-confirm');
+  const container = game.el.overlayActions;
+  if (container?.ownerDocument && !container.querySelector('[data-overlay="confirm-yes"]')) {
+    for (const [action, text, translation] of [['confirm-yes', '是', 'Yes Yes Yes'], ['confirm-no', '否', 'No No No']]) {
+      const button = container.ownerDocument.createElement('button');
+      button.type = 'button';
+      button.className = 'overlay-btn hidden';
+      button.dataset.overlay = action;
+      const label = container.ownerDocument.createElement('span');
+      label.textContent = text;
+      const subtitle = container.ownerDocument.createElement('small');
+      subtitle.className = 'overlay-confirm-subtitle';
+      subtitle.textContent = translation;
+      button.append(label, subtitle);
+      container.append(button);
+    }
+  }
   game.overlayMode = mode;
   game.overlayActionIndex = 0;
   game.el.overlay?.classList.remove('hidden');
@@ -43,6 +140,9 @@ export function showOverlay(game, { mode, title, body = '', actions, hint }) {
     const id = btn.dataset.overlay;
     const show = want.has(id);
     btn.classList.toggle('hidden', !show);
+    btn.classList.remove('selected');
+    btn.classList.remove('selection-change');
+    btn.disabled = !!game._overlayTransition;
     if (id === 'resume') btn.textContent = '继续';
     if (id === 'settle') btn.textContent = '结算';
     if (id === 'continue') btn.textContent = '继续';
@@ -55,9 +155,35 @@ export function showOverlay(game, { mode, title, body = '', actions, hint }) {
 }
 
 export function hideOverlay(game) {
+  game._overlayConfirm = null;
+  game._overlayTransition = null;
   game.overlayMode = null;
   game.paused = false;
   game.el.overlay?.classList.add('hidden');
+}
+
+async function resumeOverlay(game) {
+  if (game._overlayTransition) return;
+  const overlay = game.el.overlay;
+  const panel = overlay?.querySelector('.game-overlay-panel');
+  const blur = overlay?.querySelector('.game-overlay-blur');
+  if (!panel?.animate || !blur?.animate || globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    hideOverlay(game);
+    return;
+  }
+  const token = {};
+  game._overlayTransition = token;
+  const options = { duration: 280, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' };
+  const animations = [
+    panel.animate([{ opacity: 1, transform: 'translate(0,0)' }, { opacity: 0, transform: 'translate(-10px,12px)' }], options),
+    blur.animate([{ backdropFilter: 'blur(3px) saturate(.65)', background: 'rgba(19,13,24,.46)' }, { backdropFilter: 'blur(0) saturate(1)', background: 'rgba(19,13,24,0)' }], options),
+  ];
+  try { await Promise.all(animations.map(animation => animation.finished)); }
+  catch { /* Cancelling an exit must still release its pause state. */ }
+  finally {
+    if (game._overlayTransition === token) hideOverlay(game);
+    animations.forEach(animation => animation.cancel());
+  }
 }
 
 export function openPause(game) {
@@ -119,7 +245,7 @@ export function runOverlayAction(game, action) {
     return;
   }
   if (action === 'resume') {
-    if (game.overlayMode === 'pause') hideOverlay(game);
+    if (game.overlayMode === 'pause') void resumeOverlay(game);
     return;
   }
   if (action === 'settle') {
@@ -200,11 +326,16 @@ export function runOverlayAction(game, action) {
  */
 export function handleOverlayInput(game, wantPause) {
   if (!game.overlayMode) return false;
+  if (game._overlayTransition) return true;
+  if (wantPause && game._overlayConfirm) {
+    void transitionOverlay(game, () => restoreOverlay(game));
+    return true;
+  }
 
   const btns = overlayButtons(game);
 
   if (wantPause && game.overlayMode === 'pause') {
-    hideOverlay(game);
+    void resumeOverlay(game);
     return true;
   }
 
@@ -231,15 +362,15 @@ export function handleOverlayInput(game, wantPause) {
     || game.input.justPressed('KeyZ')
   ) {
     const id = btns[game.overlayActionIndex]?.dataset.overlay;
-    if (id) runOverlayAction(game, id);
+    if (id) requestOverlayAction(game, id);
     return true;
   }
   if (game.overlayMode === 'pause' && game.mode === 'nomiss' && game.input.justPressed('KeyR')) {
-    runOverlayAction(game, 'retry');
+    requestOverlayAction(game, 'retry');
     return true;
   }
   if (game.overlayMode === 'pause' && game.input.justPressed('KeyQ')) {
-    runOverlayAction(game, 'menu');
+    requestOverlayAction(game, 'menu');
     return true;
   }
   return true;

@@ -52,6 +52,11 @@ test('Nomiss 结算：两行短统计输出', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('#game-overlay')).not.toHaveClass(/hidden/);
   await page.locator('#overlay-actions [data-overlay="settle"]').click();
+  await expect(page.locator('[data-overlay="confirm-no"]')).toHaveClass(/selected/);
+  await page.locator('[data-overlay="confirm-no"]').click();
+  await expect(page.locator('#overlay-title')).toHaveText('PAUSED');
+  await page.locator('#overlay-actions [data-overlay="settle"]').click();
+  await page.locator('[data-overlay="confirm-yes"]').click();
 
   await expect(page.locator('#overlay-title')).toHaveText('Nomiss 结算');
   const body = page.locator('#overlay-body');
