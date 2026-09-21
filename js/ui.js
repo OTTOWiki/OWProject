@@ -336,6 +336,13 @@ export class UI {
   _rebuildDifficulty() {
     const list = document.getElementById('diff-list');
     list.innerHTML = '';
+    this._difficultySizeObserver?.disconnect();
+    this._difficultySizeObserver ??= new ResizeObserver(entries => {
+      for (const { target } of entries) {
+        if (target.dataset.diff !== 'extra') continue;
+        document.getElementById('screen-difficulty').style.setProperty('--extra-band-height', `${Math.ceil(target.getBoundingClientRect().height) + 24}px`);
+      }
+    });
     const avail = this._availableDifficulties();
     if (this._isExtraStart()) {
       this.pendingDifficulty = 'extra';
@@ -360,6 +367,7 @@ export class UI {
         this.show('player');
       });
       list.appendChild(btn);
+      if (id === 'extra') this._difficultySizeObserver.observe(btn);
     });
     const di = avail.indexOf(this.pendingDifficulty);
     if (di >= 0) this.diffIndex = di;
@@ -367,19 +375,23 @@ export class UI {
   }
 
   _diffItems() {
-    const diffs = [...document.querySelectorAll('#diff-list .diff-btn')];
-    const back = document.querySelector('#screen-difficulty [data-action="back"]');
-    const items = diffs.map((el) => ({ type: 'diff', el }));
-    if (back) items.push({ type: 'button', el: back });
-    return items;
+    return [...document.querySelectorAll('#diff-list .diff-btn')].map(el => ({ type: 'diff', el }));
   }
 
   _highlightDiff() {
     const items = this._diffItems();
     if (!items.length) return;
     this.diffIndex = clampIndex(this.diffIndex, items.length);
-    items.forEach((it, i) => it.el.classList.toggle('selected', i === this.diffIndex));
-    items[this.diffIndex]?.el?.scrollIntoView?.({ block: 'nearest' });
+    document.getElementById('screen-difficulty').style.setProperty('--band-angle', `${items.length > 1 ? -12 + 24 * this.diffIndex / (items.length - 1) : 0}deg`);
+    const mobile = window.matchMedia('(max-width: 560px)').matches;
+    const spacing = Math.max(mobile ? 180 : 240, window.innerHeight * (mobile ? .30 : .32));
+    items.forEach((it, i) => {
+      const offset = i - this.diffIndex;
+      it.el.classList.toggle('selected', offset === 0);
+      it.el.style.setProperty('--rank-x', `${offset * 24}vw`);
+      it.el.style.setProperty('--rank-y', `${offset * spacing}px`);
+      it.el.style.setProperty('--rank-opacity', offset === 0 ? 1 : Math.abs(offset) === 1 ? .32 : .1);
+    });
   }
 
   _playerItems() {

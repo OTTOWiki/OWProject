@@ -97,7 +97,7 @@ function requestOverlayAction(game, action) {
   const index = overlayButtons(game).findIndex(button => button.dataset.overlay === action);
   const label = overlayButtons(game).find(button => button.dataset.overlay === action)?.textContent;
   void transitionOverlay(game, () => {
-    showOverlay(game, { mode: view.mode, title: `确认${label}？`, body: '', actions: ['confirm-yes', 'confirm-no'], hint: 'Esc 返回 · ↑↓ 选择 · Z / Enter 确认' });
+    showOverlay(game, { mode: view.mode, title: `确认${label}？`, body: '', actions: ['confirm-yes', 'confirm-no'], hint: '' });
     game._overlayConfirm = { action, view, index };
     game.overlayActionIndex = 1;
     game.el.overlay?.classList.add('mode-confirm');
@@ -214,7 +214,7 @@ export function openPause(game) {
     actions: isNomiss
       ? ['resume', 'settle', 'settings', 'retry']
       : ['resume', 'save-replay', 'settings', 'menu'],
-    hint: 'Esc/暂停 继续 · ↑↓ 选择 · Z 确认',
+    hint: '',
   });
 }
 
@@ -239,7 +239,7 @@ export function openResult(game, { title, body, retryChapter, actions, achieveme
       achievement,
     },
     actions: actions || ['save-replay', 'retry', 'menu'],
-    hint: '↑↓ 选择 · Z 确认',
+    hint: '',
   });
   game.ui?.showGame?.();
 }
