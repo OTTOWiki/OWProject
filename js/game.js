@@ -659,7 +659,7 @@ export class Game {
       title: this.replay?.partial ? '回放结束（部分）' : '回放结束',
       body,
       actions: ['menu'],
-      hint: 'Esc 返回录像列表',
+      hint: '',
     });
   }
 

@@ -86,7 +86,6 @@
         <div class="menu-group menu-group-exit" data-menu-group="exit">
           <button type="button" class="menu-btn" data-action="exit"><span class="menu-entry"><span class="menu-label">Exit</span><span class="menu-caption">退出</span></span></button>
         </div>
-        <p class="menu-hint">↑↓ 选择 · Z / Enter 决定 · Esc / X 返回</p>
       </nav>
 
       <p class="version-badge" data-app-version>v0.4.2</p>
@@ -108,9 +107,8 @@
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">难度选择 · Difficulty</h2>
-          <p class="keys-hint">↑↓ 选择 · Z/Enter 决定 · Esc/X 返回</p>
+          <div class="difficulty-focus-band" aria-hidden="true"></div>
           <div class="diff-list" id="diff-list"></div>
-          <button class="menu-btn ghost" data-action="back">返回</button>
         </div>
       </div>
     </div>
@@ -121,7 +119,6 @@
       <div class="menu-panel th-panel">
         <div class="th-panel-frame">
           <h2 class="panel-title">自机选择 · Player</h2>
-          <p class="keys-hint">↑↓←→ 切换 · Z/Enter 决定 · Esc/X 返回</p>
           <div class="player-cards">
             <button class="player-card selected" data-player="yinquan">
               <div class="player-portrait" style="background-image:url('assets/portraits/yinquan.avif')"></div>
@@ -153,7 +150,6 @@
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">Stage Select</h2>
-          <p class="keys-hint">↑↓←→ 选择 · Z/Enter 决定 · Esc/X 返回</p>
           <div class="stage-grid" id="stage-grid"></div>
           <button class="menu-btn ghost" data-action="back">返回</button>
         </div>
@@ -166,7 +162,6 @@
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">Practice Mode · 练习</h2>
-          <p class="keys-hint">↑↓ 移动 · ←→ 改值 · 可点击残机框直接输入 · Z/Enter 确认 · Esc/X 返回</p>
           <div class="practice-form">
             <label class="settings-row">
               <span class="settings-label">难度</span>
@@ -215,7 +210,6 @@
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">Settings · 设置</h2>
-          <p class="keys-hint">↑↓ 移动 · ←→ 调值 · Z/Enter 确认 · 描画帧率：←→调数值 · Z切换无限制 · 拖最右=无限制</p>
           <div class="settings-form" id="settings-form">
             <label class="settings-row">
               <span class="settings-label">音乐音量</span>
@@ -266,7 +260,6 @@
       <div class="menu-panel th-panel manual-panel">
         <div class="th-panel-frame">
           <h2 class="panel-title">Manual</h2>
-          <p class="keys-hint">↑↓ 滚动/切换 · Z 确认返回 · Esc/X 返回</p>
           <div class="manual-body" id="manual-body"></div>
           <button class="menu-btn" data-action="back">返回</button>
         </div>
@@ -279,7 +272,6 @@
       <div class="menu-panel th-panel wide history-panel">
         <div class="th-panel-frame">
           <h2 class="panel-title">History · 历史构建</h2>
-          <p class="keys-hint">每次成功部署对应一次提交 · ↑↓ 选择 · Z/Enter 打开 · Esc/X 返回</p>
           <p class="history-status" id="history-status">加载中…</p>
           <div class="history-list" id="history-list" role="list"></div>
           <div class="row-btns">
@@ -296,7 +288,6 @@
       <div class="menu-panel th-panel wide ranking-panel">
         <div class="th-panel-frame">
           <h2 class="panel-title">Ranking · 排行榜</h2>
-          <p class="keys-hint">←→ 切难度 · ↑↓ 选择 · Esc/X 返回</p>
           <div class="ranking-diffs" id="ranking-diffs"></div>
           <div class="ranking-list" id="ranking-list" role="list"></div>
           <button class="menu-btn ghost" data-action="back">返回</button>
@@ -310,7 +301,6 @@
       <div class="menu-panel th-panel wide replay-panel">
         <div class="th-panel-frame">
           <h2 class="panel-title">Replay · 录像回放</h2>
-          <p class="keys-hint">↑↓ 选择 · Z/Enter 播放 · Del 删除 · Esc/X 返回</p>
           <p class="replay-status" id="replay-status">加载中…</p>
           <div class="replay-list" id="replay-list" role="list"></div>
           <div class="row-btns">
@@ -395,7 +385,7 @@
                   <button type="button" class="menu-btn overlay-btn" data-overlay="retry">再试一次</button>
                   <button type="button" class="menu-btn ghost overlay-btn" data-overlay="menu">主菜单</button>
                 </div>
-                <p class="game-overlay-hint" id="overlay-hint">Esc 继续 · ↑↓ 选择 · Z 确认</p>
+                <p class="game-overlay-hint" id="overlay-hint"></p>
               </div>
               <p class="version-badge version-badge-overlay" data-app-version>v0.4.2</p>
             </div>

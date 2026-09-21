@@ -24,6 +24,7 @@
 - 立绘 / 背景不随代码 GPL 授权；如需复用请自行确认合规性。
 - `bg/battle-print.avif`：2026-09-20 经本地 CPA Images API、`gpt-image-2` 生成的战斗外围印刷底材，原图 1536×1024；不是从东方原作提取的游戏素材。运行时使用 AVIF 压缩版本。
 - `ui/pause-vine.avif`：2026-09-20 经 CPA Images API、`gpt-image-2` 生成藤蔓，提取透明轮廓并着淡青色后压缩；用于暂停与确认菜单装饰。
+- `bg/difficulty-cathedral.avif`：经本地 CPA Images API、`gpt-image-2` 独立生成的暗哥特教堂彩窗底材，原图1536×1024，供难度选择页使用；不含原作提取素材。
 
 ## 通用二次创作条件（本项目遵守）
 
