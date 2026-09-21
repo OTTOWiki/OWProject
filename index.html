@@ -378,7 +378,14 @@
               <div class="game-overlay-blur" aria-hidden="true"></div>
               <div class="game-overlay-panel">
                 <h2 class="game-overlay-title" id="overlay-title">PAUSED</h2>
-                <pre class="game-overlay-body" id="overlay-body"></pre>
+                <div id="overlay-result-summary" class="overlay-result-summary hidden">
+                  <p class="result-context"></p>
+                  <p class="result-score"><span>Score</span><strong></strong></p>
+                  <p class="result-achievement" hidden></p>
+                </div>
+                <div id="overlay-result-details" class="overlay-result-details hidden">
+                  <pre class="game-overlay-body" id="overlay-body"></pre>
+                </div>
                 <div class="game-overlay-actions" id="overlay-actions">
                   <button type="button" class="menu-btn overlay-btn" data-overlay="resume">继续</button>
                   <button type="button" class="menu-btn overlay-btn" data-overlay="settle">结算</button>

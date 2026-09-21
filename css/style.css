@@ -2078,8 +2078,27 @@ input, select, textarea {
   margin: 0 0 1rem;
 }
 .game-overlay.mode-result .game-overlay-title {
-  letter-spacing: 0.12em;
-  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+}
+.overlay-result-summary { margin-bottom: .65rem; }
+.result-context { margin: 0 0 .4rem; color: #cdbdcc; font-size: .75rem; line-height: 1.5; }
+.result-score { margin: 0; display: flex; flex-direction: column; color: #f7e6ba; }
+.result-score > span { font: italic .8rem var(--title-font); }
+.result-score strong { font: 800 clamp(1.7rem, 4vw, 2.5rem)/1.2 var(--mono); overflow-wrap: anywhere; paint-order: stroke fill; -webkit-text-stroke: 2px #211525; }
+.overlay-result-details { margin-bottom: .65rem; color: #ddd0df; }
+.overlay-result-details .game-overlay-body { max-height: 20vh; font-size: .75rem; }
+.game-overlay.mode-result .game-overlay-panel { display: flex; flex-direction: column; }
+.game-overlay.mode-result .game-overlay-panel > * { flex-shrink: 0; }
+.game-overlay.mode-result .overlay-result-details { flex-shrink: 0; min-height: 44px; }
+.result-achievement { color: #a7dfbd; font: 700 .85rem var(--title-font); margin: .3rem 0 0; }
+@media (max-width: 520px), (max-height: 700px) {
+  .game-overlay.mode-result:not(.mode-confirm) .game-overlay-panel { padding-top: .4rem; padding-bottom: 1.8rem; }
+  .game-overlay.mode-result .game-overlay-title { margin-bottom: .35rem; }
+  .overlay-result-summary { margin-bottom: .2rem; }
+  .overlay-result-details { margin-bottom: .2rem; }
+  .overlay-result-details .game-overlay-body { height: 68px; max-height: 68px; margin-bottom: .2rem; }
+  .game-overlay.mode-result .game-overlay-actions { gap: 0; }
 }
 .game-overlay-body {
   margin: 0 0 0.85rem;

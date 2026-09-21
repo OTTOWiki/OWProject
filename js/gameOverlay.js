@@ -105,8 +105,8 @@ function requestOverlayAction(game, action) {
   });
 }
 
-export function showOverlay(game, { mode, title, body = '', actions, hint }) {
-  game._overlayView = { mode, title, body, actions, hint };
+export function showOverlay(game, { mode, title, body = '', actions, hint, resultSummary }) {
+  game._overlayView = { mode, title, body, actions, hint, resultSummary };
   game._overlayConfirm = null;
   game.el.overlay?.classList.remove('mode-confirm');
   const container = game.el.overlayActions;
@@ -132,6 +132,21 @@ export function showOverlay(game, { mode, title, body = '', actions, hint }) {
   game.el.overlay?.classList.toggle('mode-pause', mode === 'pause');
   if (game.el.overlayTitle) game.el.overlayTitle.textContent = title;
   if (game.el.overlayBody) game.el.overlayBody.textContent = body || '';
+  const summary = game.el.overlay?.querySelector('#overlay-result-summary');
+  const details = game.el.overlay?.querySelector('#overlay-result-details');
+  if (summary) {
+    summary.classList.toggle('hidden', !resultSummary);
+    if (resultSummary) {
+      summary.querySelector('.result-context').textContent = resultSummary.context;
+      summary.querySelector('.result-score strong').textContent = resultSummary.score;
+      const achievement = summary.querySelector('.result-achievement');
+      achievement.textContent = resultSummary.achievement || '';
+      achievement.hidden = !resultSummary.achievement;
+    }
+  }
+  if (details) {
+    details.classList.toggle('hidden', !body);
+  }
   if (game.el.overlayHint) game.el.overlayHint.textContent = hint || '';
 
   const all = [...(game.el.overlayActions?.querySelectorAll('[data-overlay]') || [])];
@@ -203,7 +218,7 @@ export function openPause(game) {
   });
 }
 
-export function openResult(game, { title, body, retryChapter, actions }) {
+export function openResult(game, { title, body, retryChapter, actions, achievement = '' }) {
   if (game.replaying) {
     game._showReplayEnd();
     return;
@@ -218,6 +233,11 @@ export function openResult(game, { title, body, retryChapter, actions }) {
     mode: 'result',
     title,
     body,
+    resultSummary: {
+      score: Math.floor(game.score ?? 0).toLocaleString('en-US'),
+      context: [game.diff?.rank, game.diff?.name, game.chapters[game.chapterIndex]?.name].filter(Boolean).join(' · '),
+      achievement,
+    },
     actions: actions || ['save-replay', 'retry', 'menu'],
     hint: '↑↓ 选择 · Z 确认',
   });
