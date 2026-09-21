@@ -35,7 +35,7 @@ test('排行榜：A线 / EX+续 标签渲染', async ({ page }) => {
   await expect(routes.nth(1).locator('.rk-badge')).toHaveText('续');
 });
 
-test('Nomiss 结算：两行短统计输出', async ({ page }) => {
+test('Nomiss 结算：主要成绩与完整统计默认显示', async ({ page }) => {
   await page.locator('button[data-action="start"]').click();
   await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
   await page.locator('.diff-btn[data-diff="normal"]').click();
@@ -60,6 +60,8 @@ test('Nomiss 结算：两行短统计输出', async ({ page }) => {
 
   await expect(page.locator('#overlay-title')).toHaveText('Nomiss 结算');
   const body = page.locator('#overlay-body');
+  await expect(page.locator('.result-score strong')).toHaveText('0');
+  await expect(body).toBeVisible();
   await expect(body).toContainText('擦弹 0 · 击破 0 · 道具 0');
   await expect(body).toContainText('Bomb 0 · Miss 0 · NMNB 0 · 最大连击 0 · 用时');
 });

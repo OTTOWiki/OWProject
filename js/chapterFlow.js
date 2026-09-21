@@ -404,6 +404,7 @@ export function finishChapter(game, success) {
       openResult(game, {
         title: '练习结束',
         body,
+        achievement: perfect ? 'Perfect Clear!' : '',
         retryChapter: ch.id,
       });
     });
