@@ -1128,7 +1128,7 @@ export class UI {
           ? 0 : getComputedStyle(el).opacity;
         return animate(el, [
           { translate: '0px 0px', opacity },
-          { translate: `${sourceX(el)} ${innerHeight / 2 - rect.y - rect.height / 2}px`, opacity }, 
+          { translate: `${sourceX(el)} ${innerHeight / 2 - rect.y - rect.height / 2}px`, opacity },
         ], { duration: 760, easing });
       });
       const title = from.querySelector('.panel-title');
