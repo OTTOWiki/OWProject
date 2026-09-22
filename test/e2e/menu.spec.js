@@ -48,7 +48,7 @@ test('模式左右键选择使用有符号 180 度步进', async ({ page }) => {
   await expect(modeScreen).toHaveCSS('--mode-band-angle', '0deg');
 });
 
-test('转场中返回从当前 WAAPI 进度反向，不重置或排队', async ({ page }) => {
+test('前进转场被打断后从当前视觉位置反向，使用新的快到慢动画', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);
@@ -62,44 +62,140 @@ test('转场中返回从当前 WAAPI 进度反向，不重置或排队', async (
     return screen?.classList.contains('selection-arriving')
       && [...(screen?.getAnimations({ subtree: true }) || [])]
         .some((a) => a.effect?.target?.matches('.diff-btn.selected')
-          && Number(a.effect.getComputedTiming().duration) > 0);
+          && Number(a.effect.getComputedTiming().duration) === 760);
   });
 
-  const midpoint = await page.evaluate(() => {
+  const before = await page.evaluate(() => {
     const target = document.querySelector('#screen-difficulty .diff-btn.selected');
     const animation = [...(target?.getAnimations() || [])]
       .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
     if (!target || !animation) return null;
-    animation.currentTime = 320;
+    animation.currentTime = 300;
     animation.pause();
     const rect = target.getBoundingClientRect();
-    return { time: Number(animation.currentTime), center: rect.left + rect.width / 2 };
+    return { centerX: rect.left + rect.width / 2, centerY: rect.top + rect.height / 2 };
   });
-  expect(midpoint).not.toBeNull();
+  expect(before).not.toBeNull();
 
-  await page.evaluate(() => {
-    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
-    const animation = [...(target?.getAnimations() || [])]
-      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
-    animation?.play();
-  });
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(90);
-
-  const reversed = await page.evaluate(() => {
+  const reverse = await page.evaluate(() => {
     const target = document.querySelector('#screen-difficulty .diff-btn.selected');
     const animation = [...(target?.getAnimations() || [])]
       .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
     if (!target || !animation) return null;
+    animation.currentTime = 0;
+    animation.pause();
     const rect = target.getBoundingClientRect();
-    return { time: Number(animation.currentTime), center: rect.left + rect.width / 2 };
+    return {
+      centerX: rect.left + rect.width / 2,
+      centerY: rect.top + rect.height / 2,
+      easing: animation.effect.getComputedTiming().easing,
+      playbackRate: animation.playbackRate,
+    };
   });
-  expect(reversed).not.toBeNull();
-  expect(reversed.time).toBeLessThan(midpoint.time - 10);
-  expect(reversed.center).toBeGreaterThan(midpoint.center + 1);
+  expect(reverse).not.toBeNull();
+  expect(Math.hypot(reverse.centerX - before.centerX, reverse.centerY - before.centerY)).toBeLessThan(2);
+  expect(reverse.easing).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
+  expect(reverse.playbackRate).toBeGreaterThan(0);
+
+  const displacement = await page.evaluate(() => {
+    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
+    const animation = [...(target?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    if (!target || !animation) return null;
+    const centers = [0, 190, 380, 570].map((time) => {
+      animation.currentTime = time;
+      animation.pause();
+      const rect = target.getBoundingClientRect();
+      return rect.left + rect.width / 2;
+    });
+    animation.play();
+    return centers;
+  });
+  expect(displacement).not.toBeNull();
+  const steps = displacement.slice(1).map((x, i) => Math.abs(x - displacement[i]));
+  expect(steps[0]).toBeGreaterThan(steps[1]);
+  expect(steps[1]).toBeGreaterThan(steps[2]);
 
   await expect(modeScreen).toHaveClass(/active/, { timeout: 2000 });
   await expect(difficultyScreen).not.toHaveClass(/active/);
+  const cleanup = await page.evaluate(() => ({
+    bands: document.querySelectorAll('.selection-transition-band').length,
+    animations: [...document.querySelectorAll('#screen-difficulty, #screen-mode-select')]
+      .reduce((n, screen) => n + screen.getAnimations({ subtree: true }).length, 0),
+  }));
+  expect(cleanup).toEqual({ bands: 0, animations: 0 });
+});
+
+test('反向转场再次被打断可继续前进，反复切换后落在正确页面并清理演出', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
+
+  const modeScreen = page.locator('#screen-mode-select');
+  const difficultyScreen = page.locator('#screen-difficulty');
+  await page.waitForFunction(() => {
+    const screen = document.querySelector('#screen-difficulty');
+    return screen?.classList.contains('selection-arriving')
+      && [...(screen?.getAnimations({ subtree: true }) || [])]
+        .some((a) => a.effect?.target?.matches('.diff-btn.selected')
+          && Number(a.effect.getComputedTiming().duration) === 760);
+  });
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => [...(document.querySelector('#screen-difficulty')?.getAnimations({ subtree: true }) || [])]
+    .some((a) => a.effect?.target?.matches('.diff-btn.selected')
+      && Number(a.effect.getComputedTiming().duration) === 760));
+
+  const before = await page.evaluate(() => {
+    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
+    const animation = [...(target?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    if (!target || !animation) return null;
+    animation.currentTime = 300;
+    animation.pause();
+    const rect = target.getBoundingClientRect();
+    return { centerX: rect.left + rect.width / 2, centerY: rect.top + rect.height / 2 };
+  });
+  expect(before).not.toBeNull();
+
+  await page.keyboard.press('Escape');
+  const forward = await page.evaluate(() => {
+    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
+    const animation = [...(target?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    if (!target || !animation) return null;
+    animation.currentTime = 0;
+    animation.pause();
+    const rect = target.getBoundingClientRect();
+    return {
+      centerX: rect.left + rect.width / 2,
+      centerY: rect.top + rect.height / 2,
+      easing: animation.effect.getComputedTiming().easing,
+      playbackRate: animation.playbackRate,
+    };
+  });
+  expect(forward).not.toBeNull();
+  expect(Math.hypot(forward.centerX - before.centerX, forward.centerY - before.centerY)).toBeLessThan(2);
+  expect(forward.easing).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
+  expect(forward.playbackRate).toBeGreaterThan(0);
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(40);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(40);
+  await page.keyboard.press('Escape');
+  await expect(modeScreen).toHaveClass(/active/, { timeout: 2000 });
+  await expect(difficultyScreen).not.toHaveClass(/active/);
+  const cleanup = await page.evaluate(() => ({
+    bands: document.querySelectorAll('.selection-transition-band').length,
+    arriving: document.querySelectorAll('.selection-arriving').length,
+    animations: [...document.querySelectorAll('#screen-difficulty, #screen-mode-select')]
+      .reduce((n, screen) => n + screen.getAnimations({ subtree: true }).length, 0),
+  }));
+  expect(cleanup).toEqual({ bands: 0, arriving: 0, animations: 0 });
 });
 
 test('玩家返回难度后立绘动画清理，快速反复返回不会卡住', async ({ page }) => {
@@ -127,7 +223,7 @@ test('玩家返回难度后立绘动画清理，快速反复返回不会卡住',
     animation.play();
     return Number(animation.currentTime);
   });
-  expect(playerProgress).toBe(320);
+  expect(playerProgress).toBeCloseTo(320, 3);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(50);
   await page.keyboard.press('Escape');

@@ -1064,8 +1064,21 @@ export class UI {
   _reverseSelectionTransition() {
     const transition = this._selectionTransition;
     if (!transition) return;
+    if (!transition.moving) {
+      transition.reversed = true;
+      transition.animations.forEach(animation => animation.finish());
+      return;
+    }
     transition.reversed = !transition.reversed;
-    transition.animations.forEach(animation => animation.reverse());
+    const sampled = transition.segments.map(segment => {
+      const style = getComputedStyle(segment.el);
+      return Object.fromEntries(Object.keys(segment.start).map(key => [key, style[key]]));
+    });
+    transition.generation += 1;
+    transition.animations.forEach(animation => animation.cancel());
+    transition.animations = transition.segments.map((segment, index) => segment.el.animate([
+      sampled[index], transition.reversed ? segment.start : segment.end,
+    ], { duration: 760, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' }));
   }
 
   _cancelSelectionTransition({ restore = false } = {}) {
@@ -1100,13 +1113,14 @@ export class UI {
       this.show(toName, true);
       return;
     }
-    const transition = { fromName, toName, from, to, direction, animations: [], moving: false, reversed: false };
+    const transition = { fromName, toName, from, to, direction, animations: [], segments: [], generation: 0, moving: false, reversed: false };
     this._selectionTransition = transition;
     from.inert = true;
     const animate = (el, frames, options) => {
       if (!el) return null;
       const animation = el.animate(frames, { fill: 'both', ...options });
       transition.animations.push(animation);
+      if (transition.moving) transition.segments.push({ el, start: frames[0], end: frames[frames.length - 1] });
       return animation;
     };
     const wait = (animation) => animation?.finished || Promise.resolve();
@@ -1157,9 +1171,9 @@ export class UI {
         targetBand.classList.add('selection-band-hidden');
         animate(band, [
           { left: source.left, top: source.top, width: source.width, height: source.height,
-            transform: `translate(-50%, -50%) rotate(${source.angle}deg)` },
+            rotate: `${source.angle}deg` },
           { left: target.left, top: target.top, width: target.width, height: target.height,
-            transform: `translate(-50%, -50%) rotate(${source.angle + direction * 360 + correction}deg)` },
+            rotate: `${source.angle + direction * 360 + correction}deg` },
         ], { duration: 760, easing });
       }
       const sourceParts = this._selectionParts(from, fromName);
@@ -1199,7 +1213,12 @@ export class UI {
           { opacity: 1, translate: '0px' },
         ], { duration: 760, easing }));
       }
-      await Promise.all(transition.animations.map(animation => animation.finished));
+      for (;;) {
+        const generation = transition.generation;
+        await Promise.allSettled(transition.animations.map(animation => animation.finished));
+        if (this._selectionTransition !== transition) return;
+        if (generation === transition.generation) break;
+      }
       if (this._selectionTransition !== transition) return;
       const destination = transition.reversed ? fromName : toName;
       this._cancelSelectionTransition();
