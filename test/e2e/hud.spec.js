@@ -69,6 +69,7 @@ test('章内移动倾向实时显示，累计倾向保留独立含义', async ({
   await page.locator('#practice-unstable').uncheck();
   await page.locator('[data-action="practice-start"]').click();
   await page.locator('.player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
   await page.evaluate(() => owDebug.set({ invincible: true, skipDialogue: true, timeScale: 8, showOverlay: false }));
   await page.keyboard.down('ArrowLeft');
   try {

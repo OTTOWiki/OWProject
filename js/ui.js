@@ -693,29 +693,64 @@ export class UI {
     });
     document.querySelectorAll('.player-card').forEach((card) => {
       card.addEventListener('click', () => {
-        if (this._selectionTransition) return;
+        if (this._selectionTransition || this._playerConfirmTransition) return;
         if (!card.classList.contains('current-player')) {
           this.playerIndex = [...document.querySelectorAll('.player-card')].indexOf(card);
           this._highlightPlayer();
           this._sfx('select');
           return;
         }
-        this._sfx('ok');
-        const playerId = card.dataset.player;
-        const start = this.pendingStart || { startChapter: 1, mode: 'story' };
-        this.showGame();
-        this.onStartGame({
-          playerId,
-          startChapter: start.startChapter,
-          mode: start.mode,
-          lives: start.lives,
-          unstable: start.unstable,
-          singleChapter: start.singleChapter,
-          difficulty: this.pendingDifficulty || 'normal',
-        });
+        this._confirmPlayer(card);
       });
     });
   }
+
+  _startGameForPlayer(card) {
+    this._sfx('ok');
+    const playerId = card.dataset.player;
+    const start = this.pendingStart || { startChapter: 1, mode: 'story' };
+    this.showGame();
+    this.onStartGame({
+      playerId,
+      startChapter: start.startChapter,
+      mode: start.mode,
+      lives: start.lives,
+      unstable: start.unstable,
+      singleChapter: start.singleChapter,
+      difficulty: this.pendingDifficulty || 'normal',
+    });
+  }
+
+  _cancelPlayerConfirm() {
+    const transition = this._playerConfirmTransition;
+    if (!transition) return;
+    this._playerConfirmTransition = null;
+    transition.animations.forEach((animation) => animation.cancel());
+  }
+
+  _confirmPlayer(card) {
+    if (this._playerConfirmTransition) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this._startGameForPlayer(card);
+      return;
+    }
+    const transition = { animations: [] };
+    this._playerConfirmTransition = transition;
+    const animation = card.animate([
+      { opacity: 1, offset: 0, easing: 'steps(1, end)' },
+      { opacity: 0, offset: .5, easing: 'steps(1, end)' },
+      { opacity: 1, offset: 1 },
+    ], { fill: 'both', duration: 120, iterations: 3 });
+    transition.animations.push(animation);
+    animation.finished.then(() => {
+      if (this._playerConfirmTransition !== transition) return;
+      this._cancelPlayerConfirm();
+      this._startGameForPlayer(card);
+    }).catch(() => {
+      if (this._playerConfirmTransition === transition) this._cancelPlayerConfirm();
+    });
+  }
+ 
 
   _action(action) {
     // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
@@ -859,7 +894,7 @@ export class UI {
       this._menuSkipPointer = null;
     });
     window.addEventListener('keydown', (e) => {
-      if (this._selectionTransition) {
+      if (this._selectionTransition || this._playerConfirmTransition) {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (isBack(e)) this.show('difficulty');
@@ -1019,6 +1054,7 @@ export class UI {
       void this._enterPlayerFromDifficulty();
       return;
     }
+    this._cancelPlayerConfirm();
     this._cancelSelectionTransition();
     const enteringMenu = name === 'menu'
       && (!this._menuStarted || this._activeScreenName() !== 'menu');
