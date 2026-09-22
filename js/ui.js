@@ -261,7 +261,7 @@ export class UI {
         }
       },
       mode: (e) => {
-        const dir = isNavNext(e) ? 1 : isNavPrev(e) ? -1 : 0;
+        const dir = (isNavNext(e) || isNavRight(e)) ? 1 : (isNavPrev(e) || isNavLeft(e)) ? -1 : 0;
         handleListScreen(e, {
           getItems: () => this._modeItems(),
           index: this.modeIndex,
@@ -271,7 +271,7 @@ export class UI {
           },
           highlight: () => this._highlightMode(),
           onBack: () => this._action('back-mode'),
-          useHorizontal: false,
+          useHorizontal: true,
         });
       },
       difficulty: (e) => handleListScreen(e, {
@@ -979,7 +979,7 @@ export class UI {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (isBack(e)) {
-          if (this._selectionTransition) this._cancelSelectionTransition({ restore: true });
+          if (this._selectionTransition) this._selectionTransition.returnRequested = true;
           else { this._cancelPlayerConfirm(); this._action('back-diff'); }
         }
         return;
@@ -1120,13 +1120,15 @@ export class UI {
       const targetParts = this._selectionParts(to, toName);
       const sourceX = direction > 0
         ? (el) => `${-el.getBoundingClientRect().right - 40}px`
-        : () => `${innerWidth + 240}px`;
+        : (el) => `${innerWidth - el.getBoundingClientRect().left + 40}px`;
       const targetX = direction > 0 ? () => `${innerWidth + 240}px` : () => `${-innerWidth - 240}px`;
       const exit = sourceParts.map((el) => {
         const rect = el.getBoundingClientRect();
+        const opacity = rect.right <= 0 || rect.left >= innerWidth || rect.bottom <= 0 || rect.top >= innerHeight
+          ? 0 : getComputedStyle(el).opacity;
         return animate(el, [
-          { translate: '0px 0px' },
-          { translate: `${sourceX(el)} ${innerHeight / 2 - rect.y - rect.height / 2}px` },
+          { translate: '0px 0px', opacity },
+          { translate: `${sourceX(el)} ${innerHeight / 2 - rect.y - rect.height / 2}px`, opacity }, 
         ], { duration: 760, easing });
       });
       const title = from.querySelector('.panel-title');
@@ -1155,6 +1157,7 @@ export class UI {
       if (this._selectionTransition !== transition) return;
       this._cancelSelectionTransition();
       this.show(toName, true);
+      if (transition.returnRequested) this.show(fromName);
     } catch (error) {
       if (this._selectionTransition !== transition) return;
       this._cancelSelectionTransition();

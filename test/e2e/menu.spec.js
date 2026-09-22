@@ -26,6 +26,104 @@ test('Story 开局：模式 → 难度 → 自机 → 游戏', async ({ page }) 
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
   await expect(page.locator('#ui-mode-nomiss')).toBeHidden();
 });
+test('模式左右键选择使用有符号 180 度步进', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+
+  const modeScreen = page.locator('#screen-mode-select');
+  const story = page.locator('#mode-list .mode-btn[data-mode="story"]');
+  const nomiss = page.locator('#mode-list .mode-btn[data-mode="nomiss"]');
+  await expect(modeScreen).toHaveClass(/active/);
+  await expect(story).toHaveClass(/selected/);
+  await expect(modeScreen).toHaveCSS('--mode-band-angle', '0deg');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(nomiss).toHaveClass(/selected/);
+  await expect(modeScreen).toHaveCSS('--mode-band-angle', '180deg');
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(story).toHaveClass(/selected/);
+  await expect(modeScreen).toHaveCSS('--mode-band-angle', '0deg');
+});
+
+test('转场中快速返回仍完成可观测的反向位移动画', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
+  await page.keyboard.press('Escape');
+
+  const modeScreen = page.locator('#screen-mode-select');
+  await page.waitForFunction(() => {
+    const screen = document.querySelector('#screen-mode-select');
+    return screen?.classList.contains('selection-arriving')
+      && screen.getAnimations({ subtree: true }).some((a) => a.effect?.target?.matches('.mode-btn'));
+  });
+
+  const midpoint = await page.evaluate(() => {
+    const screen = document.querySelector('#screen-mode-select');
+    const target = screen?.querySelector('.mode-btn.selected');
+    const animation = screen.getAnimations({ subtree: true })
+      .find((a) => a.effect?.target === target && a.effect.getComputedTiming().duration > 0);
+    if (!target || !animation) return null;
+    const timing = animation.effect.getComputedTiming();
+    animation.currentTime = Number(timing.duration) / 2;
+    animation.pause();
+    const rect = target.getBoundingClientRect();
+    return { center: rect.left + rect.width / 2, viewportCenter: innerWidth / 2, playState: animation.playState };
+  });
+  expect(midpoint).not.toBeNull();
+  expect(midpoint.playState).toBe('paused');
+  expect(midpoint.center).toBeLessThan(midpoint.viewportCenter - 10);
+  await page.evaluate(() => document.getAnimations().forEach(a => a.finish()));
+  await expect(modeScreen).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+});
+
+test('Lunatic 返回时 Easy 难度节点全程保持不可见', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
+  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/selection-arriving/);
+
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#screen-player-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-player-select')).not.toHaveClass(/selection-arriving/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/selection-arriving/);
+
+  await page.keyboard.press('Escape');
+  const easy = page.locator('#screen-difficulty .diff-btn[data-diff="easy"]');
+  await page.waitForFunction(() => {
+    const screen = document.querySelector('#screen-difficulty');
+    return screen?.classList.contains('active')
+      && document.querySelector('#screen-mode-select')?.classList.contains('selection-arriving');
+  });
+  const departingOpacity = await page.evaluate(() => {
+    const easy = document.querySelector('#screen-difficulty .diff-btn[data-diff="easy"]');
+    const animation = [...(easy?.getAnimations() || [])].find((a) => a.effect?.getComputedTiming().duration > 0);
+    if (!easy || !animation) return null;
+    const timing = animation.effect.getComputedTiming();
+    animation.currentTime = Number(timing.duration) / 2;
+    animation.pause();
+    return { opacity: Number.parseFloat(getComputedStyle(easy).opacity), playState: animation.playState };
+  });
+  expect(departingOpacity).not.toBeNull();
+  expect(departingOpacity.opacity).toBeLessThanOrEqual(0.01);
+  await page.evaluate(() => document.getAnimations().forEach(a => a.finish()));
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+  await expect(easy).not.toBeVisible();
+});
 
 test('模式与难度返回保留选择，确认转场取消不延迟开局', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -36,20 +134,20 @@ test('模式与难度返回保留选择，确认转场取消不延迟开局', as
 
   await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
   await expect(page.locator('#mode-list .mode-btn[data-mode="nomiss"]')).toHaveClass(/selected/);
   await page.waitForTimeout(850);
   await expect(page.locator('#screen-game')).not.toHaveClass(/active/);
 
   await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
-  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).toHaveJSProperty('inert', false);
   await page.locator('.diff-btn[data-diff="hard"]').click();
-  await expect(page.locator('#screen-player-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-player-select')).toHaveJSProperty('inert', false);
   await page.keyboard.press('Escape');
-  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).toHaveJSProperty('inert', false);
   await expect(page.locator('.diff-btn[data-diff="hard"]')).toHaveClass(/selected/);
   await page.keyboard.press('Escape');
-  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
   await expect(page.locator('#mode-list .mode-btn[data-mode="nomiss"]')).toHaveClass(/selected/);
 });
 
