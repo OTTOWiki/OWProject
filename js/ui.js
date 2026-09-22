@@ -5,7 +5,7 @@ import {
 import {
   loadKeys, saveKeys, saveSettings,
   loadPracticePrefs, savePracticePrefs,
-  loadNomissProgress, loadPracticeBest,
+  loadPracticeBest,
 } from './storage.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -357,9 +357,9 @@ export class UI {
         <div class="diff-rank" style="color:${d.color}">${d.rank}</div>
         <div class="diff-name">${d.name}</div>
         <div class="diff-desc">${d.desc}</div>
-        <div class="diff-meta">残机 ${BALANCE.startLives} · Bomb ${BALANCE.startBombs} · 得分×${d.scoreMul}</div>
       `;
       btn.addEventListener('click', () => {
+        if (this._selectionTransition) return;
         this._sfx('ok');
         this.pendingDifficulty = id;
         this.diffIndex = i;
@@ -395,19 +395,7 @@ export class UI {
   }
 
   _playerItems() {
-    const cards = [...document.querySelectorAll('#screen-player-select .player-card')];
-    const nomiss = document.getElementById('player-nomiss');
-    const back = document.querySelector('#screen-player-select [data-action="back-diff"]');
-    const items = cards.map((el) => ({ type: 'card', el }));
-    if (nomiss && !document.getElementById('player-nomiss-row')?.classList.contains('hidden')) {
-      items.push({
-        type: 'checkbox',
-        el: nomiss,
-        wrap: document.getElementById('player-nomiss-row'),
-      });
-    }
-    if (back) items.push({ type: 'button', el: back });
-    return items;
+    return [...document.querySelectorAll('#screen-player-select .player-card')].map(el => ({ type: 'card', el }));
   }
 
   _stageItems() {
@@ -704,33 +692,64 @@ export class UI {
     });
     document.querySelectorAll('.player-card').forEach((card) => {
       card.addEventListener('click', () => {
-        this._sfx('ok');
-        const playerId = card.dataset.player;
-        let start = this.pendingStart || { startChapter: 1, mode: 'story' };
-        // Nomiss：自机选择勾选 → 无存档从头（1）、有进度从下一章续
-        const nomissEl = document.getElementById('player-nomiss');
-        if (nomissEl?.checked && start.mode === 'story') {
-          start = { startChapter: loadNomissProgress() ?? 1, mode: 'nomiss' };
+        if (this._selectionTransition || this._playerConfirmTransition) return;
+        if (!card.classList.contains('current-player')) {
+          this.playerIndex = [...document.querySelectorAll('.player-card')].indexOf(card);
+          this._highlightPlayer();
+          this._sfx('select');
+          return;
         }
-        this.showGame();
-        this.onStartGame({
-          playerId,
-          startChapter: start.startChapter,
-          mode: start.mode,
-          lives: start.lives,
-          unstable: start.unstable,
-          singleChapter: start.singleChapter,
-          difficulty: this.pendingDifficulty || 'normal',
-        });
+        this._confirmPlayer(card);
       });
     });
-    // Nomiss 勾选行：开关值标签
-    const nomissCb = document.getElementById('player-nomiss');
-    const nomissVal = document.getElementById('player-nomiss-val');
-    nomissCb?.addEventListener('change', () => {
-      if (nomissVal) nomissVal.textContent = nomissCb.checked ? '开启' : '关闭';
+  }
+
+  _startGameForPlayer(card) {
+    this._sfx('ok');
+    const playerId = card.dataset.player;
+    const start = this.pendingStart || { startChapter: 1, mode: 'story' };
+    this.showGame();
+    this.onStartGame({
+      playerId,
+      startChapter: start.startChapter,
+      mode: start.mode,
+      lives: start.lives,
+      unstable: start.unstable,
+      singleChapter: start.singleChapter,
+      difficulty: this.pendingDifficulty || 'normal',
     });
   }
+
+  _cancelPlayerConfirm() {
+    const transition = this._playerConfirmTransition;
+    if (!transition) return;
+    this._playerConfirmTransition = null;
+    transition.animations.forEach((animation) => animation.cancel());
+  }
+
+  _confirmPlayer(card) {
+    if (this._playerConfirmTransition) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this._startGameForPlayer(card);
+      return;
+    }
+    const transition = { animations: [] };
+    this._playerConfirmTransition = transition;
+    const animation = card.animate([
+      { opacity: 1, offset: 0, easing: 'steps(1, end)' },
+      { opacity: 0, offset: .5, easing: 'steps(1, end)' },
+      { opacity: 1, offset: 1 },
+    ], { fill: 'both', duration: 120, iterations: 3 });
+    transition.animations.push(animation);
+    animation.finished.then(() => {
+      if (this._playerConfirmTransition !== transition) return;
+      this._cancelPlayerConfirm();
+      this._startGameForPlayer(card);
+    }).catch(() => {
+      if (this._playerConfirmTransition === transition) this._cancelPlayerConfirm();
+    });
+  }
+ 
 
   _action(action) {
     // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
@@ -874,6 +893,12 @@ export class UI {
       this._menuSkipPointer = null;
     });
     window.addEventListener('keydown', (e) => {
+      if (this._selectionTransition || this._playerConfirmTransition) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (isBack(e)) this.show('difficulty');
+        return;
+      }
       const name = this._activeScreenName();
       if (!name || name === 'game') return;
       if (name === 'menu' && menu.inert) return;
@@ -941,27 +966,74 @@ export class UI {
 
   _highlightPlayer() {
     const items = this._playerItems();
-    if (!items.length) return;
     this.playerIndex = clampIndex(this.playerIndex, items.length);
     items.forEach((it, i) => {
       const on = i === this.playerIndex;
-      // 所有类型：wrapping element 切换 selected（含 checkbox 的 player-nomiss-row）
-      it.wrap?.classList.toggle('selected', on);
-      // card/button：element 自身也切换 selected
-      it.el.classList.toggle('selected', on && (it.type === 'card' || it.type === 'button'));
+      it.el.classList.toggle('current-player', on);
+      it.el.classList.toggle('selected', on);
+      it.el.setAttribute('aria-pressed', String(on));
     });
   }
 
-  /** Nomiss 勾选行：仅常规故事流程显示；每次进入自机选择重置为关闭 */
-  _syncNomissRow() {
-    const row = document.getElementById('player-nomiss-row');
-    const cb = document.getElementById('player-nomiss');
-    if (!row || !cb) return;
-    const mode = this.pendingStart?.mode || 'story';
-    row.classList.toggle('hidden', mode !== 'story');
-    cb.checked = false;
-    const val = document.getElementById('player-nomiss-val');
-    if (val) val.textContent = '关闭';
+  _cancelSelectionTransition() {
+    const transition = this._selectionTransition;
+    if (!transition) return;
+    this._selectionTransition = null;
+    transition.animations.forEach(animation => animation.cancel());
+    this.screens.player.classList.remove('selection-arriving');
+  }
+
+  async _enterPlayerFromDifficulty() {
+    if (this._selectionTransition) return;
+    const difficulty = this.screens.difficulty;
+    const player = this.screens.player;
+    const transition = { animations: [] };
+    this._selectionTransition = transition;
+    difficulty.inert = true;
+    const animate = (el, frames, options) => {
+      const animation = el.animate(frames, { fill: 'both', ...options });
+      transition.animations.push(animation);
+      return animation;
+    };
+    try {
+      const chosen = difficulty.querySelector('.diff-btn.selected');
+      await animate(chosen, [
+        { opacity: 1, offset: 0, easing: 'steps(1, end)' },
+        { opacity: 0, offset: .5, easing: 'steps(1, end)' },
+        { opacity: 1, offset: 1 },
+      ], { duration: 120, iterations: 3 }).finished;
+      if (this._selectionTransition !== transition) return;
+      this.playerIndex = 0;
+      this._highlightPlayer();
+      player.classList.add('active', 'selection-arriving');
+      player.inert = true;
+      const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+      const exit = [...difficulty.querySelectorAll('.diff-btn, .difficulty-focus-band')].map(el => {
+        const rect = el.getBoundingClientRect();
+        return animate(el, [
+          { translate: '0px 0px' },
+          { translate: `${-rect.right - 40}px ${innerHeight / 2 - rect.y - rect.height / 2}px` },
+        ], { duration: 760, easing });
+      });
+      exit.push(animate(difficulty.querySelector('.panel-title'), [
+        { opacity: 1, translate: '0px' }, { opacity: 0, translate: '-180px' },
+      ], { duration: 560, easing }));
+      exit.push(animate(player.querySelector('.panel-title'), [
+        { opacity: 0, translate: '180px' }, { opacity: 1, translate: '0px' },
+      ], { duration: 560, easing }));
+      exit.push(animate(player.querySelector('.player-cards'), [
+        { translate: `${innerWidth + 240}px` }, { translate: '0px' },
+      ], { duration: 450, easing }));
+      await Promise.all(exit.map(animation => animation.finished));
+      if (this._selectionTransition !== transition) return;
+      this._cancelSelectionTransition();
+      this.show('player', true);
+    } catch (error) {
+      if (this._selectionTransition !== transition) return;
+      this._cancelSelectionTransition();
+      this.show('difficulty');
+      throw error;
+    }
   }
 
   _highlightStage() {
@@ -975,7 +1047,14 @@ export class UI {
     items[this.stageIndex]?.el?.scrollIntoView?.({ block: 'nearest' });
   }
 
-  show(name) {
+  show(name, selectionComplete = false) {
+    if (name === 'player' && !selectionComplete && this._activeScreenName() === 'difficulty'
+        && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      void this._enterPlayerFromDifficulty();
+      return;
+    }
+    this._cancelPlayerConfirm();
+    this._cancelSelectionTransition();
     const enteringMenu = name === 'menu'
       && (!this._menuStarted || this._activeScreenName() !== 'menu');
     if (name !== 'menu') this._finishMenuEntrance();
@@ -990,7 +1069,6 @@ export class UI {
     if (name === 'difficulty') this._highlightDiff();
     if (name === 'player') {
       this.playerIndex = 0;
-      this._syncNomissRow();
       this._highlightPlayer();
     }
     if (name === 'stage') {
