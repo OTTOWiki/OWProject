@@ -270,6 +270,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 本地预览 hash：`npm run inject-hash`，预览完 `git checkout -- js/git-hash.js`
 - Tag：建议 `v` + `VERSION_NAME`
 - **合入 `main` 只走 PR**（见 `CONTRIBUTING.md`）；分支上 commit 时 hook 仍会 `VERSION+1`
+- 按独立目的进行原子化本地提交，便于逐项回退；每项改动验证后及时提交，避免将无关修复与功能混在同一提交。已有获认可但未提交的工作先保存为基线；本地提交不等于获准推送或合并。
 
 ---
 
