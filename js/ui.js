@@ -357,7 +357,6 @@ export class UI {
         <div class="diff-rank" style="color:${d.color}">${d.rank}</div>
         <div class="diff-name">${d.name}</div>
         <div class="diff-desc">${d.desc}</div>
-        <div class="diff-meta">残机 ${BALANCE.startLives} · Bomb ${BALANCE.startBombs} · 得分×${d.scoreMul}</div>
       `;
       btn.addEventListener('click', () => {
         if (this._selectionTransition) return;
