@@ -1064,8 +1064,20 @@ export class UI {
   _reverseSelectionTransition() {
     const transition = this._selectionTransition;
     if (!transition) return;
+    if (!transition.moving) {
+      this._cancelSelectionTransition({ restore: true });
+      return;
+    }
     transition.reversed = !transition.reversed;
-    transition.animations.forEach(animation => animation.reverse());
+    const frames = transition.segments.map(({ el, start }) => {
+      const style = getComputedStyle(el);
+      return Object.fromEntries(Object.keys(start).map(key => [key, style.getPropertyValue(key)]));
+    });
+    transition.generation += 1;
+    transition.animations.forEach(animation => animation.cancel());
+    transition.animations = transition.segments.map((segment, index) => segment.el.animate([
+      frames[index], transition.reversed ? segment.start : segment.end,
+    ], { duration: 760, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' }));
   }
 
   _cancelSelectionTransition({ restore = false } = {}) {
@@ -1074,6 +1086,9 @@ export class UI {
     this._selectionTransition = null;
     transition.animations.forEach((animation) => animation.cancel());
     transition.band?.remove();
+    transition.backdrop?.remove();
+    transition.from.classList.remove('selection-in-motion');
+    transition.to.classList.remove('selection-in-motion', 'selection-preparing');
     transition.from.querySelector('.selection-focus-band')?.classList.remove('selection-band-hidden');
     transition.to.querySelector('.selection-focus-band')?.classList.remove('selection-band-hidden');
     transition.to.classList.remove('selection-arriving');
@@ -1100,13 +1115,14 @@ export class UI {
       this.show(toName, true);
       return;
     }
-    const transition = { fromName, toName, from, to, direction, animations: [], moving: false, reversed: false };
+    const transition = { fromName, toName, from, to, direction, animations: [], segments: [], generation: 0, moving: false, reversed: false };
     this._selectionTransition = transition;
     from.inert = true;
     const animate = (el, frames, options) => {
       if (!el) return null;
       const animation = el.animate(frames, { fill: 'both', ...options });
       transition.animations.push(animation);
+      if (transition.moving) transition.segments.push({ el, start: frames[0], end: frames[frames.length - 1] });
       return animation;
     };
     const wait = (animation) => animation?.finished || Promise.resolve();
@@ -1127,12 +1143,20 @@ export class UI {
       transition.animations.forEach(animation => animation.cancel());
       transition.animations = [];
       transition.moving = true;
+      to.classList.add('selection-preparing');
       if (toName === 'difficulty') this._rebuildDifficulty();
       if (toName === 'mode') this._highlightMode();
       if (toName === 'difficulty') this._highlightDiff();
       if (toName === 'player') this._highlightPlayer();
       to.classList.add('active', 'selection-arriving');
       to.inert = true;
+      const backdrop = document.createElement('div');
+      backdrop.className = 'selection-transition-backdrop';
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.getElementById('app').appendChild(backdrop);
+      transition.backdrop = backdrop;
+      from.classList.add('selection-in-motion');
+      to.classList.add('selection-in-motion');
       const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
       const sourceBand = from.querySelector('.selection-focus-band');
       const targetBand = to.querySelector('.selection-focus-band');
@@ -1151,17 +1175,22 @@ export class UI {
         const band = document.createElement('div');
         band.className = 'selection-transition-band';
         band.setAttribute('aria-hidden', 'true');
-        from.querySelector('.th-panel-frame').appendChild(band);
+        const paint = document.createElement('div');
+        band.appendChild(paint);
+        document.getElementById('app').appendChild(band);
         transition.band = band;
         sourceBand.classList.add('selection-band-hidden');
         targetBand.classList.add('selection-band-hidden');
         animate(band, [
-          { left: source.left, top: source.top, width: source.width, height: source.height,
-            transform: `translate(-50%, -50%) rotate(${source.angle}deg)` },
-          { left: target.left, top: target.top, width: target.width, height: target.height,
-            transform: `translate(-50%, -50%) rotate(${source.angle + direction * 360 + correction}deg)` },
+          { left: source.left, top: source.top, width: source.width, height: source.height },
+          { left: target.left, top: target.top, width: target.width, height: target.height },
+        ], { duration: 760, easing });
+        animate(paint, [
+          { rotate: `${source.angle}deg` },
+          { rotate: `${source.angle + direction * 360 + correction}deg` },
         ], { duration: 760, easing });
       }
+      to.classList.remove('selection-preparing');
       const sourceParts = this._selectionParts(from, fromName);
       const targetParts = this._selectionParts(to, toName);
       const sourceX = direction > 0
@@ -1199,7 +1228,12 @@ export class UI {
           { opacity: 1, translate: '0px' },
         ], { duration: 760, easing }));
       }
-      await Promise.all(transition.animations.map(animation => animation.finished));
+      for (;;) {
+        const generation = transition.generation;
+        await Promise.allSettled(transition.animations.map(animation => animation.finished));
+        if (this._selectionTransition !== transition) return;
+        if (generation === transition.generation) break;
+      }
       if (this._selectionTransition !== transition) return;
       const destination = transition.reversed ? fromName : toName;
       this._cancelSelectionTransition();
