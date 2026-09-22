@@ -35,31 +35,27 @@ test('排行榜：A线 / EX+续 标签渲染', async ({ page }) => {
   await expect(routes.nth(1).locator('.rk-badge')).toHaveText('续');
 });
 
-test('自机选择两名角色与练习结算：移除 Nomiss 入口和返回按钮', async ({ page }) => {
-  await page.locator('button[data-action="practice"]').click();
-  await expect(page.locator('#screen-practice')).toHaveClass(/active/);
-  await page.locator('#screen-practice [data-action="practice-start"]').click();
-  await expect(page.locator('#screen-player-select')).toHaveClass(/active/);
-
-  await expect(page.locator('#screen-player-select .player-card')).toHaveCount(2);
-  await expect(page.locator('#player-nomiss')).toHaveCount(0);
-  await expect(page.locator('#player-nomiss-row')).toHaveCount(0);
-  await expect(page.locator('#screen-player-select [data-action="back-diff"]')).toHaveCount(0);
-
-  await page.locator('.player-card[data-player="yinquan"]').click();
-  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+test('Nomiss：难度前入口续接已保存章节，暂停无录像且结算不进榜', async ({ page }) => {
   await page.evaluate(() => {
-    owDebug.set({ invincible: true, lockLives: true, lockBombs: true, skipDialogue: true, timeScale: 8 });
-    owDebug.kill();
+    localStorage.setItem('gunwei_nomiss_progress', JSON.stringify({ nextChapterId: 7 }));
   });
 
-  await expect(page.locator('#overlay-title')).toHaveText('练习结束', { timeout: 10000 });
-  const body = page.locator('#overlay-body');
-  await expect(body).toBeVisible();
-  await expect(body).toContainText('难度：');
-  await expect(body).toContainText('章节：');
-  await expect(body).toContainText('得分：');
-  await expect(body).toContainText('擦弹');
-  await expect(body).toContainText('Bomb');
-  await expect(body).toContainText('用时');
+  await page.locator('button[data-action="start"]').click();
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
+  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+  await expect(page.locator('#screen-player-select')).toHaveClass(/active/);
+  await page.locator('#screen-player-select .player-card[data-player="yinquan"]').click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#ui-mode-nomiss')).toBeVisible();
+  await expect(page.locator('#ui-chapter')).toHaveText(/^2-1 /);
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#game-overlay')).not.toHaveClass(/hidden/);
+  await expect(page.locator('#overlay-actions [data-overlay="save-replay"]')).not.toBeVisible();
+  await page.locator('#overlay-actions [data-overlay="settle"]').click();
+  await page.locator('#overlay-actions [data-overlay="confirm-yes"]').click();
+  await expect(page.locator('#overlay-title')).toHaveText('Nomiss 结算');
+  await expect(page.locator('#score-ranking')).toHaveClass(/hidden/);
 });
