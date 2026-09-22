@@ -418,12 +418,7 @@ export class UI {
     const list = document.getElementById('diff-list');
     list.innerHTML = '';
     this._difficultySizeObserver?.disconnect();
-    this._difficultySizeObserver ??= new ResizeObserver(entries => {
-      for (const { target } of entries) {
-        if (target.dataset.diff !== 'extra') continue;
-        document.getElementById('screen-difficulty').style.setProperty('--extra-band-height', `${Math.ceil(target.getBoundingClientRect().height) + 24}px`);
-      }
-    });
+    this._difficultySizeObserver ??= new ResizeObserver(() => this._fitExtraBand());
     const avail = this._availableDifficulties();
     if (this._isExtraStart()) {
       this.pendingDifficulty = 'extra';
@@ -454,6 +449,13 @@ export class UI {
     const di = avail.indexOf(this.pendingDifficulty);
     if (di >= 0) this.diffIndex = di;
     this._highlightDiff();
+  }
+
+  _fitExtraBand() {
+    const screen = this.screens.difficulty;
+    const text = screen.querySelector('.diff-btn[data-diff="extra"]');
+    const height = text?.getBoundingClientRect().height;
+    if (height > 0) screen.style.setProperty('--extra-band-height', `${Math.ceil(height) + 24}px`);
   }
 
   _diffItems() {
@@ -1162,6 +1164,7 @@ export class UI {
       if (toName === 'difficulty') this._highlightDiff();
       if (toName === 'player') this._highlightPlayer();
       to.classList.add('active', 'selection-arriving');
+      if (toName === 'difficulty') this._fitExtraBand();
       if (toName === 'player') this._fitPlayerBand();
       to.inert = true;
       const backdrop = document.createElement('div');
