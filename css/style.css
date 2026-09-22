@@ -3020,7 +3020,7 @@ input, select, textarea {
   left: 68%;
   top: 50%;
   z-index: 1;
-  width: 46vw;
+  width: min(52vw, 720px);
   height: 210px;
   transform: translate(-50%, -50%) rotate(0deg);
 }
@@ -3110,7 +3110,7 @@ input, select, textarea {
 }
 
 @media (max-width: 560px) {
-  #screen-player-select .player-focus-band { left: 72%; width: 50vw; height: 150px; }
+  #screen-player-select .player-focus-band { left: 72%; width: 52vw; height: 150px; }
   #screen-difficulty .difficulty-focus-band { width: 88vw; height: 132px; }
   #screen-difficulty .diff-btn:nth-child(n) { width: 88vw; padding: 8px; }
   #screen-difficulty .diff-desc { max-width: 29ch; }
@@ -3166,11 +3166,3 @@ input, select, textarea {
 @media(max-width:560px) {
   #screen-mode-select .mode-list { clip-path: inset(65px 0 0); }
 }
-
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .th-panel,
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .th-panel-frame { z-index: auto; isolation: auto; }
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .menu-bg { z-index: 0; }
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .th-panel-frame > :is(.mode-list, .diff-list, .player-cards) { z-index: 2; }
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .th-panel-frame > .panel-title { z-index: 3; }
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .selection-focus-band,
-:is(#screen-mode-select, #screen-difficulty, #screen-player-select) .selection-transition-band { z-index: 1; }
