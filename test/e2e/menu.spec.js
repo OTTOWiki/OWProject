@@ -146,7 +146,7 @@ test('转场带的最后关键帧对齐真实终点几何与角度', async ({ pa
   expect(Math.abs(angleDelta)).toBeLessThan(1.5);
 });
 
-test('初始反向转场再次按返回键连续中断并回到玩家画面', async ({ page }) => {
+test('初始反向转场确认中断并回到玩家画面，其他键不反转', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);
@@ -162,26 +162,64 @@ test('初始反向转场再次按返回键连续中断并回到玩家画面', as
     return screen?.classList.contains('selection-arriving')
       && document.querySelector('.selection-transition-band');
   });
-  const continuity = await page.evaluate(() => {
-    const read = () => {
-      const band = document.querySelector('.selection-transition-band');
-      const rect = band?.getBoundingClientRect();
-      return rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null;
+  const transition = page.locator('.selection-transition-band');
+  const readBandDirection = () => page.evaluate(() => {
+    const band = document.querySelector('.selection-transition-band');
+    const player = document.querySelector('#screen-player-select .player-focus-band');
+    const difficulty = document.querySelector('#screen-difficulty .difficulty-focus-band');
+    const center = (el) => {
+      const rect = el?.getBoundingClientRect();
+      return rect ? rect.left + rect.width / 2 : null;
     };
-    const before = read();
-    window.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'Escape', code: 'Escape', bubbles: true, cancelable: true,
-    }));
-    return { before, after: read() };
+    return { band: center(band), player: center(player), difficulty: center(difficulty) };
   });
-  expect(continuity.before).not.toBeNull();
-  expect(continuity.after).not.toBeNull();
-  for (const key of ['left', 'top', 'width', 'height']) {
-    expect(Math.abs(continuity.after[key] - continuity.before[key])).toBeLessThan(3);
-  }
+  const before = await readBandDirection();
+  expect(before.band).not.toBeNull();
+  expect(before.player).not.toBeNull();
+  expect(before.difficulty).not.toBeNull();
+  const sameAnimation = await page.evaluate(() => {
+    const band = document.querySelector('.selection-transition-band');
+    const animation = band.getAnimations()[0];
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', code: 'KeyX', bubbles: true }));
+    return band.getAnimations()[0] === animation;
+  });
+  expect(sameAnimation).toBe(true);
+  const afterX = await readBandDirection();
+  await page.keyboard.press('z');
+  await page.waitForTimeout(180);
+  const afterConfirm = await readBandDirection();
+  expect(Math.abs(afterConfirm.band - afterX.band)).toBeGreaterThan(2);
+  expect(Math.abs(afterConfirm.band - afterConfirm.player))
+    .toBeLessThan(Math.abs(afterX.band - afterX.player));
+  await expect(transition).toHaveCount(0, { timeout: 2000 });
   await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
   await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
-  await expect(page.locator('.selection-transition-band')).toHaveCount(0);
+});
+
+test('窄屏玩家转场带尺寸匹配当前自机说明文字', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+  await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
+  await expect(page.locator('#screen-player-select')).not.toHaveClass(/selection-arriving/);
+  const bounds = await page.evaluate(() => {
+    const text = document.querySelector('#screen-player-select .player-card.current-player p');
+    const band = document.querySelector('#screen-player-select .player-focus-band');
+    const textRect = text?.getBoundingClientRect();
+    const bandRect = band?.getBoundingClientRect();
+    return textRect && bandRect ? {
+      text: { left: textRect.left, top: textRect.top, width: textRect.width, height: textRect.height },
+      band: { left: bandRect.left, top: bandRect.top, width: bandRect.width, height: bandRect.height },
+    } : null;
+  });
+  expect(bounds).not.toBeNull();
+  for (const key of ['left', 'top', 'width', 'height']) {
+    expect(Math.abs(bounds.band[key] - bounds.text[key])).toBeLessThan(1.5);
+  }
 });
 
 test('难度返回模式时模式文字在转场中段已可见', async ({ page }) => {

@@ -228,6 +228,8 @@ export class UI {
     this._bindClicks();
     this._bindKeyboardNav();
     this.refreshKeyLabels();
+    this._playerTextObserver = new ResizeObserver(() => this._fitPlayerBand());
+    this.screens.player.querySelectorAll('.player-card p').forEach(el => this._playerTextObserver.observe(el));
   }
 
   _sfx(name) {
@@ -978,11 +980,11 @@ export class UI {
       if (this._selectionTransition || this._playerConfirmTransition) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (isBack(e)) {
-          if (this._selectionTransition) {
-            if (!e.repeat) this._reverseSelectionTransition();
-          } else { this._cancelPlayerConfirm(); this._action('back-diff'); }
-        }
+        const transition = this._selectionTransition;
+        if (transition) {
+          const forward = transition.direction * (transition.reversed ? -1 : 1) > 0;
+          if (!e.repeat && (forward ? isBack(e) : isConfirm(e))) this._reverseSelectionTransition();
+        } else if (isBack(e)) { this._cancelPlayerConfirm(); this._action('back-diff'); }
         return;
       }
       const name = this._activeScreenName();
@@ -1059,6 +1061,17 @@ export class UI {
       it.el.classList.toggle('selected', on);
       it.el.setAttribute('aria-pressed', String(on));
     });
+    this._fitPlayerBand();
+  }
+
+  _fitPlayerBand() {
+    const text = this.screens.player.querySelector('.current-player p');
+    if (!text || !text.offsetHeight) return;
+    const band = this.screens.player.querySelector('.player-focus-band');
+    band.style.left = `${text.offsetLeft + text.offsetWidth / 2}px`;
+    band.style.top = `${text.offsetTop + text.offsetHeight / 2}px`;
+    band.style.width = `${text.offsetWidth}px`;
+    band.style.height = `${text.offsetHeight}px`;
   }
 
   _reverseSelectionTransition() {
@@ -1149,6 +1162,7 @@ export class UI {
       if (toName === 'difficulty') this._highlightDiff();
       if (toName === 'player') this._highlightPlayer();
       to.classList.add('active', 'selection-arriving');
+      if (toName === 'player') this._fitPlayerBand();
       to.inert = true;
       const backdrop = document.createElement('div');
       backdrop.className = 'selection-transition-backdrop';

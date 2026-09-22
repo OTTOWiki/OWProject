@@ -3027,7 +3027,7 @@ input, select, textarea {
   top: 50%;
   z-index: 1;
   width: 46vw;
-  height: 210px;
+  height: 0;
   transform: translate(-50%, -50%) rotate(0deg);
 }
 
@@ -3116,7 +3116,7 @@ input, select, textarea {
 }
 
 @media (max-width: 560px) {
-  #screen-player-select .player-focus-band { left: 72%; width: 50vw; height: 150px; }
+  #screen-player-select .player-focus-band { left: 72%; width: 50vw; }
   #screen-difficulty .difficulty-focus-band { width: 88vw; height: 132px; }
   #screen-difficulty .diff-btn:nth-child(n) { width: 88vw; padding: 8px; }
   #screen-difficulty .diff-desc { max-width: 29ch; }
