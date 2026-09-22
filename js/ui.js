@@ -5,7 +5,7 @@ import {
 import {
   loadKeys, saveKeys, saveSettings,
   loadPracticePrefs, savePracticePrefs,
-  loadPracticeBest,
+  loadPracticeBest, loadNomissProgress,
 } from './storage.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
@@ -35,13 +35,19 @@ import { ReplayScreen } from './replayScreen.js';
 const UI_ACTION_HANDLERS = {
   start(ui) {
     ui.pendingStart = { startChapter: 1, mode: 'story' };
-    ui.show('difficulty');
+    ui.modeIndex = 0;
+    ui.modeBandAngle = 0;
+    ui._difficultyBackTarget = 'mode';
+    ui.playerIndex = 0;
+    ui.show('mode');
   },
   'extra-start'(ui) {
     ui.pendingStart = { startChapter: ui._extraStartChapter(), mode: 'extra' };
+    ui._difficultyBackTarget = 'menu';
     ui.show('difficulty');
   },
   'stage-select'(ui) {
+    ui._difficultyBackTarget = 'stage';
     ui.show('stage');
   },
   manual(ui) {
@@ -90,6 +96,8 @@ const UI_ACTION_HANDLERS = {
       singleChapter: true,
     };
     ui.pendingDifficulty = ui.practiceDiffId;
+    ui._playerBackTarget = 'practice';
+    ui.playerIndex = 0;
     ui.show('player');
   },
   'settings-reset'(ui) {
@@ -112,9 +120,16 @@ const UI_ACTION_HANDLERS = {
       ui.show('menu');
     }
   },
+  'back-mode'(ui) {
+    ui.show('menu');
+  },
+  'back-difficulty'(ui) {
+    if (ui._difficultyBackTarget === 'mode') ui.show('mode');
+    else if (ui._difficultyBackTarget === 'stage') ui.show('stage');
+    else ui.show('menu');
+  },
   'back-diff'(ui) {
-    // 练习难度内联在练习页，返回直接回练习屏
-    if (ui.pendingStart?.mode === 'practice') {
+    if (ui._playerBackTarget === 'practice' || ui.pendingStart?.mode === 'practice') {
       ui.show('practice');
     } else {
       ui.show('difficulty');
@@ -142,12 +157,18 @@ export class UI {
     this.pendingStart = null;
     this.pendingDifficulty = 'normal';
     this.binding = null;
+    this.modeIndex = 0;
+    this.modeBandAngle = 0;
     this.diffIndex = 1;
     this.playerIndex = 0;
     this.stageIndex = 0;
     this.manualIndex = 1;
     this.practiceIndex = 0;
     this.settingsIndex = 0;
+    this._difficultyBackTarget = 'menu';
+    this._playerBackTarget = 'difficulty';
+    this._selectionTransition = null;
+    this._playerConfirmTransition = null;
     /** 练习：所选章节 id（默认第 1 章） */
     this.practiceChapterId = 1;
     /** 练习：所选难度 id（DIFFICULTIES，默认 normal） */
@@ -160,6 +181,7 @@ export class UI {
 
     this.screens = {
       menu: document.getElementById('screen-menu'),
+      mode: document.getElementById('screen-mode-select'),
       difficulty: document.getElementById('screen-difficulty'),
       player: document.getElementById('screen-player-select'),
       stage: document.getElementById('screen-stage-select'),
@@ -199,12 +221,15 @@ export class UI {
     this._initManual();
     this._initStageGrid();
     this._initPractice();
+    this._initMode();
     this._initDifficulty();
     this._initKeys();
     this.settingsForm.init();
     this._bindClicks();
     this._bindKeyboardNav();
     this.refreshKeyLabels();
+    this._playerTextObserver = new ResizeObserver(() => this._fitPlayerBand());
+    this.screens.player.querySelectorAll('.player-card p').forEach(el => this._playerTextObserver.observe(el));
   }
 
   _sfx(name) {
@@ -237,12 +262,26 @@ export class UI {
           this._action('back');
         }
       },
+      mode: (e) => {
+        const dir = (isNavNext(e) || isNavRight(e)) ? 1 : (isNavPrev(e) || isNavLeft(e)) ? -1 : 0;
+        handleListScreen(e, {
+          getItems: () => this._modeItems(),
+          index: this.modeIndex,
+          setIndex: (i) => {
+            if (dir) this.modeBandAngle += dir * 180;
+            this.modeIndex = i;
+          },
+          highlight: () => this._highlightMode(),
+          onBack: () => this._action('back-mode'),
+          useHorizontal: true,
+        });
+      },
       difficulty: (e) => handleListScreen(e, {
         getItems: () => this._diffItems(),
         index: this.diffIndex,
         setIndex: (i) => { this.diffIndex = i; },
         highlight: () => this._highlightDiff(),
-        onBack: () => this._action('back'),
+        onBack: () => this._action('back-difficulty'),
       }),
       player: (e) => handleListScreen(e, {
         getItems: () => this._playerItems(),
@@ -315,6 +354,48 @@ export class UI {
     }).join('');
   }
 
+  _modeItems() {
+    return [...document.querySelectorAll('#mode-list .mode-btn')].map(el => ({ type: 'mode', el }));
+  }
+
+  _initMode() {
+    const list = document.getElementById('mode-list');
+    if (!list) return;
+    [...list.querySelectorAll('.mode-btn')].forEach((btn, index) => {
+      btn.addEventListener('click', () => {
+        if (this._selectionTransition || this._playerConfirmTransition) return;
+        const dir = index === this.modeIndex ? 0 : index > this.modeIndex ? 1 : -1;
+        this.modeIndex = index;
+        this.modeBandAngle += dir * 180;
+        this._highlightMode();
+        this._sfx('ok');
+        this._selectMode(btn.dataset.mode);
+      });
+    });
+    this._highlightMode();
+  }
+
+  _selectMode(mode) {
+    this.pendingStart = mode === 'nomiss'
+      ? { startChapter: loadNomissProgress() ?? 1, mode: 'nomiss' }
+      : { startChapter: 1, mode: 'story' };
+    this._difficultyBackTarget = 'mode';
+    this.show('difficulty');
+  }
+
+  _highlightMode() {
+    const items = this._modeItems();
+    if (!items.length) return;
+    this.modeIndex = clampIndex(this.modeIndex, items.length);
+    this.screens.mode.style.setProperty('--mode-band-angle', `${this.modeBandAngle}deg`);
+    items.forEach((it, i) => {
+      const offset = i - this.modeIndex;
+      it.el.classList.toggle('selected', offset === 0);
+      it.el.style.setProperty('--mode-y', `${offset * Math.max(180, window.innerHeight * .3)}px`);
+      it.el.style.setProperty('--mode-opacity', offset === 0 ? '1' : Math.abs(offset) === 1 ? '.32' : '.1');
+    });
+  }
+
   _isExtraStart() {
     return isExtraRestrictedMode(this.pendingStart?.mode);
   }
@@ -364,6 +445,7 @@ export class UI {
         this.pendingDifficulty = id;
         this.diffIndex = i;
         this._highlightDiff();
+        this._playerBackTarget = 'difficulty';
         this.show('player');
       });
       list.appendChild(btn);
@@ -429,7 +511,7 @@ export class UI {
   _initStageGrid() {
     const grid = document.getElementById('stage-grid');
     grid.innerHTML = '';
-    for (const s of stageSelectEntries()) {
+    for (const [i, s] of stageSelectEntries().entries()) {
       const btn = document.createElement('button');
       btn.className = 'stage-btn';
       btn.dataset.stage = s.id;
@@ -437,7 +519,9 @@ export class UI {
       btn.innerHTML = `<strong>${s.label}</strong><small>${s.desc}</small>`;
       btn.addEventListener('click', () => {
         this._sfx('ok');
-        // EX 与 Extra Start 同限：Hard/Lunatic only（靠 mode === 'extra'）
+        this.stageIndex = i;
+        this._highlightStage();
+        this._difficultyBackTarget = 'stage';
         this.pendingStart = {
           startChapter: s.startChapter,
           mode: stageSelectStartMode(s.id),
@@ -896,7 +980,11 @@ export class UI {
       if (this._selectionTransition || this._playerConfirmTransition) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (isBack(e)) this.show('difficulty');
+        const transition = this._selectionTransition;
+        if (transition) {
+          const forward = transition.direction * (transition.reversed ? -1 : 1) > 0;
+          if (!e.repeat && (forward ? isBack(e) : isConfirm(e))) this._reverseSelectionTransition();
+        } else if (isBack(e)) { this._cancelPlayerConfirm(); this._action('back-diff'); }
         return;
       }
       const name = this._activeScreenName();
@@ -973,74 +1061,208 @@ export class UI {
       it.el.classList.toggle('selected', on);
       it.el.setAttribute('aria-pressed', String(on));
     });
+    this._fitPlayerBand();
   }
 
-  _cancelSelectionTransition() {
+  _fitPlayerBand() {
+    const text = this.screens.player.querySelector('.current-player p');
+    if (!text || !text.offsetHeight) return;
+    const band = this.screens.player.querySelector('.player-focus-band');
+    band.style.left = `${text.offsetLeft + text.offsetWidth / 2}px`;
+    band.style.top = `${text.offsetTop + text.offsetHeight / 2}px`;
+    band.style.width = `${text.offsetWidth}px`;
+    band.style.height = `${text.offsetHeight}px`;
+  }
+
+  _reverseSelectionTransition() {
+    const transition = this._selectionTransition;
+    if (!transition) return;
+    if (!transition.moving) {
+      this._cancelSelectionTransition({ restore: true });
+      return;
+    }
+    transition.reversed = !transition.reversed;
+    const frames = transition.segments.map(({ el, start }) => {
+      const style = getComputedStyle(el);
+      return Object.fromEntries(Object.keys(start).map(key => [key, style.getPropertyValue(key)]));
+    });
+    transition.generation += 1;
+    transition.animations.forEach(animation => animation.cancel());
+    transition.animations = transition.segments.map((segment, index) => segment.el.animate([
+      frames[index], transition.reversed ? segment.start : segment.end,
+    ], { duration: 760, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' }));
+  }
+
+  _cancelSelectionTransition({ restore = false } = {}) {
     const transition = this._selectionTransition;
     if (!transition) return;
     this._selectionTransition = null;
-    transition.animations.forEach(animation => animation.cancel());
-    this.screens.player.classList.remove('selection-arriving');
+    transition.animations.forEach((animation) => animation.cancel());
+    transition.band?.remove();
+    transition.backdrop?.remove();
+    transition.from.classList.remove('selection-in-motion');
+    transition.to.classList.remove('selection-in-motion', 'selection-preparing');
+    transition.from.querySelector('.selection-focus-band')?.classList.remove('selection-band-hidden');
+    transition.to.querySelector('.selection-focus-band')?.classList.remove('selection-band-hidden');
+    transition.to.classList.remove('selection-arriving');
+    transition.from.inert = false;
+    transition.to.inert = true;
+    if (restore) {
+      transition.to.classList.remove('active');
+      transition.from.classList.add('active');
+    }
   }
 
-  async _enterPlayerFromDifficulty() {
+  _selectionParts(screen, name) {
+    if (name === 'mode') return [...screen.querySelectorAll('.mode-btn')];
+    if (name === 'difficulty') return [...screen.querySelectorAll('.diff-btn')];
+    if (name === 'player') return [...screen.querySelectorAll('.player-portrait, .current-player h3, .current-player p')];
+    return [];
+  }
+
+  async _transitionSelection(fromName, toName, direction) {
     if (this._selectionTransition) return;
-    const difficulty = this.screens.difficulty;
-    const player = this.screens.player;
-    const transition = { animations: [] };
+    const from = this.screens[fromName];
+    const to = this.screens[toName];
+    if (!from || !to) {
+      this.show(toName, true);
+      return;
+    }
+    const transition = { fromName, toName, from, to, direction, animations: [], segments: [], generation: 0, moving: false, reversed: false };
     this._selectionTransition = transition;
-    difficulty.inert = true;
+    from.inert = true;
     const animate = (el, frames, options) => {
+      if (!el) return null;
       const animation = el.animate(frames, { fill: 'both', ...options });
       transition.animations.push(animation);
+      if (transition.moving) transition.segments.push({ el, start: frames[0], end: frames[frames.length - 1] });
       return animation;
     };
+    const wait = (animation) => animation?.finished || Promise.resolve();
     try {
-      const chosen = difficulty.querySelector('.diff-btn.selected');
-      await animate(chosen, [
-        { opacity: 1, offset: 0, easing: 'steps(1, end)' },
-        { opacity: 0, offset: .5, easing: 'steps(1, end)' },
-        { opacity: 1, offset: 1 },
-      ], { duration: 120, iterations: 3 }).finished;
+      if (direction > 0) {
+        const chosen = from.querySelector('.mode-btn.selected, .diff-btn.selected');
+        await wait(animate(chosen, [
+          { opacity: 1, offset: 0, easing: 'steps(1, end)' },
+          { opacity: 0, offset: .5, easing: 'steps(1, end)' },
+          { opacity: 1, offset: 1 },
+        ], { duration: 120, iterations: 3 }));
+      }
       if (this._selectionTransition !== transition) return;
-      this.playerIndex = 0;
-      this._highlightPlayer();
-      player.classList.add('active', 'selection-arriving');
-      player.inert = true;
+      if (transition.reversed) {
+        this._cancelSelectionTransition({ restore: true });
+        return;
+      }
+      transition.animations.forEach(animation => animation.cancel());
+      transition.animations = [];
+      transition.moving = true;
+      to.classList.add('selection-preparing');
+      if (toName === 'difficulty') this._rebuildDifficulty();
+      if (toName === 'mode') this._highlightMode();
+      if (toName === 'difficulty') this._highlightDiff();
+      if (toName === 'player') this._highlightPlayer();
+      to.classList.add('active', 'selection-arriving');
+      if (toName === 'player') this._fitPlayerBand();
+      to.inert = true;
+      const backdrop = document.createElement('div');
+      backdrop.className = 'selection-transition-backdrop';
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.getElementById('app').appendChild(backdrop);
+      transition.backdrop = backdrop;
+      from.classList.add('selection-in-motion');
+      to.classList.add('selection-in-motion');
       const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
-      const exit = [...difficulty.querySelectorAll('.diff-btn, .difficulty-focus-band')].map(el => {
+      const sourceBand = from.querySelector('.selection-focus-band');
+      const targetBand = to.querySelector('.selection-focus-band');
+      if (sourceBand && targetBand) {
+        const geometry = el => {
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          const matrix = new DOMMatrixReadOnly(style.transform);
+          return { left: `${rect.x + rect.width / 2}px`, top: `${rect.y + rect.height / 2}px`,
+            width: style.width, height: style.height,
+            angle: Math.atan2(matrix.b, matrix.a) * 180 / Math.PI };
+        };
+        const source = geometry(sourceBand);
+        const target = geometry(targetBand);
+        const correction = ((target.angle - source.angle + 540) % 360) - 180;
+        const band = document.createElement('div');
+        band.className = 'selection-transition-band';
+        band.setAttribute('aria-hidden', 'true');
+        const paint = document.createElement('div');
+        band.appendChild(paint);
+        document.getElementById('app').appendChild(band);
+        transition.band = band;
+        sourceBand.classList.add('selection-band-hidden');
+        targetBand.classList.add('selection-band-hidden');
+        animate(band, [
+          { left: source.left, top: source.top, width: source.width, height: source.height },
+          { left: target.left, top: target.top, width: target.width, height: target.height },
+        ], { duration: 760, easing });
+        animate(paint, [
+          { rotate: `${source.angle}deg` },
+          { rotate: `${source.angle + direction * 360 + correction}deg` },
+        ], { duration: 760, easing });
+      }
+      to.classList.remove('selection-preparing');
+      const sourceParts = this._selectionParts(from, fromName);
+      const targetParts = this._selectionParts(to, toName);
+      const sourceX = direction > 0
+        ? (el) => `${-el.getBoundingClientRect().right - 40}px`
+        : (el) => `${innerWidth - el.getBoundingClientRect().left + 40}px`;
+      const targetX = direction > 0 ? () => `${innerWidth + 240}px` : () => `${-innerWidth - 240}px`;
+      const exit = sourceParts.map((el) => {
         const rect = el.getBoundingClientRect();
+        const opacity = rect.right <= 0 || rect.left >= innerWidth || rect.bottom <= 0 || rect.top >= innerHeight
+          ? 0 : getComputedStyle(el).opacity;
         return animate(el, [
-          { translate: '0px 0px' },
-          { translate: `${-rect.right - 40}px ${innerHeight / 2 - rect.y - rect.height / 2}px` },
+          { translate: '0px 0px', opacity },
+          { translate: `${sourceX(el)} ${innerHeight / 2 - rect.y - rect.height / 2}px`, opacity },
         ], { duration: 760, easing });
       });
-      exit.push(animate(difficulty.querySelector('.panel-title'), [
-        { opacity: 1, translate: '0px' }, { opacity: 0, translate: '-180px' },
-      ], { duration: 560, easing }));
-      exit.push(animate(player.querySelector('.panel-title'), [
-        { opacity: 0, translate: '180px' }, { opacity: 1, translate: '0px' },
-      ], { duration: 560, easing }));
-      exit.push(animate(player.querySelector('.player-cards'), [
-        { translate: `${innerWidth + 240}px` }, { translate: '0px' },
-      ], { duration: 450, easing }));
-      await Promise.all(exit.map(animation => animation.finished));
+      const title = from.querySelector('.panel-title');
+      if (title) {
+        exit.push(animate(title, [
+          { opacity: 1, translate: '0px' },
+          { opacity: 0, translate: `${direction > 0 ? -180 : 180}px` },
+        ], { duration: 760, easing }));
+      }
+      const enter = targetParts.map((el) => {
+        const rect = el.getBoundingClientRect();
+        const y = direction < 0 ? innerHeight / 2 - rect.y - rect.height / 2 : 0;
+        return animate(el, [
+          { translate: `${targetX(el)} ${y}px` },
+          { translate: '0px 0px' },
+        ], { duration: 760, easing });
+      });
+      const targetTitle = to.querySelector('.panel-title');
+      if (targetTitle) {
+        enter.push(animate(targetTitle, [
+          { opacity: 0, translate: `${direction > 0 ? 180 : -180}px` },
+          { opacity: 1, translate: '0px' },
+        ], { duration: 760, easing }));
+      }
+      for (;;) {
+        const generation = transition.generation;
+        await Promise.allSettled(transition.animations.map(animation => animation.finished));
+        if (this._selectionTransition !== transition) return;
+        if (generation === transition.generation) break;
+      }
       if (this._selectionTransition !== transition) return;
+      const destination = transition.reversed ? fromName : toName;
       this._cancelSelectionTransition();
-      this.show('player', true);
+      this.show(destination, true);
     } catch (error) {
       if (this._selectionTransition !== transition) return;
       this._cancelSelectionTransition();
-      this.show('difficulty');
-      throw error;
+      this.show(fromName, true);
     }
   }
 
   _highlightStage() {
     const items = this._stageItems();
     document.querySelectorAll('#stage-grid .stage-btn').forEach((b) => b.classList.remove('selected'));
-    document.querySelector('#screen-stage-select [data-action="back"]')
-      ?.classList.remove('selected');
+    document.querySelector('#screen-stage-select [data-action="back"]')?.classList.remove('selected');
     if (!items.length) return;
     this.stageIndex = clampIndex(this.stageIndex, items.length);
     items.forEach((it, i) => it.el.classList.toggle('selected', i === this.stageIndex));
@@ -1048,17 +1270,24 @@ export class UI {
   }
 
   show(name, selectionComplete = false) {
-    if (name === 'player' && !selectionComplete && this._activeScreenName() === 'difficulty'
-        && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      void this._enterPlayerFromDifficulty();
-      return;
+    this._cancelPlayerConfirm();
+    const active = this._activeScreenName();
+    if (!selectionComplete && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const forward = (active === 'mode' && name === 'difficulty')
+        || (active === 'difficulty' && name === 'player');
+      const reverse = (active === 'player' && name === 'difficulty')
+        || (active === 'difficulty' && name === 'mode');
+      if (forward || reverse) {
+        void this._transitionSelection(active, name, forward ? 1 : -1);
+        return;
+      }
     }
     this._cancelPlayerConfirm();
     this._cancelSelectionTransition();
     const enteringMenu = name === 'menu'
       && (!this._menuStarted || this._activeScreenName() !== 'menu');
     if (name !== 'menu') this._finishMenuEntrance();
-    if (name === 'difficulty') this._rebuildDifficulty();
+    if (name === 'difficulty' && !selectionComplete) this._rebuildDifficulty();
     Object.entries(this.screens).forEach(([key, screen]) => {
       if (!screen) return;
       screen.classList.toggle('active', key === name);
@@ -1067,8 +1296,8 @@ export class UI {
     if (enteringMenu) this._enterMenu();
     if (name === 'exit') this.screens.exit.querySelector('button')?.focus();
     if (name === 'difficulty') this._highlightDiff();
+    if (name === 'mode') this._highlightMode();
     if (name === 'player') {
-      this.playerIndex = 0;
       this._highlightPlayer();
     }
     if (name === 'stage') {

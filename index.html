@@ -101,13 +101,34 @@
       </div>
     </div>
 
+    <!-- 模式选择 -->
+    <div id="screen-mode-select" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-panel th-panel wide"><div class="th-panel-frame">
+        <h2 class="panel-title">模式选择 · Mode</h2>
+        <div class="mode-focus-band selection-focus-band" aria-hidden="true"></div>
+        <div id="mode-list" class="mode-list">
+          <button class="mode-btn selected" data-mode="story">
+            <span class="mode-name">普通模式</span>
+            <span class="mode-rank">NORMAL</span>
+            <span class="mode-desc">标准流程，可保存录像与参与排行榜。</span>
+          </button>
+          <button class="mode-btn" data-mode="nomiss">
+            <span class="mode-name">无伤模式</span>
+            <span class="mode-rank">NOMISS</span>
+            <span class="mode-desc">被弹重开当前章，自动保存进度；不录制、不入榜。</span>
+          </button>
+        </div>
+      </div></div>
+    </div>
+
     <!-- 难度选择 -->
     <div id="screen-difficulty" class="screen">
       <div class="menu-bg"></div>
       <div class="menu-panel th-panel wide">
         <div class="th-panel-frame">
           <h2 class="panel-title">难度选择 · Difficulty</h2>
-          <div class="difficulty-focus-band" aria-hidden="true"></div>
+          <div class="difficulty-focus-band selection-focus-band" aria-hidden="true"></div>
           <div class="diff-list" id="diff-list"></div>
         </div>
       </div>
@@ -119,6 +140,7 @@
       <div class="menu-panel th-panel">
         <div class="th-panel-frame">
           <h2 class="panel-title">自机选择 · Player</h2>
+          <div class="player-focus-band selection-focus-band" aria-hidden="true"></div>
           <div class="player-cards">
             <button class="player-card selected" data-player="yinquan">
               <div class="player-portrait" aria-hidden="true"></div>

@@ -34,6 +34,29 @@
   --focus-border-soft: rgba(212, 181, 106, 0.22);
   --focus-border-mid: rgba(212, 181, 106, 0.28);
 }
+.selection-focus-band {
+  background: linear-gradient(90deg, transparent, rgba(13, 9, 24, .55) 25%, rgba(13, 9, 24, .55) 75%, transparent);
+  pointer-events: none;
+}
+.selection-band-hidden { visibility: hidden !important; }
+.selection-transition-band {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: var(--selection-transition-width, min(78vw, 780px));
+  height: var(--selection-transition-height, 210px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.selection-transition-band > div {
+  width: 100%; height: 100%; transform-origin: center;
+  background: linear-gradient(90deg, transparent, rgba(13,9,24,.55) 25%, rgba(13,9,24,.55) 75%, transparent);
+}
+.selection-transition-backdrop {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(rgba(13,9,24,.24),rgba(13,9,24,.24)), #302432 url('../assets/bg/difficulty-cathedral.avif') center / cover no-repeat;
+}
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
@@ -2950,9 +2973,7 @@ input, select, textarea {
   z-index: 1;
   width: min(68vw, 680px);
   height: 196px;
-  background: linear-gradient(90deg, transparent, rgba(13, 9, 24, .55) 25%, rgba(13, 9, 24, .55) 75%, transparent);
   transform: translate(-50%, -50%) rotate(var(--band-angle, 0deg));
-  pointer-events: none;
 }
 #screen-difficulty .diff-btn:nth-child(n) {
   position: absolute;
@@ -2999,6 +3020,15 @@ input, select, textarea {
 #screen-difficulty .diff-meta { font-size: .72rem; }
 #screen-difficulty:has(.diff-btn[data-diff="extra"]) .difficulty-focus-band {
   height: var(--extra-band-height, 240px);
+}
+#screen-player-select .player-focus-band {
+  position: absolute;
+  left: 68%;
+  top: 50%;
+  z-index: 1;
+  width: 46vw;
+  height: 0;
+  transform: translate(-50%, -50%) rotate(0deg);
 }
 
 /* Player stage: two colored silhouette masks remain visible; only their controls receive input. */
@@ -3077,7 +3107,6 @@ input, select, textarea {
   color: #f2e8e7;
   font-size: clamp(1rem, 2vw, 1.7rem);
   text-align: center;
-  background: linear-gradient(90deg, transparent, rgba(13, 9, 24, .65) 20%, rgba(13, 9, 24, .65) 80%, transparent);
 }
 #screen-player-select .player-card.current-player h3,
 #screen-player-select .player-card.current-player p {
@@ -3087,6 +3116,7 @@ input, select, textarea {
 }
 
 @media (max-width: 560px) {
+  #screen-player-select .player-focus-band { left: 72%; width: 50vw; }
   #screen-difficulty .difficulty-focus-band { width: 88vw; height: 132px; }
   #screen-difficulty .diff-btn:nth-child(n) { width: 88vw; padding: 8px; }
   #screen-difficulty .diff-desc { max-width: 29ch; }
@@ -3111,3 +3141,40 @@ input, select, textarea {
   #screen-player-select .player-card h3,
   #screen-player-select .player-card p { transition: none; }
 }
+
+/* Mode choice shares the stationary selection stage. */
+#screen-mode-select { padding: 0; overflow: hidden; background: #302432 url('../assets/bg/difficulty-cathedral.avif') center / cover no-repeat; }
+#screen-mode-select.active { display: block; }
+#screen-mode-select .menu-bg { background: rgba(13,9,24,.24); }
+#screen-mode-select .th-panel,
+#screen-mode-select .th-panel-frame { width: 100%; height: 100%; }
+#screen-mode-select .th-panel-frame { position: relative; padding: 0; border: 0; background: transparent; box-shadow: none; }
+#screen-mode-select .th-panel-frame::before,
+#screen-mode-select .th-panel-frame::after { display: none; }
+#screen-mode-select .panel-title { position: absolute; top: 3vh; left: 0; z-index: 3; width: 100%; color: #fff1dd; font-size: clamp(1.8rem,4.5vw,3.8rem); text-align: center; pointer-events: none; }
+#screen-mode-select .mode-focus-band { position: absolute; left: 50%; top: 50%; z-index: 1; width: min(78vw,780px); height: 210px; transform: translate(-50%,-50%) rotate(var(--mode-band-angle,0deg)); transition: transform 300ms cubic-bezier(.22,1,.36,1); }
+#screen-mode-select .mode-btn { position: absolute; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; gap: .25rem; width: min(70vw,700px); padding: 12px 18px; border: 0; background: transparent; color: #fff; text-align: center; transform: translate(-50%,calc(-50% + var(--mode-y,0px))); opacity: var(--mode-opacity,.3); transition: transform 300ms cubic-bezier(.22,1,.36,1),opacity 300ms cubic-bezier(.22,1,.36,1); }
+#screen-mode-select .mode-name { font: 900 clamp(1.5rem,3.5vw,2.8rem) var(--font); -webkit-text-stroke: 2px #29202b; paint-order: stroke fill; }
+#screen-mode-select .mode-rank { font: clamp(2rem,5vw,4rem) Georgia,serif; color: #a4d8d5; }
+#screen-mode-select [data-mode="nomiss"] .mode-rank { color: #d3b3e4; }
+#screen-difficulty.selection-arriving { background: transparent; }
+#screen-mode-select.selection-arriving .menu-bg,
+#screen-difficulty.selection-arriving .menu-bg { visibility: hidden; }
+@media(max-width:560px) {
+  #screen-mode-select .mode-btn { width: 90vw; padding: 8px; }
+  #screen-mode-select .mode-focus-band { width: 94vw; height: 170px; }
+  #screen-mode-select .mode-desc { max-width: 27ch; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #screen-mode-select .mode-btn,
+  #screen-mode-select .mode-focus-band { transition: none; }
+}
+@media(max-width:560px) {
+  #screen-mode-select .mode-list { clip-path: inset(65px 0 0); }
+}
+
+#screen-mode-select .mode-list { position: absolute; inset: 0; z-index: 2; }
+#screen-player-select .player-cards { z-index: 2; }
+:is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion { background: transparent; z-index: 2; }
+:is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion .menu-bg { visibility: hidden; }
+.selection-preparing .selection-focus-band { transition: none !important; }
