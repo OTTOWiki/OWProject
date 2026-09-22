@@ -35,33 +35,31 @@ test('排行榜：A线 / EX+续 标签渲染', async ({ page }) => {
   await expect(routes.nth(1).locator('.rk-badge')).toHaveText('续');
 });
 
-test('Nomiss 结算：主要成绩与完整统计默认显示', async ({ page }) => {
-  await page.locator('button[data-action="start"]').click();
-  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
-  await page.locator('.diff-btn[data-diff="normal"]').click();
+test('自机选择两名角色与练习结算：移除 Nomiss 入口和返回按钮', async ({ page }) => {
+  await page.locator('button[data-action="practice"]').click();
+  await expect(page.locator('#screen-practice')).toHaveClass(/active/);
+  await page.locator('#screen-practice [data-action="practice-start"]').click();
   await expect(page.locator('#screen-player-select')).toHaveClass(/active/);
 
-  const nomiss = page.locator('#player-nomiss');
-  await nomiss.check();
+  await expect(page.locator('#screen-player-select .player-card')).toHaveCount(2);
+  await expect(page.locator('#player-nomiss')).toHaveCount(0);
+  await expect(page.locator('#player-nomiss-row')).toHaveCount(0);
+  await expect(page.locator('#screen-player-select [data-action="back-diff"]')).toHaveCount(0);
+
   await page.locator('.player-card[data-player="yinquan"]').click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
-  await expect(page.locator('#ui-mode-nomiss')).toBeVisible();
-  await expect(page.locator('#ui-difficulty')).toContainText('NORMAL');
-  await expect(page.locator('#ui-difficulty')).not.toContainText('Nomiss');
+  await page.evaluate(() => {
+    owDebug.set({ invincible: true, lockLives: true, lockBombs: true, skipDialogue: true, timeScale: 8 });
+    owDebug.kill();
+  });
 
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#game-overlay')).not.toHaveClass(/hidden/);
-  await page.locator('#overlay-actions [data-overlay="settle"]').click();
-  await expect(page.locator('[data-overlay="confirm-no"]')).toHaveClass(/selected/);
-  await page.locator('[data-overlay="confirm-no"]').click();
-  await expect(page.locator('#overlay-title')).toHaveText('PAUSED');
-  await page.locator('#overlay-actions [data-overlay="settle"]').click();
-  await page.locator('[data-overlay="confirm-yes"]').click();
-
-  await expect(page.locator('#overlay-title')).toHaveText('Nomiss 结算');
+  await expect(page.locator('#overlay-title')).toHaveText('练习结束', { timeout: 10000 });
   const body = page.locator('#overlay-body');
-  await expect(page.locator('.result-score strong')).toHaveText('0');
   await expect(body).toBeVisible();
-  await expect(body).toContainText('擦弹 0 · 击破 0 · 道具 0');
-  await expect(body).toContainText('Bomb 0 · Miss 0 · NMNB 0 · 最大连击 0 · 用时');
+  await expect(body).toContainText('难度：');
+  await expect(body).toContainText('章节：');
+  await expect(body).toContainText('得分：');
+  await expect(body).toContainText('擦弹');
+  await expect(body).toContainText('Bomb');
+  await expect(body).toContainText('用时');
 });
