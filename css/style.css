@@ -2937,6 +2937,7 @@ input, select, textarea {
 #screen-difficulty .diff-list {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: block;
   margin: 0;
   padding: 0;
