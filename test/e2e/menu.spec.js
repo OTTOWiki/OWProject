@@ -48,39 +48,106 @@ test('模式左右键选择使用有符号 180 度步进', async ({ page }) => {
   await expect(modeScreen).toHaveCSS('--mode-band-angle', '0deg');
 });
 
-test('转场中快速返回仍完成可观测的反向位移动画', async ({ page }) => {
+test('转场中返回从当前 WAAPI 进度反向，不重置或排队', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);
   await page.locator('#main-menu-nav [data-action="start"]').click();
   await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
-  await page.keyboard.press('Escape');
 
   const modeScreen = page.locator('#screen-mode-select');
+  const difficultyScreen = page.locator('#screen-difficulty');
   await page.waitForFunction(() => {
-    const screen = document.querySelector('#screen-mode-select');
+    const screen = document.querySelector('#screen-difficulty');
     return screen?.classList.contains('selection-arriving')
-      && screen.getAnimations({ subtree: true }).some((a) => a.effect?.target?.matches('.mode-btn'));
+      && [...(screen?.getAnimations({ subtree: true }) || [])]
+        .some((a) => a.effect?.target?.matches('.diff-btn.selected')
+          && Number(a.effect.getComputedTiming().duration) > 0);
   });
 
   const midpoint = await page.evaluate(() => {
-    const screen = document.querySelector('#screen-mode-select');
-    const target = screen?.querySelector('.mode-btn.selected');
-    const animation = screen.getAnimations({ subtree: true })
-      .find((a) => a.effect?.target === target && a.effect.getComputedTiming().duration > 0);
+    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
+    const animation = [...(target?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
     if (!target || !animation) return null;
-    const timing = animation.effect.getComputedTiming();
-    animation.currentTime = Number(timing.duration) / 2;
+    animation.currentTime = 320;
     animation.pause();
     const rect = target.getBoundingClientRect();
-    return { center: rect.left + rect.width / 2, viewportCenter: innerWidth / 2, playState: animation.playState };
+    return { time: Number(animation.currentTime), center: rect.left + rect.width / 2 };
   });
   expect(midpoint).not.toBeNull();
-  expect(midpoint.playState).toBe('paused');
-  expect(midpoint.center).toBeLessThan(midpoint.viewportCenter - 10);
-  await page.evaluate(() => document.getAnimations().forEach(a => a.finish()));
-  await expect(modeScreen).toHaveClass(/active/);
-  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+
+  await page.evaluate(() => {
+    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
+    const animation = [...(target?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    animation?.play();
+  });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(90);
+
+  const reversed = await page.evaluate(() => {
+    const target = document.querySelector('#screen-difficulty .diff-btn.selected');
+    const animation = [...(target?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    if (!target || !animation) return null;
+    const rect = target.getBoundingClientRect();
+    return { time: Number(animation.currentTime), center: rect.left + rect.width / 2 };
+  });
+  expect(reversed).not.toBeNull();
+  expect(reversed.time).toBeLessThan(midpoint.time - 10);
+  expect(reversed.center).toBeGreaterThan(midpoint.center + 1);
+
+  await expect(modeScreen).toHaveClass(/active/, { timeout: 2000 });
+  await expect(difficultyScreen).not.toHaveClass(/active/);
+});
+
+test('玩家返回难度后立绘动画清理，快速反复返回不会卡住', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
+  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/);
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+  await page.waitForFunction(() => {
+    const screen = document.querySelector('#screen-player-select');
+    return screen?.classList.contains('selection-arriving')
+      && [...(screen?.getAnimations({ subtree: true }) || [])]
+        .some((a) => a.effect?.target?.matches('.player-portrait')
+          && Number(a.effect.getComputedTiming().duration) === 760);
+  });
+  const playerProgress = await page.evaluate(() => {
+    const portrait = document.querySelector('#screen-player-select .player-portrait');
+    const animation = [...(portrait?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    if (!animation) return null;
+    animation.currentTime = 320;
+    animation.pause();
+    animation.play();
+    return Number(animation.currentTime);
+  });
+  expect(playerProgress).toBe(320);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(50);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(50);
+  await page.keyboard.press('Escape');
+
+  await expect(page.locator('#screen-difficulty')).toHaveClass(/active/, { timeout: 2000 });
+  await expect(page.locator('#screen-player-select')).not.toHaveClass(/active/);
+  const cleanup = await page.evaluate(() => {
+    const portrait = document.querySelector('#screen-player-select .player-portrait');
+    return {
+      portraitAnimations: portrait?.getAnimations().length ?? 0,
+      portraitRect: portrait?.getBoundingClientRect().toJSON() ?? null,
+      activeScreens: [...document.querySelectorAll('.screen.active')].map((el) => el.id),
+    };
+  });
+  expect(cleanup.portraitAnimations).toBe(0);
+  expect(cleanup.portraitRect?.width).toBe(0);
+  expect(cleanup.portraitRect?.height).toBe(0);
+  expect(cleanup.activeScreens).toEqual(['screen-difficulty']);
 });
 
 test('Lunatic 返回时 Easy 难度节点全程保持不可见', async ({ page }) => {

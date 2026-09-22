@@ -979,8 +979,9 @@ export class UI {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (isBack(e)) {
-          if (this._selectionTransition) this._selectionTransition.returnRequested = true;
-          else { this._cancelPlayerConfirm(); this._action('back-diff'); }
+          if (this._selectionTransition) {
+            if (!e.repeat) this._reverseSelectionTransition();
+          } else { this._cancelPlayerConfirm(); this._action('back-diff'); }
         }
         return;
       }
@@ -1060,11 +1061,21 @@ export class UI {
     });
   }
 
+  _reverseSelectionTransition() {
+    const transition = this._selectionTransition;
+    if (!transition) return;
+    transition.reversed = !transition.reversed;
+    transition.animations.forEach(animation => animation.reverse());
+  }
+
   _cancelSelectionTransition({ restore = false } = {}) {
     const transition = this._selectionTransition;
     if (!transition) return;
     this._selectionTransition = null;
     transition.animations.forEach((animation) => animation.cancel());
+    transition.band?.remove();
+    transition.from.querySelector('.selection-focus-band')?.classList.remove('selection-band-hidden');
+    transition.to.querySelector('.selection-focus-band')?.classList.remove('selection-band-hidden');
     transition.to.classList.remove('selection-arriving');
     transition.from.inert = false;
     transition.to.inert = true;
@@ -1075,9 +1086,9 @@ export class UI {
   }
 
   _selectionParts(screen, name) {
-    if (name === 'mode') return [...screen.querySelectorAll('.mode-btn, .mode-focus-band')];
-    if (name === 'difficulty') return [...screen.querySelectorAll('.diff-btn, .difficulty-focus-band')];
-    if (name === 'player') return [screen.querySelector('.player-cards')].filter(Boolean);
+    if (name === 'mode') return [...screen.querySelectorAll('.mode-btn')];
+    if (name === 'difficulty') return [...screen.querySelectorAll('.diff-btn')];
+    if (name === 'player') return [...screen.querySelectorAll('.player-portrait, .current-player h3, .current-player p')];
     return [];
   }
 
@@ -1089,7 +1100,7 @@ export class UI {
       this.show(toName, true);
       return;
     }
-    const transition = { fromName, toName, from, to, direction, animations: [] };
+    const transition = { fromName, toName, from, to, direction, animations: [], moving: false, reversed: false };
     this._selectionTransition = transition;
     from.inert = true;
     const animate = (el, frames, options) => {
@@ -1109,6 +1120,13 @@ export class UI {
         ], { duration: 120, iterations: 3 }));
       }
       if (this._selectionTransition !== transition) return;
+      if (transition.reversed) {
+        this._cancelSelectionTransition({ restore: true });
+        return;
+      }
+      transition.animations.forEach(animation => animation.cancel());
+      transition.animations = [];
+      transition.moving = true;
       if (toName === 'difficulty') this._rebuildDifficulty();
       if (toName === 'mode') this._highlightMode();
       if (toName === 'difficulty') this._highlightDiff();
@@ -1116,6 +1134,34 @@ export class UI {
       to.classList.add('active', 'selection-arriving');
       to.inert = true;
       const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+      const sourceBand = from.querySelector('.selection-focus-band');
+      const targetBand = to.querySelector('.selection-focus-band');
+      if (sourceBand && targetBand) {
+        const geometry = el => {
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          const matrix = new DOMMatrixReadOnly(style.transform);
+          return { left: `${rect.x + rect.width / 2}px`, top: `${rect.y + rect.height / 2}px`,
+            width: style.width, height: style.height,
+            angle: Math.atan2(matrix.b, matrix.a) * 180 / Math.PI };
+        };
+        const source = geometry(sourceBand);
+        const target = geometry(targetBand);
+        const correction = ((target.angle - source.angle + 540) % 360) - 180;
+        const band = document.createElement('div');
+        band.className = 'selection-transition-band';
+        band.setAttribute('aria-hidden', 'true');
+        from.querySelector('.th-panel-frame').appendChild(band);
+        transition.band = band;
+        sourceBand.classList.add('selection-band-hidden');
+        targetBand.classList.add('selection-band-hidden');
+        animate(band, [
+          { left: source.left, top: source.top, width: source.width, height: source.height,
+            transform: `translate(-50%, -50%) rotate(${source.angle}deg)` },
+          { left: target.left, top: target.top, width: target.width, height: target.height,
+            transform: `translate(-50%, -50%) rotate(${source.angle + direction * 360 + correction}deg)` },
+        ], { duration: 760, easing });
+      }
       const sourceParts = this._selectionParts(from, fromName);
       const targetParts = this._selectionParts(to, toName);
       const sourceX = direction > 0
@@ -1136,7 +1182,7 @@ export class UI {
         exit.push(animate(title, [
           { opacity: 1, translate: '0px' },
           { opacity: 0, translate: `${direction > 0 ? -180 : 180}px` },
-        ], { duration: 560, easing }));
+        ], { duration: 760, easing }));
       }
       const enter = targetParts.map((el) => {
         const rect = el.getBoundingClientRect();
@@ -1144,20 +1190,20 @@ export class UI {
         return animate(el, [
           { translate: `${targetX(el)} ${y}px` },
           { translate: '0px 0px' },
-        ], { duration: 450, easing });
+        ], { duration: 760, easing });
       });
       const targetTitle = to.querySelector('.panel-title');
       if (targetTitle) {
         enter.push(animate(targetTitle, [
           { opacity: 0, translate: `${direction > 0 ? 180 : -180}px` },
           { opacity: 1, translate: '0px' },
-        ], { duration: 560, easing }));
+        ], { duration: 760, easing }));
       }
-      await Promise.all([...exit, ...enter].filter(Boolean).map((animation) => animation.finished));
+      await Promise.all(transition.animations.map(animation => animation.finished));
       if (this._selectionTransition !== transition) return;
+      const destination = transition.reversed ? fromName : toName;
       this._cancelSelectionTransition();
-      this.show(toName, true);
-      if (transition.returnRequested) this.show(fromName);
+      this.show(destination, true);
     } catch (error) {
       if (this._selectionTransition !== transition) return;
       this._cancelSelectionTransition();
