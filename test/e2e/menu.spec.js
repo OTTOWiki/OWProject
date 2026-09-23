@@ -221,6 +221,58 @@ test('窄屏玩家转场带尺寸匹配当前自机说明文字', async ({ page 
     expect(Math.abs(bounds.band[key] - bounds.text[key])).toBeLessThan(1.5);
   }
 });
+test('Extra 完成自机入场后返回，转场带保持 EX 文案高度', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await page.locator('#main-menu-nav [data-action="extra-start"]').click();
+  const difficulty = page.locator('#screen-difficulty');
+  await expect(difficulty).toHaveClass(/active/, { timeout: 2000 });
+  await expect(difficulty).not.toHaveClass(/selection-arriving/, { timeout: 2000 });
+
+  const extra = page.locator('#screen-difficulty .diff-btn[data-diff="extra"]');
+  await expect(extra).toHaveClass(/selected/);
+  await extra.click();
+  const player = page.locator('#screen-player-select');
+  await expect(player).toHaveClass(/active/, { timeout: 2000 });
+  await expect(player).not.toHaveClass(/selection-arriving/, { timeout: 2000 });
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('#screen-difficulty.selection-arriving')
+    && document.querySelector('.selection-transition-band')
+    && document.querySelector('#screen-difficulty .diff-btn[data-diff="extra"].selected'));
+
+  const endpoint = await page.evaluate(() => {
+    const band = document.querySelector('.selection-transition-band');
+    const extra = document.querySelector('#screen-difficulty .diff-btn[data-diff="extra"].selected');
+    const animation = [...(band?.getAnimations() || [])]
+      .find((a) => Number(a.effect?.getComputedTiming().duration) === 760);
+    if (!band || !extra || !animation) return null;
+    animation.currentTime = Number(animation.effect.getComputedTiming().duration);
+    const bandHeight = band.getBoundingClientRect().height;
+    const textHeight = extra.getBoundingClientRect().height;
+    return { bandHeight, textHeight, expectedHeight: Math.ceil(textHeight) + 24 };
+  });
+  expect(endpoint).not.toBeNull();
+  expect(endpoint.bandHeight).toBeGreaterThan(endpoint.textHeight);
+  expect(endpoint.bandHeight).not.toBe(24);
+  expect(Math.abs(endpoint.bandHeight - endpoint.expectedHeight)).toBeLessThan(1.5);
+
+  await expect(page.locator('.selection-transition-band')).toHaveCount(0, { timeout: 2000 });
+  const settled = await page.evaluate(() => {
+    const band = document.querySelector('#screen-difficulty .difficulty-focus-band');
+    const extra = document.querySelector('#screen-difficulty .diff-btn[data-diff="extra"].selected');
+    if (!band || !extra) return null;
+    return {
+      bandHeight: Number.parseFloat(getComputedStyle(band).height),
+      expectedHeight: Math.ceil(extra.getBoundingClientRect().height) + 24,
+    };
+  });
+  expect(settled).not.toBeNull();
+  expect(Math.abs(settled.bandHeight - settled.expectedHeight)).toBeLessThan(1.5);
+});
 
 test('难度返回模式时模式文字在转场中段已可见', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
