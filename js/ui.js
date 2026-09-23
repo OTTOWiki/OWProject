@@ -778,7 +778,7 @@ export class UI {
     });
     document.querySelectorAll('.player-card').forEach((card) => {
       card.addEventListener('click', () => {
-        if (this._selectionTransition || this._playerConfirmTransition) return;
+        if (this._sceneTransition || this._selectionTransition || this._playerConfirmTransition) return;
         if (!card.classList.contains('current-player')) {
           this.playerIndex = [...document.querySelectorAll('.player-card')].indexOf(card);
           this._highlightPlayer();
@@ -794,16 +794,99 @@ export class UI {
     this._sfx('ok');
     const playerId = card.dataset.player;
     const start = this.pendingStart || { startChapter: 1, mode: 'story' };
-    this.showGame();
-    this.onStartGame({
-      playerId,
-      startChapter: start.startChapter,
-      mode: start.mode,
-      lives: start.lives,
-      unstable: start.unstable,
-      singleChapter: start.singleChapter,
+    const begin = (presentation) => this.onStartGame({
+      playerId, startChapter: start.startChapter, mode: start.mode,
+      lives: start.lives, unstable: start.unstable, singleChapter: start.singleChapter,
       difficulty: this.pendingDifficulty || 'normal',
+    }, presentation);
+    if (this._menuMotionQuery.matches) { this.showGame(); begin(); }
+    else void this._transitionScene('game', begin);
+  }
+
+  async _transitionScene(targetName, onReady) {
+    if (this._sceneTransition) return;
+    const source = this.screens[this._activeScreenName()];
+    const target = this.screens[targetName];
+    const scene = { animations: [], curtain: document.createElement('div') };
+    this._sceneTransition = scene;
+    source.inert = true;
+    this._finishMenuEntrance();
+    const curtain = scene.curtain;
+    curtain.className = 'scene-curtain';
+    curtain.dataset.phase = 'cover';
+    const sceneImage = new URL(`../assets/bg/${targetName === 'game' ? 'battle-print' : 'difficulty-cathedral'}.avif`, import.meta.url).href;
+    curtain.style.setProperty('--scene-image', `url("${sceneImage}")`);
+    const shards = Array.from({ length: 9 }, (_, i) => {
+      const shard = document.createElement('div');
+      shard.className = 'scene-curtain-shard';
+      const y = i * 100 / 9;
+      shard.style.clipPath = `polygon(0 ${y - 8}%,100% ${y + 3}%,100% ${y + 20}%,0 ${y + 9}%)`;
+      curtain.appendChild(shard);
+      return shard;
     });
+    const prayer = document.createElement('div');
+    prayer.className = 'scene-prayer';
+    prayer.setAttribute('role', 'status');
+    prayer.innerHTML = '<strong>少女祈祷中…</strong><span>Now Loading...</span>';
+    curtain.appendChild(prayer);
+    document.getElementById('app').appendChild(curtain);
+    const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    const animate = (el, frames, duration = 600, delay = 0) => {
+      const animation = el.animate(frames, { duration, delay, easing, fill: 'both' });
+      scene.animations.push(animation);
+      return animation;
+    };
+    const contents = screen => [...screen.querySelectorAll('.panel-title, .mode-list, .diff-list, .player-cards, .stage-grid, .practice-form, .game-layout')];
+    try {
+      const sourceBand = source.querySelector('.selection-focus-band');
+      if (sourceBand) {
+        const style = getComputedStyle(sourceBand);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const angle = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+        animate(sourceBand, [
+          { opacity: 1, height: style.height, transform: style.transform },
+          { opacity: 0, height: '2px', transform: `translate(-50%, -50%) rotate(${angle - 50}deg)` },
+        ], 450);
+        contents(source).forEach(el => animate(el, [{ opacity: 1 }, { opacity: 0 }], 450));
+      }
+      await Promise.all(shards.map((el, i) => animate(el, [
+        { translate: `${i % 2 ? 110 : -110}% 0` }, { translate: '0% 0' },
+      ], 520, i * 22 + (sourceBand ? 450 : 0)).finished));
+      curtain.style.background = `#201425 url("${sceneImage}") center / cover no-repeat`;
+      if (targetName === 'difficulty') this._rebuildDifficulty();
+      this.show(targetName, true);
+      target.inert = true;
+      curtain.dataset.phase = 'hold';
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (targetName === 'player') this._fitPlayerBand();
+      if (targetName === 'difficulty') this._fitExtraBand();
+      const release = onReady?.({ deferLoop: true });
+      curtain.dataset.phase = 'reveal';
+      const incoming = contents(target).map(el => animate(el, [
+        { opacity: 0, translate: '24px 0' }, { opacity: 1, translate: '0px 0' },
+      ], 760));
+      const band = target.querySelector('.selection-focus-band');
+      if (band) {
+        const style = getComputedStyle(band);
+        const matrix = new DOMMatrixReadOnly(style.transform);
+        const angle = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+        incoming.push(animate(band, [
+          { opacity: 0, height: '2px', transform: `translate(-50%, -50%) rotate(${angle - 50}deg)` },
+          { opacity: 1, height: style.height, transform: style.transform },
+        ], 760));
+      }
+      prayer.hidden = true;
+      curtain.style.background = 'transparent';
+      shards.forEach(el => { el.style.visibility = 'hidden'; });
+      await Promise.all(incoming.map(animation => animation.finished));
+      release?.();
+    } finally {
+      scene.animations.forEach(animation => animation.cancel());
+      curtain.remove();
+      this._sceneTransition = null;
+      target.inert = !target.classList.contains('active');
+      source.inert = !source.classList.contains('active');
+    }
   }
 
   _cancelPlayerConfirm() {
@@ -838,6 +921,7 @@ export class UI {
  
 
   _action(action) {
+    if (this._sceneTransition) return;
     // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
     const isCancel = action === 'back' || action === 'back-diff';
     this._sfx(isCancel ? 'cancel' : 'ok');
@@ -979,6 +1063,7 @@ export class UI {
       this._menuSkipPointer = null;
     });
     window.addEventListener('keydown', (e) => {
+      if (this._sceneTransition) { e.preventDefault(); e.stopImmediatePropagation(); return; }
       if (this._selectionTransition || this._playerConfirmTransition) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -1275,6 +1360,11 @@ export class UI {
   show(name, selectionComplete = false) {
     this._cancelPlayerConfirm();
     const active = this._activeScreenName();
+    if (!selectionComplete && !this._menuMotionQuery.matches && active === 'menu'
+        && ['mode', 'difficulty', 'stage', 'practice'].includes(name)) {
+      void this._transitionScene(name);
+      return;
+    }
     if (!selectionComplete && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const forward = (active === 'mode' && name === 'difficulty')
         || (active === 'difficulty' && name === 'player');

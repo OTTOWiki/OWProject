@@ -452,3 +452,95 @@ test('指针跳过未产生click时不吞下一次键盘确认', async ({ page }
   await expect(page.locator('#screen-manual')).toHaveClass(/active/);
   await page.mouse.up();
 });
+test('菜单进入选择时祈祷幕保持 1.5 秒且选择界面不可交互', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.evaluate(() => {
+    window.__sceneTestPhaseTimes = {};
+    const observer = new MutationObserver(() => {
+      const curtain = document.querySelector('.scene-curtain');
+      const phase = curtain?.dataset.phase;
+      if (phase && window.__sceneTestPhaseTimes[phase] == null) {
+        window.__sceneTestPhaseTimes[phase] = performance.now();
+      }
+    });
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-phase'],
+    });
+    window.__sceneTestStop = () => observer.disconnect();
+  });
+
+  const modeScreen = page.locator('#screen-mode-select');
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  const curtain = page.locator('.scene-curtain');
+  const hold = await page.waitForFunction(() => {
+    const curtain = document.querySelector('.scene-curtain');
+    if (curtain?.dataset.phase !== 'hold') return false;
+    const mode = document.querySelector('#screen-mode-select');
+    const prayer = document.querySelector('.scene-prayer');
+    return { active: mode.classList.contains('active'), inert: mode.inert,
+      prayerVisible: !!prayer && getComputedStyle(prayer).display !== 'none' };
+  });
+  expect(await hold.jsonValue()).toEqual({ active: true, inert: true, prayerVisible: true });
+
+  await page.waitForFunction(() => {
+    const phase = document.querySelector('.scene-curtain')?.dataset.phase;
+    return !phase || phase !== 'hold';
+  });
+  const phaseTimes = await page.evaluate(() => {
+    window.__sceneTestStop?.();
+    return window.__sceneTestPhaseTimes;
+  });
+  expect(phaseTimes.reveal - phaseTimes.hold).toBeGreaterThanOrEqual(1300);
+  await expect(curtain).toHaveCount(0, { timeout: 2000 });
+  await expect(modeScreen).toHaveJSProperty('inert', false);
+});
+
+test('确认自机时祈祷幕结束前不启动游戏，结束后才进入实际对局', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await expect(page.locator('#screen-game')).not.toHaveClass(/active/);
+  await expect(page.locator('#ui-chapter')).toHaveText('—');
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="story"]').click();
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+
+  const playerScreen = page.locator('#screen-player-select');
+  await expect(playerScreen).toHaveClass(/active/);
+  await expect(playerScreen).toHaveJSProperty('inert', false);
+  await page.locator('#screen-player-select .player-card').first().click();
+
+  const curtain = page.locator('.scene-curtain');
+  await expect(curtain).toHaveAttribute('data-phase', 'hold', { timeout: 2000 });
+  await expect(page.locator('.scene-prayer')).toBeVisible();
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', true);
+  await expect(page.locator('#ui-chapter')).toHaveText('—');
+
+  await expect(curtain).toHaveCount(0, { timeout: 4000 });
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
+  await expect(page.locator('#ui-chapter')).not.toHaveText('—');
+});
+
+test('减少动态效果时菜单与自机确认不显示祈祷幕并立即可用', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
+  await page.locator('#mode-list .mode-btn[data-mode="story"]').click();
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
+});

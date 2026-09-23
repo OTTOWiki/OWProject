@@ -3178,3 +3178,144 @@ input, select, textarea {
 :is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion { background: transparent; z-index: 2; }
 :is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion .menu-bg { visibility: hidden; }
 .selection-preparing .selection-focus-band { transition: none !important; }
+/* ===== TH14-style scene interstitial ===== */
+.scene-curtain {
+  --scene-image: url('../assets/bg/difficulty-cathedral.avif');
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.scene-curtain-shard {
+  position: fixed;
+  inset: 0;
+  z-index: calc(1 + var(--shard-index, 0));
+  display: block;
+  background-color: #201425;
+  background-image: var(--scene-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  clip-path: var(--shard-clip, polygon(0 0, 100% 0, 100% 15%, 57% 11%, 16% 25%, 0 18%));
+  transform: translateZ(0);
+  transform-origin: 50% 50%;
+  will-change: clip-path, transform, opacity;
+  pointer-events: none;
+}
+
+/* Broad, uneven bands keep the uncovered edges feeling hand-cut while JS animates them. */
+.scene-curtain-shard:nth-child(1) {
+  --shard-clip: polygon(0 0, 100% 0, 100% 13%, 72% 10%, 24% 22%, 0 18%);
+}
+.scene-curtain-shard:nth-child(2) {
+  --shard-clip: polygon(0 12%, 20% 17%, 65% 9%, 100% 18%, 100% 31%, 54% 27%, 12% 36%, 0 31%);
+}
+.scene-curtain-shard:nth-child(3) {
+  --shard-clip: polygon(0 26%, 32% 21%, 76% 31%, 100% 25%, 100% 43%, 61% 39%, 18% 48%, 0 43%);
+}
+.scene-curtain-shard:nth-child(4) {
+  --shard-clip: polygon(0 39%, 24% 47%, 64% 40%, 100% 48%, 100% 59%, 73% 56%, 29% 66%, 0 57%);
+}
+.scene-curtain-shard:nth-child(5) {
+  --shard-clip: polygon(0 53%, 39% 59%, 78% 52%, 100% 62%, 100% 73%, 57% 70%, 17% 79%, 0 72%);
+}
+.scene-curtain-shard:nth-child(6) {
+  --shard-clip: polygon(0 67%, 28% 73%, 71% 67%, 100% 76%, 100% 87%, 62% 84%, 20% 94%, 0 86%);
+}
+.scene-curtain-shard:nth-child(7) {
+  --shard-clip: polygon(0 81%, 34% 87%, 78% 81%, 100% 89%, 100% 100%, 0 100%);
+}
+
+.scene-prayer {
+  position: absolute;
+  right: clamp(1.25rem, 6vw, 6.5rem);
+  bottom: clamp(1.4rem, 7vh, 5.75rem);
+  z-index: 1100;
+  display: grid;
+  justify-items: end;
+  gap: .2rem;
+  min-width: min(13rem, 62vw);
+  color: #fffdfb;
+  text-align: right;
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 0 rgba(20, 9, 23, .78));
+}
+.scene-prayer[hidden] { display: none; }
+
+.scene-prayer::before,
+.scene-prayer::after {
+  content: '';
+  position: absolute;
+  width: clamp(.65rem, 1.3vw, 1.2rem);
+  height: clamp(1.2rem, 2.8vw, 2.1rem);
+  border-radius: 90% 10% 90% 10%;
+  background: linear-gradient(145deg, #e16c63 0 45%, #9e354b 46% 100%);
+  opacity: .9;
+  pointer-events: none;
+}
+
+.scene-prayer::before {
+  top: 8%;
+  left: -1.5rem;
+  transform: rotate(-38deg);
+}
+
+.scene-prayer::after {
+  right: -.9rem;
+  bottom: 2%;
+  transform: rotate(38deg) scale(.78);
+}
+
+.scene-prayer strong {
+  position: relative;
+  color: #fff;
+  font: italic 800 clamp(1.3rem, 3.6vw, 2.55rem)/1.05 var(--title-font);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  paint-order: stroke fill;
+  -webkit-text-stroke: clamp(1px, .12vw, 2px) rgba(43, 24, 48, .95);
+  text-shadow: 0 0 4px rgba(255, 255, 255, .35), 2px 3px 0 rgba(28, 13, 30, .7);
+}
+
+.scene-prayer span {
+  color: #74ded4;
+  font: italic 600 clamp(.58rem, 1.15vw, .9rem)/1.1 var(--mono);
+  letter-spacing: .08em;
+  text-shadow: 1px 1px 0 rgba(12, 35, 39, .9);
+}
+
+.scene-transitioning {
+  cursor: progress;
+}
+
+.scene-transitioning .scene-curtain {
+  cursor: progress;
+}
+
+@media (max-width: 560px) {
+  .scene-prayer {
+    right: clamp(.8rem, 4vw, 1.75rem);
+    bottom: clamp(1rem, 5vh, 2.5rem);
+    min-width: 0;
+  }
+
+  .scene-prayer::before { left: -1rem; }
+  .scene-prayer::after { right: -.55rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-curtain-shard {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto;
+  }
+
+  .scene-prayer {
+    transition: none !important;
+    animation: none !important;
+  }
+}

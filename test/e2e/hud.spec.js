@@ -10,6 +10,7 @@ test.beforeEach(async ({ page }) => {
 test('Practice 起始残机 13 在 HUD 中保留完整数值并溢出显示', async ({ page }) => {
   await page.locator('#main-menu-nav [data-action="practice"]').click();
   await expect(page.locator('#screen-practice')).toHaveClass(/active/);
+  await expect(page.locator('#screen-practice')).toHaveJSProperty('inert', false);
 
   await page.locator('#practice-lives').fill('13');
   await page.locator('#screen-practice [data-action="practice-start"]').click();
@@ -32,6 +33,7 @@ test('压缩得分保留整数尾零，并提供完整的长分数', async ({ pa
   await page.locator('#screen-practice [data-action="practice-start"]').click();
   await page.locator('#screen-player-select .player-card').first().click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
   const cdp = await page.context().newCDPSession(page);
   try {
     // Inspect the existing game through DevTools; no runtime hook or second Game.
@@ -66,10 +68,12 @@ test('压缩得分保留整数尾零，并提供完整的长分数', async ({ pa
 
 test('章内移动倾向实时显示，累计倾向保留独立含义', async ({ page }) => {
   await page.locator('[data-action="practice"]').click();
+  await expect(page.locator('#screen-practice')).toHaveJSProperty('inert', false);
   await page.locator('#practice-unstable').uncheck();
   await page.locator('[data-action="practice-start"]').click();
   await page.locator('.player-card').first().click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
   await page.evaluate(() => owDebug.set({ invincible: true, skipDialogue: true, timeScale: 8, showOverlay: false }));
   await page.keyboard.down('ArrowLeft');
   try {
@@ -158,6 +162,7 @@ test('手机画布优先布局支持真实手指滚动访问下方 HUD', async (
   await page.locator('#screen-practice [data-action="practice-start"]').click();
   await page.locator('#screen-player-select .player-card').first().click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
   const scroller = page.locator('#screen-game');
   const before = await scroller.evaluate(el => el.scrollTop);
   const panel = await page.locator('.panel-right').boundingBox();

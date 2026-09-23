@@ -50,6 +50,7 @@ test('Nomiss：难度前入口续接已保存章节，暂停无录像且结算�
   await expect(page.locator('#screen-player-select')).toHaveJSProperty('inert', false);
   await page.locator('#screen-player-select .player-card[data-player="yinquan"] h3').click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
   await expect(page.locator('#ui-mode-nomiss')).toBeVisible();
   await expect(page.locator('#ui-chapter')).toHaveText(/^2-1 /);
 
