@@ -815,28 +815,84 @@ export class UI {
     curtain.className = 'scene-curtain';
     curtain.dataset.phase = 'cover';
     const sceneImage = new URL(`../assets/bg/${targetName === 'game' ? 'battle-print' : 'difficulty-cathedral'}.avif`, import.meta.url).href;
-    curtain.style.setProperty('--scene-image', `url("${sceneImage}")`);
-    const shards = Array.from({ length: 9 }, (_, i) => {
-      const shard = document.createElement('div');
-      shard.className = 'scene-curtain-shard';
-      const y = i * 100 / 9;
-      shard.style.clipPath = `polygon(0 ${y - 8}%,100% ${y + 3}%,100% ${y + 20}%,0 ${y + 9}%)`;
-      curtain.appendChild(shard);
-      return shard;
+    const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    const animate = (el, frames, duration, delay = 0, curve = easing) => {
+      const animation = el.animate(frames, { duration, delay, easing: curve, fill: 'both' });
+      scene.animations.push(animation);
+      return animation;
+    };
+    const contents = screen => [...screen.querySelectorAll('.panel-title, .mode-list, .diff-list, .player-cards, .stage-grid, .practice-form, .game-layout')];
+    // One stationary image is exposed through local, pointed openings, which
+    // join from the upper left toward the lower right without moving the image.
+    const svg = name => document.createElementNS('http://www.w3.org/2000/svg', name);
+    const surface = svg('svg');
+    surface.classList.add('scene-curtain-surface');
+    surface.setAttribute('aria-hidden', 'true');
+    const defs = svg('defs');
+    const mask = svg('mask');
+    mask.id = 'scene-curtain-mask';
+    mask.setAttribute('maskUnits', 'objectBoundingBox');
+    mask.setAttribute('maskContentUnits', 'objectBoundingBox');
+    mask.setAttribute('x', '0');
+    mask.setAttribute('y', '0');
+    mask.setAttribute('width', '1');
+    mask.setAttribute('height', '1');
+    const base = svg('rect');
+    base.setAttribute('width', '1');
+    base.setAttribute('height', '1');
+    base.setAttribute('fill', 'black');
+    mask.appendChild(base);
+    // Normalized centers and slants follow the first visible openings in the
+    // reference; lower/right openings join later instead of forming a grid.
+    const seeds = [
+      [.377, .153, 17, 0], [.163, .306, -17, 24],
+      [.320, .217, 15, 34], [.249, .181, -10, 38],
+      [.537, .031, 14, 86], [.793, .013, 0, 116],
+      [.833, .433, 20, 118], [.418, .595, 7, 128],
+      [.950, .400, 19, 136], [.917, .048, 23, 145],
+      [.082, .452, -10, 170], [.306, .589, -4, 178],
+      [.541, .699, 6, 204], [.299, .956, 5, 218],
+      [.060, .806, -13, 228], [.754, .721, 18, 250],
+      [.580, .921, -8, 268], [.959, .945, 14, 286],
+    ];
+    const openings = seeds.map(([x, y, angle, delay]) => {
+      const group = svg('g');
+      const radians = angle * Math.PI / 180;
+      const c = Math.cos(radians), s = Math.sin(radians);
+      group.setAttribute('transform', `translate(${x} ${y}) matrix(${c} ${s * 4 / 3} ${-s * 3 / 4} ${c} 0 0)`);
+      const el = svg('polygon');
+      el.classList.add('scene-curtain-opening');
+      el.setAttribute('points', '-.72,0 -.40,-.18 .72,0 .40,.18');
+      el.setAttribute('fill', 'white');
+      el.style.transform = 'scale(0, 0)';
+      group.appendChild(el);
+      mask.appendChild(group);
+      return { el, delay };
     });
+    defs.appendChild(mask);
+    surface.appendChild(defs);
+    const painted = svg('g');
+    painted.setAttribute('mask', 'url(#scene-curtain-mask)');
+    const fallback = svg('rect');
+    fallback.setAttribute('width', '100%');
+    fallback.setAttribute('height', '100%');
+    fallback.setAttribute('fill', '#201425');
+    painted.appendChild(fallback);
+    const image = svg('image');
+    image.setAttribute('width', '100%');
+    image.setAttribute('height', '100%');
+    image.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    image.addEventListener('error', () => image.remove(), { once: true });
+    image.setAttribute('href', sceneImage);
+    painted.appendChild(image);
+    surface.appendChild(painted);
+    curtain.appendChild(surface);
     const prayer = document.createElement('div');
     prayer.className = 'scene-prayer';
     prayer.setAttribute('role', 'status');
     prayer.innerHTML = '<strong>少女祈祷中…</strong><span>Now Loading...</span>';
     curtain.appendChild(prayer);
     document.getElementById('app').appendChild(curtain);
-    const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
-    const animate = (el, frames, duration = 600, delay = 0) => {
-      const animation = el.animate(frames, { duration, delay, easing, fill: 'both' });
-      scene.animations.push(animation);
-      return animation;
-    };
-    const contents = screen => [...screen.querySelectorAll('.panel-title, .mode-list, .diff-list, .player-cards, .stage-grid, .practice-form, .game-layout')];
     try {
       const sourceBand = source.querySelector('.selection-focus-band');
       if (sourceBand) {
@@ -846,13 +902,23 @@ export class UI {
         animate(sourceBand, [
           { opacity: 1, height: style.height, transform: style.transform },
           { opacity: 0, height: '2px', transform: `translate(-50%, -50%) rotate(${angle - 50}deg)` },
-        ], 450);
-        contents(source).forEach(el => animate(el, [{ opacity: 1 }, { opacity: 0 }], 450));
+        ], 320);
+        contents(source).forEach(el => animate(el, [{ opacity: 1 }, { opacity: 0 }], 320));
       }
-      await Promise.all(shards.map((el, i) => animate(el, [
-        { translate: `${i % 2 ? 110 : -110}% 0` }, { translate: '0% 0' },
-      ], 520, i * 22 + (sourceBand ? 450 : 0)).finished));
-      curtain.style.background = `#201425 url("${sceneImage}") center / cover no-repeat`;
+      const maskFrames = [
+        { transform: 'scale(0, 0)' },
+        { transform: 'scale(.14, .10)', offset: .27 },
+        { transform: 'scale(.65, .65)', offset: .6 },
+        { transform: 'scale(1.2, 1.3)' },
+      ];
+      await Promise.all(openings.map(({ el, delay }) => animate(el,
+        maskFrames, 300, delay + (sourceBand ? 100 : 0), 'linear').finished));
+      // Collapse the same polygons as transparent holes in a fully covered mask.
+      base.setAttribute('fill', 'white');
+      openings.forEach(({ el }) => {
+        el.getAnimations().forEach(animation => animation.cancel());
+        el.setAttribute('fill', 'black');
+      });
       if (targetName === 'difficulty') this._rebuildDifficulty();
       this.show(targetName, true);
       target.inert = true;
@@ -862,6 +928,8 @@ export class UI {
       if (targetName === 'difficulty') this._fitExtraBand();
       const release = onReady?.({ deferLoop: true });
       curtain.dataset.phase = 'reveal';
+      // The reference removes the loading caption as the first openings appear.
+      const prayerFade = animate(prayer, [{ opacity: 1 }, { opacity: 0 }], 140);
       const incoming = contents(target).map(el => animate(el, [
         { opacity: 0, translate: '24px 0' }, { opacity: 1, translate: '0px 0' },
       ], 760));
@@ -875,10 +943,8 @@ export class UI {
           { opacity: 1, height: style.height, transform: style.transform },
         ], 760));
       }
-      prayer.hidden = true;
-      curtain.style.background = 'transparent';
-      shards.forEach(el => { el.style.visibility = 'hidden'; });
-      await Promise.all(incoming.map(animation => animation.finished));
+      const reveal = openings.map(({ el, delay }) => animate(el, maskFrames, 300, delay, 'linear'));
+      await Promise.all([prayerFade, ...incoming, ...reveal].map(animation => animation.finished));
       release?.();
     } finally {
       scene.animations.forEach(animation => animation.cancel());

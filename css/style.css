@@ -3180,7 +3180,6 @@ input, select, textarea {
 .selection-preparing .selection-focus-band { transition: none !important; }
 /* ===== TH14-style scene interstitial ===== */
 .scene-curtain {
-  --scene-image: url('../assets/bg/difficulty-cathedral.avif');
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -3190,45 +3189,9 @@ input, select, textarea {
   background: transparent;
 }
 
-.scene-curtain-shard {
-  position: fixed;
-  inset: 0;
-  z-index: calc(1 + var(--shard-index, 0));
-  display: block;
-  background-color: #201425;
-  background-image: var(--scene-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  clip-path: var(--shard-clip, polygon(0 0, 100% 0, 100% 15%, 57% 11%, 16% 25%, 0 18%));
-  transform: translateZ(0);
-  transform-origin: 50% 50%;
-  will-change: clip-path, transform, opacity;
-  pointer-events: none;
-}
-
-/* Broad, uneven bands keep the uncovered edges feeling hand-cut while JS animates them. */
-.scene-curtain-shard:nth-child(1) {
-  --shard-clip: polygon(0 0, 100% 0, 100% 13%, 72% 10%, 24% 22%, 0 18%);
-}
-.scene-curtain-shard:nth-child(2) {
-  --shard-clip: polygon(0 12%, 20% 17%, 65% 9%, 100% 18%, 100% 31%, 54% 27%, 12% 36%, 0 31%);
-}
-.scene-curtain-shard:nth-child(3) {
-  --shard-clip: polygon(0 26%, 32% 21%, 76% 31%, 100% 25%, 100% 43%, 61% 39%, 18% 48%, 0 43%);
-}
-.scene-curtain-shard:nth-child(4) {
-  --shard-clip: polygon(0 39%, 24% 47%, 64% 40%, 100% 48%, 100% 59%, 73% 56%, 29% 66%, 0 57%);
-}
-.scene-curtain-shard:nth-child(5) {
-  --shard-clip: polygon(0 53%, 39% 59%, 78% 52%, 100% 62%, 100% 73%, 57% 70%, 17% 79%, 0 72%);
-}
-.scene-curtain-shard:nth-child(6) {
-  --shard-clip: polygon(0 67%, 28% 73%, 71% 67%, 100% 76%, 100% 87%, 62% 84%, 20% 94%, 0 86%);
-}
-.scene-curtain-shard:nth-child(7) {
-  --shard-clip: polygon(0 81%, 34% 87%, 78% 81%, 100% 89%, 100% 100%, 0 100%);
-}
+/* The image stays registered to the viewport while pointed SVG mask openings grow. */
+.scene-curtain-surface { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.scene-curtain-opening { transform-box: fill-box; transform-origin: center; }
 
 .scene-prayer {
   position: absolute;
@@ -3308,11 +3271,7 @@ input, select, textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-curtain-shard {
-    transition: none !important;
-    animation: none !important;
-    will-change: auto;
-  }
+  .scene-curtain-opening { will-change: auto; }
 
   .scene-prayer {
     transition: none !important;

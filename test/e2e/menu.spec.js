@@ -157,40 +157,36 @@ test('初始反向转场确认中断并回到玩家画面，其他键不反转',
   await expect(page.locator('#screen-player-select')).not.toHaveClass(/selection-arriving/);
 
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => {
-    const screen = document.querySelector('#screen-difficulty');
-    return screen?.classList.contains('selection-arriving')
-      && document.querySelector('.selection-transition-band');
-  });
   const transition = page.locator('.selection-transition-band');
-  const readBandDirection = () => page.evaluate(() => {
+  const interruption = await page.waitForFunction(() => {
     const band = document.querySelector('.selection-transition-band');
-    const player = document.querySelector('#screen-player-select .player-focus-band');
-    const difficulty = document.querySelector('#screen-difficulty .difficulty-focus-band');
-    const center = (el) => {
-      const rect = el?.getBoundingClientRect();
-      return rect ? rect.left + rect.width / 2 : null;
-    };
-    return { band: center(band), player: center(player), difficulty: center(difficulty) };
-  });
-  const before = await readBandDirection();
-  expect(before.band).not.toBeNull();
-  expect(before.player).not.toBeNull();
-  expect(before.difficulty).not.toBeNull();
-  const sameAnimation = await page.evaluate(() => {
-    const band = document.querySelector('.selection-transition-band');
+    if (!document.querySelector('#screen-difficulty.selection-arriving') || !band) return false;
     const animation = band.getAnimations()[0];
+    if (!animation || animation.currentTime < 80) return false;
+    const rect = band.getBoundingClientRect();
+    const player = document.querySelector('#screen-player-select .player-focus-band').getBoundingClientRect();
+    const before = rect.left + rect.width / 2;
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', code: 'KeyX', bubbles: true }));
-    return band.getAnimations()[0] === animation;
+    const ignoredBack = band.getAnimations()[0] === animation;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', bubbles: true }));
+    const replacement = band.getAnimations()[0];
+    const after = band.getBoundingClientRect();
+    return {
+      ignoredBack,
+      retargeted: replacement !== animation,
+      positionJump: Math.abs(after.left + after.width / 2 - before),
+      destinationX: parseFloat(replacement.effect.getKeyframes().at(-1).left),
+      playerX: player.left + player.width / 2,
+      playbackRate: replacement.playbackRate,
+    };
   });
-  expect(sameAnimation).toBe(true);
-  const afterX = await readBandDirection();
-  await page.keyboard.press('z');
-  await page.waitForTimeout(180);
-  const afterConfirm = await readBandDirection();
-  expect(Math.abs(afterConfirm.band - afterX.band)).toBeGreaterThan(2);
-  expect(Math.abs(afterConfirm.band - afterConfirm.player))
-    .toBeLessThan(Math.abs(afterX.band - afterX.player));
+  const observed = await interruption.jsonValue();
+  await interruption.dispose();
+  expect(observed.ignoredBack).toBe(true);
+  expect(observed.retargeted).toBe(true);
+  expect(observed.positionJump).toBeLessThan(1.5);
+  expect(Math.abs(observed.destinationX - observed.playerX)).toBeLessThan(1.5);
+  expect(observed.playbackRate).toBeGreaterThan(0);
   await expect(transition).toHaveCount(0, { timeout: 2000 });
   await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
   await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
