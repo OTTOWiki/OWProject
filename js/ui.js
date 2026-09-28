@@ -1407,25 +1407,6 @@ export class UI {
     const old = this._selectionTransition;
     const endpoint = old.reversed ? old.fromName : old.toName;
     const snapshot = this._captureSelectionMotion();
-    const departing = old.reversed ? old.to : old.from;
-    const remnants = [];
-    for (const [el, frame] of snapshot.frames) {
-      if (!departing.contains(el)) continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.right <= 0 || rect.left >= innerWidth || rect.bottom <= 0 || rect.top >= innerHeight) continue;
-      const clone = el.cloneNode(true);
-      clone.removeAttribute('id');
-      clone.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
-      const style = getComputedStyle(el);
-      for (const property of style) clone.style.setProperty(property, style.getPropertyValue(property));
-      Object.assign(clone.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`,
-        width: `${rect.width}px`, height: `${rect.height}px`, margin: '0', transform: 'none',
-        translate: 'none', transition: 'none', zIndex: '3', pointerEvents: 'none' });
-      clone.setAttribute('aria-hidden', 'true');
-      clone.inert = true;
-      document.getElementById('app').appendChild(clone);
-      remnants.push(clone);
-    }
     this._cancelSelectionTransition();
     this.show(endpoint, true);
     if (['mode', 'difficulty', 'player'].includes(name)) {
@@ -1437,10 +1418,6 @@ export class UI {
       }
       this.show(name);
     }
-    remnants.forEach(el => {
-      const animation = el.animate([{ opacity: getComputedStyle(el).opacity }, { opacity: 0 }], { duration: 220 });
-      animation.finished.finally(() => el.remove());
-    });
   }
 
   _cancelSelectionTransition({ restore = false } = {}) {

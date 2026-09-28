@@ -663,3 +663,31 @@ test('连续确认后反向落回难度页，动画终点与静态黑带一致',
   await expect(page.locator('.selection-transition-band')).toHaveCount(0);
   await expect(page.locator('#screen-difficulty')).toHaveJSProperty('inert', false);
 });
+
+test('闪烁后连续确认和连续返回不残留旧页面说明副本', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  const observed = await page.evaluate(() => {
+    const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+    const early = () => document.getAnimations().filter(a =>
+      a.effect?.target?.closest?.('.selection-transition-band, .selection-in-motion'))
+      .forEach(a => { a.pause(); a.currentTime = 1; });
+    early();
+    key('Enter');
+    const staleMode = document.querySelectorAll('#app > .mode-btn, #app > .panel-title').length;
+    early();
+    key('Escape');
+    early();
+    key('Escape');
+    const staleParts = document.querySelectorAll('#app > .mode-btn, #app > .diff-btn, #app > .panel-title, #app > .player-portrait, #app > h3, #app > p').length;
+    document.getAnimations().filter(a => a.playState === 'paused').forEach(a => a.finish());
+    return { staleMode, staleParts };
+  });
+  expect(observed).toEqual({ staleMode: 0, staleParts: 0 });
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
+});
