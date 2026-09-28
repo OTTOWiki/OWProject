@@ -1483,6 +1483,7 @@ export class UI {
     from.inert = true;
     const animate = (el, frames, options) => {
       if (!el) return null;
+      const settledStart = frames[0];
       if (snapshot && transition.moving) {
         const captured = snapshot.frames.get(el)
           || (el === transition.band ? snapshot.band : el === transition.band?.firstElementChild ? snapshot.paint : null);
@@ -1490,7 +1491,7 @@ export class UI {
       }
       const animation = el.animate(frames, { fill: 'both', ...options });
       transition.animations.push(animation);
-      if (transition.moving) transition.segments.push({ el, start: frames[0], end: frames[frames.length - 1] });
+      if (transition.moving) transition.segments.push({ el, start: settledStart, end: frames[frames.length - 1] });
       return animation;
     };
     const wait = (animation) => animation?.finished || Promise.resolve();

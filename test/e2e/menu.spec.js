@@ -625,3 +625,41 @@ test('连续确认与连续返回立即重定向，转场带不跳到端点', as
   await expect(page.locator('.scene-curtain')).toHaveCount(0);
   await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
 });
+
+test('连续确认后反向落回难度页，动画终点与静态黑带一致', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  const endpoint = await page.evaluate(() => {
+    const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+    const setTime = ms => {
+      document.getAnimations().filter(a => a.effect?.target?.closest?.('.selection-transition-band, .selection-in-motion'))
+        .forEach(a => { a.pause(); a.currentTime = ms; });
+    };
+    setTime(150);
+    key('Enter');
+    setTime(120);
+    key('Escape');
+    setTime(759);
+    const moving = document.querySelector('.selection-transition-band');
+    const real = document.querySelector('#screen-difficulty .difficulty-focus-band');
+    const bounds = el => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2,
+        width: parseFloat(s.width), height: parseFloat(s.height) };
+    };
+    const result = { moving: bounds(moving), real: bounds(real) };
+    document.getAnimations().filter(a => a.playState === 'paused').forEach(a => a.finish());
+    return result;
+  });
+  for (const key of ['x', 'y', 'width', 'height']) {
+    expect(Math.abs(endpoint.moving[key] - endpoint.real[key])).toBeLessThan(1.5);
+  }
+  await expect(page.locator('.selection-transition-band')).toHaveCount(0);
+  await expect(page.locator('#screen-difficulty')).toHaveJSProperty('inert', false);
+});
