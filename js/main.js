@@ -461,7 +461,12 @@ async function boot() {
       onStartGame(opts, presentation) {
         unlockAudio();
         input.reloadKeys();
-        return game.start(opts, presentation);
+        try {
+          return game.start(opts, presentation);
+        } catch (error) {
+          game.stop();
+          throw error;
+        }
       },
       onSettingsChange(s) {
         if (game) game.applySettings(s);

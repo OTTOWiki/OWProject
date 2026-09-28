@@ -617,9 +617,18 @@ test('连续确认与连续返回立即重定向，转场带不跳到端点', as
   expect(forward.player).toBe(true);
   expect(forward.jump).toBeLessThan(2);
   await expect(page.locator('#screen-player-select')).toHaveJSProperty('inert', false);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
-  await page.keyboard.press('Escape');
+  const returning = await page.evaluate(() => {
+    const back = () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Escape', bubbles: true }));
+    };
+    back();
+    const bandCount = document.querySelectorAll('.selection-transition-band').length;
+    const difficultyActive = document.querySelector('#screen-difficulty').classList.contains('active');
+    back();
+    return { bandCount, difficultyActive };
+  });
+  expect(returning).toEqual({ bandCount: 1, difficultyActive: true });
   await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
   await page.keyboard.press('Escape');
   await expect(page.locator('.scene-curtain')).toHaveCount(0);

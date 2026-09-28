@@ -189,7 +189,7 @@ docs/                  # 内部改造队列等（非运行时）
 **`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`  
 暂停：`paused` 标志（不是 state）。
 
-**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。新主菜单人物为明确占位。
+**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。游戏首帧启动失败会停止已初始化的游戏并恢复真实来源页。新主菜单人物为明确占位。
 标题为逐字DOM排版：五字大小／上下错位，「棍維」与「何意味」异色，完整可访问名称与日文字形优先不变；魔幻背景候选暂未进入运行时资源列表。
 
 **`Game.mode`**：`story` | `practice` | `stage` | `extra` | `nomiss`

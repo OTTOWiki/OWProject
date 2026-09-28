@@ -143,10 +143,6 @@ export class UI {
     this.onSettingsChange = onSettingsChange || null;
     this.onPlayReplay = onPlayReplay || null;
     this.audio = audio;
-    this._sceneMaskUrl = new URL('../assets/ui/scene-wipe-mask.avif', import.meta.url).href;
-    this._sceneMaskImage = new Image();
-    this._sceneMaskImage.src = this._sceneMaskUrl;
-    this._sceneMaskSerial = 0;
     this.menuIndex = 0;
     this.menuEntering = false;
     this._menuAnimations = [];
@@ -803,19 +799,30 @@ export class UI {
   _startGameForPlayer(card) {
     this._sfx('ok');
     const playerId = card.dataset.player;
+    const sourceName = this._activeScreenName();
     const start = this.pendingStart || { startChapter: 1, mode: 'story' };
-    const begin = (presentation) => this.onStartGame({
-      playerId, startChapter: start.startChapter, mode: start.mode,
-      lives: start.lives, unstable: start.unstable, singleChapter: start.singleChapter,
-      difficulty: this.pendingDifficulty || 'normal',
-    }, presentation);
+    const begin = (presentation) => {
+      try {
+        return this.onStartGame({
+          playerId, startChapter: start.startChapter, mode: start.mode,
+          lives: start.lives, unstable: start.unstable, singleChapter: start.singleChapter,
+          difficulty: this.pendingDifficulty || 'normal',
+        }, presentation);
+      } catch (error) {
+        if (presentation?.deferLoop) throw error;
+        this._cancelPlayerConfirm();
+        console.error('[game start]', error);
+        this.show(sourceName, true);
+      }
+    };
     if (this._menuMotionQuery.matches) { this.showGame(); begin(); }
     else void this._transitionScene('game', begin);
   }
 
   async _transitionScene(targetName, onReady) {
     if (this._sceneTransition) return;
-    const source = this.screens[this._activeScreenName()];
+    const sourceName = this._activeScreenName();
+    const source = this.screens[sourceName];
     const target = this.screens[targetName];
     if (!source || !target || source === target) return;
 
@@ -1067,6 +1074,10 @@ export class UI {
       curtain.dataset.phase = 'reveal';
       await runPhase('reveal');
       release?.();
+    } catch (error) {
+      this._cancelPlayerConfirm();
+      console.error('[scene transition]', error);
+      this.show(sourceName, true);
     } finally {
       scene.cancel?.();
       if (scene.raf) cancelAnimationFrame(scene.raf);
