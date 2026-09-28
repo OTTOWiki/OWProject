@@ -257,6 +257,7 @@ test('真实游戏暂停按钮不重复消费，下一次独立点击立即恢�
   await page.locator('[data-action="practice-start"]').click();
   await page.locator('.player-card').first().click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
   const pause = page.locator('#btn-pause');
   await pause.click();
   await expect(page.locator('#game-overlay')).not.toHaveClass(/hidden/);

@@ -189,7 +189,7 @@ export class Game {
     }
   }
 
-  start(opts) {
+  start(opts, { deferLoop = false } = {}) {
     const {
       playerId = 'yinquan',
       startChapter: startId = 1,
@@ -356,6 +356,17 @@ export class Game {
     this._fpsAccum = 0;
     this._fps = 0;
     cancelAnimationFrame(this.raf);
+    if (deferLoop) {
+      this.running = false;
+      drawGameFrame(this);
+      return () => {
+        this.input.resetShotLatch();
+        this.realInput.endFrame();
+        this.lastT = performance.now();
+        this.running = true;
+        this.raf = requestAnimationFrame((t) => this._loop(t));
+      };
+    }
     this.raf = requestAnimationFrame((t) => this._loop(t));
   }
 

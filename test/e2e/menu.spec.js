@@ -146,7 +146,7 @@ test('转场带的最后关键帧对齐真实终点几何与角度', async ({ pa
   expect(Math.abs(angleDelta)).toBeLessThan(1.5);
 });
 
-test('初始反向转场确认中断并回到玩家画面，其他键不反转', async ({ page }) => {
+test('返回动画未完成时再次返回立即连续回到模式页', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);
@@ -154,46 +154,12 @@ test('初始反向转场确认中断并回到玩家画面，其他键不反转',
   await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
   await page.locator('.diff-btn[data-diff="normal"]').click();
   await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
-  await expect(page.locator('#screen-player-select')).not.toHaveClass(/selection-arriving/);
-
   await page.keyboard.press('Escape');
-  await page.waitForFunction(() => {
-    const screen = document.querySelector('#screen-difficulty');
-    return screen?.classList.contains('selection-arriving')
-      && document.querySelector('.selection-transition-band');
-  });
-  const transition = page.locator('.selection-transition-band');
-  const readBandDirection = () => page.evaluate(() => {
-    const band = document.querySelector('.selection-transition-band');
-    const player = document.querySelector('#screen-player-select .player-focus-band');
-    const difficulty = document.querySelector('#screen-difficulty .difficulty-focus-band');
-    const center = (el) => {
-      const rect = el?.getBoundingClientRect();
-      return rect ? rect.left + rect.width / 2 : null;
-    };
-    return { band: center(band), player: center(player), difficulty: center(difficulty) };
-  });
-  const before = await readBandDirection();
-  expect(before.band).not.toBeNull();
-  expect(before.player).not.toBeNull();
-  expect(before.difficulty).not.toBeNull();
-  const sameAnimation = await page.evaluate(() => {
-    const band = document.querySelector('.selection-transition-band');
-    const animation = band.getAnimations()[0];
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', code: 'KeyX', bubbles: true }));
-    return band.getAnimations()[0] === animation;
-  });
-  expect(sameAnimation).toBe(true);
-  const afterX = await readBandDirection();
-  await page.keyboard.press('z');
-  await page.waitForTimeout(180);
-  const afterConfirm = await readBandDirection();
-  expect(Math.abs(afterConfirm.band - afterX.band)).toBeGreaterThan(2);
-  expect(Math.abs(afterConfirm.band - afterConfirm.player))
-    .toBeLessThan(Math.abs(afterX.band - afterX.player));
-  await expect(transition).toHaveCount(0, { timeout: 2000 });
-  await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
-  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+  await page.waitForFunction(() => document.querySelector('.selection-transition-band')?.getAnimations().length);
+  await page.keyboard.press('x');
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/, { timeout: 2500 });
+  await expect(page.locator('#screen-player-select')).not.toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
 });
 
 test('窄屏玩家转场带尺寸匹配当前自机说明文字', async ({ page }) => {
@@ -451,4 +417,286 @@ test('指针跳过未产生click时不吞下一次键盘确认', async ({ page }
   await page.keyboard.press('Enter');
   await expect(page.locator('#screen-manual')).toHaveClass(/active/);
   await page.mouse.up();
+});
+test('菜单进入选择时幕布有实际动画并锁定来源与目标，不显示祈祷或 hold', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.evaluate(() => {
+    const state = { phases: [], samples: [], prayerSeen: false };
+    const record = () => {
+      const curtain = document.querySelector('.scene-curtain');
+      if (!curtain) return;
+      const phase = curtain.dataset.phase || null;
+      if (phase && state.phases[state.phases.length - 1] !== phase) state.phases.push(phase);
+      state.prayerSeen ||= !!document.querySelector('.scene-prayer');
+      const source = document.querySelector('#screen-menu');
+      const target = document.querySelector('#screen-mode-select');
+      state.samples.push({
+        phase,
+        sourceInert: source?.inert ?? null,
+        targetActive: target?.classList.contains('active') ?? false,
+        targetInert: target?.inert ?? null,
+      });
+    };
+    const observer = new MutationObserver(record);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-phase', 'class', 'inert'],
+      childList: true,
+      subtree: true,
+    });
+    window.__sceneTestProbe = { state, observer };
+  });
+
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.waitForFunction(() => !!document.querySelector('.scene-curtain'));
+  const motion = await page.evaluate(async () => {
+    const surface = document.querySelector('.scene-curtain');
+    const panel = surface.querySelector('mask g');
+    const first = panel?.getAttribute('transform');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return { changed: !!first && panel.getAttribute('transform') !== first, phase: surface.dataset.phase };
+  });
+  expect(motion.changed).toBe(true);
+  expect(['cover', 'reveal']).toContain(motion.phase);
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false, { timeout: 3000 });
+  await expect(page.locator('.scene-curtain')).toHaveCount(0, { timeout: 1000 });
+  const probe = await page.evaluate(() => {
+    const current = window.__sceneTestProbe;
+    current?.observer.disconnect();
+    return current?.state || null;
+  });
+  expect(probe).not.toBeNull();
+  expect(probe.phases).toEqual(['cover', 'reveal']);
+  expect(probe.prayerSeen).toBe(false);
+  expect(probe.samples.some((sample) => (
+    sample.sourceInert && sample.targetActive && sample.targetInert
+  ))).toBe(true);
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
+});
+
+test.describe('菜单其他选择入口无 hold 或祈祷幕', () => {
+  for (const { action, target } of [
+    { action: 'extra-start', target: '#screen-difficulty' },
+    { action: 'stage-select', target: '#screen-stage-select' },
+    { action: 'practice', target: '#screen-practice' },
+  ]) {
+    test(`${action} 覆盖后直接 reveal 并可用`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.goto('/');
+      await waitForGameReady(page);
+      await page.evaluate(() => {
+        window.__sceneTestPhases = [];
+        window.__sceneTestPrayerSeen = false;
+        const observer = new MutationObserver(() => {
+          const phase = document.querySelector('.scene-curtain')?.dataset.phase;
+          if (phase && window.__sceneTestPhases.at(-1) !== phase) {
+            window.__sceneTestPhases.push(phase);
+          }
+          window.__sceneTestPrayerSeen ||= !!document.querySelector('.scene-prayer');
+        });
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-phase'],
+          childList: true,
+          subtree: true,
+        });
+        window.__sceneTestStop = () => observer.disconnect();
+      });
+      await page.locator(`#main-menu-nav [data-action="${action}"]`).click();
+      await expect(page.locator(target)).toHaveClass(/active/);
+      await expect(page.locator(target)).toHaveJSProperty('inert', false, { timeout: 3000 });
+      const result = await page.evaluate(() => {
+        window.__sceneTestStop?.();
+        return {
+          phases: window.__sceneTestPhases,
+          prayerSeen: window.__sceneTestPrayerSeen,
+        };
+      });
+      expect(result.phases).toEqual(['cover', 'reveal']);
+      expect(result.prayerSeen).toBe(false);
+      await expect(page.locator('.scene-prayer')).toHaveCount(0);
+    });
+  }
+});
+
+test('选择页返回主页倒放场景转场，锁定输入并保留原入口', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  for (const action of ['start', 'extra-start', 'stage-select', 'practice']) {
+    await page.locator(`#main-menu-nav [data-action="${action}"]`).click();
+    await expect(page.locator('.scene-curtain')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    const curtain = page.locator('.scene-curtain');
+    await expect(curtain).toHaveAttribute('data-direction', 'backward');
+    await expect(page.locator('.screen.active')).toHaveJSProperty('inert', true);
+    await expect(page.locator('.scene-prayer')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    await expect(curtain).toHaveCount(0);
+    await expect(page.locator('#screen-menu')).toHaveClass(/active/);
+    await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
+    await expect(page.locator('#screen-menu')).not.toHaveClass(/menu-entering/);
+    await expect(page.locator(`#main-menu-nav [data-action="${action}"]`)).toHaveClass(/selected/);
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
+});
+
+test('确认自机时祈祷幕结束前不启动游戏，结束后才进入实际对局', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await expect(page.locator('#screen-game')).not.toHaveClass(/active/);
+  await expect(page.locator('#ui-chapter')).toHaveText('—');
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.locator('#mode-list .mode-btn[data-mode="story"]').click();
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+
+  const playerScreen = page.locator('#screen-player-select');
+  await expect(playerScreen).toHaveClass(/active/);
+  await expect(playerScreen).toHaveJSProperty('inert', false);
+  await page.locator('#screen-player-select .player-card').first().click();
+
+  const curtain = page.locator('.scene-curtain');
+  await expect(curtain).toHaveAttribute('data-phase', 'hold', { timeout: 2000 });
+  await expect(page.locator('.scene-prayer')).toBeVisible();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', true);
+  await expect(page.locator('#ui-chapter')).toHaveText('—');
+
+  await expect(curtain).toHaveCount(0, { timeout: 4000 });
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
+  await expect(page.locator('#ui-chapter')).not.toHaveText('—');
+});
+test('减少动态效果时菜单与自机确认不显示祈祷幕并立即可用', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
+  await page.locator('#mode-list .mode-btn[data-mode="story"]').click();
+  await page.locator('.diff-btn[data-diff="normal"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
+});
+
+test('连续确认与连续返回立即重定向，转场带不跳到端点', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  const forward = await page.evaluate(() => {
+    const band = document.querySelector('.selection-transition-band');
+    const before = band.getBoundingClientRect();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+    const after = document.querySelector('.selection-transition-band').getBoundingClientRect();
+    return { jump: Math.hypot(after.x - before.x, after.y - before.y),
+      player: document.querySelector('#screen-player-select').classList.contains('active') };
+  });
+  expect(forward.player).toBe(true);
+  expect(forward.jump).toBeLessThan(2);
+  await expect(page.locator('#screen-player-select')).toHaveJSProperty('inert', false);
+  const returning = await page.evaluate(() => {
+    const back = () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Escape', bubbles: true }));
+    };
+    back();
+    const bandCount = document.querySelectorAll('.selection-transition-band').length;
+    const difficultyActive = document.querySelector('#screen-difficulty').classList.contains('active');
+    back();
+    return { bandCount, difficultyActive };
+  });
+  expect(returning).toEqual({ bandCount: 1, difficultyActive: true });
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
+});
+
+test('连续确认后反向落回难度页，动画终点与静态黑带一致', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  const endpoint = await page.evaluate(() => {
+    const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+    const setTime = ms => {
+      document.getAnimations().filter(a => a.effect?.target?.closest?.('.selection-transition-band, .selection-in-motion'))
+        .forEach(a => { a.pause(); a.currentTime = ms; });
+    };
+    setTime(150);
+    key('Enter');
+    setTime(120);
+    key('Escape');
+    setTime(759);
+    const moving = document.querySelector('.selection-transition-band');
+    const real = document.querySelector('#screen-difficulty .difficulty-focus-band');
+    const bounds = el => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2,
+        width: parseFloat(s.width), height: parseFloat(s.height) };
+    };
+    const result = { moving: bounds(moving), real: bounds(real) };
+    document.getAnimations().filter(a => a.playState === 'paused').forEach(a => a.finish());
+    return result;
+  });
+  for (const key of ['x', 'y', 'width', 'height']) {
+    expect(Math.abs(endpoint.moving[key] - endpoint.real[key])).toBeLessThan(1.5);
+  }
+  await expect(page.locator('.selection-transition-band')).toHaveCount(0);
+  await expect(page.locator('#screen-difficulty')).toHaveJSProperty('inert', false);
+});
+
+test('闪烁后连续确认和连续返回不残留旧页面说明副本', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  const observed = await page.evaluate(() => {
+    const key = code => window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+    const early = () => document.getAnimations().filter(a =>
+      a.effect?.target?.closest?.('.selection-transition-band, .selection-in-motion'))
+      .forEach(a => { a.pause(); a.currentTime = 1; });
+    early();
+    key('Enter');
+    const staleMode = document.querySelectorAll('#app > .mode-btn, #app > .panel-title').length;
+    early();
+    key('Escape');
+    early();
+    key('Escape');
+    const staleParts = document.querySelectorAll('#app > .mode-btn, #app > .diff-btn, #app > .panel-title, #app > .player-portrait, #app > h3, #app > p').length;
+    document.getAnimations().filter(a => a.playState === 'paused').forEach(a => a.finish());
+    return { staleMode, staleParts };
+  });
+  expect(observed).toEqual({ staleMode: 0, staleParts: 0 });
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
 });

@@ -168,7 +168,12 @@ export class UI {
     this._difficultyBackTarget = 'menu';
     this._playerBackTarget = 'difficulty';
     this._selectionTransition = null;
-    this._playerConfirmTransition = null;
+    this._sceneMaskSerial = 0;
+    this._sceneMaskUrl = new URL('../assets/ui/scene-wipe-mask.avif', import.meta.url).href;
+    this._sceneMaskImage = new Image();
+    this._sceneMaskImage.decoding = 'async';
+    this._sceneMaskImage.src = this._sceneMaskUrl;
+     this._playerConfirmTransition = null;
     /** 练习：所选章节 id（默认第 1 章） */
     this.practiceChapterId = 1;
     /** 练习：所选难度 id（DIFFICULTIES，默认 normal） */
@@ -363,7 +368,7 @@ export class UI {
     if (!list) return;
     [...list.querySelectorAll('.mode-btn')].forEach((btn, index) => {
       btn.addEventListener('click', () => {
-        if (this._selectionTransition || this._playerConfirmTransition) return;
+        if ((this._selectionTransition && !this._selectionDispatch) || this._playerConfirmTransition) return;
         const dir = index === this.modeIndex ? 0 : index > this.modeIndex ? 1 : -1;
         this.modeIndex = index;
         this.modeBandAngle += dir * 180;
@@ -435,7 +440,7 @@ export class UI {
         <div class="diff-desc">${d.desc}</div>
       `;
       btn.addEventListener('click', () => {
-        if (this._selectionTransition) return;
+        if (this._selectionTransition && !this._selectionDispatch) return;
         this._sfx('ok');
         this.pendingDifficulty = id;
         this.diffIndex = i;
@@ -778,13 +783,14 @@ export class UI {
     });
     document.querySelectorAll('.player-card').forEach((card) => {
       card.addEventListener('click', () => {
-        if (this._selectionTransition || this._playerConfirmTransition) return;
+        if (this._sceneTransition || (this._selectionTransition && !this._selectionDispatch) || this._playerConfirmTransition) return;
         if (!card.classList.contains('current-player')) {
           this.playerIndex = [...document.querySelectorAll('.player-card')].indexOf(card);
           this._highlightPlayer();
           this._sfx('select');
           return;
         }
+        if (this._selectionTransition) this._finishSelectionForScene('player');
         this._confirmPlayer(card);
       });
     });
@@ -793,17 +799,296 @@ export class UI {
   _startGameForPlayer(card) {
     this._sfx('ok');
     const playerId = card.dataset.player;
+    const sourceName = this._activeScreenName();
     const start = this.pendingStart || { startChapter: 1, mode: 'story' };
-    this.showGame();
-    this.onStartGame({
-      playerId,
-      startChapter: start.startChapter,
-      mode: start.mode,
-      lives: start.lives,
-      unstable: start.unstable,
-      singleChapter: start.singleChapter,
-      difficulty: this.pendingDifficulty || 'normal',
+    const begin = (presentation) => {
+      try {
+        return this.onStartGame({
+          playerId, startChapter: start.startChapter, mode: start.mode,
+          lives: start.lives, unstable: start.unstable, singleChapter: start.singleChapter,
+          difficulty: this.pendingDifficulty || 'normal',
+        }, presentation);
+      } catch (error) {
+        if (presentation?.deferLoop) throw error;
+        this._cancelPlayerConfirm();
+        console.error('[game start]', error);
+        this.show(sourceName, true);
+      }
+    };
+    if (this._menuMotionQuery.matches) { this.showGame(); begin(); }
+    else void this._transitionScene('game', begin);
+  }
+
+  async _transitionScene(targetName, onReady) {
+    if (this._sceneTransition) return;
+    const sourceName = this._activeScreenName();
+    const source = this.screens[sourceName];
+    const target = this.screens[targetName];
+    if (!source || !target || source === target) return;
+
+    const app = document.getElementById('app');
+    const returning = targetName === 'menu';
+    const scene = {
+      curtain: document.createElement('div'),
+      raf: 0,
+      cancel: null,
+      timers: new Set(),
+      maskSvg: null,
+    };
+    this._sceneTransition = scene;
+    source.inert = true;
+    this._finishMenuEntrance();
+
+    const curtain = scene.curtain;
+    curtain.className = 'scene-curtain';
+    curtain.dataset.phase = 'cover';
+    curtain.dataset.direction = returning ? 'backward' : 'forward';
+    app?.classList.add('scene-transitioning');
+
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const maskImage = this._sceneMaskImage;
+    const maskAvailable = !!(maskImage?.complete && maskImage.naturalWidth && maskImage.naturalHeight);
+    const maskId = `scene-wipe-mask-${++this._sceneMaskSerial}`;
+    if (maskAvailable && !this._sceneMaskSpriteUrl) {
+      const tileCanvas = document.createElement('canvas');
+      tileCanvas.width = 64;
+      tileCanvas.height = 64;
+      const tileContext = tileCanvas.getContext('2d', { willReadFrequently: true });
+      tileContext.drawImage(maskImage, 0, -1, 64, 64);
+      const tilePixels = tileContext.getImageData(0, 0, 64, 64);
+      for (let y = 0; y < 64; y += 1) {
+        const first = (y * 64) * 4 + 3;
+        const last = (y * 64 + 63) * 4 + 3;
+        const edgeAlpha = Math.round((tilePixels.data[first] + tilePixels.data[last]) / 2);
+        tilePixels.data[first] = edgeAlpha;
+        tilePixels.data[last] = edgeAlpha;
+      }
+      tileContext.putImageData(tilePixels, 0, 0);
+
+      const spriteCanvas = document.createElement('canvas');
+      spriteCanvas.width = 128;
+      spriteCanvas.height = 128;
+      const spriteContext = spriteCanvas.getContext('2d');
+      spriteContext.drawImage(tileCanvas, 0, 0);
+      spriteContext.drawImage(tileCanvas, 64, 0);
+      spriteContext.drawImage(
+        maskImage,
+        0, maskImage.naturalHeight - 1, maskImage.naturalWidth, 1,
+        0, 63, 128, 65,
+      );
+      this._sceneMaskSpriteUrl = spriteCanvas.toDataURL('image/png');
+    }
+    const maskSpriteUrl = this._sceneMaskSpriteUrl;
+
+    const backgroundProperties = [
+      'backgroundColor', 'backgroundImage', 'backgroundRepeat', 'backgroundPosition',
+      'backgroundSize', 'backgroundAttachment', 'backgroundOrigin', 'backgroundClip',
+      'backgroundBlendMode',
+    ];
+    const copyBackground = (from, to) => {
+      if (!from || !to) return;
+      const style = getComputedStyle(from);
+      backgroundProperties.forEach((property) => { to.style[property] = style[property]; });
+    };
+
+    const menuScreen = this.screens.menu;
+    const menuFar = menuScreen?.querySelector('.menu-far');
+    const gameBackdrop = target.querySelector('.game-backdrop');
+    const backgroundSource = targetName === 'game' ? (gameBackdrop || target) : target;
+    const backdrop = document.createElement('div');
+    backdrop.className = `scene-curtain-backdrop scene-curtain-backdrop-${targetName === 'menu' ? 'menu' : targetName === 'game' ? 'game' : 'selection'}`;
+    copyBackground(backgroundSource, backdrop);
+    if (targetName === 'menu') {
+      const farClone = menuFar?.cloneNode(true);
+      if (farClone) copyBackground(menuFar, farClone);
+      if (farClone) {
+        farClone.removeAttribute('id');
+        farClone.setAttribute('aria-hidden', 'true');
+        backdrop.appendChild(farClone);
+      }
+    } else if (targetName !== 'game') {
+      const originalOverlay = target.querySelector('.menu-bg');
+      const menuBg = originalOverlay?.cloneNode(false);
+      if (menuBg) copyBackground(originalOverlay, menuBg);
+      if (menuBg) {
+        menuBg.removeAttribute('id');
+        menuBg.setAttribute('aria-hidden', 'true');
+        backdrop.appendChild(menuBg);
+      }
+    }
+    curtain.appendChild(backdrop);
+    app?.appendChild(curtain);
+
+    // TH20 screen-space setup: callback root offset (320,240), then one
+    // viewport scale. Each image remains a 128x128 sprite before 3x12 scale.
+    const rootX = 320;
+    const rootY = 240;
+    const addRoot = ([x, y]) => [x + rootX, y + rootY];
+    const coverSpecs = [
+      { from: addRoot([-992, -512]), to: addRoot([160, -87.89502]), rotation: 110, delayFrames: 0 },
+      { from: addRoot([992, -512]), to: addRoot([-96, -161.77138]), rotation: -110, delayFrames: 5 },
+      { from: addRoot([-1056, 0]), to: addRoot([160, 215.32375]), rotation: 100, delayFrames: 10 },
+      { from: addRoot([1088, 0]), to: addRoot([64, 177.81573]), rotation: -100, delayFrames: 15 },
+    ];
+    // C++ event 1 binds script7,8,9,10 to panels 0..3 for reveal.
+    const revealSpecs = [
+      { from: addRoot([160, -328.10498]), to: addRoot([-1024, 96]), rotation: 70, delayFrames: 0 },
+      { from: addRoot([-96, -254.22862]), to: addRoot([1024, 96]), rotation: -70, delayFrames: 5 },
+      { from: addRoot([160, 104.67626]), to: addRoot([-1056, 320]), rotation: 80, delayFrames: 10 },
+      { from: addRoot([-96, 142.18427]), to: addRoot([1088, 320]), rotation: -80, delayFrames: 15 },
+    ];
+    const viewportWidth = Math.max(1, window.innerWidth);
+    const viewportHeight = Math.max(1, window.innerHeight);
+    const logicalScale = Math.max(viewportWidth / 640, viewportHeight / 480);
+    const logicalOriginX = (viewportWidth - 640 * logicalScale) / 2;
+    const logicalOriginY = (viewportHeight - 480 * logicalScale) / 2;
+    const toViewport = ([x, y]) => ({
+      x: logicalOriginX + x * logicalScale,
+      y: logicalOriginY + y * logicalScale,
     });
+    const frameMs = 1000 / 60;
+    const moveDuration = 30 * frameMs;
+    const phaseDuration = 45 * frameMs;
+    const panelWidthScale = 3;
+    const clamp01 = (value) => Math.max(0, Math.min(1, value));
+    const easeInQuad = (value) => value * value;
+    const panels = [];
+
+    {
+      const maskSvg = document.createElementNS(svgNs, 'svg');
+      maskSvg.classList.add('scene-curtain-mask-defs');
+      maskSvg.setAttribute('aria-hidden', 'true');
+      maskSvg.setAttribute('width', String(viewportWidth));
+      maskSvg.setAttribute('height', String(viewportHeight));
+      maskSvg.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`);
+      const mask = document.createElementNS(svgNs, 'mask');
+      mask.id = maskId;
+      mask.setAttribute('maskUnits', 'userSpaceOnUse');
+      mask.setAttribute('maskContentUnits', 'userSpaceOnUse');
+      mask.setAttribute('x', '0');
+      mask.setAttribute('y', '0');
+      mask.setAttribute('width', String(viewportWidth));
+      mask.setAttribute('height', String(viewportHeight));
+      mask.setAttribute('style', 'mask-type: alpha');
+      maskSvg.appendChild(mask);
+      curtain.appendChild(maskSvg);
+      scene.maskSvg = maskSvg;
+      backdrop.style.webkitMaskImage = `url("#${maskId}")`;
+      backdrop.style.maskImage = `url("#${maskId}")`;
+      backdrop.style.webkitMaskMode = 'alpha';
+      backdrop.style.maskMode = 'alpha';
+      backdrop.style.webkitMaskRepeat = 'no-repeat';
+      backdrop.style.maskRepeat = 'no-repeat';
+      backdrop.style.webkitMaskSize = '100% 100%';
+      backdrop.style.maskSize = '100% 100%';
+
+      for (let index = 0; index < 4; index += 1) {
+        const group = document.createElementNS(svgNs, 'g');
+        const image = document.createElementNS(svgNs, maskSpriteUrl ? 'image' : 'rect');
+        image.setAttribute('x', '-64');
+        image.setAttribute('y', '-64');
+        image.setAttribute('width', '128');
+        image.setAttribute('height', '128');
+        if (maskSpriteUrl) {
+          image.setAttribute('href', maskSpriteUrl);
+          image.setAttribute('preserveAspectRatio', 'none');
+        } else {
+          image.setAttribute('fill', 'white');
+        }
+        group.appendChild(image);
+        mask.appendChild(group);
+        panels.push({ group, image });
+      }
+    }
+
+    const prayer = targetName === 'game' ? document.createElement('div') : null;
+    if (prayer) {
+      prayer.className = 'scene-prayer';
+      prayer.setAttribute('role', 'status');
+      prayer.innerHTML = '<strong>少女祈祷中…</strong><span>Now Loading...</span>';
+      curtain.appendChild(prayer);
+    }
+
+    const renderPhase = (kind, elapsed) => {
+      const sampledKind = returning ? (kind === 'cover' ? 'reveal' : 'cover') : kind;
+      const sampledTime = returning ? phaseDuration - elapsed : elapsed;
+      const specs = sampledKind === 'cover' ? coverSpecs : revealSpecs;
+      panels.forEach(({ group }, index) => {
+        const spec = specs[index];
+        const local = clamp01((sampledTime - spec.delayFrames * frameMs) / moveDuration);
+        const eased = easeInQuad(local);
+        const point = toViewport([
+          spec.from[0] + (spec.to[0] - spec.from[0]) * eased,
+          spec.from[1] + (spec.to[1] - spec.from[1]) * eased,
+        ]);
+        group.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${spec.rotation})`);
+        group.firstElementChild?.setAttribute('transform', `scale(${panelWidthScale * logicalScale} ${12 * logicalScale})`);
+      });
+      if (prayer) prayer.style.opacity = kind === 'reveal'
+        ? String(clamp01(1 - elapsed / 140)) : '1';
+    };
+
+    const runPhase = (kind) => new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (scene.raf) cancelAnimationFrame(scene.raf);
+        scene.raf = 0;
+        if (scene.cancel === finish) scene.cancel = null;
+        resolve();
+      };
+      scene.cancel = finish;
+      const started = performance.now();
+      renderPhase(kind, 0);
+      const tick = (now) => {
+        if (settled) return;
+        renderPhase(kind, Math.max(0, now - started));
+        const duration = phaseDuration;
+        if (now - started >= duration) finish();
+        else scene.raf = requestAnimationFrame(tick);
+      };
+      scene.raf = requestAnimationFrame(tick);
+    });
+    const wait = (duration) => new Promise((resolve) => {
+      const timer = window.setTimeout(() => {
+        scene.timers.delete(timer);
+        resolve();
+      }, duration);
+      scene.timers.add(timer);
+    });
+
+    try {
+      await runPhase('cover');
+      if (targetName === 'difficulty') this._rebuildDifficulty();
+      this.show(targetName, true);
+      target.inert = true;
+      if (targetName === 'difficulty') this._fitExtraBand();
+      if (targetName === 'player') this._fitPlayerBand();
+      let release = null;
+      if (targetName === 'game') {
+        curtain.dataset.phase = 'hold';
+        await wait(1500);
+        release = onReady?.({ deferLoop: true }) || null;
+      }
+      curtain.dataset.phase = 'reveal';
+      await runPhase('reveal');
+      release?.();
+    } catch (error) {
+      this._cancelPlayerConfirm();
+      console.error('[scene transition]', error);
+      this.show(sourceName, true);
+    } finally {
+      scene.cancel?.();
+      if (scene.raf) cancelAnimationFrame(scene.raf);
+      scene.timers.forEach((timer) => window.clearTimeout(timer));
+      scene.timers.clear();
+      curtain.remove();
+      this._sceneTransition = null;
+      app?.classList.remove('scene-transitioning');
+      target.inert = !target.classList.contains('active');
+      source.inert = !source.classList.contains('active');
+    }
   }
 
   _cancelPlayerConfirm() {
@@ -838,6 +1123,7 @@ export class UI {
  
 
   _action(action) {
+    if (this._sceneTransition) return;
     // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
     const isCancel = action === 'back' || action === 'back-diff';
     this._sfx(isCancel ? 'cancel' : 'ok');
@@ -979,13 +1265,23 @@ export class UI {
       this._menuSkipPointer = null;
     });
     window.addEventListener('keydown', (e) => {
+      if (this._sceneTransition) { e.preventDefault(); e.stopImmediatePropagation(); return; }
       if (this._selectionTransition || this._playerConfirmTransition) {
         e.preventDefault();
         e.stopImmediatePropagation();
         const transition = this._selectionTransition;
         if (transition) {
+          if (e.repeat) return;
           const forward = transition.direction * (transition.reversed ? -1 : 1) > 0;
-          if (!e.repeat && (forward ? isBack(e) : isConfirm(e))) this._reverseSelectionTransition();
+          if (forward ? isBack(e) : isConfirm(e)) this._reverseSelectionTransition();
+          else if (!transition.moving) {
+            if (isConfirm(e)) transition.animations.forEach(animation => animation.finish());
+          } else {
+            const endpoint = transition.reversed ? transition.fromName : transition.toName;
+            this._selectionDispatch = endpoint;
+            try { this._navHandlers[endpoint]?.(e); }
+            finally { this._selectionDispatch = null; }
+          }
         } else if (isBack(e)) { this._cancelPlayerConfirm(); this._action('back-diff'); }
         return;
       }
@@ -1095,6 +1391,46 @@ export class UI {
     ], { duration: 760, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' }));
   }
 
+  _captureSelectionMotion() {
+    const transition = this._selectionTransition;
+    const frames = new Map();
+    for (const { el, start } of transition.segments) {
+      const style = getComputedStyle(el);
+      frames.set(el, Object.fromEntries(Object.keys(start).map(key => [key, style.getPropertyValue(key)])));
+    }
+    return { frames, band: transition.band && frames.get(transition.band),
+      paint: transition.band && frames.get(transition.band.firstElementChild) };
+  }
+
+  _finishSelectionForScene(endpoint) {
+    const snapshot = this._captureSelectionMotion();
+    this._cancelSelectionTransition();
+    this.show(endpoint, true);
+    for (const [el, frame] of snapshot.frames) {
+      if (this.screens[endpoint].contains(el)) {
+        el.animate([frame, { translate: '0px 0px', opacity: getComputedStyle(el).opacity }],
+          { duration: 360, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
+    }
+  }
+
+  _continueSelectionTo(name) {
+    const old = this._selectionTransition;
+    const endpoint = old.reversed ? old.fromName : old.toName;
+    const snapshot = this._captureSelectionMotion();
+    this._cancelSelectionTransition();
+    this.show(endpoint, true);
+    if (['mode', 'difficulty', 'player'].includes(name)) {
+      const order = ['mode', 'difficulty', 'player'];
+      void this._transitionSelection(endpoint, name, order.indexOf(name) > order.indexOf(endpoint) ? 1 : -1, snapshot);
+    } else {
+      for (const [el, frame] of snapshot.frames) {
+        if (this.screens[endpoint].contains(el)) el.animate([frame, frame], { duration: 750 });
+      }
+      this.show(name);
+    }
+  }
+
   _cancelSelectionTransition({ restore = false } = {}) {
     const transition = this._selectionTransition;
     if (!transition) return;
@@ -1122,7 +1458,7 @@ export class UI {
     return [];
   }
 
-  async _transitionSelection(fromName, toName, direction) {
+  async _transitionSelection(fromName, toName, direction, snapshot = null) {
     if (this._selectionTransition) return;
     const from = this.screens[fromName];
     const to = this.screens[toName];
@@ -1135,14 +1471,20 @@ export class UI {
     from.inert = true;
     const animate = (el, frames, options) => {
       if (!el) return null;
+      const settledStart = frames[0];
+      if (snapshot && transition.moving) {
+        const captured = snapshot.frames.get(el)
+          || (el === transition.band ? snapshot.band : el === transition.band?.firstElementChild ? snapshot.paint : null);
+        if (captured) frames[0] = { ...frames[0], ...captured };
+      }
       const animation = el.animate(frames, { fill: 'both', ...options });
       transition.animations.push(animation);
-      if (transition.moving) transition.segments.push({ el, start: frames[0], end: frames[frames.length - 1] });
+      if (transition.moving) transition.segments.push({ el, start: settledStart, end: frames[frames.length - 1] });
       return animation;
     };
     const wait = (animation) => animation?.finished || Promise.resolve();
     try {
-      if (direction > 0) {
+      if (direction > 0 && !snapshot) {
         const chosen = from.querySelector('.mode-btn.selected, .diff-btn.selected');
         await wait(animate(chosen, [
           { opacity: 1, offset: 0, easing: 'steps(1, end)' },
@@ -1273,8 +1615,19 @@ export class UI {
   }
 
   show(name, selectionComplete = false) {
+    if (!selectionComplete && this._selectionTransition && this._selectionDispatch) {
+      this._continueSelectionTo(name);
+      return;
+    }
     this._cancelPlayerConfirm();
     const active = this._activeScreenName();
+    const selectionScreens = ['mode', 'difficulty', 'stage', 'practice'];
+    const menuScene = (active === 'menu' && selectionScreens.includes(name))
+      || (name === 'menu' && selectionScreens.includes(active));
+    if (!selectionComplete && !this._menuMotionQuery.matches && menuScene) {
+      void this._transitionScene(name);
+      return;
+    }
     if (!selectionComplete && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const forward = (active === 'mode' && name === 'difficulty')
         || (active === 'difficulty' && name === 'player');
@@ -1296,7 +1649,12 @@ export class UI {
       screen.classList.toggle('active', key === name);
       screen.inert = key !== name;
     });
-    if (enteringMenu) this._enterMenu();
+    if (enteringMenu) {
+      if (this._sceneTransition) {
+        this._finishMenuEntrance();
+        this._highlightMenu([...document.querySelectorAll('#main-menu-nav .menu-btn')], false);
+      } else this._enterMenu();
+    }
     if (name === 'exit') this.screens.exit.querySelector('button')?.focus();
     if (name === 'difficulty') this._highlightDiff();
     if (name === 'mode') this._highlightMode();

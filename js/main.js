@@ -458,10 +458,15 @@ async function boot() {
     let game = null;
     const ui = new UI({
       audio,
-      onStartGame(opts) {
+      onStartGame(opts, presentation) {
         unlockAudio();
         input.reloadKeys();
-        game.start(opts);
+        try {
+          return game.start(opts, presentation);
+        } catch (error) {
+          game.stop();
+          throw error;
+        }
       },
       onSettingsChange(s) {
         if (game) game.applySettings(s);

@@ -3178,3 +3178,124 @@ input, select, textarea {
 :is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion { background: transparent; z-index: 2; }
 :is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion .menu-bg { visibility: hidden; }
 .selection-preparing .selection-focus-band { transition: none !important; }
+/* ===== TH14/TH20-style scene interstitial ===== */
+.scene-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.scene-curtain-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-color: #201425;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  overflow: hidden;
+}
+
+.scene-curtain-backdrop > .menu-far,
+.scene-curtain-backdrop > .menu-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scene-curtain-mask-defs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scene-prayer {
+  position: absolute;
+  right: clamp(1.25rem, 6vw, 6.5rem);
+  bottom: clamp(1.4rem, 7vh, 5.75rem);
+  z-index: 3;
+  display: grid;
+  justify-items: end;
+  gap: .2rem;
+  min-width: min(13rem, 62vw);
+  color: #fffdfb;
+  text-align: right;
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 0 rgba(20, 9, 23, .78));
+}
+.scene-prayer[hidden] { display: none; }
+
+.scene-prayer::before,
+.scene-prayer::after {
+  content: '';
+  position: absolute;
+  width: clamp(.65rem, 1.3vw, 1.2rem);
+  height: clamp(1.2rem, 2.8vw, 2.1rem);
+  border-radius: 90% 10% 90% 10%;
+  background: linear-gradient(145deg, #e16c63 0 45%, #9e354b 46% 100%);
+  opacity: .9;
+  pointer-events: none;
+}
+
+.scene-prayer::before {
+  top: 8%;
+  left: -1.5rem;
+  transform: rotate(-38deg);
+}
+
+.scene-prayer::after {
+  right: -.9rem;
+  bottom: 2%;
+  transform: rotate(38deg) scale(.78);
+}
+
+.scene-prayer strong {
+  position: relative;
+  color: #fff;
+  font: italic 800 clamp(1.3rem, 3.6vw, 2.55rem)/1.05 var(--title-font);
+  letter-spacing: .04em;
+  white-space: nowrap;
+  paint-order: stroke fill;
+  -webkit-text-stroke: clamp(1px, .12vw, 2px) rgba(43, 24, 48, .95);
+  text-shadow: 0 0 4px rgba(255, 255, 255, .35), 2px 3px 0 rgba(28, 13, 30, .7);
+}
+
+.scene-prayer span {
+  color: #74ded4;
+  font: italic 600 clamp(.58rem, 1.15vw, .9rem)/1.1 var(--mono);
+  letter-spacing: .08em;
+  text-shadow: 1px 1px 0 rgba(12, 35, 39, .9);
+}
+
+.scene-transitioning {
+  cursor: progress;
+}
+
+.scene-transitioning .scene-curtain {
+  cursor: progress;
+}
+
+@media (max-width: 560px) {
+  .scene-prayer {
+    right: clamp(.8rem, 4vw, 1.75rem);
+    bottom: clamp(1rem, 5vh, 2.5rem);
+    min-width: 0;
+  }
+
+  .scene-prayer::before { left: -1rem; }
+  .scene-prayer::after { right: -.55rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-curtain-panel { will-change: auto; }
+
+  .scene-prayer {
+    transition: none !important;
+    animation: none !important;
+  }
+}
