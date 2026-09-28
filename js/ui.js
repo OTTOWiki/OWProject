@@ -838,11 +838,39 @@ export class UI {
     app?.classList.add('scene-transitioning');
 
     const svgNs = 'http://www.w3.org/2000/svg';
-    const xlinkNs = 'http://www.w3.org/1999/xlink';
-    const maskUrl = this._sceneMaskUrl || new URL('../assets/ui/scene-wipe-mask.avif', import.meta.url).href;
     const maskImage = this._sceneMaskImage;
     const maskAvailable = !!(maskImage?.complete && maskImage.naturalWidth && maskImage.naturalHeight);
     const maskId = `scene-wipe-mask-${++this._sceneMaskSerial}`;
+    if (maskAvailable && !this._sceneMaskSpriteUrl) {
+      const tileCanvas = document.createElement('canvas');
+      tileCanvas.width = 64;
+      tileCanvas.height = 64;
+      const tileContext = tileCanvas.getContext('2d', { willReadFrequently: true });
+      tileContext.drawImage(maskImage, 0, -1, 64, 64);
+      const tilePixels = tileContext.getImageData(0, 0, 64, 64);
+      for (let y = 0; y < 64; y += 1) {
+        const first = (y * 64) * 4 + 3;
+        const last = (y * 64 + 63) * 4 + 3;
+        const edgeAlpha = Math.round((tilePixels.data[first] + tilePixels.data[last]) / 2);
+        tilePixels.data[first] = edgeAlpha;
+        tilePixels.data[last] = edgeAlpha;
+      }
+      tileContext.putImageData(tilePixels, 0, 0);
+
+      const spriteCanvas = document.createElement('canvas');
+      spriteCanvas.width = 128;
+      spriteCanvas.height = 128;
+      const spriteContext = spriteCanvas.getContext('2d');
+      spriteContext.drawImage(tileCanvas, 0, 0);
+      spriteContext.drawImage(tileCanvas, 64, 0);
+      spriteContext.drawImage(
+        maskImage,
+        0, maskImage.naturalHeight - 1, maskImage.naturalWidth, 1,
+        0, 63, 128, 65,
+      );
+      this._sceneMaskSpriteUrl = spriteCanvas.toDataURL('image/png');
+    }
+    const maskSpriteUrl = this._sceneMaskSpriteUrl;
 
     const backgroundProperties = [
       'backgroundColor', 'backgroundImage', 'backgroundRepeat', 'backgroundPosition',
@@ -916,8 +944,8 @@ export class UI {
     const panelWidthScale = 3;
     const clamp01 = (value) => Math.max(0, Math.min(1, value));
     const easeInQuad = (value) => value * value;
-
     const panels = [];
+
     {
       const maskSvg = document.createElementNS(svgNs, 'svg');
       maskSvg.classList.add('scene-curtain-mask-defs');
@@ -925,36 +953,6 @@ export class UI {
       maskSvg.setAttribute('width', String(viewportWidth));
       maskSvg.setAttribute('height', String(viewportHeight));
       maskSvg.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`);
-      const defs = document.createElementNS(svgNs, 'defs');
-      // ANM sprite (0,1,128,128) samples a 64px tile: U wraps twice;
-      // V starts one texel down and clamps to the opaque bottom edge.
-      const tile = document.createElementNS(svgNs, 'pattern');
-      tile.id = `${maskId}-tile`;
-      tile.setAttribute('patternUnits', 'userSpaceOnUse');
-      tile.setAttribute('x', '-64');
-      tile.setAttribute('y', '-64');
-      tile.setAttribute('width', '64');
-      tile.setAttribute('height', '128');
-      const tileImage = document.createElementNS(svgNs, 'image');
-      tileImage.setAttribute('width', '64');
-      tileImage.setAttribute('height', '64');
-      tileImage.setAttribute('y', '-1');
-      tileImage.setAttribute('href', maskUrl);
-      tileImage.setAttribute('preserveAspectRatio', 'none');
-      const clampedBottom = document.createElementNS(svgNs, 'svg');
-      clampedBottom.setAttribute('y', '63');
-      clampedBottom.setAttribute('width', '64');
-      clampedBottom.setAttribute('height', '65');
-      const textureHeight = maskImage?.naturalHeight || 256;
-      clampedBottom.setAttribute('viewBox', `0 ${textureHeight - 1} ${textureHeight} 1`);
-      clampedBottom.setAttribute('preserveAspectRatio', 'none');
-      const edgeImage = document.createElementNS(svgNs, 'image');
-      edgeImage.setAttribute('width', String(textureHeight));
-      edgeImage.setAttribute('height', String(textureHeight));
-      edgeImage.setAttribute('href', maskUrl);
-      clampedBottom.appendChild(edgeImage);
-      tile.append(tileImage, clampedBottom);
-      defs.appendChild(tile);
       const mask = document.createElementNS(svgNs, 'mask');
       mask.id = maskId;
       mask.setAttribute('maskUnits', 'userSpaceOnUse');
@@ -964,8 +962,7 @@ export class UI {
       mask.setAttribute('width', String(viewportWidth));
       mask.setAttribute('height', String(viewportHeight));
       mask.setAttribute('style', 'mask-type: alpha');
-      defs.appendChild(mask);
-      maskSvg.appendChild(defs);
+      maskSvg.appendChild(mask);
       curtain.appendChild(maskSvg);
       scene.maskSvg = maskSvg;
       backdrop.style.webkitMaskImage = `url("#${maskId}")`;
@@ -979,12 +976,17 @@ export class UI {
 
       for (let index = 0; index < 4; index += 1) {
         const group = document.createElementNS(svgNs, 'g');
-        const image = document.createElementNS(svgNs, 'rect');
+        const image = document.createElementNS(svgNs, maskSpriteUrl ? 'image' : 'rect');
         image.setAttribute('x', '-64');
         image.setAttribute('y', '-64');
         image.setAttribute('width', '128');
         image.setAttribute('height', '128');
-        image.setAttribute('fill', maskAvailable ? `url(#${tile.id})` : 'white');
+        if (maskSpriteUrl) {
+          image.setAttribute('href', maskSpriteUrl);
+          image.setAttribute('preserveAspectRatio', 'none');
+        } else {
+          image.setAttribute('fill', 'white');
+        }
         group.appendChild(image);
         mask.appendChild(group);
         panels.push({ group, image });
