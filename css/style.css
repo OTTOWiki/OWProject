@@ -3178,7 +3178,7 @@ input, select, textarea {
 :is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion { background: transparent; z-index: 2; }
 :is(#screen-mode-select,#screen-difficulty,#screen-player-select).selection-in-motion .menu-bg { visibility: hidden; }
 .selection-preparing .selection-focus-band { transition: none !important; }
-/* ===== TH14-style scene interstitial ===== */
+/* ===== TH14/TH20-style scene interstitial ===== */
 .scene-curtain {
   position: fixed;
   inset: 0;
@@ -3189,15 +3189,36 @@ input, select, textarea {
   background: transparent;
 }
 
-/* The image stays registered to the viewport while pointed SVG mask openings grow. */
-.scene-curtain-surface { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.scene-curtain-opening { transform-box: fill-box; transform-origin: center; }
+.scene-curtain-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-color: #201425;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  overflow: hidden;
+}
+
+.scene-curtain-backdrop > .menu-far,
+.scene-curtain-backdrop > .menu-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scene-curtain-mask-defs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
 
 .scene-prayer {
   position: absolute;
   right: clamp(1.25rem, 6vw, 6.5rem);
   bottom: clamp(1.4rem, 7vh, 5.75rem);
-  z-index: 1100;
+  z-index: 3;
   display: grid;
   justify-items: end;
   gap: .2rem;
@@ -3271,7 +3292,7 @@ input, select, textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-curtain-opening { will-change: auto; }
+  .scene-curtain-panel { will-change: auto; }
 
   .scene-prayer {
     transition: none !important;

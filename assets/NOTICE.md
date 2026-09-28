@@ -27,6 +27,8 @@
 - `bg/difficulty-cathedral.avif`：经本地 CPA Images API、`gpt-image-2` 独立生成的暗哥特教堂彩窗底材，原图1536×1024，供难度选择页使用；不含原作提取素材。
 - `ui/player-placeholder.svg`：按用户要求以代码绘制的临时空白人形轮廓，不使用原作角色图像；此SVG随代码以GPL-3.0-or-later授权，选择页用CSS分别着淡青／淡紫。
 
+- `ui/scene-wipe-mask.avif`：本项目原创程序绘制的 256×256 周期基础 alpha 遮罩，不复制或逐点描摹原作纹理；白色 RGB 与上缘渐变 alpha 仅用于控制场景过渡透明度，图像下部为 alpha 255 实心区，左右边界在周期接缝处连续。该素材不是可见过渡背景，过渡期间实际可见图像始终来自下一场景背景。AVIF 使用 `Color` 与 `Alpha` 两路；透明外部为 alpha 0，渐变边缘保留 0–255 中间 alpha。
+
 ## 通用二次创作条件（本项目遵守）
 
 - 明确标注本作是 **基于东方 Project 的二次创作 / fan work**。

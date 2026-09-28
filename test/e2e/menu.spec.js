@@ -448,52 +448,139 @@ test('指针跳过未产生click时不吞下一次键盘确认', async ({ page }
   await expect(page.locator('#screen-manual')).toHaveClass(/active/);
   await page.mouse.up();
 });
-test('菜单进入选择时祈祷幕保持 1.5 秒且选择界面不可交互', async ({ page }) => {
+test('菜单进入选择时幕布有实际动画并锁定来源与目标，不显示祈祷或 hold', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);
   await page.evaluate(() => {
-    window.__sceneTestPhaseTimes = {};
-    const observer = new MutationObserver(() => {
+    const state = { phases: [], samples: [], prayerSeen: false };
+    const record = () => {
       const curtain = document.querySelector('.scene-curtain');
-      const phase = curtain?.dataset.phase;
-      if (phase && window.__sceneTestPhaseTimes[phase] == null) {
-        window.__sceneTestPhaseTimes[phase] = performance.now();
-      }
-    });
+      if (!curtain) return;
+      const phase = curtain.dataset.phase || null;
+      if (phase && state.phases[state.phases.length - 1] !== phase) state.phases.push(phase);
+      state.prayerSeen ||= !!document.querySelector('.scene-prayer');
+      const source = document.querySelector('#screen-menu');
+      const target = document.querySelector('#screen-mode-select');
+      state.samples.push({
+        phase,
+        sourceInert: source?.inert ?? null,
+        targetActive: target?.classList.contains('active') ?? false,
+        targetInert: target?.inert ?? null,
+      });
+    };
+    const observer = new MutationObserver(record);
     observer.observe(document.documentElement, {
-      subtree: true,
-      childList: true,
       attributes: true,
-      attributeFilter: ['data-phase'],
+      attributeFilter: ['data-phase', 'class', 'inert'],
+      childList: true,
+      subtree: true,
     });
-    window.__sceneTestStop = () => observer.disconnect();
+    window.__sceneTestProbe = { state, observer };
   });
 
-  const modeScreen = page.locator('#screen-mode-select');
   await page.locator('#main-menu-nav [data-action="start"]').click();
-  const curtain = page.locator('.scene-curtain');
-  const hold = await page.waitForFunction(() => {
-    const curtain = document.querySelector('.scene-curtain');
-    if (curtain?.dataset.phase !== 'hold') return false;
-    const mode = document.querySelector('#screen-mode-select');
-    const prayer = document.querySelector('.scene-prayer');
-    return { active: mode.classList.contains('active'), inert: mode.inert,
-      prayerVisible: !!prayer && getComputedStyle(prayer).display !== 'none' };
+  await page.waitForFunction(() => !!document.querySelector('.scene-curtain'));
+  const motion = await page.evaluate(async () => {
+    const surface = document.querySelector('.scene-curtain');
+    const panel = surface.querySelector('mask g');
+    const first = panel?.getAttribute('transform');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return { changed: !!first && panel.getAttribute('transform') !== first, phase: surface.dataset.phase };
   });
-  expect(await hold.jsonValue()).toEqual({ active: true, inert: true, prayerVisible: true });
+  expect(motion.changed).toBe(true);
+  expect(['cover', 'reveal']).toContain(motion.phase);
 
-  await page.waitForFunction(() => {
-    const phase = document.querySelector('.scene-curtain')?.dataset.phase;
-    return !phase || phase !== 'hold';
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false, { timeout: 3000 });
+  await expect(page.locator('.scene-curtain')).toHaveCount(0, { timeout: 1000 });
+  const probe = await page.evaluate(() => {
+    const current = window.__sceneTestProbe;
+    current?.observer.disconnect();
+    return current?.state || null;
   });
-  const phaseTimes = await page.evaluate(() => {
-    window.__sceneTestStop?.();
-    return window.__sceneTestPhaseTimes;
-  });
-  expect(phaseTimes.reveal - phaseTimes.hold).toBeGreaterThanOrEqual(1300);
-  await expect(curtain).toHaveCount(0, { timeout: 2000 });
-  await expect(modeScreen).toHaveJSProperty('inert', false);
+  expect(probe).not.toBeNull();
+  expect(probe.phases).toEqual(['cover', 'reveal']);
+  expect(probe.prayerSeen).toBe(false);
+  expect(probe.samples.some((sample) => (
+    sample.sourceInert && sample.targetActive && sample.targetInert
+  ))).toBe(true);
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
+});
+
+test.describe('菜单其他选择入口无 hold 或祈祷幕', () => {
+  for (const { action, target } of [
+    { action: 'extra-start', target: '#screen-difficulty' },
+    { action: 'stage-select', target: '#screen-stage-select' },
+    { action: 'practice', target: '#screen-practice' },
+  ]) {
+    test(`${action} 覆盖后直接 reveal 并可用`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.goto('/');
+      await waitForGameReady(page);
+      await page.evaluate(() => {
+        window.__sceneTestPhases = [];
+        window.__sceneTestPrayerSeen = false;
+        const observer = new MutationObserver(() => {
+          const phase = document.querySelector('.scene-curtain')?.dataset.phase;
+          if (phase && window.__sceneTestPhases.at(-1) !== phase) {
+            window.__sceneTestPhases.push(phase);
+          }
+          window.__sceneTestPrayerSeen ||= !!document.querySelector('.scene-prayer');
+        });
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-phase'],
+          childList: true,
+          subtree: true,
+        });
+        window.__sceneTestStop = () => observer.disconnect();
+      });
+      await page.locator(`#main-menu-nav [data-action="${action}"]`).click();
+      await expect(page.locator(target)).toHaveClass(/active/);
+      await expect(page.locator(target)).toHaveJSProperty('inert', false, { timeout: 3000 });
+      const result = await page.evaluate(() => {
+        window.__sceneTestStop?.();
+        return {
+          phases: window.__sceneTestPhases,
+          prayerSeen: window.__sceneTestPrayerSeen,
+        };
+      });
+      expect(result.phases).toEqual(['cover', 'reveal']);
+      expect(result.prayerSeen).toBe(false);
+      await expect(page.locator('.scene-prayer')).toHaveCount(0);
+    });
+  }
+});
+
+test('选择页返回主页倒放场景转场，锁定输入并保留原入口', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  for (const action of ['start', 'extra-start', 'stage-select', 'practice']) {
+    await page.locator(`#main-menu-nav [data-action="${action}"]`).click();
+    await expect(page.locator('.scene-curtain')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    const curtain = page.locator('.scene-curtain');
+    await expect(curtain).toHaveAttribute('data-direction', 'backward');
+    await expect(page.locator('.screen.active')).toHaveJSProperty('inert', true);
+    await expect(page.locator('.scene-prayer')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    await expect(curtain).toHaveCount(0);
+    await expect(page.locator('#screen-menu')).toHaveClass(/active/);
+    await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
+    await expect(page.locator('#screen-menu')).not.toHaveClass(/menu-entering/);
+    await expect(page.locator(`#main-menu-nav [data-action="${action}"]`)).toHaveClass(/selected/);
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
 });
 
 test('确认自机时祈祷幕结束前不启动游戏，结束后才进入实际对局', async ({ page }) => {
@@ -514,6 +601,7 @@ test('确认自机时祈祷幕结束前不启动游戏，结束后才进入实�
   const curtain = page.locator('.scene-curtain');
   await expect(curtain).toHaveAttribute('data-phase', 'hold', { timeout: 2000 });
   await expect(page.locator('.scene-prayer')).toBeVisible();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
   await expect(page.locator('#screen-game')).toHaveJSProperty('inert', true);
   await expect(page.locator('#ui-chapter')).toHaveText('—');
 
@@ -522,7 +610,6 @@ test('确认自机时祈祷幕结束前不启动游戏，结束后才进入实�
   await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
   await expect(page.locator('#ui-chapter')).not.toHaveText('—');
 });
-
 test('减少动态效果时菜单与自机确认不显示祈祷幕并立即可用', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');

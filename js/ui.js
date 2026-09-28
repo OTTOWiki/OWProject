@@ -143,6 +143,10 @@ export class UI {
     this.onSettingsChange = onSettingsChange || null;
     this.onPlayReplay = onPlayReplay || null;
     this.audio = audio;
+    this._sceneMaskUrl = new URL('../assets/ui/scene-wipe-mask.avif', import.meta.url).href;
+    this._sceneMaskImage = new Image();
+    this._sceneMaskImage.src = this._sceneMaskUrl;
+    this._sceneMaskSerial = 0;
     this.menuIndex = 0;
     this.menuEntering = false;
     this._menuAnimations = [];
@@ -168,7 +172,12 @@ export class UI {
     this._difficultyBackTarget = 'menu';
     this._playerBackTarget = 'difficulty';
     this._selectionTransition = null;
-    this._playerConfirmTransition = null;
+    this._sceneMaskSerial = 0;
+    this._sceneMaskUrl = new URL('../assets/ui/scene-wipe-mask.avif', import.meta.url).href;
+    this._sceneMaskImage = new Image();
+    this._sceneMaskImage.decoding = 'async';
+    this._sceneMaskImage.src = this._sceneMaskUrl;
+     this._playerConfirmTransition = null;
     /** 练习：所选章节 id（默认第 1 章） */
     this.practiceChapterId = 1;
     /** 练习：所选难度 id（DIFFICULTIES，默认 normal） */
@@ -807,149 +816,262 @@ export class UI {
     if (this._sceneTransition) return;
     const source = this.screens[this._activeScreenName()];
     const target = this.screens[targetName];
-    const scene = { animations: [], curtain: document.createElement('div') };
+    if (!source || !target || source === target) return;
+
+    const app = document.getElementById('app');
+    const returning = targetName === 'menu';
+    const scene = {
+      curtain: document.createElement('div'),
+      raf: 0,
+      cancel: null,
+      timers: new Set(),
+      maskSvg: null,
+    };
     this._sceneTransition = scene;
     source.inert = true;
     this._finishMenuEntrance();
+
     const curtain = scene.curtain;
     curtain.className = 'scene-curtain';
     curtain.dataset.phase = 'cover';
-    const sceneImage = new URL(`../assets/bg/${targetName === 'game' ? 'battle-print' : 'difficulty-cathedral'}.avif`, import.meta.url).href;
-    const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
-    const animate = (el, frames, duration, delay = 0, curve = easing) => {
-      const animation = el.animate(frames, { duration, delay, easing: curve, fill: 'both' });
-      scene.animations.push(animation);
-      return animation;
-    };
-    const contents = screen => [...screen.querySelectorAll('.panel-title, .mode-list, .diff-list, .player-cards, .stage-grid, .practice-form, .game-layout')];
-    // One stationary image is exposed through local, pointed openings, which
-    // join from the upper left toward the lower right without moving the image.
-    const svg = name => document.createElementNS('http://www.w3.org/2000/svg', name);
-    const surface = svg('svg');
-    surface.classList.add('scene-curtain-surface');
-    surface.setAttribute('aria-hidden', 'true');
-    const defs = svg('defs');
-    const mask = svg('mask');
-    mask.id = 'scene-curtain-mask';
-    mask.setAttribute('maskUnits', 'objectBoundingBox');
-    mask.setAttribute('maskContentUnits', 'objectBoundingBox');
-    mask.setAttribute('x', '0');
-    mask.setAttribute('y', '0');
-    mask.setAttribute('width', '1');
-    mask.setAttribute('height', '1');
-    const base = svg('rect');
-    base.setAttribute('width', '1');
-    base.setAttribute('height', '1');
-    base.setAttribute('fill', 'black');
-    mask.appendChild(base);
-    // Normalized centers and slants follow the first visible openings in the
-    // reference; lower/right openings join later instead of forming a grid.
-    const seeds = [
-      [.377, .153, 17, 0], [.163, .306, -17, 24],
-      [.320, .217, 15, 34], [.249, .181, -10, 38],
-      [.537, .031, 14, 86], [.793, .013, 0, 116],
-      [.833, .433, 20, 118], [.418, .595, 7, 128],
-      [.950, .400, 19, 136], [.917, .048, 23, 145],
-      [.082, .452, -10, 170], [.306, .589, -4, 178],
-      [.541, .699, 6, 204], [.299, .956, 5, 218],
-      [.060, .806, -13, 228], [.754, .721, 18, 250],
-      [.580, .921, -8, 268], [.959, .945, 14, 286],
+    curtain.dataset.direction = returning ? 'backward' : 'forward';
+    app?.classList.add('scene-transitioning');
+
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const xlinkNs = 'http://www.w3.org/1999/xlink';
+    const maskUrl = this._sceneMaskUrl || new URL('../assets/ui/scene-wipe-mask.avif', import.meta.url).href;
+    const maskImage = this._sceneMaskImage;
+    const maskAvailable = !!(maskImage?.complete && maskImage.naturalWidth && maskImage.naturalHeight);
+    const maskId = `scene-wipe-mask-${++this._sceneMaskSerial}`;
+
+    const backgroundProperties = [
+      'backgroundColor', 'backgroundImage', 'backgroundRepeat', 'backgroundPosition',
+      'backgroundSize', 'backgroundAttachment', 'backgroundOrigin', 'backgroundClip',
+      'backgroundBlendMode',
     ];
-    const openings = seeds.map(([x, y, angle, delay]) => {
-      const group = svg('g');
-      const radians = angle * Math.PI / 180;
-      const c = Math.cos(radians), s = Math.sin(radians);
-      group.setAttribute('transform', `translate(${x} ${y}) matrix(${c} ${s * 4 / 3} ${-s * 3 / 4} ${c} 0 0)`);
-      const el = svg('polygon');
-      el.classList.add('scene-curtain-opening');
-      el.setAttribute('points', '-.72,0 -.40,-.18 .72,0 .40,.18');
-      el.setAttribute('fill', 'white');
-      el.style.transform = 'scale(0, 0)';
-      group.appendChild(el);
-      mask.appendChild(group);
-      return { el, delay };
-    });
-    defs.appendChild(mask);
-    surface.appendChild(defs);
-    const painted = svg('g');
-    painted.setAttribute('mask', 'url(#scene-curtain-mask)');
-    const fallback = svg('rect');
-    fallback.setAttribute('width', '100%');
-    fallback.setAttribute('height', '100%');
-    fallback.setAttribute('fill', '#201425');
-    painted.appendChild(fallback);
-    const image = svg('image');
-    image.setAttribute('width', '100%');
-    image.setAttribute('height', '100%');
-    image.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-    image.addEventListener('error', () => image.remove(), { once: true });
-    image.setAttribute('href', sceneImage);
-    painted.appendChild(image);
-    surface.appendChild(painted);
-    curtain.appendChild(surface);
-    const prayer = document.createElement('div');
-    prayer.className = 'scene-prayer';
-    prayer.setAttribute('role', 'status');
-    prayer.innerHTML = '<strong>少女祈祷中…</strong><span>Now Loading...</span>';
-    curtain.appendChild(prayer);
-    document.getElementById('app').appendChild(curtain);
-    try {
-      const sourceBand = source.querySelector('.selection-focus-band');
-      if (sourceBand) {
-        const style = getComputedStyle(sourceBand);
-        const matrix = new DOMMatrixReadOnly(style.transform);
-        const angle = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
-        animate(sourceBand, [
-          { opacity: 1, height: style.height, transform: style.transform },
-          { opacity: 0, height: '2px', transform: `translate(-50%, -50%) rotate(${angle - 50}deg)` },
-        ], 320);
-        contents(source).forEach(el => animate(el, [{ opacity: 1 }, { opacity: 0 }], 320));
+    const copyBackground = (from, to) => {
+      if (!from || !to) return;
+      const style = getComputedStyle(from);
+      backgroundProperties.forEach((property) => { to.style[property] = style[property]; });
+    };
+
+    const menuScreen = this.screens.menu;
+    const menuFar = menuScreen?.querySelector('.menu-far');
+    const gameBackdrop = target.querySelector('.game-backdrop');
+    const backgroundSource = targetName === 'game' ? (gameBackdrop || target) : target;
+    const backdrop = document.createElement('div');
+    backdrop.className = `scene-curtain-backdrop scene-curtain-backdrop-${targetName === 'menu' ? 'menu' : targetName === 'game' ? 'game' : 'selection'}`;
+    copyBackground(backgroundSource, backdrop);
+    if (targetName === 'menu') {
+      const farClone = menuFar?.cloneNode(true);
+      if (farClone) copyBackground(menuFar, farClone);
+      if (farClone) {
+        farClone.removeAttribute('id');
+        farClone.setAttribute('aria-hidden', 'true');
+        backdrop.appendChild(farClone);
       }
-      const maskFrames = [
-        { transform: 'scale(0, 0)' },
-        { transform: 'scale(.14, .10)', offset: .27 },
-        { transform: 'scale(.65, .65)', offset: .6 },
-        { transform: 'scale(1.2, 1.3)' },
-      ];
-      await Promise.all(openings.map(({ el, delay }) => animate(el,
-        maskFrames, 300, delay + (sourceBand ? 100 : 0), 'linear').finished));
-      // Collapse the same polygons as transparent holes in a fully covered mask.
-      base.setAttribute('fill', 'white');
-      openings.forEach(({ el }) => {
-        el.getAnimations().forEach(animation => animation.cancel());
-        el.setAttribute('fill', 'black');
+    } else if (targetName !== 'game') {
+      const originalOverlay = target.querySelector('.menu-bg');
+      const menuBg = originalOverlay?.cloneNode(false);
+      if (menuBg) copyBackground(originalOverlay, menuBg);
+      if (menuBg) {
+        menuBg.removeAttribute('id');
+        menuBg.setAttribute('aria-hidden', 'true');
+        backdrop.appendChild(menuBg);
+      }
+    }
+    curtain.appendChild(backdrop);
+    app?.appendChild(curtain);
+
+    // TH20 screen-space setup: callback root offset (320,240), then one
+    // viewport scale. Each image remains a 128x128 sprite before 3x12 scale.
+    const rootX = 320;
+    const rootY = 240;
+    const addRoot = ([x, y]) => [x + rootX, y + rootY];
+    const coverSpecs = [
+      { from: addRoot([-992, -512]), to: addRoot([160, -87.89502]), rotation: 110, delayFrames: 0 },
+      { from: addRoot([992, -512]), to: addRoot([-96, -161.77138]), rotation: -110, delayFrames: 5 },
+      { from: addRoot([-1056, 0]), to: addRoot([160, 215.32375]), rotation: 100, delayFrames: 10 },
+      { from: addRoot([1088, 0]), to: addRoot([64, 177.81573]), rotation: -100, delayFrames: 15 },
+    ];
+    // C++ event 1 binds script7,8,9,10 to panels 0..3 for reveal.
+    const revealSpecs = [
+      { from: addRoot([160, -328.10498]), to: addRoot([-1024, 96]), rotation: 70, delayFrames: 0 },
+      { from: addRoot([-96, -254.22862]), to: addRoot([1024, 96]), rotation: -70, delayFrames: 5 },
+      { from: addRoot([160, 104.67626]), to: addRoot([-1056, 320]), rotation: 80, delayFrames: 10 },
+      { from: addRoot([-96, 142.18427]), to: addRoot([1088, 320]), rotation: -80, delayFrames: 15 },
+    ];
+    const viewportWidth = Math.max(1, window.innerWidth);
+    const viewportHeight = Math.max(1, window.innerHeight);
+    const logicalScale = Math.max(viewportWidth / 640, viewportHeight / 480);
+    const logicalOriginX = (viewportWidth - 640 * logicalScale) / 2;
+    const logicalOriginY = (viewportHeight - 480 * logicalScale) / 2;
+    const toViewport = ([x, y]) => ({
+      x: logicalOriginX + x * logicalScale,
+      y: logicalOriginY + y * logicalScale,
+    });
+    const frameMs = 1000 / 60;
+    const moveDuration = 30 * frameMs;
+    const phaseDuration = 45 * frameMs;
+    const panelWidthScale = 3;
+    const clamp01 = (value) => Math.max(0, Math.min(1, value));
+    const easeInQuad = (value) => value * value;
+
+    const panels = [];
+    {
+      const maskSvg = document.createElementNS(svgNs, 'svg');
+      maskSvg.classList.add('scene-curtain-mask-defs');
+      maskSvg.setAttribute('aria-hidden', 'true');
+      maskSvg.setAttribute('width', String(viewportWidth));
+      maskSvg.setAttribute('height', String(viewportHeight));
+      maskSvg.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`);
+      const defs = document.createElementNS(svgNs, 'defs');
+      // ANM sprite (0,1,128,128) samples a 64px tile: U wraps twice;
+      // V starts one texel down and clamps to the opaque bottom edge.
+      const tile = document.createElementNS(svgNs, 'pattern');
+      tile.id = `${maskId}-tile`;
+      tile.setAttribute('patternUnits', 'userSpaceOnUse');
+      tile.setAttribute('x', '-64');
+      tile.setAttribute('y', '-64');
+      tile.setAttribute('width', '64');
+      tile.setAttribute('height', '128');
+      const tileImage = document.createElementNS(svgNs, 'image');
+      tileImage.setAttribute('width', '64');
+      tileImage.setAttribute('height', '64');
+      tileImage.setAttribute('y', '-1');
+      tileImage.setAttribute('href', maskUrl);
+      tileImage.setAttribute('preserveAspectRatio', 'none');
+      const clampedBottom = document.createElementNS(svgNs, 'svg');
+      clampedBottom.setAttribute('y', '63');
+      clampedBottom.setAttribute('width', '64');
+      clampedBottom.setAttribute('height', '65');
+      const textureHeight = maskImage?.naturalHeight || 256;
+      clampedBottom.setAttribute('viewBox', `0 ${textureHeight - 1} ${textureHeight} 1`);
+      clampedBottom.setAttribute('preserveAspectRatio', 'none');
+      const edgeImage = document.createElementNS(svgNs, 'image');
+      edgeImage.setAttribute('width', String(textureHeight));
+      edgeImage.setAttribute('height', String(textureHeight));
+      edgeImage.setAttribute('href', maskUrl);
+      clampedBottom.appendChild(edgeImage);
+      tile.append(tileImage, clampedBottom);
+      defs.appendChild(tile);
+      const mask = document.createElementNS(svgNs, 'mask');
+      mask.id = maskId;
+      mask.setAttribute('maskUnits', 'userSpaceOnUse');
+      mask.setAttribute('maskContentUnits', 'userSpaceOnUse');
+      mask.setAttribute('x', '0');
+      mask.setAttribute('y', '0');
+      mask.setAttribute('width', String(viewportWidth));
+      mask.setAttribute('height', String(viewportHeight));
+      mask.setAttribute('style', 'mask-type: alpha');
+      defs.appendChild(mask);
+      maskSvg.appendChild(defs);
+      curtain.appendChild(maskSvg);
+      scene.maskSvg = maskSvg;
+      backdrop.style.webkitMaskImage = `url("#${maskId}")`;
+      backdrop.style.maskImage = `url("#${maskId}")`;
+      backdrop.style.webkitMaskMode = 'alpha';
+      backdrop.style.maskMode = 'alpha';
+      backdrop.style.webkitMaskRepeat = 'no-repeat';
+      backdrop.style.maskRepeat = 'no-repeat';
+      backdrop.style.webkitMaskSize = '100% 100%';
+      backdrop.style.maskSize = '100% 100%';
+
+      for (let index = 0; index < 4; index += 1) {
+        const group = document.createElementNS(svgNs, 'g');
+        const image = document.createElementNS(svgNs, 'rect');
+        image.setAttribute('x', '-64');
+        image.setAttribute('y', '-64');
+        image.setAttribute('width', '128');
+        image.setAttribute('height', '128');
+        image.setAttribute('fill', maskAvailable ? `url(#${tile.id})` : 'white');
+        group.appendChild(image);
+        mask.appendChild(group);
+        panels.push({ group, image });
+      }
+    }
+
+    const prayer = targetName === 'game' ? document.createElement('div') : null;
+    if (prayer) {
+      prayer.className = 'scene-prayer';
+      prayer.setAttribute('role', 'status');
+      prayer.innerHTML = '<strong>少女祈祷中…</strong><span>Now Loading...</span>';
+      curtain.appendChild(prayer);
+    }
+
+    const renderPhase = (kind, elapsed) => {
+      const sampledKind = returning ? (kind === 'cover' ? 'reveal' : 'cover') : kind;
+      const sampledTime = returning ? phaseDuration - elapsed : elapsed;
+      const specs = sampledKind === 'cover' ? coverSpecs : revealSpecs;
+      panels.forEach(({ group }, index) => {
+        const spec = specs[index];
+        const local = clamp01((sampledTime - spec.delayFrames * frameMs) / moveDuration);
+        const eased = easeInQuad(local);
+        const point = toViewport([
+          spec.from[0] + (spec.to[0] - spec.from[0]) * eased,
+          spec.from[1] + (spec.to[1] - spec.from[1]) * eased,
+        ]);
+        group.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${spec.rotation})`);
+        group.firstElementChild?.setAttribute('transform', `scale(${panelWidthScale * logicalScale} ${12 * logicalScale})`);
       });
+      if (prayer) prayer.style.opacity = kind === 'reveal'
+        ? String(clamp01(1 - elapsed / 140)) : '1';
+    };
+
+    const runPhase = (kind) => new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (scene.raf) cancelAnimationFrame(scene.raf);
+        scene.raf = 0;
+        if (scene.cancel === finish) scene.cancel = null;
+        resolve();
+      };
+      scene.cancel = finish;
+      const started = performance.now();
+      renderPhase(kind, 0);
+      const tick = (now) => {
+        if (settled) return;
+        renderPhase(kind, Math.max(0, now - started));
+        const duration = phaseDuration;
+        if (now - started >= duration) finish();
+        else scene.raf = requestAnimationFrame(tick);
+      };
+      scene.raf = requestAnimationFrame(tick);
+    });
+    const wait = (duration) => new Promise((resolve) => {
+      const timer = window.setTimeout(() => {
+        scene.timers.delete(timer);
+        resolve();
+      }, duration);
+      scene.timers.add(timer);
+    });
+
+    try {
+      await runPhase('cover');
       if (targetName === 'difficulty') this._rebuildDifficulty();
       this.show(targetName, true);
       target.inert = true;
-      curtain.dataset.phase = 'hold';
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      if (targetName === 'player') this._fitPlayerBand();
       if (targetName === 'difficulty') this._fitExtraBand();
-      const release = onReady?.({ deferLoop: true });
-      curtain.dataset.phase = 'reveal';
-      // The reference removes the loading caption as the first openings appear.
-      const prayerFade = animate(prayer, [{ opacity: 1 }, { opacity: 0 }], 140);
-      const incoming = contents(target).map(el => animate(el, [
-        { opacity: 0, translate: '24px 0' }, { opacity: 1, translate: '0px 0' },
-      ], 760));
-      const band = target.querySelector('.selection-focus-band');
-      if (band) {
-        const style = getComputedStyle(band);
-        const matrix = new DOMMatrixReadOnly(style.transform);
-        const angle = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
-        incoming.push(animate(band, [
-          { opacity: 0, height: '2px', transform: `translate(-50%, -50%) rotate(${angle - 50}deg)` },
-          { opacity: 1, height: style.height, transform: style.transform },
-        ], 760));
+      if (targetName === 'player') this._fitPlayerBand();
+      let release = null;
+      if (targetName === 'game') {
+        curtain.dataset.phase = 'hold';
+        await wait(1500);
+        release = onReady?.({ deferLoop: true }) || null;
       }
-      const reveal = openings.map(({ el, delay }) => animate(el, maskFrames, 300, delay, 'linear'));
-      await Promise.all([prayerFade, ...incoming, ...reveal].map(animation => animation.finished));
+      curtain.dataset.phase = 'reveal';
+      await runPhase('reveal');
       release?.();
     } finally {
-      scene.animations.forEach(animation => animation.cancel());
+      scene.cancel?.();
+      if (scene.raf) cancelAnimationFrame(scene.raf);
+      scene.timers.forEach((timer) => window.clearTimeout(timer));
+      scene.timers.clear();
       curtain.remove();
       this._sceneTransition = null;
+      app?.classList.remove('scene-transitioning');
       target.inert = !target.classList.contains('active');
       source.inert = !source.classList.contains('active');
     }
@@ -1426,8 +1548,10 @@ export class UI {
   show(name, selectionComplete = false) {
     this._cancelPlayerConfirm();
     const active = this._activeScreenName();
-    if (!selectionComplete && !this._menuMotionQuery.matches && active === 'menu'
-        && ['mode', 'difficulty', 'stage', 'practice'].includes(name)) {
+    const selectionScreens = ['mode', 'difficulty', 'stage', 'practice'];
+    const menuScene = (active === 'menu' && selectionScreens.includes(name))
+      || (name === 'menu' && selectionScreens.includes(active));
+    if (!selectionComplete && !this._menuMotionQuery.matches && menuScene) {
       void this._transitionScene(name);
       return;
     }
@@ -1452,7 +1576,12 @@ export class UI {
       screen.classList.toggle('active', key === name);
       screen.inert = key !== name;
     });
-    if (enteringMenu) this._enterMenu();
+    if (enteringMenu) {
+      if (this._sceneTransition) {
+        this._finishMenuEntrance();
+        this._highlightMenu([...document.querySelectorAll('#main-menu-nav .menu-btn')], false);
+      } else this._enterMenu();
+    }
     if (name === 'exit') this.screens.exit.querySelector('button')?.focus();
     if (name === 'difficulty') this._highlightDiff();
     if (name === 'mode') this._highlightMode();
