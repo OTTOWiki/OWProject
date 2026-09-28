@@ -372,7 +372,7 @@ export class UI {
     if (!list) return;
     [...list.querySelectorAll('.mode-btn')].forEach((btn, index) => {
       btn.addEventListener('click', () => {
-        if (this._selectionTransition || this._playerConfirmTransition) return;
+        if ((this._selectionTransition && !this._selectionDispatch) || this._playerConfirmTransition) return;
         const dir = index === this.modeIndex ? 0 : index > this.modeIndex ? 1 : -1;
         this.modeIndex = index;
         this.modeBandAngle += dir * 180;
@@ -444,7 +444,7 @@ export class UI {
         <div class="diff-desc">${d.desc}</div>
       `;
       btn.addEventListener('click', () => {
-        if (this._selectionTransition) return;
+        if (this._selectionTransition && !this._selectionDispatch) return;
         this._sfx('ok');
         this.pendingDifficulty = id;
         this.diffIndex = i;
@@ -787,13 +787,14 @@ export class UI {
     });
     document.querySelectorAll('.player-card').forEach((card) => {
       card.addEventListener('click', () => {
-        if (this._sceneTransition || this._selectionTransition || this._playerConfirmTransition) return;
+        if (this._sceneTransition || (this._selectionTransition && !this._selectionDispatch) || this._playerConfirmTransition) return;
         if (!card.classList.contains('current-player')) {
           this.playerIndex = [...document.querySelectorAll('.player-card')].indexOf(card);
           this._highlightPlayer();
           this._sfx('select');
           return;
         }
+        if (this._selectionTransition) this._finishSelectionForScene('player');
         this._confirmPlayer(card);
       });
     });
@@ -1259,8 +1260,17 @@ export class UI {
         e.stopImmediatePropagation();
         const transition = this._selectionTransition;
         if (transition) {
+          if (e.repeat) return;
           const forward = transition.direction * (transition.reversed ? -1 : 1) > 0;
-          if (!e.repeat && (forward ? isBack(e) : isConfirm(e))) this._reverseSelectionTransition();
+          if (forward ? isBack(e) : isConfirm(e)) this._reverseSelectionTransition();
+          else if (!transition.moving) {
+            if (isConfirm(e)) transition.animations.forEach(animation => animation.finish());
+          } else {
+            const endpoint = transition.reversed ? transition.fromName : transition.toName;
+            this._selectionDispatch = endpoint;
+            try { this._navHandlers[endpoint]?.(e); }
+            finally { this._selectionDispatch = null; }
+          }
         } else if (isBack(e)) { this._cancelPlayerConfirm(); this._action('back-diff'); }
         return;
       }
@@ -1370,6 +1380,69 @@ export class UI {
     ], { duration: 760, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' }));
   }
 
+  _captureSelectionMotion() {
+    const transition = this._selectionTransition;
+    const frames = new Map();
+    for (const { el, start } of transition.segments) {
+      const style = getComputedStyle(el);
+      frames.set(el, Object.fromEntries(Object.keys(start).map(key => [key, style.getPropertyValue(key)])));
+    }
+    return { frames, band: transition.band && frames.get(transition.band),
+      paint: transition.band && frames.get(transition.band.firstElementChild) };
+  }
+
+  _finishSelectionForScene(endpoint) {
+    const snapshot = this._captureSelectionMotion();
+    this._cancelSelectionTransition();
+    this.show(endpoint, true);
+    for (const [el, frame] of snapshot.frames) {
+      if (this.screens[endpoint].contains(el)) {
+        el.animate([frame, { translate: '0px 0px', opacity: getComputedStyle(el).opacity }],
+          { duration: 360, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
+    }
+  }
+
+  _continueSelectionTo(name) {
+    const old = this._selectionTransition;
+    const endpoint = old.reversed ? old.fromName : old.toName;
+    const snapshot = this._captureSelectionMotion();
+    const departing = old.reversed ? old.to : old.from;
+    const remnants = [];
+    for (const [el, frame] of snapshot.frames) {
+      if (!departing.contains(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.right <= 0 || rect.left >= innerWidth || rect.bottom <= 0 || rect.top >= innerHeight) continue;
+      const clone = el.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+      const style = getComputedStyle(el);
+      for (const property of style) clone.style.setProperty(property, style.getPropertyValue(property));
+      Object.assign(clone.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`,
+        width: `${rect.width}px`, height: `${rect.height}px`, margin: '0', transform: 'none',
+        translate: 'none', transition: 'none', zIndex: '3', pointerEvents: 'none' });
+      clone.setAttribute('aria-hidden', 'true');
+      clone.inert = true;
+      document.getElementById('app').appendChild(clone);
+      remnants.push(clone);
+    }
+    this._cancelSelectionTransition();
+    this.show(endpoint, true);
+    if (['mode', 'difficulty', 'player'].includes(name)) {
+      const order = ['mode', 'difficulty', 'player'];
+      void this._transitionSelection(endpoint, name, order.indexOf(name) > order.indexOf(endpoint) ? 1 : -1, snapshot);
+    } else {
+      for (const [el, frame] of snapshot.frames) {
+        if (this.screens[endpoint].contains(el)) el.animate([frame, frame], { duration: 750 });
+      }
+      this.show(name);
+    }
+    remnants.forEach(el => {
+      const animation = el.animate([{ opacity: getComputedStyle(el).opacity }, { opacity: 0 }], { duration: 220 });
+      animation.finished.finally(() => el.remove());
+    });
+  }
+
   _cancelSelectionTransition({ restore = false } = {}) {
     const transition = this._selectionTransition;
     if (!transition) return;
@@ -1397,7 +1470,7 @@ export class UI {
     return [];
   }
 
-  async _transitionSelection(fromName, toName, direction) {
+  async _transitionSelection(fromName, toName, direction, snapshot = null) {
     if (this._selectionTransition) return;
     const from = this.screens[fromName];
     const to = this.screens[toName];
@@ -1410,6 +1483,11 @@ export class UI {
     from.inert = true;
     const animate = (el, frames, options) => {
       if (!el) return null;
+      if (snapshot && transition.moving) {
+        const captured = snapshot.frames.get(el)
+          || (el === transition.band ? snapshot.band : el === transition.band?.firstElementChild ? snapshot.paint : null);
+        if (captured) frames[0] = { ...frames[0], ...captured };
+      }
       const animation = el.animate(frames, { fill: 'both', ...options });
       transition.animations.push(animation);
       if (transition.moving) transition.segments.push({ el, start: frames[0], end: frames[frames.length - 1] });
@@ -1417,7 +1495,7 @@ export class UI {
     };
     const wait = (animation) => animation?.finished || Promise.resolve();
     try {
-      if (direction > 0) {
+      if (direction > 0 && !snapshot) {
         const chosen = from.querySelector('.mode-btn.selected, .diff-btn.selected');
         await wait(animate(chosen, [
           { opacity: 1, offset: 0, easing: 'steps(1, end)' },
@@ -1548,6 +1626,10 @@ export class UI {
   }
 
   show(name, selectionComplete = false) {
+    if (!selectionComplete && this._selectionTransition && this._selectionDispatch) {
+      this._continueSelectionTo(name);
+      return;
+    }
     this._cancelPlayerConfirm();
     const active = this._activeScreenName();
     const selectionScreens = ['mode', 'difficulty', 'stage', 'practice'];

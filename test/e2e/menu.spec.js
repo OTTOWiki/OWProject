@@ -146,7 +146,7 @@ test('转场带的最后关键帧对齐真实终点几何与角度', async ({ pa
   expect(Math.abs(angleDelta)).toBeLessThan(1.5);
 });
 
-test('初始反向转场确认中断并回到玩家画面，其他键不反转', async ({ page }) => {
+test('返回动画未完成时再次返回立即连续回到模式页', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);
@@ -154,42 +154,12 @@ test('初始反向转场确认中断并回到玩家画面，其他键不反转',
   await page.locator('#mode-list .mode-btn[data-mode="nomiss"]').click();
   await page.locator('.diff-btn[data-diff="normal"]').click();
   await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
-  await expect(page.locator('#screen-player-select')).not.toHaveClass(/selection-arriving/);
-
   await page.keyboard.press('Escape');
-  const transition = page.locator('.selection-transition-band');
-  const interruption = await page.waitForFunction(() => {
-    const band = document.querySelector('.selection-transition-band');
-    if (!document.querySelector('#screen-difficulty.selection-arriving') || !band) return false;
-    const animation = band.getAnimations()[0];
-    if (!animation || animation.currentTime < 80) return false;
-    const rect = band.getBoundingClientRect();
-    const player = document.querySelector('#screen-player-select .player-focus-band').getBoundingClientRect();
-    const before = rect.left + rect.width / 2;
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', code: 'KeyX', bubbles: true }));
-    const ignoredBack = band.getAnimations()[0] === animation;
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', bubbles: true }));
-    const replacement = band.getAnimations()[0];
-    const after = band.getBoundingClientRect();
-    return {
-      ignoredBack,
-      retargeted: replacement !== animation,
-      positionJump: Math.abs(after.left + after.width / 2 - before),
-      destinationX: parseFloat(replacement.effect.getKeyframes().at(-1).left),
-      playerX: player.left + player.width / 2,
-      playbackRate: replacement.playbackRate,
-    };
-  });
-  const observed = await interruption.jsonValue();
-  await interruption.dispose();
-  expect(observed.ignoredBack).toBe(true);
-  expect(observed.retargeted).toBe(true);
-  expect(observed.positionJump).toBeLessThan(1.5);
-  expect(Math.abs(observed.destinationX - observed.playerX)).toBeLessThan(1.5);
-  expect(observed.playbackRate).toBeGreaterThan(0);
-  await expect(transition).toHaveCount(0, { timeout: 2000 });
-  await expect(page.locator('#screen-player-select')).toHaveClass(/active/, { timeout: 2000 });
-  await expect(page.locator('#screen-difficulty')).not.toHaveClass(/active/);
+  await page.waitForFunction(() => document.querySelector('.selection-transition-band')?.getAnimations().length);
+  await page.keyboard.press('x');
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/, { timeout: 2500 });
+  await expect(page.locator('#screen-player-select')).not.toHaveClass(/active/);
+  await expect(page.locator('#screen-mode-select')).toHaveJSProperty('inert', false);
 });
 
 test('窄屏玩家转场带尺寸匹配当前自机说明文字', async ({ page }) => {
@@ -626,4 +596,32 @@ test('减少动态效果时菜单与自机确认不显示祈祷幕并立即可�
   await expect(page.locator('.scene-curtain')).toHaveCount(0);
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
   await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
+});
+
+test('连续确认与连续返回立即重定向，转场带不跳到端点', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.locator('#main-menu-nav [data-action="start"]').click();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  const forward = await page.evaluate(() => {
+    const band = document.querySelector('.selection-transition-band');
+    const before = band.getBoundingClientRect();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+    const after = document.querySelector('.selection-transition-band').getBoundingClientRect();
+    return { jump: Math.hypot(after.x - before.x, after.y - before.y),
+      player: document.querySelector('#screen-player-select').classList.contains('active') };
+  });
+  expect(forward.player).toBe(true);
+  expect(forward.jump).toBeLessThan(2);
+  await expect(page.locator('#screen-player-select')).toHaveJSProperty('inert', false);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.selection-transition-band')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#screen-mode-select')).toHaveClass(/active/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.scene-curtain')).toHaveCount(0);
+  await expect(page.locator('#screen-menu')).toHaveJSProperty('inert', false);
 });
