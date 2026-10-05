@@ -35,3 +35,7 @@ venv/
 node_modules/
 playwright-report/
 test-results/
+
+# 调研分析产物（见 .scratch/README.md）：98MB 捕获输出与原作素材解包不入库
+/.scratch/face-capture-7200.json
+/.scratch/th20-extract/
