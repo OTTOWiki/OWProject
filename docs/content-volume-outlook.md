@@ -2,7 +2,7 @@
 
 > 日期: 2026-10-05
 > 数据来源: 本作侧为**无头实测**（`.scratch/face-capture.mjs`，202 章 × 7200 帧，逐发记录）；
-> TH20 侧为**静态解析**（`.scratch/th20-extract-v2.py` / `v3.py`，自带自检）。方法与口径见 [stage-difficulty-model.md](stage-difficulty-model.md)。
+> TH20 侧为**静态解析**（`.scratch/v3.py`，**自带自检**：开火数须等于原文 `ins_601(` 计数）。方法与口径见 [stage-difficulty-model.md](stage-difficulty-model.md)。
 > 版本口径: `js/stages/` 当前状态。**未改动任何运行时代码。**
 
 ## 0. 结论摘要

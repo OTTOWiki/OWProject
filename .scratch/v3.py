@@ -2,7 +2,12 @@
 """TH20 ECL 开火提取 v3：单函数、内联打点、自检。"""
 import re, json, glob, os
 
-ECL = os.path.expanduser('~/Touhou20/scripts/recovered/ecl')
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# 路径可用 CLI 覆盖：--ecl / --out
+import sys as _sys
+def _arg(flag, default):
+    return _sys.argv[_sys.argv.index(flag) + 1] if flag in _sys.argv else default
+ECL = _arg('--ecl', os.path.expanduser('~/Touhou20/scripts/recovered/ecl'))
 NUM = re.compile(r'^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?f?$')
 SPAWN = {300, 301, 304, 305, 309, 310, 311, 312, 321}
 
@@ -100,9 +105,36 @@ def main():
     print('%-20s %6d %6d %6d %7d %6d' % ('合计', tot['raw601'], tot['n601'], tot['appended'],
                                          tot['events'], tot['hdr']))
     print()
-    print('自检 n601 == raw601:', '通过' if tot['n601'] == tot['raw601'] else '失败')
-    json.dump({'events': all_ev}, open(os.path.expanduser(
-        '~/OWProject/.scratch/th20-ecl-shots.json'), 'w'))
+    ok = tot['n601'] == tot['raw601']
+    print('自检 n601 == raw601:', '通过' if ok else '失败')
+
+    # ---- 分布统计（v2 原先承担的部分，合并进来以保持单一权威实现）
+    radii_path = _arg('--radii', os.path.join(_HERE, 'th20-bullet-radii.json'))
+    radii = json.load(open(radii_path)) if os.path.exists(radii_path) else {}
+
+    def dist(vals):
+        v = sorted(x for x in vals if x is not None)
+        if not v:
+            return {'n': 0}
+        return {'n': len(v), 'min': round(v[0], 3), 'p25': round(v[len(v) // 4], 3),
+                'median': round(v[len(v) // 2], 3), 'p75': round(v[3 * len(v) // 4], 3),
+                'max': round(v[-1], 3), 'unique': len(set(v))}
+
+    speeds = [e['speed'] for e in all_ev if e['speed'] and e['speed'] > 0]
+    counts = [(e['count'] or 0) * (e['rows'] or 0) for e in all_ev if e['count'] and e['rows']]
+    waits = [e['wait_after'] for e in all_ev if e['wait_after']]
+    rads = [radii[str(int(e['type']))]['radius'] for e in all_ev
+            if e['type'] is not None and str(int(e['type'])) in radii]
+    print()
+    print('字面量 speed 分布:', dist(speeds))
+    print('每次开火弹数(count*rows) 分布:', dist(counts))
+    print('开火后等待帧数 分布:', dist(waits))
+    print('弹型半径 分布:', dist(rads))
+    print('覆盖: speed %d/%d, count*rows %d/%d, wait %d/%d, radius %d/%d'
+          % (len(speeds), len(all_ev), len(counts), len(all_ev),
+             len(waits), len(all_ev), len(rads), len(all_ev)))
+    json.dump({'events': all_ev}, open(_arg('--out', os.path.join(_HERE, 'th20-ecl-shots.json')), 'w'))
+    print('已写', _arg('--out', os.path.join(_HERE, 'th20-ecl-shots.json')))
 
 
 if __name__ == '__main__':

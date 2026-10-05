@@ -3,7 +3,8 @@
 > 日期: 2026-10-05
 > 参考: `~/Touhou20`（**只读**）的 `scripts/recovered/ecl/`（真实关卡内容）、`bullet_system/style_data.cpp`（弹种半径）、`ecl_vm/`、`player_entity/collision.cpp`。
 > 本作侧: `js/stages/`（关卡）、`js/entities.js`（弹体运动与半径）、`js/config.js`（基准量）。
-> 工具（均在 `.scratch/`，属分析产物）: `face-capture.mjs`（无头章节捕获）、`face-metrics.mjs`、`face-difficulty.mjs`、`th20-bullet-radii.json`（50 弹种半径）、`v3.py`（TH20 ECL 开火提取，**自带自检**）、`th20-ecl-shots.json`。
+> 工具（均在 `.scratch/`，属分析产物）: `face-capture.mjs`（无头章节捕获）、`face-difficulty.mjs`（率量与反应窗）、`v3.py`（**唯一**的 TH20 ECL 开火提取器，自带自检）、`th20-bullet-radii.json`（50 弹种半径）、`th20-ecl-shots.json`（278 次开火）。
+> 获取与使用方式见 [.scratch/README.md](../.scratch/README.md)。
 > **未改动任何运行时代码。**
 
 ## 0. 结论摘要（含一条反直觉）
@@ -220,8 +221,9 @@ node .scratch/face-capture.mjs > .scratch/face-capture-7200.json
 node .scratch/face-difficulty.mjs
 
 # TH20：50 弹种半径 + ECL 开火提取（自带自检）
-python3 .scratch/th20-extract-v2.py     # v2 版（含半径/等待分布统计）
-python3 .scratch/v3.py                  # v3 版（含逐文件打点，用于定位解析问题）
+python3 .scratch/v3.py                   # TH20 ECL 开火提取（自带自检 + 分布统计）
+# 换机器/换路径时传参：
+python3 .scratch/v3.py --ecl /path/to/Touhou20/scripts/recovered/ecl --out .scratch/th20-ecl-shots.json
 ```
 
 **注意**：`face-capture.mjs` 默认 7200 帧；如需对比"率"以外的东西，**不要**改小帧数后比较总数（见 §5.1）。
