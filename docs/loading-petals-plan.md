@@ -145,3 +145,55 @@ el.loadScreen.style.setProperty('--petal-dur', dur.toFixed(2) + 's');
 | P6 | 文档同步：`AGENTS.md`（若新增文件/mode）、`README.md`（若玩家可见） | 文档与代码一致 |
 
 **红线**：不改 450×600 逻辑坐标；不引入打包器/框架；不修改 `#load-progress` 的 `role="progressbar"` 与 `aria-*`；不把版本说明/修复列表写进玩家可见文案（`AGENTS.md` 改代码约定 §11）。
+
+---
+
+## 10. 与并行 PR #37 / #38 的关系（2026-10-05 核对）
+
+仓库当时有两个 open 的 UI PR，本方案也会改 `css/style.css`，因此必须先确认重叠面。
+
+| PR | 分支 | 改动文件 | 规模 | 状态 |
+|---|---|---|---|---|
+| **#37** | `feat/th-ui-known-targets-clean` | `AGENTS.md` / `README.md` / `css/style.css` | +806 −115（CSS） | open，`mergeable_state: dirty` |
+| **#38** | `feat/th-original-title-select` | `css/style.css` | +425 −2 | open，`mergeable_state: dirty` |
+
+### 10.1 已核：**区域不重叠**
+
+对两者 `pulls/{n}/files` 的 `patch` 逐条检索加载屏选择器
+（`#load-screen`、`.load-bg`、`.load-sheet`、`.load-band`、`.load-progress`、`.load-fill`、`#load-progress`、`#load-fill`）：
+
+```
+PR #37  css/style.css patch 41,148 字节 → 命中 0
+PR #38  css/style.css patch 14,878 字节 → 命中 0
+```
+
+并且两者都**不碰** `index.html`（#37 正文明确"不包含 index.html"；#38 只改 CSS）与 `js/main.js`（P3 的改动点）。
+⇒ **本方案与它们功能无冲突**。
+
+### 10.2 已核：插入点落在谁都不碰的区间
+
+加载屏 CSS 在 `css/style.css` 的 **81–330 行**（`#load-screen` 起，到 `.load-action-secondary` 止）。
+新增的 `.load-petals` / `@keyframes petalsFall` / reduced-motion 分支**插在该区间内**，
+不追加到文件末尾——因为两 PR 的大块改动更容易落在外围区域。
+
+### 10.3 #37 与 #38 互相竞争（不是本方案能定的）
+
+#38 正文写明「旧产品 PR #37 不修改、不合并」，两者覆盖的是**同一批页面**（主菜单 / 难度 / 自机）。
+且两者相对当前 `main` 都是 `dirty`。⇒ **先合哪个由维护者决定**，本方案不选边。
+
+### 10.4 处理顺序（建议）
+
+1. **文档分支可先独立合并**：本分支（`docs/th20-reference-and-plans`）**不含任何 CSS/HTML/JS 改动**，
+   只加 `docs/`、`.scratch/`、`.gitignore`，且**不碰 `AGENTS.md`/`README.md`**（这两个是 #37 改的）
+   ⇒ 与 #37/#38 **零冲突**，不阻塞。
+2. **#37 vs #38 先定**，落地后 `main` 才稳定。
+3. **落花实现单独开 PR**，基于"37/38 落地后的 main"，按 §9 的 P1–P6 做。
+   若想并行开发也可以（加载区块无人动），但 merge 前需 rebase。
+
+### 10.5 可选：彻底零冲突的做法（有代价）
+
+把落花样式放进**独立文件** `css/load-petals.css`，在 `index.html` 的 `<head>` 加一行 `<link>`。
+因为两 PR 都不改 `index.html` 的 head，这样文本冲突面为 0。
+
+**代价**：偏离现有"单一样式表 `css/style.css`"的约定（`AGENTS.md` 目录树只列了 `css/style.css`），
+且多一次请求。**默认不采用**；只有在 #37/#38 反复 rebase 导致 `style.css` 长期冲突时才值得切换。
