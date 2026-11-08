@@ -589,6 +589,32 @@ export const ARCHETYPES = {
       }),
     },
   },
+  laserRed: {
+    hp: () => exHp(40), color: C.red, vy: 0.3,
+    fire: { key: 'L', interval: () => 0.4, pattern: 'aimedLaser', color: C.red },
+  },
+  spiralFinalePink: {
+    elite: true,
+    hp: () => exHp(240),
+    color: C.pink,
+    vy: 0.12,
+    fires: [
+      {
+        key: 'sp', interval: () => exFire(0.15), pattern: 'spiral',
+        options: (game, en) => ({
+          step: 0.5, speed: exSp(2.0), type: 'dot', angleStep: Math.PI / 2,
+          color: C.pink, count: 2, colors: [C.pink, C.gold],
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(0.8), pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(3 + (Math.random() < 0.5 ? 1 : 0), 'odd'), parity: 'odd',
+          type: 'rice', speed: exSp(2.5), spread: 0.15, color: C.white,
+        }),
+      },
+    ],
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -656,7 +682,7 @@ export function spawnArch(g, id, {
           const count = o.count || 1;
           for (let i = 0; i < count; i += 1) {
             game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y, angle: en.data.a + i * Math.PI, speed: o.speed,
+              x: en.x, y: en.y, angle: en.data.a + i * (o.angleStep ?? Math.PI), speed: o.speed,
               type: o.type, color: o.colors?.[i] ?? o.color, from: 'enemy',
             }));
           }
@@ -711,7 +737,9 @@ export function spawnArch(g, id, {
         } else if (f.pattern === 'fan') {
           const o = f.options(game, en);
           en.data.a = (en.data.a ?? Math.PI * 0.55) + o.step;
-          for (let i = -o.count; i <= o.count; i += 1) {
+          const from = o.from ?? -o.count;
+          const to = o.to ?? o.count;
+          for (let i = from; i <= to; i += 1) {
             game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: en.data.a + i * o.spread,
               speed: o.speed, type: o.type, color: o.color, from: 'enemy',
