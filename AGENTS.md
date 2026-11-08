@@ -93,8 +93,8 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
 - 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges|golden.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
-- CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。本地仍 `npm test`
-- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job，浏览器 e2e 进 `E2E` job
+- CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。E2E 默认**不在每个 PR 跑**：仅给最终集成 PR 加 `run-e2e` 标签，或 `workflow_dispatch` 手动触发；小改动只等 `Test`
+- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 由最终 PR 的 `run-e2e` 标签统一跑一次，避免逐 PR 等待 14–16 分钟
 
 ---
 
