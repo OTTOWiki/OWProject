@@ -186,19 +186,10 @@ export function mid_vForm(g) {
   installMidWave(g, {
     interval: SI(1.5),
     maxWaves: 4,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const cx = LOGICAL_W / 2;
       for (let k = -2; k <= 2; k++) {
-        const e = mob(cx + k * 38, -20 - Math.abs(k) * 12, exHp(28), C.blue);
-        e.vy = 1.15;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(1.05), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.blue,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimBlue28', { x: cx + k * 38, y: -20 - Math.abs(k) * 12 });
       }
     },
   });
@@ -208,19 +199,13 @@ export function mid_sideStream(g) {
   installMidWave(g, {
     interval: SI(0.55),
     maxWaves: 10,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const fromLeft = g.waveCount <= 5;
-      const e = mob(fromLeft ? -15 : LOGICAL_W + 15, 80 + (g.waveCount % 4) * 35, exHp(30), C.pink);
-      e.vx = fromLeft ? 1.6 : -1.6;
-      e.vy = 0.15;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.85), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'rice', speed: exSp(2.4), color: C.pink,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+      spawnArch(g, 'streamPink', {
+        x: fromLeft ? -15 : LOGICAL_W + 15,
+        y: 80 + (g.waveCount % 4) * 35,
+        vx: fromLeft ? 1.6 : -1.6,
+      });
     },
   });
 }
@@ -471,18 +456,9 @@ export function mid_echoSides(g) {
   installMidWave(g, {
     interval: SI(0.8),
     maxWaves: 6,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (const side of [-1, 1]) {
-        const e = mob(LOGICAL_W / 2 + side * 160, -18, exHp(30), C.green);
-        e.vy = 1.0;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.85), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: C.green,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimEcho', { x: LOGICAL_W / 2 + side * 160 });
       }
     },
   });

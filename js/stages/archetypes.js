@@ -34,6 +34,59 @@ export const ARCHETYPES = {
       }),
     },
   },
+  aimBlue28: {
+    hp: () => exHp(28),
+    color: C.blue,
+    vy: 1.15,
+    fire: {
+      key: 's',
+      interval: () => exFire(1.05),
+      pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: en.color,
+      }),
+    },
+  },
+  aimEcho: {
+    hp: () => exHp(30),
+    color: C.green,
+    vy: 1.0,
+    fire: {
+      key: 's',
+      interval: () => exFire(0.85),
+      pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: en.color,
+      }),
+    },
+  },
+  aimWhite: {
+    hp: () => exHp(28),
+    color: C.white,
+    vy: 1.25,
+    fire: {
+      key: 's',
+      interval: () => exFire(1.0),
+      pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: en.color,
+      }),
+    },
+  },
+  streamPink: {
+    hp: () => exHp(30),
+    color: C.pink,
+    vx: 1.6,
+    vy: 0.15,
+    fire: {
+      key: 's',
+      interval: () => exFire(0.85),
+      pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'rice', speed: exSp(2.4), color: en.color,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -56,11 +109,12 @@ export const ARCHETYPES = {
  * @param {keyof typeof ARCHETYPES} id
  * @param {{ x: number, y?: number }} opts
  */
-export function spawnArch(g, id, { x, y = -18, color, hp } = {}) {
+export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy } = {}) {
   const a = ARCHETYPES[id];
   if (!a) throw new Error(`unknown archetype: ${id}`);
   const e = mob(x, y, hp ?? a.hp(g), color ?? a.color);
-  e.vy = a.vy;
+  e.vx = vx ?? a.vx ?? 0;
+  e.vy = vy ?? a.vy;
   const f = a.fire;
   e.script = (en, d, game) => {
     timer(en, f.key, f.interval(game), d, () => {
