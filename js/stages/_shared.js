@@ -181,3 +181,76 @@ export function pushBossRef(g, opts, script, factory = 'boss') {
   g.bossRef = e;
   return e;
 }
+
+/**
+ * 波次脚本 runner：把「章内 N 条独立时间轴」表达成数据。
+ * 与 installMidWave 共用 g.waveFn；不替代 continuous 逃生口。
+ *
+ * 语义：
+ * - 每 tick 先调 continuous，再按轨顺序推进；同帧到期（含 0 wait）的 step 全部执行
+ * - 每条轨独立计时；loop 为 true 时回到第 0 步重走，否则跑完即停
+ * - wait 按 track.fireMul 缩放（迁移时传敌机 `_fireMul`，保持难度开火间隔）
+ * - interval/onWave 退化形态与 installMidWave 完全一致（无 onWave 时不推进 waveCount）
+ *
+ * @param {object} g
+ * @param {{
+ *   tracks?: Array<{ loop?: boolean, fireMul?: number, steps: Array<{ wait?: number, fn?: (g: object, track: object) => void }> }>,
+ *   continuous?: (g: object, dt: number) => void,
+ *   interval?: number, maxWaves?: number, onWave?: (g: object, wave: number) => void
+ * }} spec
+ */
+export function installWaveScript(g, spec = {}) {
+  const {
+    tracks = [], continuous, interval = 1, maxWaves = 0, onWave,
+  } = spec;
+  const hasWaves = typeof onWave === 'function' && maxWaves > 0;
+
+  const state = tracks.map((t) => {
+    const steps = Array.isArray(t.steps) ? t.steps : [];
+    const fireMul = t.fireMul ?? 1;
+    return {
+      steps,
+      loop: !!t.loop,
+      fireMul,
+      cursor: 0,
+      timer: (steps[0]?.wait || 0) * fireMul,
+      done: steps.length === 0,
+    };
+  });
+
+  g.waveTimer = 0;
+  g.waveCount = 0;
+  g.waveFn = (dt) => {
+    continuous?.(g, dt);
+
+    for (const track of state) {
+      if (track.done) continue;
+      track.timer -= dt;
+      let guard = 0;
+      // 同一帧可能连续到期多个 step（含 0 wait）
+      while (!track.done && track.timer <= 1e-9 && guard < 1000) {
+        guard += 1;
+        const step = track.steps[track.cursor];
+        step.fn?.(g, track);
+        track.cursor += 1;
+        if (track.cursor >= track.steps.length) {
+          if (track.loop) {
+            track.cursor = 0;
+          } else {
+            track.done = true;
+            break;
+          }
+        }
+        track.timer += (track.steps[track.cursor]?.wait || 0) * track.fireMul;
+      }
+    }
+
+    if (!hasWaves) return;
+    g.waveTimer += dt;
+    if (g.waveTimer < interval) return;
+    g.waveTimer = 0;
+    g.waveCount = (g.waveCount || 0) + 1;
+    if (g.waveCount > maxWaves) return;
+    onWave(g, g.waveCount);
+  };
+}

@@ -4,6 +4,7 @@
 import {
   scaleBulletCount, aimAngle, oddAim, evenAim, ring, fan,
 } from '../js/patterns.js';
+import { Bullet } from '../js/entities.js';
 import { test, assert, assertEqual, assertClose } from './assert.js';
 
 test('scaleBulletCount：mul=1 原样', () => {
@@ -59,4 +60,29 @@ test('aimAngle / oddAim / evenAim / ring / fan 形状', () => {
   const f = fan(0, 5, 0.1);
   assertEqual(f.length, 5);
   assertClose(f[2], 0);
+});
+
+
+test('屏外宽限：朝场内飞的雨弹不会第一帧被剔除', () => {
+  const b = new Bullet({ x: -100, y: 100, vx: 2, vy: 0, type: 'dot', from: 'enemy' });
+  for (let i = 0; i < 3; i++) b.update(1 / 60, null);
+  assert(!b.dead, '出生宽限内不剔除');
+  for (let i = 0; i < 60 && !b.dead; i++) b.update(1 / 60, null);
+  assert(!b.dead, '速度仍指向场内时保留');
+});
+
+test('屏外宽限：朝场外飞的弹约 5 帧后才剔除', () => {
+  const b = new Bullet({ x: -100, y: 100, vx: -2, vy: 0, type: 'dot', from: 'enemy' });
+  b.update(1 / 60, null);
+  assert(!b.dead, '第一帧不剔除');
+  for (let i = 0; i < 8; i++) b.update(1 / 60, null);
+  assert(b.dead, '宽限结束后按原规则剔除');
+});
+
+test('屏外宽限：飞出上边界但 vy>0 的追踪弹不剔除', () => {
+  const b = new Bullet({
+    x: 100, y: -50, vx: 0, vy: 1, type: 'dot', from: 'enemy', homing: 0.2,
+  });
+  for (let i = 0; i < 30; i++) b.update(1 / 60, { x: 100, y: 100 });
+  assert(!b.dead, '回场弹继续存活');
 });
