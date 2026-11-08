@@ -135,7 +135,8 @@ export function drawEnemy(ctx, e) {
 
 /** Boss 环形血条（绕本体） */
 function drawBossRingHp(ctx, e, size) {
-  const t = Math.max(0, Math.min(1, e.hp / e.maxHp));
+  const real = e.maxHp > 0 ? e.hp / e.maxHp : 0;
+  const t = Math.max(0, Math.min(1, Number.isFinite(e._hpShown) ? e._hpShown : real));
   const radius = size * 0.58;
   const start = -Math.PI / 2;
 
