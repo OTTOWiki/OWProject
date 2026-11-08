@@ -123,35 +123,42 @@ test('HUD details follows desktop/mobile disclosure across resize', async ({ pag
   await expect(page.locator('#ui-hiscore')).toBeVisible();
 });
 
-test('手机画布按可用宽度显示，HUD 与操作区在其下方', async ({ page }) => {
-  for (const { width, height } of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
-    await page.setViewportSize({ width, height });
-    await page.goto('/');
-    await waitForGameReady(page);
-    await cleanStorage(page);
-    await page.locator('#main-menu-nav [data-action="practice"]').click();
-    await page.locator('#screen-practice [data-action="practice-start"]').click();
-    await page.locator('#screen-player-select .player-card').first().click();
-    await expect(page.locator('#screen-game')).toHaveClass(/active/);
-    const canvas = await page.locator('#playfield').boundingBox();
-    const panel = await page.locator('.panel-right').boundingBox();
-    expect(canvas.width).toBeGreaterThanOrEqual(width - 24);
-    expect(canvas.width).toBeLessThanOrEqual(width);
-    expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
-    await expect(page.locator('#playfield')).toHaveJSProperty('width', 450);
-    await expect(page.locator('#playfield')).toHaveJSProperty('height', 600);
-    expect(panel.y).toBeGreaterThan(canvas.y + canvas.height - 1);
-    if (width === 320) {
-      expect(await page.locator('#screen-game').evaluate((el) => el.scrollHeight)).toBeGreaterThan(height);
-    }
-    for (const id of ['btn-item', 'btn-bomb', 'btn-pause']) {
-      const button = page.locator(`#${id}`);
-      await button.scrollIntoViewIfNeeded();
-      await expect(button).toBeInViewport({ ratio: 1 });
-      const bounds = await button.boundingBox();
-      expect(bounds.height).toBeGreaterThanOrEqual(44);
-    }
+async function checkMobileLayout(page, width, height) {
+  await page.setViewportSize({ width, height });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await cleanStorage(page);
+  await page.locator('#main-menu-nav [data-action="practice"]').click();
+  await page.locator('#screen-practice [data-action="practice-start"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+  const canvas = await page.locator('#playfield').boundingBox();
+  const panel = await page.locator('.panel-right').boundingBox();
+  expect(canvas.width).toBeGreaterThanOrEqual(width - 24);
+  expect(canvas.width).toBeLessThanOrEqual(width);
+  expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
+  await expect(page.locator('#playfield')).toHaveJSProperty('width', 450);
+  await expect(page.locator('#playfield')).toHaveJSProperty('height', 600);
+  expect(panel.y).toBeGreaterThan(canvas.y + canvas.height - 1);
+  if (width === 320) {
+    expect(await page.locator('#screen-game').evaluate((el) => el.scrollHeight)).toBeGreaterThan(height);
   }
+  for (const id of ['btn-item', 'btn-bomb', 'btn-pause']) {
+    const button = page.locator(`#${id}`);
+    await button.scrollIntoViewIfNeeded();
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const bounds = await button.boundingBox();
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+  }
+}
+
+// 每个视口单独一条：两次完整 boot 合在一条里会贴近 60s 默认超时（CI 更慢）。
+test('手机画布按可用宽度显示，HUD 与操作区在其下方（320×568）', async ({ page }) => {
+  await checkMobileLayout(page, 320, 568);
+});
+
+test('手机画布按可用宽度显示，HUD 与操作区在其下方（390×844）', async ({ page }) => {
+  await checkMobileLayout(page, 390, 844);
 });
 
 test('手机画布优先布局支持真实手指滚动访问下方 HUD', async ({ page }) => {

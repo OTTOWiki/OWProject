@@ -7,6 +7,30 @@
 
 ---
 
+## 实施状态（2026-11-08）
+
+| 项 | 状态 | 落点 |
+|---|---|---|
+| 停帧期边沿输入 | ✅ 已修 | `combatEdges.js`，PR #48 |
+| 道具存活上限 | ✅ 已修 | `BALANCE.itemLiveCap=480`，PR #49 |
+| 震屏确定性 | ✅ 已修 | `drawGameFrame.shakeOffset`，PR #50 |
+| 分数滚动缓动 | ✅ 已完成 | `stepScoreRoll`，PR #51 |
+| Boss 环血缓动 | ✅ 已完成 | `_hpShown`，PR #52 |
+| 存档写失败可感知 | ✅ 已完成 | `writeStored` / `onStorageError`，PR #55 |
+| 关键进度备份 | ✅ 已完成 | `<key>_bak`，PR #62 |
+| 屏外剔除宽限 | ✅ 已修 | `Bullet._cullAllowed`，PR #60 |
+| 波次 runner B0 | ✅ 已完成 | `installWaveScript`，PR #61 |
+| 黄金哈希 B1 | ✅ 已完成 | 202 章 × 600 帧，PR #56 / #64 |
+| 背景 P0 随机注入 | ✅ 已完成 | `StageBackground({ rand })`，PR #58 |
+| 背景 P3 easing | ✅ 已完成 | `backgrounds/easing.js`，PR #63 |
+| 背景 P1/P2 原子化/数据化 | ⏳ 未做 | 需逐像素基线 |
+| B2 EX pattern 迁移 | ⏳ 未做 | 依赖 B0/B1 |
+| 平衡项 / 内容扩充（P6/P7） | ⏳ 未做 | 需手测与产品决策 |
+
+> 本表只记实施状态；需求与取舍仍以下文原始条目为准。
+
+---
+
 ## 0. 怎么读这份文档
 
 - 每条建议 = 「我们现状 → TH20 做法 → 证据 → 迁移到 450×600 Canvas 的落地方式 → 成本/风险」。
