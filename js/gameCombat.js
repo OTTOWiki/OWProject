@@ -161,6 +161,22 @@ export function updateStageTransit(game, dt) {
   updateGameHud(game);
 }
 
+/**
+ * Boss 环血显示值：掉血即时；回血/换阶段按 0.025/帧向上缓动，且永不超过真值。
+ * 仅用于绘制，不回写 e.hp。
+ * @param {number} shown 当前显示比例 0..1
+ * @param {number} real 真实比例 0..1
+ * @param {number} dt 逻辑帧秒数
+ * @returns {number}
+ */
+export function stepBossHpShown(shown, real, dt) {
+  const target = Number.isFinite(real) ? Math.max(0, Math.min(1, real)) : 0;
+  const prev = Number.isFinite(shown) ? Math.max(0, Math.min(1, shown)) : target;
+  if (target <= prev) return target;
+  const step = 0.025 * Math.max(0, Number(dt) || 0) * 60;
+  return Math.min(prev + step, target);
+}
+
 export function updateCombat(game, dt) {
   const p = game.player;
   const ch = game.chapters[game.chapterIndex];
@@ -250,6 +266,9 @@ export function updateCombat(game, dt) {
     for (const e of game.enemies) {
       try {
         e.update(dt, game);
+        if (e.type === 'boss' && e.maxHp > 0) {
+          e._hpShown = stepBossHpShown(e._hpShown, e.hp / e.maxHp, dt);
+        }
       } catch (err) {
         console.error('[enemy script]', e?.label || e?.kind, err);
         e.script = null;

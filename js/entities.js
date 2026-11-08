@@ -289,6 +289,8 @@ export class Enemy {
     this.data = opts.data || {};
     /** 受击闪白计时（>0 时绘制叠加白闪；纯视觉） */
     this.hurtT = 0;
+    /** Boss 环血显示比例（逻辑帧缓动；掉即掉、回血平滑） */
+    this._hpShown = 1;
 
     // 入场目标（脚本/移动生效前的落位）
     this.enterX = opts.x;

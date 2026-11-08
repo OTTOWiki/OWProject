@@ -15,6 +15,7 @@
 import { buildChapterList } from '../js/stages/index.js';
 import { createMockGame } from './mockGame.js';
 import { spawnPlayerShot } from '../js/patterns.js';
+import { stepBossHpShown } from '../js/gameCombat.js';
 import { BALANCE } from '../js/config.js';
 import { test, assert } from './assert.js';
 
@@ -67,4 +68,20 @@ test(`boss/midboss 限时理论输出 ≥ 血量的 ${(100 / KILLABLE_RATIO).toF
     bad.length === 0,
     bad.slice(0, 10).join('\n') + (bad.length > 10 ? `\n…+${bad.length - 10}` : ''),
   );
+});
+
+
+test('Boss 环血显示：掉血即时、回血/换阶段平滑且不超真值', () => {
+  // 掉血立即生效
+  assert(stepBossHpShown(0.8, 0.5, 1 / 60) === 0.5, '掉血即时');
+  // 回血/换阶段：每帧 +0.025 向上，夹钳不超过真值
+  const mid = stepBossHpShown(0.5, 1, 1 / 60);
+  assert(Math.abs(mid - 0.525) < 1e-9, `每帧 +0.025（实际 ${mid}）`);
+  let v = 0.5;
+  for (let i = 0; i < 100; i++) {
+    v = stepBossHpShown(v, 1, 1 / 60);
+    assert(v <= 1, '显示值不得超过真值');
+  }
+  assert(Math.abs(v - 1) < 1e-9, '最终收敛到真值');
+  assert(stepBossHpShown(0.5, 0.5, 1 / 60) === 0.5, '相等时不动');
 });
