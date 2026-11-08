@@ -1,6 +1,10 @@
 /**
+ * @deprecated 2026-11-08：旧版面背景主题表随 playfieldBg 一起冻结，
+ *   待 docs/background-rebuild-plan.md 的新系统替换。不要新增版面 mode/主题；
+ *   左侧 Three 场景的 mode 仍走 bgModes + backgrounds/builders。
+ *
  * 版面伪 3D 背景主题表（E06c 自 playfieldBg 外置）
- * 新 mode：在此加一行 + bgModes 登记贴图；绘制逻辑仍在 playfieldBg.js
+ * 绘制逻辑仍在 playfieldBg.js
  *
  * @typedef {{
  *   sky: [string, string],
