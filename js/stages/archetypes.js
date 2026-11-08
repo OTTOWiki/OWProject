@@ -520,6 +520,59 @@ export const ARCHETYPES = {
       }),
     },
   },
+  coreSpinGold: {
+    elite: true,
+    label: '旋核',
+    hp: () => exHp(250),
+    color: C.gold,
+    vy: 0.08,
+    fires: [
+      {
+        key: 'a', interval: () => exFire(0.9), pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(3, 'odd'), parity: 'odd', type: 'talisman',
+          speed: exSp(2.0), spread: 0.15, color: C.gold,
+        }),
+      },
+      {
+        key: 'r', interval: () => exFire(1.2), pattern: 'ringSpin',
+        options: (game, en) => ({
+          step: 0.3, n: exN(10), speed: exSp(1.8), type: 'dot', color: C.white,
+        }),
+      },
+    ],
+  },
+  spiralAfterViolet: {
+    elite: true,
+    hp: () => exHp(230),
+    color: C.violet,
+    vy: 0.1,
+    fires: [
+      {
+        key: 'sp', interval: () => exFire(0.18), pattern: 'spiral',
+        options: (game, en) => ({
+          step: 0.4, speed: exSp(2.1), type: 'dot',
+          color: C.violet, count: 2, colors: [C.violet, C.white],
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(0.9), pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(2, 'even'), parity: 'even', type: 'rice',
+          speed: exSp(2.4), spread: 0.2, color: C.white,
+        }),
+      },
+    ],
+  },
+  aimWhite26: {
+    hp: () => exHp(26), color: C.white, vy: 1.3,
+    fire: {
+      key: 's', interval: () => exFire(0.9), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: en.color,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -584,10 +637,26 @@ export function spawnArch(g, id, {
         } else if (f.pattern === 'spiral') {
           const o = f.options(game, en);
           en.data.a = (en.data.a ?? 0) + o.step;
-          game.spawnBullet(acquireBullet({
-            x: en.x, y: en.y, angle: en.data.a, speed: o.speed,
-            type: o.type, color: o.color, from: 'enemy',
-          }));
+          const count = o.count || 1;
+          for (let i = 0; i < count; i += 1) {
+            game.spawnBullet(acquireBullet({
+              x: en.x, y: en.y, angle: en.data.a + i * Math.PI, speed: o.speed,
+              type: o.type, color: o.colors?.[i] ?? o.color, from: 'enemy',
+            }));
+          }
+        } else if (f.pattern === 'ringSpin') {
+          const o = f.options(game, en);
+          en.data.a = (en.data.a ?? 0) + o.step;
+          spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, en.data.a);
+        } else if (f.pattern === 'cross4') {
+          const o = f.options(game, en);
+          const base = Math.atan2(game.player.y - en.y, game.player.x - en.x);
+          for (let i = 0; i < 4; i += 1) {
+            game.spawnBullet(acquireBullet({
+              x: en.x, y: en.y, angle: base + (i * Math.PI) / 2 + Math.PI / 4,
+              speed: o.speed, type: o.type, color: o.color, from: 'enemy',
+            }));
+          }
         } else if (f.pattern === 'largeSplit') {
           const o = f.options(game, en);
           game.spawnBullet(acquireBullet({

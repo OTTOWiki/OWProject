@@ -71,60 +71,40 @@ export function mid_zigzagDual(g) {
   installMidWave(g, {
     interval: SI(1.1),
     maxWaves: 5,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const cx = LOGICAL_W / 2;
+      const tick = (en, game, dt) => {
+        en.data.phase += dt * 2.0;
+        en.x = cx + Math.sin(en.data.phase) * 90;
+      };
+      const fires = [{
+        key: 's',
+        interval: () => exFire(0.85),
+        pattern: 'aimed',
+        options: (game, en) => ({
+          n: 1, parity: 'odd', type: 'rice', speed: exSp(2.3), color: en.color,
+        }),
+      }];
       for (const [dx, col] of [[-70, C.cyan], [70, C.orange]]) {
-        const e = mob(cx + dx, -18, exHp(30), col);
-        e.vy = 1.1;
-        e.data = { phase: g.waveCount * 0.5 + (dx < 0 ? 0 : Math.PI) };
-        e.script = (en, d, game) => {
-          en.data.phase += d * 2.0;
-          en.x = cx + Math.sin(en.data.phase) * 90;
-          timer(en, 's', exFire(0.85), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'rice', speed: exSp(2.3), color: en.color,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'zigzagRed', {
+          x: cx + dx, hp: exHp(30), color: col,
+          data: { phase: g.waveCount * 0.5 + (dx < 0 ? 0 : Math.PI) },
+          tick,
+          fires,
+        });
       }
     },
   });
 }
 
 export function mid_coreSpin(g) {
-  const core = elite({
-    x: LOGICAL_W / 2, y: 95, hp: exHp(250), color: C.gold, kind: 'generic', label: '旋核',
-  });
-  core.vy = 0.08;
-  core.script = (en, d, game) => {
-    timer(en, 'a', exFire(0.9), d, () => {
-      spawnAimed(game, en, game.player, {
-        n: exN(3, 'odd'), parity: 'odd', type: 'talisman',
-        speed: exSp(2.0), spread: 0.15, color: C.gold,
-      });
-    });
-    timer(en, 'r', exFire(1.2), d, () => {
-      en.data.a = (en.data.a || 0) + 0.3;
-      spawnRingAt(game, en.x, en.y, exN(10), exSp(1.8), 'dot', C.white, en.data.a);
-    });
-  };
-  g.spawnEnemy(core);
+  spawnArch(g, 'coreSpinGold', { x: LOGICAL_W / 2, y: 95 });
   installMidWave(g, {
     interval: SI(1.0),
     maxWaves: 5,
-    onWave: (game, wave) => {
-      const side = wave % 2 ? 50 : LOGICAL_W - 50;
-      const e = mob(side, -15, exHp(26), C.white);
-      e.vy = 1.3;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(0.9), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.white,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+    onWave: (game) => {
+      const side = game.waveCount % 2 ? 50 : LOGICAL_W - 50;
+      spawnArch(game, 'aimWhite26', { x: side, y: -15 });
     },
   });
 }
@@ -221,30 +201,10 @@ export function mid_spiralAfter(g) {
   installMidWave(g, {
     interval: SI(1.8),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'spiralAfterViolet', {
         x: LOGICAL_W / 2 + (g.waveCount % 2 ? -50 : 50), y: 100,
-        hp: exHp(230), color: C.violet, kind: 'generic',
       });
-      e.vy = 0.1;
-      e.script = (en, d, game) => {
-        timer(en, 'sp', exFire(0.18), d, () => {
-          en.data.a = (en.data.a || 0) + 0.4;
-          for (let i = 0; i < 2; i++) {
-            game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y, angle: en.data.a + i * Math.PI, speed: exSp(2.1),
-              type: 'dot', color: i ? C.white : C.violet, from: 'enemy',
-            }));
-          }
-        });
-        timer(en, 'a', exFire(0.9), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(2, 'even'), parity: 'even', type: 'rice',
-            speed: exSp(2.4), spread: 0.2, color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }
@@ -536,24 +496,20 @@ export function mid_diagAfter(g) {
   installMidWave(g, {
     interval: SI(0.7),
     maxWaves: 8,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const fromLeft = g.waveCount % 2 === 1;
-      const e = mob(fromLeft ? -10 : LOGICAL_W + 10, -10, exHp(32), C.cyan);
-      e.vx = fromLeft ? 1.4 : -1.4;
-      e.vy = 1.5;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.8), d, () => {
-          const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
-          for (let i = 0; i < 4; i++) {
-            game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y,
-              angle: ang + (i * Math.PI / 2) + Math.PI / 4,
-              speed: exSp(2.0), type: 'dot', color: C.cyan, from: 'enemy',
-            }));
-          }
-        });
-      };
-      g.spawnEnemy(e);
+      spawnArch(g, 'diagCyan', {
+        x: fromLeft ? -10 : LOGICAL_W + 10, y: -10,
+        vx: fromLeft ? 1.4 : -1.4,
+        fires: [{
+          key: 's',
+          interval: () => exFire(0.8),
+          pattern: 'cross4',
+          options: (game, en) => ({
+            speed: exSp(2.0), type: 'dot', color: C.cyan,
+          }),
+        }],
+      });
     },
   });
 }
