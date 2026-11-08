@@ -6,13 +6,13 @@
  *
  * 覆盖范围：
  * - `build(g)` 产生的初始敌机
- * - mid 章 `waveFn` 180 个逻辑帧内的全部生成
+ * - mid 章 `waveFn` 600 个逻辑帧（10 秒）内的全部生成
  * - 所有敌方子弹的 type / 位置 / 角度 / 速度
  */
 import { createMockGame } from './mockGame.js';
 import { withSeededRng, createRng } from '../js/rng.js';
 
-export const GOLDEN_FRAMES = 180;
+export const GOLDEN_FRAMES = 600;
 
 /** 按章节 id 派生固定种子（与整局共享流不同，只锁单章内部序列） */
 export function seedForChapter(id) {
