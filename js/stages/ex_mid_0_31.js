@@ -264,20 +264,10 @@ export function mid_zigzag(g) {
   installMidWave(g, {
     interval: SI(0.95),
     maxWaves: 6,
-    onWave: (g, wave) => {
-      const e = mob(LOGICAL_W / 2, -18, exHp(34), C.red);
-      e.vy = 1.1;
-      e.data = { phase: g.waveCount * 0.7 };
-      e.script = (en, d, game) => {
-        en.data.phase = (en.data.phase || 0) + d * 2.2;
-        en.x = LOGICAL_W / 2 + Math.sin(en.data.phase) * 110;
-        timer(en, 's', exFire(0.85), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'rice', speed: exSp(2.3), color: C.red,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'zigzagRed', {
+        x: LOGICAL_W / 2, data: { phase: g.waveCount * 0.7 },
+      });
     },
   });
 }
@@ -298,23 +288,8 @@ export function mid_fixedFan(g) {
   installMidWave(g, {
     interval: SI(1.1),
     maxWaves: 5,
-    onWave: (g, wave) => {
-      const e = mob(70 + (g.waveCount % 4) * 90, -18, exHp(38), C.blue);
-      e.vy = 0.95;
-      e.script = (en, d, game) => {
-        if (en.y > 90) en.vy = 0.18;
-        timer(en, 'f', exFire(0.75), d, () => {
-          en.data.a = (en.data.a || Math.PI * 0.55) + 0.12;
-          const base = en.data.a;
-          for (let i = -1; i <= 1; i++) {
-            game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y, angle: base + i * 0.2, speed: exSp(2.1),
-              type: 'rice', color: C.blue, from: 'enemy',
-            }));
-          }
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'fanBlue', { x: 70 + (g.waveCount % 4) * 90 });
     },
   });
 }
