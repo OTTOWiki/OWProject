@@ -25,3 +25,24 @@ test('设置持久化：音量改 37% → 写盘 → 刷新后回读', async ({ 
   await expect(page.locator('#set-music-volume')).toHaveValue('37');
   await expect(page.locator('#set-music-volume-val')).toHaveText('37%');
 });
+
+test('存档写入失败：设置页显示非阻塞提示，操作不中断', async ({ page }) => {
+  await page.locator('button[data-action="settings"]').click();
+  await expect(page.locator('#screen-settings')).toHaveClass(/active/);
+
+  await page.evaluate(() => {
+    window.__realSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = () => { throw new DOMException('quota', 'QuotaExceededError'); };
+  });
+
+  const vol = page.locator('#set-music-volume');
+  await vol.fill('52');
+  await vol.dispatchEvent('input');
+
+  await expect(page.locator('#save-toast')).toBeVisible();
+  await expect(page.locator('#save-toast')).toContainText('本地存档写入失败');
+  // 写失败不打断表单：读数仍跟随控件
+  await expect(page.locator('#set-music-volume-val')).toHaveText('52%');
+
+  await page.evaluate(() => { localStorage.setItem = window.__realSetItem; });
+});

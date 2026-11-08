@@ -259,6 +259,8 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_letter_rate` | Letter 卡收取记录（成功收取/总尝试次数） |
 | `gunwei_practice_best` | 练习模式各章最佳（得分 + 是否 NMNB） |
 
+- 所有写入走 `storage.js` 的 `writeStored` / `removeStored`：失败不抛、返回 `false`，并通过 `onStorageError` 通知；`main.js` 显示非阻塞「本地存档写入失败」提示。
+
 ---
 
 ## 版本号与发版

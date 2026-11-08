@@ -3,7 +3,7 @@
  * 排行榜与录像完全独立，互不引用。
  */
 import { STORAGE_KEYS } from './config.js';
-import { parseStored } from './storage.js';
+import { parseStored, writeStored } from './storage.js';
 
 const DB_NAME = 'owproject-replays';
 const STORE = 'replays';
@@ -45,7 +45,7 @@ export function loadReplayIndex() {
 }
 
 function saveReplayIndex(list) {
-  localStorage.setItem(STORAGE_KEYS.replayIndex, JSON.stringify(list));
+  return writeStored(STORAGE_KEYS.replayIndex, JSON.stringify(list));
 }
 
 /** 保存录像（帧数据入 IndexedDB + 索引入 localStorage）。返回索引 meta。 */

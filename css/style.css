@@ -3425,3 +3425,37 @@ input, select, textarea {
     animation: none !important;
   }
 }
+
+
+/* 本地存档写失败：非阻塞提示，不拦截游戏/菜单操作 */
+.save-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 70;
+  width: max-content;
+  margin: 0;
+  padding: 9px 16px;
+  max-width: min(92vw, 440px);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 3px;
+  background: rgba(28, 18, 22, 0.94);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  color: #fde2e2;
+  font-family: system-ui, -apple-system, "Noto Sans SC", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.save-toast.hidden { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .save-toast { animation: saveToastIn 180ms ease-out; }
+}
+@keyframes saveToastIn {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
