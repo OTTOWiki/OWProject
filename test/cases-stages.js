@@ -16,6 +16,8 @@ import { MID_PATTERNS, buildExMid } from '../js/stages/ex_mid.js';
 import { asStageContext } from '../js/stages/stageContext.js';
 import { evaluateChapterEnd } from '../js/chapterEnd.js';
 import { test, assert, assertEqual } from './assert.js';
+import { ARCHETYPES, spawnArch } from '../js/stages/archetypes.js';
+import { createMockGame } from './mockGame.js';
 
 const REQUIRED_STAGE_KEYS = ['1', '2', '3', 'patrol', 'A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'EX'];
 
@@ -455,4 +457,26 @@ test('installWaveScript：空 tracks 不抛错，waveCount 初始化', () => {
   assertEqual(g.waveCount, 0);
   assertEqual(g.waveTimer, 0);
   g.waveFn(1 / 60);
+});
+
+
+test('archetypes：spawnArch 生成 mob、挂 script 并按 timer 开火', () => {
+  const g = createMockGame();
+  const e = spawnArch(g, 'aimGreen', { x: 120 });
+  assertEqual(g.enemies.length, 1);
+  assertEqual(e, g.enemies[0]);
+  assertEqual(typeof e.script, 'function');
+  for (let i = 0; i < 70; i += 1) e.script(e, 1 / 60, g);
+  assert(g.bullets.length > 0, 'timer 到期后应生成子弹');
+});
+
+test('archetypes：未知原型立即抛错', () => {
+  let threw = false;
+  try {
+    spawnArch(createMockGame(), 'nope', { x: 1 });
+  } catch {
+    threw = true;
+  }
+  assert(threw);
+  assert(Object.keys(ARCHETYPES).length >= 2);
 });

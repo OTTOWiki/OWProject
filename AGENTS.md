@@ -170,6 +170,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `runStats.js` | 对局统计纯格式化（用时/统计行） | 改 game 状态 |
 | `collision.js` | 碰撞几何；`runCollisions` 返回事件 | 得分/掉落/SFX |
 | `stages/*` | 章节定义 + 刷怪 | 全局状态机 |
+| `stages/archetypes.js` | 道中敌机原型表 + `spawnArch` 开火脚本 | 章流程 / 通用弹幕公式 |
 | `patterns.js` | 弹幕工具 | UI / 存档 |
 | `entities.js` | 实体 update | 绘制（在 `draw/`） |
 | `pool.js` | 泛型对象池（bullet/item/particle 共用 acquire/release/purge） | 实体语义 |
@@ -290,7 +291,7 @@ docs/                  # 内部改造队列等（非运行时）
 ## 改代码约定
 
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
-2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）。
+2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）；通用 aim 怪用 `spawnArch`。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
 4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）→ `playfieldBgThemes.js` 的 `MODE_THEME`。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。

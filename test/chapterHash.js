@@ -7,7 +7,7 @@
  * 覆盖范围：
  * - `build(g)` 产生的初始敌机
  * - mid 章 `waveFn` 600 个逻辑帧（10 秒）内的全部生成
- * - 所有敌方子弹的 type / 位置 / 角度 / 速度
+ * - 敌机 update/script 触发的子弹与最终位置（含波次内开火）
  */
 import { createMockGame } from './mockGame.js';
 import { withSeededRng, createRng } from '../js/rng.js';
@@ -50,6 +50,10 @@ export function hashChapter(ch) {
     for (let i = 0; i < GOLDEN_FRAMES; i += 1) {
       g.chapterTime += 1 / 60;
       g.waveFn?.(1 / 60);
+      // 让敌机 script/timer 也跑：覆盖 script 内的射击与移动，而不只是刷怪
+      for (const e of [...g.enemies]) {
+        if (!e.dead) e.update(1 / 60, g);
+      }
       frame += 1;
     }
     const parts = [...events];
