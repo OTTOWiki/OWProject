@@ -430,30 +430,9 @@ export function mid_dualColor(g) {
   installMidWave(g, {
     interval: SI(2.0),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      [-1, 1].forEach((side, i) => {
-        const e = elite({
-          x: LOGICAL_W / 2 + side * 145, y: 80,
-          hp: exHp(180), kind: 'generic',
-          color: i ? C.cyan : C.orange,
-        });
-        e.vy = 0.2;
-        e.script = (en, d, game) => {
-          const idx = en.x > LOGICAL_W / 2 ? 1 : 0;
-          const color = idx ? C.cyan : C.orange;
-          const type = idx ? 'dot' : 'talisman';
-          timer(en, 'f', exFire(idx ? 0.7 : 0.9), d, () => {
-            const base = Math.atan2(LOGICAL_H / 2 - en.y, LOGICAL_W / 2 - en.x);
-            for (let i = -1; i <= 1; i++) {
-              game.spawnBullet(acquireBullet({
-                x: en.x, y: en.y, angle: base + i * 0.18, speed: exSp(2.2),
-                type, color, from: 'enemy',
-              }));
-            }
-          });
-        };
-        g.spawnEnemy(e);
-      });
+    onWave: (g) => {
+      spawnArch(g, 'dualColorOrange', { x: LOGICAL_W / 2 - 145, y: 80 });
+      spawnArch(g, 'dualColorCyan', { x: LOGICAL_W / 2 + 145, y: 80 });
     },
   });
 }

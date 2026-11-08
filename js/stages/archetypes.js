@@ -3,7 +3,7 @@
  * 仅覆盖已迁移的 aim 系；特殊章仍可直接写 tracks/raw script。
  */
 import { mob, elite, timer } from './_shared.js';
-import { LOGICAL_W } from '../config.js';
+import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import { acquireBullet } from '../bulletPool.js';
 import { spawnAimed, spawnAimedLaser, spawnRingAt } from '../patterns.js';
 import { exHp, exSp, exN, exFire, C } from './ex_shared.js';
@@ -290,6 +290,30 @@ export const ARCHETYPES = {
       },
     ],
   },
+  dualColorOrange: {
+    elite: true,
+    hp: () => exHp(180),
+    color: C.orange,
+    vy: 0.2,
+    fire: {
+      key: 'f', interval: () => exFire(0.9), pattern: 'centerFan',
+      options: (game, en) => ({
+        count: 1, spread: 0.18, speed: exSp(2.2), type: 'talisman', color: C.orange,
+      }),
+    },
+  },
+  dualColorCyan: {
+    elite: true,
+    hp: () => exHp(180),
+    color: C.cyan,
+    vy: 0.2,
+    fire: {
+      key: 'f', interval: () => exFire(0.7), pattern: 'centerFan',
+      options: (game, en) => ({
+        count: 1, spread: 0.18, speed: exSp(2.2), type: 'dot', color: C.cyan,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -338,6 +362,15 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
         } else if (f.pattern === 'ringAt') {
           const o = f.options(game, en);
           spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
+        } else if (f.pattern === 'centerFan') {
+          const o = f.options(game, en);
+          const base = Math.atan2(LOGICAL_H / 2 - en.y, LOGICAL_W / 2 - en.x);
+          for (let i = -o.count; i <= o.count; i += 1) {
+            game.spawnBullet(acquireBullet({
+              x: en.x, y: en.y, angle: base + i * o.spread, speed: o.speed,
+              type: o.type, color: o.color, from: 'enemy',
+            }));
+          }
         } else if (f.pattern === 'fan') {
           const o = f.options(game, en);
           en.data.a = (en.data.a ?? Math.PI * 0.55) + o.step;
