@@ -10,6 +10,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: test-${{ github.workflow }}-${{ github.ref }}
@@ -34,6 +35,12 @@ jobs:
 
   e2e:
     name: E2E
+    # 全量 e2e 14–16 分钟：默认不在每个 PR 跑，避免小改动反复等待。
+    # 最终集成 PR 打 `run-e2e` 标签，或手动 workflow_dispatch。
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'pull_request'
+          && contains(github.event.pull_request.labels.*.name, 'run-e2e'))
     runs-on: ubuntu-latest
     # 全量 e2e 单 worker 串行约 14–16 分钟；15 分钟会在测试步骤中途被取消
     timeout-minutes: 30
