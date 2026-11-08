@@ -196,7 +196,7 @@ else if (e._hpShown < real) e._hpShown = Math.min(e._hpShown + 0.025 * (dt * 60)
 
 ---
 
-### A7 排行行增补【已核】
+### A7 排行行增补【已核 · ✅ 已完成】
 
 **现状**：entry 已有 `score/name/playerId/playerName/difficultyId/mode/route/cleared/continued/stageReached/date`（`js/chapterFlow.js:703-715`）——信息量已经不低。
 

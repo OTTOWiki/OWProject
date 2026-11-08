@@ -2470,7 +2470,7 @@ input, select, textarea {
 }
 .ranking-row {
   display: grid;
-  grid-template-columns: 2rem 1fr auto auto auto auto;
+  grid-template-columns: 2rem 1fr auto auto auto auto auto;
   gap: 0.5rem;
   align-items: center;
   padding: 0.45rem 0.6rem;
@@ -2504,6 +2504,12 @@ input, select, textarea {
 }
 .ranking-score { color: #f3e7cd; font-family: var(--mono, monospace); text-align: right; }
 .ranking-date { color: #8a7c62; font-size: 0.75rem; }
+.ranking-duration { color: #b8a888; font-size: 0.75rem; font-family: var(--mono, monospace); text-align: right; white-space: nowrap; }
+@media (max-width: 520px) {
+  .ranking-row { grid-template-columns: 2rem 1fr auto auto; }
+  .ranking-player, .ranking-route, .ranking-date { display: none; }
+  .ranking-duration { font-size: 0.8rem; }
+}
 .ranking-empty { color: #8a7c62; text-align: center; padding: 1rem 0; }
 
 /* Replay */
