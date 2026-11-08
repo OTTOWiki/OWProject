@@ -4,7 +4,7 @@
 > 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ [`参考/loading.png`](../参考/loading.png)（TH20 原版加载画面，仅作构图参考）
 > 依据：TH20 素材与 ANM 语义见 [`.scratch/loading-petals-factsheet.md`](../.scratch/loading-petals-factsheet.md)（逐条 `文件:行号` 证据）。
 > **状态**：开屏黑带复刻、真实进度、恢复面板、落花与进度联动 **均已实施**（2026-11-08）。落花素材为 FreeGameSprites CC0 水彩樱花，处理成 512×1024 无缝纵铺纹理；不使用原作像素。
-> **2026-11-08 修订**：按反馈把落花收进右下“少女祈祷中”局部盒；黑带始终居中、加载角始终右下；动画改为 CSS transform 持续下落，WAAPI 只改 playbackRate。
+> **2026-11-08 修订**：按反馈把落花收进右下“少女祈祷中”局部盒；黑带始终居中、加载角始终右下；动画改为 CSS transform 持续下落，WAAPI 只改 playbackRate；手机横屏统一紧凑布局，不再让加载角与黑带重叠。
 
 ## 0. 一句话
 
@@ -75,8 +75,8 @@
 - `.load-petals`（z-index 1）：不是全屏层，而是右下“少女祈祷中”加载角周围的局部盒子（桌面约 520×300，移动端底部约 200px 高）；内部 `.load-petals-track` 用 CSS `transform` 14s 循环下落，边缘用径向 mask 渐隐；恢复态降到 `0.12` 并暂停。
 - 断点：
   - `≤720px`：`#load-screen` 改 flex；黑带 `margin: auto 0` 纵向居中；加载角贴底、避让 safe-area。
-  - `(max-width:720px) and (max-height:520px)`：只缩小黑带、加载角与花瓣盒；黑带仍居中、加载角仍右下。
-  - `(min-width:721px) and (max-height:620px)`：同样只缩小尺寸；黑带仍居中、加载角仍右下。
+  - `(max-width:720px) and (max-height:520px) and (orientation:portrait)`：只缩小黑带、加载角与花瓣盒；黑带仍居中、加载角仍右下。
+  - `(max-height:620px) and (orientation:landscape)`：所有横屏（含 667/736/740/812 宽）统一走紧凑尺寸；黑带仍居中、加载角仍右下。
   - `aria-busy="false"`：仅恢复态改 flex 流式；黑带置顶，`.load-corner` 变成暗色状态面板，320×568 也完整可见。正常加载态不走这条。
   - `prefers-reduced-motion`：停掉漂移、淡入与进度条过渡；CSS 落花动画 `none`，JS 也不调速。
 
@@ -108,6 +108,7 @@
 - 系统 Chromium + Playwright（Android 平台 shim）实测：
   - 1365×900：真实进度 64% 开屏，单轨 CSS 动画 1 个、`playbackRate=1.5`；花瓣只在右下加载角。
   - 1365×600 / 844×390：黑带中心与视口中心误差 0px；“少女祈祷中”仍在右下。
+  - 667×375 / 736×414 / 740×360 / 812×375：手机横屏统一紧凑布局；黑带中心误差 0px，加载角右下且与黑带至少 6px 间距，无重叠。
   - 390×844 / 320×568 / 320×480：黑带中心与视口中心误差 0px（移除了移动端底部 padding）；加载角右下。
   - 恢复态：动画 `paused`；`prefers-reduced-motion`：动画数 0。
   - `pageerror` 为空。
@@ -233,8 +234,8 @@ export function petalPlaybackRate(pct) {
 - `.load-petals` 是右下局部盒；`overflow:hidden` + 径向 mask 让边缘渐隐，不出现矩形硬边。
 - 断点：
   - `≤720px`：盒子贴底，宽 `min(360px, 100vw-24px)`，高 200px。
-  - `(min-width:721px) and (max-height:620px)`：盒子 340×200，仍在右下；黑带仍居中。
-  - `(max-width:720px) and (max-height:520px)`：盒子贴底 150px；黑带仍居中、加载角仍右下。
+  - `(max-height:620px) and (orientation:landscape)`：盒子约 340×200（窄横屏随 `40vw` 缩小），仍在右下；黑带仍居中；加载角与黑带至少留 6px。
+  - `(max-width:720px) and (max-height:520px) and (orientation:portrait)`：盒子贴底 150px；黑带仍居中、加载角仍右下。
 - 正常加载态**不**把黑带顶置，也不把加载角居中；只有 `aria-busy="false"` 的恢复态改成“黑带 + 状态面板”流式。
 - 恢复态：花瓣降到 0.12 并暂停；淡出前 `cancel()`。
 
@@ -263,9 +264,9 @@ export function petalPlaybackRate(pct) {
   - 单轨 CSS 动画存在，完成后随加载层移除。
   - `prefers-reduced-motion` 下 0 动画，静态层仍在。
   - 可恢复失败时动画 `paused`，继续按钮可用。
-  - **1365×600 布局守卫**：黑带中心 = 视口中心（≤1px），“少女祈祷中”与花瓣盒仍在右下。
+  - **1365×600 与 667×375 布局守卫**：黑带中心 = 视口中心（≤1px），“少女祈祷中”与花瓣盒仍在右下；667×375 还断言加载角不与黑带重叠。
 - 本机用系统 Chromium + 平台 shim：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次 7/8，失败项是既有 Three 场景加载超时，单跑通过。完整 `npm run test:e2e` 仍未在本机跑（Android/Termux 平台限制），CI 为准。
-- 实拍：1365×900 / 1365×600 / 1264×625 / 844×390 / 390×844 / 320×568 / 320×480；恢复态 390；reduced 1365。黑带中心误差 0px，加载角右下；花瓣只在加载角盒子内。
+- 实拍：1365×900 / 1365×600 / 1264×625 / 844×390 / 667×375 / 740×360 / 812×375 / 390×844 / 320×568 / 320×480；恢复态 390；reduced 1365。黑带中心误差 0px，加载角右下；花瓣只在加载角盒子内。
 
 ### 截图与实拍
 
@@ -281,7 +282,7 @@ export function petalPlaybackRate(pct) {
 | P2 | `index.html` 加 `.load-petals` 局部盒 + 单轨；CSS 加 transform 动画/遮罩/降级 | **完成** | 花瓣只在右下加载角；黑带居中、加载角右下 |
 | P3 | 新增 `js/loadingPetals.js`（速率纯函数 + CSS 动画调速）；`main.js` 接线 | **完成** | 3 条单测绿；64% 时 1.5× |
 | P4 | 恢复/致命失败/淡出时暂停或取消动画 | **完成** | 恢复态 `paused`；reduced 0 动画；移除后 cancel |
-| P5 | e2e + 多档截图 + 真机首帧 | **部分** | boot 4/4 + 落花 4/4（合并跑首次 7/8）；构图与布局守卫通过；低端真机首帧未测 |
+| P5 | e2e + 多档截图 + 真机首帧 | **部分** | boot 4/4 + 落花 4/4（合并跑首次 7/8）；含 1365×600/667×375 布局守卫；低端真机首帧未测 |
 | P6 | 文档同步：`AGENTS.md` / `README.md` / `assets/NOTICE.md` | **完成** | 文档与代码一致 |
 
 **红线**：不改 450×600 逻辑坐标；不引入打包器/框架；不动 `#load-progress` 的 `role`/`aria-*`；不把版本说明/修复列表写进加载文案；不使用 `参考/loading.png` 或 TH20 原贴图像素。
@@ -295,6 +296,7 @@ export function petalPlaybackRate(pct) {
 5. **原作合规**：使用 CC0 素材并记录；不复制 `参考/loading.png` 与 `loading@ascii@7.png`。
 6. **“变速”语义**：速度只跟真实处理进度；百分比隐藏时不要伪造加速。
 7. **低端帧率**：CSS transform 已比 background-position 更省，但未在低端真机测帧率；若掉帧，减到静态。
+8. **极窄横屏**：667/740 这类宽度已统一紧凑布局；若低于约 640×360，仍可能需要进一步压缩字号或减少黑带内容。
 
 ## 13. 相关状态
 
