@@ -750,6 +750,10 @@ export class Game {
 
       // 暂停：playing / dialogue / 关卡过渡 均可
       if (wantPause && (this.state === 'playing' || this.state === 'dialogue' || this.state === 'stageTransit')) {
+        // 暂停菜单打开时对齐真实分数，避免留下滚动中间值
+        this._scoreShown = this.score;
+        this._scoreSpeed = 0;
+        updateGameHud(this);
         openPause(this);
         return;
       }
