@@ -400,6 +400,38 @@ export const ARCHETYPES = {
       },
     ],
   },
+  sideOrange: {
+    hp: () => exHp(36),
+    color: C.orange,
+    vy: 0.7,
+    fire: {
+      key: 's', interval: () => exFire(0.65), pattern: 'sideFan',
+      options: (game, en) => ({
+        count: 1, speed: exSp(2.3), spread: exSp(0.55),
+        type: 'dot', color: en.color,
+      }),
+    },
+  },
+  spiralPink: {
+    elite: true,
+    hp: () => exHp(220),
+    color: C.pink,
+    vy: 0.12,
+    fires: [
+      {
+        key: 'sp', interval: () => exFire(0.22), pattern: 'spiral',
+        options: (game, en) => ({
+          step: 0.45, speed: exSp(2.0), type: 'dot', color: C.pink,
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(1.0), pattern: 'aimed',
+        options: (game, en) => ({
+          n: 1, parity: 'odd', type: 'rice', speed: exSp(2.35), color: C.white,
+        }),
+      },
+    ],
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -448,6 +480,22 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
         } else if (f.pattern === 'ringAt') {
           const o = f.options(game, en);
           spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
+        } else if (f.pattern === 'sideFan') {
+          const o = f.options(game, en);
+          const dir = en.x < LOGICAL_W / 2 ? 1 : -1;
+          for (let i = -o.count; i <= o.count; i += 1) {
+            game.spawnBullet(acquireBullet({
+              x: en.x, y: en.y, vx: dir * o.speed, vy: i * o.spread,
+              type: o.type, color: o.color, from: 'enemy',
+            }));
+          }
+        } else if (f.pattern === 'spiral') {
+          const o = f.options(game, en);
+          en.data.a = (en.data.a ?? 0) + o.step;
+          game.spawnBullet(acquireBullet({
+            x: en.x, y: en.y, angle: en.data.a, speed: o.speed,
+            type: o.type, color: o.color, from: 'enemy',
+          }));
         } else if (f.pattern === 'largeSplit') {
           const o = f.options(game, en);
           game.spawnBullet(acquireBullet({

@@ -278,23 +278,11 @@ export function mid_sideBarrage(g) {
   installMidWave(g, {
     interval: SI(1.3),
     maxWaves: 5,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (const side of [-1, 1]) {
-        const e = mob(side < 0 ? 40 : LOGICAL_W - 40, 60 + g.waveCount * 8, exHp(36), C.orange);
-        e.vy = 0.7;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.65), d, () => {
-            const dir = en.x < LOGICAL_W / 2 ? 1 : -1;
-            for (let i = -1; i <= 1; i++) {
-              game.spawnBullet(acquireBullet({
-                x: en.x, y: en.y,
-                vx: dir * exSp(2.3), vy: i * exSp(0.55),
-                type: 'dot', color: C.orange, from: 'enemy',
-              }));
-            }
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'sideOrange', {
+          x: side < 0 ? 40 : LOGICAL_W - 40, y: 60 + g.waveCount * 8,
+        });
       }
     },
   });
@@ -304,27 +292,10 @@ export function mid_spiralLite(g) {
   installMidWave(g, {
     interval: SI(1.8),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'spiralPink', {
         x: LOGICAL_W / 2 + (g.waveCount % 2 ? -60 : 60), y: 100,
-        hp: exHp(220), color: C.pink, kind: 'generic',
       });
-      e.vy = 0.12;
-      e.script = (en, d, game) => {
-        timer(en, 'sp', exFire(0.22), d, () => {
-          en.data.a = (en.data.a || 0) + 0.45;
-          game.spawnBullet(acquireBullet({
-            x: en.x, y: en.y, angle: en.data.a, speed: exSp(2.0),
-            type: 'dot', color: C.pink, from: 'enemy',
-          }));
-        });
-        timer(en, 'a', exFire(1.0), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'rice', speed: exSp(2.35), color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }
