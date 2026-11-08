@@ -20,10 +20,27 @@ test('加载落花：局部单轨动画随真实进度存在，完成后随加�
     document.querySelector('.load-petals-track').getAnimations().length
   ))).toBe(1);
 
-  const rate = await page.evaluate(() => (
-    document.querySelector('.load-petals-track').getAnimations()[0].playbackRate
+  const overlay = await page.evaluate(() => {
+    const track = document.querySelector('.load-petals-track');
+    const anim = track.getAnimations()[0];
+    const matrix = new DOMMatrix(getComputedStyle(track).transform);
+    return {
+      zPetals: Number(getComputedStyle(document.querySelector('.load-petals')).zIndex),
+      zCorner: Number(getComputedStyle(document.querySelector('.load-corner')).zIndex),
+      duration: getComputedStyle(track).animationDuration,
+      y: matrix.m42,
+      rate: anim.playbackRate,
+    };
+  });
+  expect(overlay.rate).toBeGreaterThan(0);
+  expect(overlay.duration).toBe('8s');
+  expect(overlay.zPetals).toBeGreaterThan(overlay.zCorner);
+
+  await page.waitForTimeout(250);
+  const movedY = await page.evaluate(() => (
+    new DOMMatrix(getComputedStyle(document.querySelector('.load-petals-track')).transform).m42
   ));
-  expect(rate).toBeGreaterThan(0);
+  expect(movedY).toBeGreaterThan(overlay.y);
 
   release();
   await waitForGameReady(page);

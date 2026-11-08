@@ -164,7 +164,7 @@ input, select, textarea {
   position: absolute;
   right: clamp(20px, 4.5vw, 68px);
   bottom: clamp(20px, 5.5vh, 56px);
-  z-index: 1;
+  z-index: 4;
   width: min(520px, 44vw);
   height: min(300px, 38vh);
   overflow: hidden;
@@ -180,14 +180,14 @@ input, select, textarea {
   width: 100%;
   background: url("../assets/ui/petals-scroll.avif") center top / 100% auto repeat-y;
   will-change: transform;
-  animation: petalsFall 14s linear infinite;
+  animation: petalsFall 8s linear infinite;
 }
 #load-screen[aria-busy="false"] .load-petals { opacity: 0.12; }
 #load-screen[aria-busy="false"] .load-petals-track { animation-play-state: paused; }
 
 @keyframes petalsFall {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-50%); }
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
 }
 
 .load-band {
