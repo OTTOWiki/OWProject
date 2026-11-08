@@ -322,17 +322,18 @@ export function mid_rainAfter(g) {
       }
     },
     onWave: (game) => {
-      const e = mob(60 + Math.random() * (LOGICAL_W - 120), -18, exHp(34), C.pink);
-      e.vy = 1.0;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(0.9), d, () => {
-          spawnAimed(gm, en, gm.player, {
+      spawnArch(game, 'aimCyan', {
+        x: 60 + Math.random() * (LOGICAL_W - 120), hp: exHp(34), color: C.pink, vy: 1.0,
+        fires: [{
+          key: 's',
+          interval: () => exFire(0.9),
+          pattern: 'aimed',
+          options: (gm, en) => ({
             n: exN(2, 'even'), parity: 'even', type: 'rice',
             speed: exSp(2.3), spread: 0.18, color: C.white,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+          }),
+        }],
+      });
     },
   });
 }
@@ -437,32 +438,35 @@ export function mid_vFormAfter(g) {
   installMidWave(g, {
     interval: SI(1.4),
     maxWaves: 4,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const cx = LOGICAL_W / 2;
+      const spreadFire = {
+        key: 's',
+        interval: () => exFire(0.9),
+        pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(2, 'even'), parity: 'even', type: 'rice',
+          speed: exSp(2.3), spread: 0.16, color: en.color,
+        }),
+      };
+      const singleFire = {
+        key: 's',
+        interval: () => exFire(0.8),
+        pattern: 'aimed',
+        options: (game, en) => ({
+          n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: en.color,
+        }),
+      };
       for (let k = -2; k <= 2; k++) {
-        const e = mob(cx + k * 38, -20 - Math.abs(k) * 12, exHp(28), C.blue);
-        e.vy = 1.2;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.9), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: exN(2, 'even'), parity: 'even', type: 'rice',
-              speed: exSp(2.3), spread: 0.16, color: C.blue,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimBlue28', {
+          x: cx + k * 38, y: -20 - Math.abs(k) * 12, vy: 1.2, fires: [spreadFire],
+        });
       }
       for (const side of [-1, 1]) {
-        const e = mob(cx + side * 100, -15, exHp(26), C.orange);
-        e.vy = 1.3;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.8), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.orange,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimBlue28', {
+          x: cx + side * 100, y: -15, hp: exHp(26), color: C.orange, vy: 1.3,
+          fires: [singleFire],
+        });
       }
     },
   });
@@ -472,20 +476,22 @@ export function mid_sideStreamAfter(g) {
   installMidWave(g, {
     interval: SI(0.5),
     maxWaves: 10,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const fromLeft = g.waveCount <= 5;
-      const e = mob(fromLeft ? -15 : LOGICAL_W + 15, 60 + ((g.waveCount - 1) % 5) * 30, exHp(30), C.pink);
-      e.vx = fromLeft ? 1.8 : -1.8;
-      e.vy = 0.15;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.5), d, () => {
-          spawnAimed(game, en, game.player, {
+      spawnArch(g, 'streamPink', {
+        x: fromLeft ? -15 : LOGICAL_W + 15,
+        y: 60 + ((g.waveCount - 1) % 5) * 30,
+        vx: fromLeft ? 1.8 : -1.8,
+        fires: [{
+          key: 's',
+          interval: () => exFire(0.5),
+          pattern: 'aimed',
+          options: (game, en) => ({
             n: exN(2, 'even'), parity: 'even', type: 'rice',
-            speed: exSp(2.4), spread: 0.18, color: C.pink,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+            speed: exSp(2.4), spread: 0.18, color: en.color,
+          }),
+        }],
+      });
     },
   });
 }
