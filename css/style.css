@@ -159,6 +159,37 @@ input, select, textarea {
   opacity: 0.9;
 }
 
+/* 落花：一张 512×1024 纵铺纹理，两层视差；位移由 js/loadingPetals.js 用 WAAPI 驱动 */
+.load-petals {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.load-petals-layer {
+  position: absolute;
+  inset: -12% 0;
+  background-image: url("../assets/ui/petals-scroll.avif");
+  background-repeat: repeat-y;
+  background-position: center top;
+  background-size: calc(100% * var(--petal-scale, 1)) auto;
+  will-change: background-position;
+}
+.load-petals-far {
+  --petal-scale: 1;
+  opacity: 0.34;
+  filter: blur(0.2px);
+}
+.load-petals-near {
+  --petal-scale: 1.38;
+  --petal-mask: radial-gradient(ellipse 70% 62% at 82% 79%, #000 0 28%, transparent 74%);
+  opacity: 0.64;
+  -webkit-mask-image: var(--petal-mask);
+  mask-image: var(--petal-mask);
+}
+#load-screen[aria-busy="false"] .load-petals { opacity: 0.16; }
+
 .load-band {
   position: relative;
   z-index: 2;
@@ -451,6 +482,12 @@ input, select, textarea {
     padding-top: 0;
   }
   .load-pray { font-size: 1.5rem; }
+}
+
+@media (max-height: 620px) and (orientation: landscape), (min-width: 721px) and (max-height: 620px) {
+  .load-petals-near {
+    --petal-mask: radial-gradient(ellipse 70% 55% at 50% 82%, #000 0 28%, transparent 74%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
