@@ -314,6 +314,50 @@ export const ARCHETYPES = {
       }),
     },
   },
+  diagCyan: {
+    hp: () => exHp(32),
+    color: C.cyan,
+    vx: 1.4,
+    vy: 1.5,
+    fire: {
+      key: 's', interval: () => exFire(0.8), pattern: 'directAim',
+      options: (game, en) => ({
+        type: 'dot', speed: exSp(2.35), color: en.color,
+      }),
+    },
+  },
+  ringEvenViolet: {
+    elite: true,
+    hp: () => exHp(210),
+    color: C.violet,
+    vy: 0.15,
+    fires: [
+      {
+        key: 'r', interval: () => exFire(1.55), pattern: 'ringAt',
+        options: (game, en) => ({
+          n: exN(10), speed: exSp(1.7), type: 'talisman', color: C.violet, angle: en.age,
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(0.9), pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(2, 'even'), parity: 'even', type: 'rice',
+          speed: exSp(2.25), spread: 0.18, color: C.white,
+        }),
+      },
+    ],
+  },
+  aimCyan28: {
+    hp: () => exHp(28),
+    color: C.cyan,
+    vy: 0.9,
+    fire: {
+      key: 's', interval: () => exFire(0.55), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.4), color: en.color,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -362,6 +406,13 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
         } else if (f.pattern === 'ringAt') {
           const o = f.options(game, en);
           spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
+        } else if (f.pattern === 'directAim') {
+          const o = f.options(game, en);
+          const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
+          game.spawnBullet(acquireBullet({
+            x: en.x, y: en.y, angle: ang, speed: o.speed,
+            type: o.type, color: o.color, from: 'enemy',
+          }));
         } else if (f.pattern === 'centerFan') {
           const o = f.options(game, en);
           const base = Math.atan2(LOGICAL_H / 2 - en.y, LOGICAL_W / 2 - en.x);
