@@ -10,7 +10,7 @@ import {
 import { getPlayfieldBgModes } from '../js/playfieldBg.js';
 import { MODE_THEME, themeFor, FALLBACK_THEME } from '../js/playfieldBgThemes.js';
 import {
-  faceDefaults, midChapter, letterChapter, installMidWave,
+  faceDefaults, midChapter, letterChapter, installMidWave, installWaveScript,
 } from '../js/stages/_shared.js';
 import { MID_PATTERNS, buildExMid } from '../js/stages/ex_mid.js';
 import { asStageContext } from '../js/stages/stageContext.js';
@@ -382,4 +382,77 @@ test('evaluateChapterEnd：Letter 超时失败 / 击破成功 / 道中耗尽（E
     livingEnemies: false,
   });
   assertEqual(midBetweenWaves, null);
+});
+
+
+test('installWaveScript：多轨独立计时，同帧按轨顺序执行', () => {
+  const log = [];
+  const g = {};
+  installWaveScript(g, {
+    tracks: [
+      {
+        steps: [
+          { wait: 0.1, fn: () => log.push('a0') },
+          { wait: 0.1, fn: () => log.push('a1') },
+        ],
+      },
+      { steps: [{ wait: 0.2, fn: () => log.push('b0') }] },
+    ],
+  });
+  for (let i = 0; i < 12; i += 1) g.waveFn(1 / 60);
+  assertEqual(log.join(','), 'a0,a1,b0', '每轨按自身计时；同帧按轨顺序');
+});
+
+test('installWaveScript：0 wait 的 step 同帧连续执行', () => {
+  const log = [];
+  const g = {};
+  installWaveScript(g, {
+    tracks: [{
+      steps: [
+        { fn: () => log.push('x') },
+        { fn: () => log.push('y') },
+        { wait: 0.5, fn: () => log.push('z') },
+      ],
+    }],
+  });
+  g.waveFn(1 / 60);
+  assertEqual(log.join(','), 'x,y', '0 wait 全部执行后再等下一个 wait');
+  for (let i = 0; i < 30; i += 1) g.waveFn(1 / 60);
+  assertEqual(log.join(','), 'x,y,z');
+});
+
+test('installWaveScript：loop 重置游标，fireMul 缩放 wait', () => {
+  let looped = 0;
+  const g = {};
+  installWaveScript(g, {
+    tracks: [{ loop: true, fireMul: 2, steps: [{ wait: 0.05, fn: () => { looped += 1; } }] }],
+  });
+  for (let i = 0; i < 12; i += 1) g.waveFn(1 / 60);
+  // wait 0.05 * fireMul 2 = 0.1s ≈ 6 帧 → 12 帧触发 2 次
+  assertEqual(looped, 2);
+});
+
+test('installWaveScript：interval/onWave/continuous 退化形态与 installMidWave 一致', () => {
+  const waves = [];
+  let continuous = 0;
+  const g = {};
+  installWaveScript(g, {
+    continuous: () => { continuous += 1; },
+    interval: 0.1,
+    maxWaves: 2,
+    onWave: (_game, w) => waves.push(w),
+  });
+  g.waveFn(0.1);
+  g.waveFn(0.1);
+  g.waveFn(0.1);
+  assertEqual(continuous, 3, 'continuous 每 tick 都跑');
+  assertEqual(waves.join(','), '1,2', 'maxWaves 后不再刷');
+});
+
+test('installWaveScript：空 tracks 不抛错，waveCount 初始化', () => {
+  const g = {};
+  installWaveScript(g, { tracks: [] });
+  assertEqual(g.waveCount, 0);
+  assertEqual(g.waveTimer, 0);
+  g.waveFn(1 / 60);
 });

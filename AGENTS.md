@@ -284,7 +284,7 @@ docs/                  # 内部改造队列等（非运行时）
 ## 改代码约定
 
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
-2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`。
+2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
 4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）→ `playfieldBgThemes.js` 的 `MODE_THEME`。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。
