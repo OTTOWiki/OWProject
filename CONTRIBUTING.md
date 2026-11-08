@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. **`Test`** 与 **`CodeRabbit`** 通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）  
+4. **`Test`** 与 **`CodeRabbit`** 通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）；全量 **`E2E`** 默认只在最终集成 PR 打 `run-e2e` 标签时跑一次  
 
 ```bash
 git fetch origin
@@ -189,7 +189,8 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 ### PR 建议自检（作者）
 
 - [ ] 目标分支是 **`main`**，且分支基于较新的 `main`  
-- [ ] 本地 `npm test` 通过；PR 上 **`Test`**、**`CodeRabbit`** 绿  
+- [ ] 本地 `npm test` 通过；PR 上 **`Test`**、**`CodeRabbit`** 绿
+- [ ] 最终集成 PR 已加 `run-e2e` 标签（或手动 dispatch）跑过全量 E2E  
 - [ ] 未改 playfield 画布逻辑尺寸  
 - [ ] 出怪/出弹走 spawn API  
 - [ ] 有意行为变化已写在 PR 说明里  
