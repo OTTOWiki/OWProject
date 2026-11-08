@@ -29,7 +29,7 @@ export function fnv1a(str) {
   return h >>> 0;
 }
 
-/** 生成该章节的稳定哈希（含 build 与 180 帧 wave） */
+/** 生成该章节的稳定哈希（含 build 与 600 帧 wave） */
 export function hashChapter(ch) {
   const g = createMockGame();
   return withSeededRng(() => {
