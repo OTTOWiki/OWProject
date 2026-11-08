@@ -215,21 +215,12 @@ export function mid_diagCross(g) {
   installMidWave(g, {
     interval: SI(0.75),
     maxWaves: 8,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const fromLeft = g.waveCount % 2 === 1;
-      const e = mob(fromLeft ? -10 : LOGICAL_W + 10, -10, exHp(32), C.cyan);
-      e.vx = fromLeft ? 1.4 : -1.4;
-      e.vy = 1.5;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.8), d, () => {
-          const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
-          game.spawnBullet(acquireBullet({
-            x: en.x, y: en.y, angle: ang, speed: exSp(2.35),
-            type: 'dot', color: C.cyan, from: 'enemy',
-          }));
-        });
-      };
-      g.spawnEnemy(e);
+      spawnArch(g, 'diagCyan', {
+        x: fromLeft ? -10 : LOGICAL_W + 10, y: -10,
+        vx: fromLeft ? 1.4 : -1.4,
+      });
     },
   });
 }
@@ -238,24 +229,10 @@ export function mid_ringEven(g) {
   installMidWave(g, {
     interval: SI(1.5),
     maxWaves: 4,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'ringEvenViolet', {
         x: LOGICAL_W * (0.3 + (g.waveCount % 3) * 0.2), y: 95,
-        hp: exHp(210), color: C.violet, kind: 'generic',
       });
-      e.vy = 0.15;
-      e.script = (en, d, game) => {
-        timer(en, 'r', exFire(1.55), d, () => {
-          spawnRingAt(game, en.x, en.y, exN(10), exSp(1.7), 'talisman', C.violet, en.age);
-        });
-        timer(en, 'a', exFire(0.9), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(2, 'even'), parity: 'even', type: 'rice',
-            speed: exSp(2.25), spread: 0.18, color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }
@@ -309,16 +286,7 @@ export function mid_gapWall(g) {
           type: 'rice', color: C.dark, from: 'enemy',
         }));
       }
-      const e = mob(gapX, -18, exHp(28), C.cyan);
-      e.vy = 0.9;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(0.55), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.4), color: C.cyan,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+      spawnArch(game, 'aimCyan28', { x: gapX });
     },
   });
 }
@@ -412,16 +380,7 @@ export function mid_randomGap(g) {
           type: 'rice', color: C.dark, from: 'enemy',
         }));
       }
-      const e = mob(gapX, -18, exHp(28), C.cyan);
-      e.vy = 0.9;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(0.55), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.4), color: C.cyan,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+      spawnArch(game, 'aimCyan28', { x: gapX });
     },
   });
 }
