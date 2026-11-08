@@ -39,6 +39,7 @@ import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from './spawnScale.j
 import { purgeDeadBullets, releaseBulletList } from './bulletPool.js';
 import { releaseParticleList, releaseParticle } from './particlePool.js';
 import { purgeDeadItems, releaseItemList } from './itemPool.js';
+import { createCombatEdges, captureCombatEdges, clearCombatEdges } from './combatEdges.js';
 
 /**
  * Game 门面：构造 / start / stop / 主循环 / spawn API。
@@ -270,6 +271,8 @@ export class Game {
 
     // 打击反馈（纯视觉；不影响判定/回放）
     this._hitStop = 0;
+    // 停帧块不跑 updateCombat，X/C 边沿先缓冲，解冻块再消费
+    this._combatEdges = createCombatEdges();
     this._shakeT = 0;
     this._shakeDur = 0;
     this._shakeMag = 0;
@@ -730,14 +733,19 @@ export class Game {
   }
 
   _handleGlobalInput() {
+    // 非对局态丢弃未消费的停帧边沿，避免暂停/离开后恢复时误触发
+    if (this.state !== 'playing' || this.paused) clearCombatEdges(this._combatEdges);
+
     // 设置页等非游戏屏时不吃输入（避免 Esc 误开暂停）
     if (!document.getElementById('screen-game')?.classList.contains('active')) {
+      clearCombatEdges(this._combatEdges);
       this.input.consumePause();
       return;
     }
 
     // 成绩排行弹层：优先处理其键盘导航
     if (isScoreRankingOpen()) {
+      clearCombatEdges(this._combatEdges);
       handleScoreRankingKey(this);
       return;
     }
@@ -753,6 +761,14 @@ export class Game {
         openPause(this);
         return;
       }
+    }
+
+    // 停帧块同样记录 X/C 边沿；updateCombat 解冻时再消费。
+    // 章结算期 shot 锁存不翻转（与原 updateCombat 的 !settling 守卫一致）。
+    if (this.state === 'playing' && !this.paused && !this.chapterDone) {
+      captureCombatEdges(this._combatEdges, this.input);
+    } else {
+      clearCombatEdges(this._combatEdges);
     }
 
     if (this.state === 'dialogue') {

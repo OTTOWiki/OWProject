@@ -67,6 +67,7 @@ owDebug(false)            // 关
 owDebug.help()
 owDebug.set({ invincible: true, lockLives: true, lockBombs: true, timeScale: 3, skipDialogue: true })
 owDebug.softJump(129)     // 软跳章节 id（EX 起 id）
+owDebug.hitstop(0.5)      // 强制停帧（回归自测，≤1s）
 owDebug.kill()            // 清敌+清弹+本章成功
 ```
 
@@ -90,7 +91,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
 - E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。本地仍 `npm test`
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job，浏览器 e2e 进 `E2E` job
@@ -112,7 +113,7 @@ js/
   config.js            # LOGICAL_*、BALANCE、DIFFICULTIES、Unstable、说明书
   version.js / git-hash.js
   game.js              # Game 门面：主循环、spawn API、状态字段
-  gameDraw.js / gameOverlay.js / gameCombat.js / chapterFlow.js / chapterEnd.js / hud.js
+  gameDraw.js / gameOverlay.js / gameCombat.js / combatEdges.js / chapterFlow.js / chapterEnd.js / hud.js
   runStats.js          # 对局统计纯格式化（formatRunTime / formatRunStats）
   collision.js / patterns.js / entities.js / spawnScale.js
   draw/                # drawUtils + bulletDraw / enemyDraw / playerDraw / itemDraw（index 聚合）
@@ -164,6 +165,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `game.js` | 门面、主循环、`spawnEnemy`/`spawnBullet` | 弹幕公式、章流程细节 |
 | `chapterFlow.js` | 章开/结、对话、路线、结局、面过渡 | 逐帧弹幕 |
 | `gameCombat.js` | 战斗帧、Bomb/Miss、得分、道具、collision 消费 | 对话/路线 |
+| `combatEdges.js` | 停帧期 X/C 边沿缓冲（capture/consume/clear） | 战斗推进 / 输入事件绑定 |
 | `chapterEnd.js` | 章结束条件纯函数 | 改 game 状态 |
 | `runStats.js` | 对局统计纯格式化（用时/统计行） | 改 game 状态 |
 | `collision.js` | 碰撞几何；`runCollisions` 返回事件 | 得分/掉落/SFX |
