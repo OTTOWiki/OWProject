@@ -665,16 +665,7 @@ export function mid_wallRain(g) {
           type: 'rice', color: C.dark, from: 'enemy',
         }));
       }
-      const e = mob(gapX, -18, exHp(30), C.violet);
-      e.vy = 0.9;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(0.5), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.4), color: C.violet,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+      spawnArch(game, 'aimViolet30', { x: gapX });
     },
   });
 }
@@ -683,31 +674,13 @@ export function mid_vFormHeavy(g) {
   installMidWave(g, {
     interval: SI(1.4),
     maxWaves: 3,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const cx = LOGICAL_W / 2;
       for (let k = -2; k <= 2; k++) {
-        const e = mob(cx + k * 35, -20 - Math.abs(k) * 10, exHp(26), C.blue);
-        e.vy = 1.15;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.5), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: C.blue,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimHeavyBlue', { x: cx + k * 35, y: -20 - Math.abs(k) * 10 });
       }
       for (const side of [-1, 1]) {
-        const e = mob(cx + side * 15, -45, exHp(26), C.pink);
-        e.vy = 1.15;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.5), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: C.pink,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimHeavyPink', { x: cx + side * 15, y: -45 });
       }
     },
   });
@@ -717,20 +690,11 @@ export function mid_sideCross(g) {
   installMidWave(g, {
     interval: SI(0.65),
     maxWaves: 6,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (const [dir, y] of [[1, 80], [-1, 180]]) {
-        const e = mob(dir > 0 ? -15 : LOGICAL_W + 15, y, exHp(32), C.green);
-        e.vx = dir * 1.8;
-        e.vy = 0.1;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.7), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: exN(2, 'even'), parity: 'even', type: 'rice',
-              speed: exSp(2.2), spread: 0.2, color: C.green,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'crossGreen', {
+          x: dir > 0 ? -15 : LOGICAL_W + 15, y, vx: dir * 1.8,
+        });
       }
     },
   });
