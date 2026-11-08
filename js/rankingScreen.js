@@ -4,6 +4,7 @@
  */
 import { DIFFICULTIES, DIFFICULTY_ORDER } from './config.js';
 import { loadRanking, ROUTE_LABEL } from './ranking.js';
+import { formatRunTime } from './runStats.js';
 import {
   isBack, isNavNext, isNavPrev, isNavLeft, isNavRight,
   clampIndex, wrapIndex,
@@ -100,7 +101,11 @@ export class RankingScreen {
     date.className = 'ranking-date';
     date.textContent = e.date ? new Date(e.date).toLocaleDateString('zh-CN') : '';
 
-    row.append(rank, name, player, route, score, date);
+    const duration = document.createElement('span');
+    duration.className = 'ranking-duration';
+    duration.textContent = e.duration != null ? `用时 ${formatRunTime(e.duration)}` : '—';
+
+    row.append(rank, name, player, route, score, date, duration);
     return row;
   }
 

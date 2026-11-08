@@ -14,7 +14,7 @@ test('排行榜：A线 / EX+续 标签渲染', async ({ page }) => {
         {
           score: 123456, name: 'TST', playerName: '饮泉思源', playerId: 'yinquan',
           difficultyId: 'easy', mode: 'story', route: 'A', cleared: false,
-          continued: false, stageReached: 'Stage 1', date: Date.now(),
+          continued: false, stageReached: 'Stage 1', duration: 754, date: Date.now(),
         },
         {
           score: 99999, name: 'TST', playerName: '誓约沙玛', playerId: 'shama',
@@ -33,6 +33,10 @@ test('排行榜：A线 / EX+续 标签渲染', async ({ page }) => {
   await expect(routes.nth(0)).toHaveText('A线');
   await expect(routes.nth(1)).toHaveText(/EX/);
   await expect(routes.nth(1).locator('.rk-badge')).toHaveText('续');
+
+  const durations = page.locator('#ranking-list .ranking-duration');
+  await expect(durations.nth(0)).toHaveText('用时 12:34');
+  await expect(durations.nth(1)).toHaveText('—');
 });
 
 test('Nomiss：难度前入口续接已保存章节，暂停无录像且结算不进榜', async ({ page }) => {

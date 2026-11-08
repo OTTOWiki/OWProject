@@ -711,6 +711,7 @@ export function submitRanking(game, { cleared = false } = {}) {
     cleared: !!cleared,
     continued: (game.continuesUsed || 0) > 0,
     stageReached: game.el?.stageLabel?.textContent || '',
+    duration: Math.round(game.stats?.time || 0),
     date: Date.now(),
   };
   const list = loadRanking()[difficultyId] || [];

@@ -227,6 +227,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 屏外剔除：子弹出生 0.08s 宽限；速度仍指向场内时保留（回场弹/雨弹第一帧不消失）
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
+- 排行榜条目记录 `duration`（秒）；榜单桌面显示日期与「用时 mm:ss」，窄屏隐藏玩家/路线/日期，保留分数与用时。
 - 续关：每次 Game Over 先过成绩排行；还有续关次数（`BALANCE.continue.max`=2，练习除外）时结算可选继续，续关后残机/Bomb=2（`BALANCE.continue.lives/bombs`）、**分数清零**（hiscore 保留），排行榜标「续」，续关后不再录制录像
 - 默认 **4 残 4B**；Stage Select **不锁关**
 - Nomiss：`miss()` 被 `nomissRestart` 劫持——不扣残机不 Game Over，回滚分数/资源到进章时状态（`_nomissSnapshot`，该次尝试作废，hiscore 保留）+ BGM 回带（`audio.seekMusic`），重开当前章；**生命道具禁用**（`spawnItem`/`collectItem` 拦截）；进度存 `gunwei_nomiss_progress`
