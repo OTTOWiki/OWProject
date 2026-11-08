@@ -228,7 +228,7 @@ export function chapter_a4_mid_1(g) {
 | **B1** | 建**黄金哈希基线**，全部章节 before 快照 | 后续每一批都要比它 |
 | **B2** | `ex_mid_0_31.js` / `ex_mid_32_61.js`：62 个 pattern、1,814 行、62 处调用 | **最均匀、收益最大、最易批量验证** |
 
-> 状态（2026-11-08）：B0/B1 已完成；B2 进行中，EX 0–31 已迁移 35 个 aim/ring/fan/split 函数到 `archetypes.js`，其余 49 个 pattern 待迁移。黄金哈希已覆盖 spawn 帧号、敌机 script 开火与 600 帧最终状态。
+> 状态（2026-11-08）：B0/B1 已完成；B2 进行中，EX 0–31 已迁移 38 个 aim/ring/fan/split 函数到 `archetypes.js`，其余 49 个 pattern 待迁移。黄金哈希已覆盖 spawn 帧号、敌机 script 开火与 600 帧最终状态。
 | **B3** | `a4..b6/mid.js`（约 60 处），此时原型表已稳定 | 中等体量，逐文件提交 |
 | **B4** | `s1/s2/s3`（`s1_alice.js` 的 `installWave` 试点） | 接通 `stageContext` |
 | **B5** | 文档同步：`AGENTS.md` 的「新章节」配方、`docs/refactor-queue.md` | 文档与代码一致 |
