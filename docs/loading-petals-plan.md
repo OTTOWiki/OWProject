@@ -4,7 +4,7 @@
 > 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ [`参考/loading.png`](../参考/loading.png)（TH20 原版加载画面，仅作构图参考）
 > 依据：TH20 素材与 ANM 语义见 [`.scratch/loading-petals-factsheet.md`](../.scratch/loading-petals-factsheet.md)（逐条 `文件:行号` 证据）。
 > **状态**：开屏黑带复刻、真实进度、恢复面板、落花与进度联动 **均已实施**（2026-11-08）。落花素材为 FreeGameSprites CC0 水彩樱花，处理成 512×1024 无缝纵铺纹理；不使用原作像素。
-> **2026-11-08 修订**：按反馈把落花收进右下“少女祈祷中”局部盒；黑带始终居中、加载角始终右下；动画改为 CSS transform 持续下落，WAAPI 只改 playbackRate；手机横屏统一紧凑布局，不再让加载角与黑带重叠。
+> **2026-11-08 修订**：落花收进右下“少女祈祷中”局部盒，并置于其**上层**；黑带始终居中、加载角始终右下；关键帧改为向下落，基础周期 14s→8s，WAAPI 只改 playbackRate；手机横屏统一紧凑布局，不再让加载角与黑带重叠。
 
 ## 0. 一句话
 
@@ -72,7 +72,7 @@
 - `.load-band`：全宽，竖向黑渐变 + `loading.avif` 拉伸纹理，`border-block` 金色细线。
 - `.load-title`：`clamp(2.9rem, 6.2vw, 5.3rem)`；逐字 `translateY/rotate/scale`；`-webkit-text-stroke` 只做 1px 描边。
 - `.load-corner`：桌面右下绝对定位；`#load-progress` 高 3px，填充为朱红→金→青。
-- `.load-petals`（z-index 1）：不是全屏层，而是右下“少女祈祷中”加载角周围的局部盒子（桌面约 520×300，移动端底部约 200px 高）；内部 `.load-petals-track` 用 CSS `transform` 14s 循环下落，边缘用径向 mask 渐隐；恢复态降到 `0.12` 并暂停。
+- `.load-petals`（z-index 4，在加载角之上）：不是全屏层，而是右下“少女祈祷中”加载角周围的局部盒子（桌面约 520×300，移动端底部约 200px 高）；内部 `.load-petals-track` 用 CSS `transform` 8s 循环向下落，边缘用径向 mask 渐隐；恢复态降到 `0.12` 并暂停。
 - 断点：
   - `≤720px`：`#load-screen` 改 flex；黑带 `margin: auto 0` 纵向居中；加载角贴底、避让 safe-area。
   - `(max-width:720px) and (max-height:520px) and (orientation:portrait)`：只缩小黑带、加载角与花瓣盒；黑带仍居中、加载角仍右下。
@@ -106,7 +106,7 @@
 
 - `npm test`：117 pass / 0 fail（新增 3 条落花速率用例）。
 - 系统 Chromium + Playwright（Android 平台 shim）实测：
-  - 1365×900：真实进度 64% 开屏，单轨 CSS 动画 1 个、`playbackRate=1.5`；花瓣只在右下加载角。
+  - 1365×900：真实进度 64% 开屏，单轨 CSS 动画 1 个、`playbackRate=1.5`；花瓣在加载角上层，向下落。
   - 1365×600 / 844×390：黑带中心与视口中心误差 0px；“少女祈祷中”仍在右下。
   - 667×375 / 736×414 / 740×360 / 812×375：手机横屏统一紧凑布局；黑带中心误差 0px，加载角右下且与黑带至少 6px 间距，无重叠。
   - 390×844 / 320×568 / 320×480：黑带中心与视口中心误差 0px（移除了移动端底部 padding）；加载角右下。
@@ -152,7 +152,7 @@
   position: absolute;
   right: clamp(20px, 4.5vw, 68px);
   bottom: clamp(20px, 5.5vh, 56px);
-  z-index: 1;
+  z-index: 4;
   width: min(520px, 44vw);
   height: min(300px, 38vh);
   overflow: hidden;
@@ -165,23 +165,23 @@
   top: 0; left: 0; width: 100%;
   background: url("../assets/ui/petals-scroll.avif") center top / 100% auto repeat-y;
   will-change: transform;
-  animation: petalsFall 14s linear infinite;
+  animation: petalsFall 8s linear infinite;
 }
 @keyframes petalsFall {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-50%); }
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
 }
 ```
 
 - 纹理 512×1024：**一个 tile 高 = 2 × 盒宽**。
-- 轨道高 = **4 × 盒宽**（两个 tile）；`translateY(-50%)` 正好移动一个 tile 高，首尾同相，循环无缝。
+- 轨道高 = **4 × 盒宽**（两个 tile）；关键帧从 `translateY(-50%)` 到 `0`，即**向下**移动一个 tile 高；首尾同相，循环无缝。
 - 轨道始终比盒高至少一个 tile，移动过程中不会露底。
 - JS 只写 `track.style.height`（初始化/resize），不逐帧写样式。
 - 桌面 520×300；移动端底部约 200px 高；短屏只缩小，不改变相对位置。
 
 ### 5.3 位置与层级
 
-- `.load-petals` z-index 1，只在加载角周围；`.load-band` z-index 2；`.load-corner` z-index 3。
+- `.load-petals` z-index 4，盖在 `.load-corner`（z-index 3）之上；`.load-band` z-index 2。花瓣只占右下局部盒，不拦指针。
 - 花瓣不盖标题、不盖“少女祈祷中”、不拦截指针。
 - 恢复态：`#load-screen[aria-busy="false"] .load-petals { opacity:.12; }`，并 `animation-play-state: paused`。
 - `prefers-reduced-motion`：`.load-petals-track { animation: none; }`，静态纹理保留。
@@ -220,7 +220,7 @@ export function petalPlaybackRate(pct) {
 | 恢复态 `aria-busy="false"` | `pause()` | 状态面板优先，不抢注意力 |
 | `prefers-reduced-motion` | 不播放 | 静态纹理即可 |
 
-基础动画 14s/循环；实测 64% 时 `playbackRate=1.5`。速率只由**真实已处理资源数**驱动；百分比隐藏时保持 1.0，不假装加速。
+基础动画 8s/循环；实测 64% 时 `playbackRate=1.5`，桌面约 217px/s，约为原 14s 方案的 1.75×。速率只由**真实已处理资源数**驱动；百分比隐藏时保持 1.0，不假装加速。
 
 ## 8. DOM / CSS 接入（已实施）
 
@@ -265,6 +265,7 @@ export function petalPlaybackRate(pct) {
   - `prefers-reduced-motion` 下 0 动画，静态层仍在。
   - 可恢复失败时动画 `paused`，继续按钮可用。
   - **1365×600 与 667×375 布局守卫**：黑带中心 = 视口中心（≤1px），“少女祈祷中”与花瓣盒仍在右下；667×375 还断言加载角不与黑带重叠。
+  - 首条用例还断言：花瓣层 z-index > 加载角；动画 8s；两次采样 `translateY` 递增（向下）。
 - 本机用系统 Chromium + 平台 shim：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次 7/8，失败项是既有 Three 场景加载超时，单跑通过。完整 `npm run test:e2e` 仍未在本机跑（Android/Termux 平台限制），CI 为准。
 - 实拍：1365×900 / 1365×600 / 1264×625 / 844×390 / 667×375 / 740×360 / 812×375 / 390×844 / 320×568 / 320×480；恢复态 390；reduced 1365。黑带中心误差 0px，加载角右下；花瓣只在加载角盒子内。
 
