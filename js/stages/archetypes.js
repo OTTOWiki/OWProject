@@ -255,6 +255,41 @@ export const ARCHETYPES = {
       }),
     },
   },
+  rainSniperViolet: {
+    elite: true,
+    hp: () => exHp(150),
+    color: C.violet,
+    vy: 0.2,
+    fire: {
+      key: 'a', interval: () => exFire(1.0), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(1, 'odd'), parity: 'odd', type: 'medium',
+        speed: exSp(2.4), spread: 0.12, color: en.color,
+      }),
+    },
+  },
+  eliteFanGold: {
+    elite: true,
+    hp: () => exHp(220),
+    color: C.gold,
+    vy: 0.15,
+    fires: [
+      {
+        key: 'f', interval: () => exFire(0.7), pattern: 'fan',
+        options: () => ({
+          step: 0.12, spread: 0.15, count: 2, speed: exSp(2.0),
+          type: 'rice', color: C.gold,
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(1.2), pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(2, 'odd'), parity: 'odd', type: 'talisman',
+          speed: exSp(2.3), spread: 0.12, color: C.white,
+        }),
+      },
+    ],
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
