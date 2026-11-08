@@ -502,6 +502,24 @@ export const ARCHETYPES = {
       }),
     },
   },
+  aimWhite24: {
+    hp: () => exHp(24), color: C.white, vy: 1.2,
+    fire: {
+      key: 's', interval: () => exFire(0.9), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: en.color,
+      }),
+    },
+  },
+  ringWhite28: {
+    hp: () => exHp(28), color: C.white, vy: 1.25,
+    fire: {
+      key: 's', interval: () => exFire(1.0), pattern: 'ringAt',
+      options: (game, en) => ({
+        n: exN(5), speed: exSp(1.8), type: 'dot', color: en.color,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,

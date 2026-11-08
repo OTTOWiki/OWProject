@@ -358,32 +358,19 @@ export function mid_hoverEliteAfter(g) {
   installMidWave(g, {
     interval: SI(2.0),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'hoverElitePink', {
         x: 80 + Math.random() * (LOGICAL_W - 160), y: 75,
-        hp: exHp(200), color: C.pink, kind: 'generic',
-      });
-      e.vy = 0.25;
-      e.script = (en, d, game) => {
-        timer(en, 'a', exFire(0.7), d, () => {
-          spawnAimed(game, en, game.player, {
+        fires: [{
+          key: 'a', interval: () => exFire(0.7), pattern: 'aimed',
+          options: (game, en) => ({
             n: exN(3, 'even'), parity: 'even', type: 'medium',
-            speed: exSp(2.2), spread: 0.2, color: C.pink,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+            speed: exSp(2.2), spread: 0.2, color: en.color,
+          }),
+        }],
+      });
       const side = g.waveCount % 2 ? 50 : LOGICAL_W - 50;
-      const escort = mob(side, -15, exHp(24), C.white);
-      escort.vy = 1.2;
-      escort.script = (en, d, game) => {
-        timer(en, 's', exFire(0.9), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(escort);
+      spawnArch(g, 'aimWhite24', { x: side });
     },
   });
 }
@@ -392,19 +379,22 @@ export function mid_laserAfter(g) {
   installMidWave(g, {
     interval: SI(1.4),
     maxWaves: 4,
-    onWave: (g, wave) => {
-      const e = mob(50 + (g.waveCount * 70) % (LOGICAL_W - 100), 55, exHp(40), C.violet);
-      e.vy = 0.2;
-      e.script = (en, d, game) => {
-        timer(en, 'L', exFire(1.3), d, () => spawnAimedLaser(game, en, game.player, C.violet));
-        timer(en, 's', exFire(0.6), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(1, 'odd'), parity: 'odd', type: 'talisman',
-            speed: exSp(2.4), color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'laserSniper', {
+        x: 50 + (g.waveCount * 70) % (LOGICAL_W - 100), y: 55, color: C.violet,
+        fires: [
+          {
+            key: 'L', interval: () => exFire(1.3), pattern: 'aimedLaser', color: C.violet,
+          },
+          {
+            key: 's', interval: () => exFire(0.6), pattern: 'aimed',
+            options: (game, en) => ({
+              n: exN(1, 'odd'), parity: 'odd', type: 'talisman',
+              speed: exSp(2.4), color: C.white,
+            }),
+          },
+        ],
+      });
     },
   });
 }
@@ -621,32 +611,13 @@ export function mid_zigzagAfter(g) {
 }
 
 export function mid_centerAfter(g) {
-  const core = elite({
-    x: LOGICAL_W / 2, y: 100, hp: exHp(280), color: C.gold, kind: 'generic', label: '议程核',
-  });
-  core.vy = 0.1;
-  core.script = (en, d, game) => {
-    timer(en, 'a', exFire(1.0), d, () => {
-      spawnAimed(game, en, game.player, {
-        n: exN(3, 'odd'), parity: 'odd', type: 'talisman',
-        speed: exSp(2.1), spread: 0.14, color: C.gold,
-      });
-    });
-  };
-  g.spawnEnemy(core);
+  spawnArch(g, 'coreGold', { x: LOGICAL_W / 2, y: 100 });
   installMidWave(g, {
     interval: SI(1.1),
     maxWaves: 4,
     onWave: (game) => {
       for (const side of [-1, 1]) {
-        const e = mob(LOGICAL_W / 2 + side * 70, -15, exHp(28), C.white);
-        e.vy = 1.25;
-        e.script = (en, d, gm) => {
-          timer(en, 's', exFire(1.0), d, () => {
-            spawnRingAt(gm, en.x, en.y, exN(5), exSp(1.8), 'dot', C.white);
-          });
-        };
-        game.spawnEnemy(e);
+        spawnArch(game, 'ringWhite28', { x: LOGICAL_W / 2 + side * 70 });
       }
     },
   });
