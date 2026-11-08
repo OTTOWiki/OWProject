@@ -25,6 +25,8 @@
 - `bg/battle-print.avif`：2026-09-20 经本地 CPA Images API、`gpt-image-2` 生成的战斗外围印刷底材，原图 1536×1024；不是从东方原作提取的游戏素材。运行时使用 AVIF 压缩版本。
 - `ui/pause-vine.avif`：2026-09-20 经 CPA Images API、`gpt-image-2` 生成藤蔓，提取透明轮廓并着淡青色后压缩；用于暂停与确认菜单装饰。
 - `bg/difficulty-cathedral.avif`：经本地 CPA Images API、`gpt-image-2` 独立生成的暗哥特教堂彩窗底材，原图1536×1024，供难度选择页使用；不含原作提取素材。
+- `ui/loading-bg.avif`：以项目内既有 AI 生成素材 `bg/difficulty-cathedral.avif` 为底，压暗、加暗角与颗粒后导出的 1440×900 开屏背景；不是从东方原作提取的游戏素材，也不包含 `参考/loading.png` 的像素。
+- `ui/loading.avif`：项目内既有的 128×128 暗色纹理，仅作加载界面黑带与氛围层的材质叠加；不是从东方原作提取的运行时素材。
 - `ui/player-placeholder.svg`：按用户要求以代码绘制的临时空白人形轮廓，不使用原作角色图像；此SVG随代码以GPL-3.0-or-later授权，选择页用CSS分别着淡青／淡紫。
 
 - `ui/scene-wipe-mask.avif`：本项目原创程序绘制的 256×256 周期基础 alpha 遮罩，不复制或逐点描摹原作纹理；白色 RGB 与上缘渐变 alpha 仅用于控制场景过渡透明度，图像下部为 alpha 255 实心区，左右边界在周期接缝处连续。该素材不是可见过渡背景，过渡期间实际可见图像始终来自下一场景背景。AVIF 使用 `Color` 与 `Alpha` 两路；透明外部为 alpha 0，渐变边缘保留 0–255 中间 alpha。
