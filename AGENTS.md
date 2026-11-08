@@ -221,6 +221,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 擦弹 → edit；满 100 按 Item → 半径 `editClearRadius`（150）消弹
 - 场上道具上限：`BALANCE.itemLiveCap`（480，超出后新道具静默丢弃）
 - 决死窗：`BALANCE.deathBombWindow`
+- 屏外剔除：子弹出生 0.08s 宽限；速度仍指向场内时保留（回场弹/雨弹第一帧不消失）
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
 - 续关：每次 Game Over 先过成绩排行；还有续关次数（`BALANCE.continue.max`=2，练习除外）时结算可选继续，续关后残机/Bomb=2（`BALANCE.continue.lives/bombs`）、**分数清零**（hiscore 保留），排行榜标「续」，续关后不再录制录像
@@ -285,7 +286,7 @@ docs/                  # 内部改造队列等（非运行时）
 ## 改代码约定
 
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
-2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`。
+2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
 4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）→ `playfieldBgThemes.js` 的 `MODE_THEME`。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。

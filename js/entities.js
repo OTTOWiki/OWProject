@@ -49,6 +49,8 @@ export class Bullet {
     }
     this.grazed = false;
     this.dead = false;
+    /** 出生剔除宽限（秒）：屏外出生/回场弹至少存活约 5 帧 */
+    this.cullGrace = 0.08;
     this.accel = opts.accel || 0;
     this.spin = opts.spin || 0;
     this.homing = opts.homing || 0;
@@ -89,6 +91,7 @@ export class Bullet {
       this.delay -= dt;
       return;
     }
+    if (this.cullGrace > 0) this.cullGrace = Math.max(0, this.cullGrace - dt);
     this.age += dt;
 
     const isLaser = this.type === 'laser';
@@ -110,8 +113,9 @@ export class Bullet {
       this.x += this.vx * step;
       this.y += this.vy * step;
       if (
-        this.x < OFF_MIN_X || this.x > OFF_MAX_X
-        || this.y < OFF_MIN_Y || this.y > OFF_MAX_Y
+        (this.x < OFF_MIN_X || this.x > OFF_MAX_X
+          || this.y < OFF_MIN_Y || this.y > OFF_MAX_Y)
+        && this._cullAllowed()
       ) {
         this.dead = true;
       }
@@ -185,11 +189,22 @@ export class Bullet {
         this.dead = true;
       }
     } else if (
-      this.x < OFF_MIN_X || this.x > OFF_MAX_X
-      || this.y < OFF_MIN_Y || this.y > OFF_MAX_Y
+      (this.x < OFF_MIN_X || this.x > OFF_MAX_X
+        || this.y < OFF_MIN_Y || this.y > OFF_MAX_Y)
+      && this._cullAllowed()
     ) {
       this.dead = true;
     }
+  }
+
+  /** 屏外是否可剔除：出生宽限内或速度仍指向场内时保留 */
+  _cullAllowed() {
+    if (this.cullGrace > 0) return false;
+    const headingIn = (this.x < OFF_MIN_X && this.vx > 0)
+      || (this.x > OFF_MAX_X && this.vx < 0)
+      || (this.y < OFF_MIN_Y && this.vy > 0)
+      || (this.y > OFF_MAX_Y && this.vy < 0);
+    return !headingIn;
   }
 }
 
