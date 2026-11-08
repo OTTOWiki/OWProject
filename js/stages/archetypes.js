@@ -432,6 +432,76 @@ export const ARCHETYPES = {
       },
     ],
   },
+  aimOrange30: {
+    hp: () => exHp(30), color: C.orange, vy: 0.9,
+    fire: {
+      key: 's', interval: () => exFire(0.5), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'medium', speed: exSp(2.4), color: en.color,
+      }),
+    },
+  },
+  aimGreen32: {
+    hp: () => exHp(32), color: C.green, vy: 1.1,
+    fire: {
+      key: 's', interval: () => exFire(0.8), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(2, 'even'), parity: 'even', type: 'rice',
+        speed: exSp(2.2), spread: 0.18, color: en.color,
+      }),
+    },
+  },
+  aimCyan34: {
+    hp: () => exHp(34), color: C.cyan, vy: 1.0,
+    fire: {
+      key: 's', interval: () => exFire(0.85), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(1, 'odd'), parity: 'odd', type: 'talisman',
+        speed: exSp(2.3), spread: 0.12, color: en.color,
+      }),
+    },
+  },
+  aimWhite28: {
+    hp: () => exHp(28), color: C.white, vy: 1.2,
+    fire: {
+      key: 's', interval: () => exFire(0.7), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.1), color: en.color,
+      }),
+    },
+  },
+  dualAfterBlue: {
+    hp: () => exHp(30), color: C.blue, vy: 1.1,
+    eachTick: (en, game) => {
+      game.spawnBullet(acquireBullet({
+        x: en.x, y: en.y, angle: Math.PI / 2, speed: exSp(1.5),
+        type: 'dot', color: C.gold, from: 'enemy',
+      }));
+    },
+    fire: {
+      key: 's', interval: () => exFire(0.9), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(2, 'even'), parity: 'even', type: 'dot',
+        speed: exSp(2.1), spread: 0.2, color: en.color,
+      }),
+    },
+  },
+  dualAfterOrange: {
+    hp: () => exHp(30), color: C.orange, vy: 1.1,
+    eachTick: (en, game) => {
+      game.spawnBullet(acquireBullet({
+        x: en.x, y: en.y, angle: Math.PI / 2, speed: exSp(1.5),
+        type: 'dot', color: C.gold, from: 'enemy',
+      }));
+    },
+    fire: {
+      key: 's', interval: () => exFire(0.9), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(2, 'even'), parity: 'even', type: 'dot',
+        speed: exSp(2.1), spread: 0.2, color: en.color,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -470,6 +540,7 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
   if (data) e.data = { ...e.data, ...data };
   const fires = a.fires || [a.fire];
   e.script = (en, d, game) => {
+    a.eachTick?.(en, game);
     a.tick?.(en, game, d);
     for (const f of fires) {
       timer(en, f.key, f.interval(game), d, () => {
