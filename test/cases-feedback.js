@@ -7,6 +7,7 @@
 import { BALANCE } from '../js/config.js';
 import { runCollisions } from '../js/collision.js';
 import { addHitStop, addShake } from '../js/gameCombat.js';
+import { shakeOffset } from '../js/gameDraw.js';
 import { drawEnemy } from '../js/draw/enemyDraw.js';
 import { test, assert, assertEqual } from './assert.js';
 
@@ -31,6 +32,18 @@ test('addShake：设置 _shakeMag / _shakeDur / _shakeT 三个字段', () => {
   assertEqual(game._shakeMag, 7);
   assertEqual(game._shakeDur, 0.45);
   assertEqual(game._shakeT, 0.45, 'T 初始化为 dur');
+});
+
+test('shakeOffset：由 _shakeT 确定性派生，不消费随机数', () => {
+  const game = { _shakeT: 0.2, _shakeDur: 0.4, _shakeMag: 7 };
+  const a = shakeOffset(game);
+  const b = shakeOffset(game);
+  assertEqual(a.x, b.x, '同一状态 x 偏移一致');
+  assertEqual(a.y, b.y, '同一状态 y 偏移一致');
+  assert(Math.abs(a.x) <= 7 && Math.abs(a.y) <= 7, '偏移不超过幅度');
+  assert(a.x !== 0 || a.y !== 0, '抖动不是恒零');
+  const c = shakeOffset({ ...game, _shakeT: 0.16 });
+  assert(c.x !== a.x || c.y !== a.y, '相邻逻辑帧仍有抖动');
 });
 
 /** 最小 mock：runCollisions 只读实体字段 + hurt 方法，不碰 audio/score */

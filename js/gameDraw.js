@@ -128,6 +128,20 @@ export function drawStageTransit(game, ctx, W, H) {
   ctx.restore();
 }
 
+/**
+ * 震屏偏移：由 _shakeT 确定性派生，避免绘制期 Math.random 污染未来确定性截图/回放。
+ * 两条高频正弦给 x/y 不同相位，幅度按剩余时间线性衰减。
+ * @param {{_shakeT: number, _shakeDur: number, _shakeMag: number}} game
+ * @returns {{x: number, y: number}}
+ */
+export function shakeOffset(game) {
+  const mag = game._shakeMag * (game._shakeT / Math.max(1e-4, game._shakeDur));
+  return {
+    x: Math.sin(game._shakeT * 97.3) * mag,
+    y: Math.sin(game._shakeT * 131.7 + 1.7) * mag,
+  };
+}
+
 /** 主绘制入口（原 Game._draw） */
 export function drawGameFrame(game) {
   const ctx = game.ctx;
@@ -162,8 +176,8 @@ export function drawGameFrame(game) {
   const shakeActive = game._shakeT > 0;
   if (shakeActive) {
     ctx.save();
-    const mag = game._shakeMag * (game._shakeT / Math.max(1e-4, game._shakeDur));
-    ctx.translate((Math.random() * 2 - 1) * mag, (Math.random() * 2 - 1) * mag);
+    const { x, y } = shakeOffset(game);
+    ctx.translate(x, y);
   }
 
   drawCollectLine(ctx, W);
