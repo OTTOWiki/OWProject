@@ -264,20 +264,10 @@ export function mid_zigzag(g) {
   installMidWave(g, {
     interval: SI(0.95),
     maxWaves: 6,
-    onWave: (g, wave) => {
-      const e = mob(LOGICAL_W / 2, -18, exHp(34), C.red);
-      e.vy = 1.1;
-      e.data = { phase: g.waveCount * 0.7 };
-      e.script = (en, d, game) => {
-        en.data.phase = (en.data.phase || 0) + d * 2.2;
-        en.x = LOGICAL_W / 2 + Math.sin(en.data.phase) * 110;
-        timer(en, 's', exFire(0.85), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'rice', speed: exSp(2.3), color: C.red,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'zigzagRed', {
+        x: LOGICAL_W / 2, data: { phase: g.waveCount * 0.7 },
+      });
     },
   });
 }
@@ -298,23 +288,8 @@ export function mid_fixedFan(g) {
   installMidWave(g, {
     interval: SI(1.1),
     maxWaves: 5,
-    onWave: (g, wave) => {
-      const e = mob(70 + (g.waveCount % 4) * 90, -18, exHp(38), C.blue);
-      e.vy = 0.95;
-      e.script = (en, d, game) => {
-        if (en.y > 90) en.vy = 0.18;
-        timer(en, 'f', exFire(0.75), d, () => {
-          en.data.a = (en.data.a || Math.PI * 0.55) + 0.12;
-          const base = en.data.a;
-          for (let i = -1; i <= 1; i++) {
-            game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y, angle: base + i * 0.2, speed: exSp(2.1),
-              type: 'rice', color: C.blue, from: 'enemy',
-            }));
-          }
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'fanBlue', { x: 70 + (g.waveCount % 4) * 90 });
     },
   });
 }
@@ -455,30 +430,9 @@ export function mid_dualColor(g) {
   installMidWave(g, {
     interval: SI(2.0),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      [-1, 1].forEach((side, i) => {
-        const e = elite({
-          x: LOGICAL_W / 2 + side * 145, y: 80,
-          hp: exHp(180), kind: 'generic',
-          color: i ? C.cyan : C.orange,
-        });
-        e.vy = 0.2;
-        e.script = (en, d, game) => {
-          const idx = en.x > LOGICAL_W / 2 ? 1 : 0;
-          const color = idx ? C.cyan : C.orange;
-          const type = idx ? 'dot' : 'talisman';
-          timer(en, 'f', exFire(idx ? 0.7 : 0.9), d, () => {
-            const base = Math.atan2(LOGICAL_H / 2 - en.y, LOGICAL_W / 2 - en.x);
-            for (let i = -1; i <= 1; i++) {
-              game.spawnBullet(acquireBullet({
-                x: en.x, y: en.y, angle: base + i * 0.18, speed: exSp(2.2),
-                type, color, from: 'enemy',
-              }));
-            }
-          });
-        };
-        g.spawnEnemy(e);
-      });
+    onWave: (g) => {
+      spawnArch(g, 'dualColorOrange', { x: LOGICAL_W / 2 - 145, y: 80 });
+      spawnArch(g, 'dualColorCyan', { x: LOGICAL_W / 2 + 145, y: 80 });
     },
   });
 }
@@ -508,20 +462,9 @@ export function mid_rainSniper(g) {
       }
     },
     onWave: (game) => {
-      const e = elite({
+      spawnArch(game, 'rainSniperViolet', {
         x: 60 + Math.random() * (LOGICAL_W - 120), y: 85,
-        hp: exHp(150), color: C.violet, kind: 'generic',
       });
-      e.vy = 0.2;
-      e.script = (en, d, gm) => {
-        timer(en, 'a', exFire(1.0), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: exN(1, 'odd'), parity: 'odd', type: 'medium',
-            speed: exSp(2.4), spread: 0.12, color: C.violet,
-          });
-        });
-      };
-      game.spawnEnemy(e);
     },
   });
 }
@@ -560,31 +503,10 @@ export function mid_eliteFan(g) {
   installMidWave(g, {
     interval: SI(2.0),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      const e = elite({
-        x: LOGICAL_W / 2, y: 90,
-        hp: exHp(220), color: C.gold, kind: 'generic',
+    onWave: (g) => {
+      spawnArch(g, 'eliteFanGold', {
+        x: LOGICAL_W / 2, y: 90, data: { a: Math.PI * 0.25 },
       });
-      e.vy = 0.15;
-      e.script = (en, d, game) => {
-        timer(en, 'f', exFire(0.7), d, () => {
-          en.data.a = (en.data.a || Math.PI * 0.25) + 0.12;
-          const base = en.data.a;
-          for (let i = -2; i <= 2; i++) {
-            game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y, angle: base + i * 0.15, speed: exSp(2.0),
-              type: 'rice', color: C.gold, from: 'enemy',
-            }));
-          }
-        });
-        timer(en, 'a', exFire(1.2), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(2, 'odd'), parity: 'odd', type: 'talisman',
-            speed: exSp(2.3), spread: 0.12, color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }
