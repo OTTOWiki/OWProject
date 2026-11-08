@@ -179,6 +179,52 @@ export const ARCHETYPES = {
       },
     ],
   },
+  aimHeavyBlue: {
+    hp: () => exHp(26),
+    color: C.blue,
+    vy: 1.15,
+    fire: {
+      key: 's', interval: () => exFire(0.5), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: en.color,
+      }),
+    },
+  },
+  aimHeavyPink: {
+    hp: () => exHp(26),
+    color: C.pink,
+    vy: 1.15,
+    fire: {
+      key: 's', interval: () => exFire(0.5), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: en.color,
+      }),
+    },
+  },
+  crossGreen: {
+    hp: () => exHp(32),
+    color: C.green,
+    vx: 1.8,
+    vy: 0.1,
+    fire: {
+      key: 's', interval: () => exFire(0.7), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(2, 'even'), parity: 'even', type: 'rice',
+        speed: exSp(2.2), spread: 0.2, color: en.color,
+      }),
+    },
+  },
+  aimViolet30: {
+    hp: () => exHp(30),
+    color: C.violet,
+    vy: 0.9,
+    fire: {
+      key: 's', interval: () => exFire(0.5), pattern: 'aimed',
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.4), color: en.color,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
