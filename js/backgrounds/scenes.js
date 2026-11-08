@@ -10,21 +10,21 @@ export function buildS1Mid(bg) {
   const chars = '草稿OTTO#[]{}<>wiki编辑';
   bg._scatter(48, () => {
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.06, 2.2 + Math.random() * 5),
+      new THREE.BoxGeometry(0.06, 0.06, 2.2 + bg.__rand() * 5),
       new THREE.MeshBasicMaterial({
-        color: new THREE.Color().setHSL(0.33 + Math.random() * 0.06, 0.55, 0.28 + Math.random() * 0.35),
+        color: new THREE.Color().setHSL(0.33 + bg.__rand() * 0.06, 0.55, 0.28 + bg.__rand() * 0.35),
         transparent: true,
-        opacity: 0.55 + Math.random() * 0.35,
+        opacity: 0.55 + bg.__rand() * 0.35,
       }),
     );
-    mesh.userData.speed = 2.5 + Math.random() * 5;
+    mesh.userData.speed = 2.5 + bg.__rand() * 5;
     mesh.userData.tunnel = true;
     return mesh;
   }, {
     place: (mesh) => {
-      const r = 2.2 + Math.random() * 5;
-      const a = Math.random() * Math.PI * 2;
-      mesh.position.set(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.7, (Math.random() - 0.5) * 22);
+      const r = 2.2 + bg.__rand() * 5;
+      const a = bg.__rand() * Math.PI * 2;
+      mesh.position.set(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.7, (bg.__rand() - 0.5) * 22);
     },
   });
   bg._scatter(10, (i) => {
@@ -36,7 +36,7 @@ export function buildS1Mid(bg) {
       new THREE.PlaneGeometry(0.55, 0.55),
       new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
     );
-    p.userData.speed = 1.5 + Math.random() * 2;
+    p.userData.speed = 1.5 + bg.__rand() * 2;
     p.userData.tunnel = true;
     return p;
   }, { spread: [8, 9, 14] });
@@ -77,9 +77,9 @@ export function buildS1Boss(bg) {
 export function buildS2Mid(bg) {
   bg._atmosphere({ bg: 0x050e1c, fog: 0.032, light: 0x4488ff, intensity: 1.25 });
   bg._scatter(28, () => {
-    const warn = Math.random() < 0.22;
+    const warn = bg.__rand() < 0.22;
     const m = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.35, 0.35, 1.1 + Math.random() * 0.8, 6),
+      new THREE.CylinderGeometry(0.35, 0.35, 1.1 + bg.__rand() * 0.8, 6),
       new THREE.MeshStandardMaterial({
         color: warn ? 0x7f1d1d : 0x1e3a5f,
         emissive: warn ? 0xff2222 : 0x112244,
@@ -89,9 +89,9 @@ export function buildS2Mid(bg) {
         roughness: 0.55,
       }),
     );
-    m.rotation.set(Math.random(), Math.random(), Math.random());
-    m.userData.drift = 0.3 + Math.random() * 0.5;
-    m.userData.phase = Math.random() * 10;
+    m.rotation.set(bg.__rand(), bg.__rand(), bg.__rand());
+    m.userData.drift = 0.3 + bg.__rand() * 0.5;
+    m.userData.phase = bg.__rand() * 10;
     return m;
   }, { spread: [11, 11, 9] });
   bg._scatter(8, () => {
@@ -99,12 +99,12 @@ export function buildS2Mid(bg) {
       new THREE.ConeGeometry(0.45, 0.7, 3),
       new THREE.MeshBasicMaterial({ color: 0xff3344, transparent: true, opacity: 0.85 }),
     );
-    tri.userData.spin = 1 + Math.random();
+    tri.userData.spin = 1 + bg.__rand();
     tri.userData.blink = true;
     return tri;
   }, { spread: [10, 8, 6] });
   bg._scatter(6, (i) => {
-    const bits = Array.from({ length: 8 }, () => (Math.random() > 0.5 ? '1' : '0')).join('');
+    const bits = Array.from({ length: 8 }, () => (bg.__rand() > 0.5 ? '1' : '0')).join('');
     const tex = makeTextTexture(bits, {
       w: 200, h: 40, fill: '#7dd3fc', font: '18px monospace', bg: 'rgba(8,20,40,0.4)',
     });
@@ -189,14 +189,14 @@ export function buildS3Mid(bg) {
   const rightG = new THREE.Group();
   for (let i = 0; i < 16; i++) {
     const b = new THREE.Mesh(
-      new THREE.BoxGeometry(0.7 + Math.random() * 0.5, 0.7 + Math.random() * 0.5, 0.7),
+      new THREE.BoxGeometry(0.7 + bg.__rand() * 0.5, 0.7 + bg.__rand() * 0.5, 0.7),
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(0.07 + Math.random() * 0.05, 0.85, 0.45),
+        color: new THREE.Color().setHSL(0.07 + bg.__rand() * 0.05, 0.85, 0.45),
         emissive: 0x7c2d12,
         emissiveIntensity: 0.45,
       })
     );
-    b.position.set(Math.random() * 3.5, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 4);
+    b.position.set(bg.__rand() * 3.5, (bg.__rand() - 0.5) * 8, (bg.__rand() - 0.5) * 4);
     b.userData.floatY = true;
     b.userData.phase = i * 0.7;
     rightG.add(b);
@@ -320,9 +320,9 @@ export function buildA4(bg, boss) {
     intensity: boss ? 1.6 : 1.3,
   });
   bg._scatter(boss ? 14 : 9, () => {
-    const h = 2.2 + Math.random() * 4.5;
+    const h = 2.2 + bg.__rand() * 4.5;
     const m = new THREE.Mesh(
-      new THREE.ConeGeometry(0.35 + Math.random() * 0.15, h, 4),
+      new THREE.ConeGeometry(0.35 + bg.__rand() * 0.15, h, 4),
       new THREE.MeshStandardMaterial({
         color: boss ? 0xf87171 : 0xfbbf24,
         emissive: boss ? 0x7f1d1d : 0x92400e,
@@ -331,11 +331,11 @@ export function buildA4(bg, boss) {
       }),
     );
     m.userData.fixed = true;
-    m.position.set((Math.random() - 0.5) * 10, h / 2 - 3.2, (Math.random() - 0.5) * 6);
+    m.position.set((bg.__rand() - 0.5) * 10, h / 2 - 3.2, (bg.__rand() - 0.5) * 6);
     if (boss) {
-      m.rotation.z = (Math.random() - 0.5) * 1.8;
-      m.rotation.x = (Math.random() - 0.5) * 0.8;
-      m.userData.rot = 0.4 + Math.random();
+      m.rotation.z = (bg.__rand() - 0.5) * 1.8;
+      m.rotation.x = (bg.__rand() - 0.5) * 0.8;
+      m.userData.rot = 0.4 + bg.__rand();
     } else {
       m.userData.rot = 0.15;
     }
@@ -354,7 +354,7 @@ export function buildA4(bg, boss) {
           side: THREE.DoubleSide,
         }),
       );
-      btn.userData.speed = 3 + Math.random() * 4;
+      btn.userData.speed = 3 + bg.__rand() * 4;
       btn.userData.tunnel = true;
       return btn;
     }, { spread: [8, 6, 4] });
@@ -365,7 +365,7 @@ export function buildA4(bg, boss) {
     for (let i = 0; i < 5; i++) {
       const tag = bg._labelPlane(['购买', '特惠', '套装', '加购'][i % 4], {
         color: '#fef08a',
-        pos: [(Math.random() - 0.5) * 7, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3],
+        pos: [(bg.__rand() - 0.5) * 7, (bg.__rand() - 0.5) * 5, (bg.__rand() - 0.5) * 3],
         scale: [1.8, 0.55],
       });
       tag.userData.floatY = true;
@@ -438,8 +438,8 @@ export function buildA5(bg, boss) {
     for (let i = 0; i < 5; i++) {
       const pts = [
         new THREE.Vector3(-1.2, (i - 2) * 0.4, 0),
-        new THREE.Vector3(-0.3, (i - 2) * 0.4 + (Math.random() - 0.5), 0.2),
-        new THREE.Vector3(0.3, (i - 2) * 0.4 + (Math.random() - 0.5), -0.1),
+        new THREE.Vector3(-0.3, (i - 2) * 0.4 + (bg.__rand() - 0.5), 0.2),
+        new THREE.Vector3(0.3, (i - 2) * 0.4 + (bg.__rand() - 0.5), -0.1),
         new THREE.Vector3(1.2, (i - 2) * 0.4, 0),
       ];
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
@@ -469,18 +469,18 @@ export function buildA6(bg, boss) {
     let mesh;
     if (i % 3 === 0) {
       mesh = new THREE.Mesh(
-        new THREE.TorusGeometry(0.4 + Math.random() * 0.6, 0.08, 8, 22),
+        new THREE.TorusGeometry(0.4 + bg.__rand() * 0.6, 0.08, 8, 22),
         new THREE.MeshStandardMaterial({
-          color: new THREE.Color().setHSL(0.85 + Math.random() * 0.12, 0.75, 0.55),
+          color: new THREE.Color().setHSL(0.85 + bg.__rand() * 0.12, 0.75, 0.55),
           emissive: 0x440033,
           emissiveIntensity: 0.5,
         }),
       );
     } else if (i % 3 === 1) {
       mesh = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.35 + Math.random() * 0.3, 0),
+        new THREE.OctahedronGeometry(0.35 + bg.__rand() * 0.3, 0),
         new THREE.MeshStandardMaterial({
-          color: new THREE.Color().setHSL(0.15 + Math.random() * 0.05, 0.9, 0.55),
+          color: new THREE.Color().setHSL(0.15 + bg.__rand() * 0.05, 0.9, 0.55),
           emissive: 0x663300,
         }),
       );
@@ -493,9 +493,9 @@ export function buildA6(bg, boss) {
         }),
       );
     }
-    mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random());
+    mesh.rotation.set(bg.__rand() * 2, bg.__rand() * 2, bg.__rand());
     if (boss) {
-      mesh.userData.rot = 1.5 + Math.random() * 2;
+      mesh.userData.rot = 1.5 + bg.__rand() * 2;
       mesh.userData.shatter = true;
     } else {
       mesh.userData.rot = 0.25;
@@ -546,7 +546,7 @@ export function buildA6(bg, boss) {
         ['加个好友嘛~', '不回消息？', '哈机密♡', '再聊一会儿'][i],
         {
           color: '#fce7f3',
-          pos: [(Math.random() - 0.5) * 6, (Math.random() - 0.5) * 5, 1],
+          pos: [(bg.__rand() - 0.5) * 6, (bg.__rand() - 0.5) * 5, 1],
           scale: [2.6, 0.7],
         }
       );
@@ -595,12 +595,12 @@ export function buildB4(bg, boss) {
     for (let i = 0; i < 8; i++) {
       const storm = bg._labelPlane(['创！', '哲学', '创世', '铁皮人'][i % 4], {
         color: '#fecaca',
-        pos: [(Math.random() - 0.5) * 8, (Math.random() - 0.5) * 7, (Math.random() - 0.5) * 4],
+        pos: [(bg.__rand() - 0.5) * 8, (bg.__rand() - 0.5) * 7, (bg.__rand() - 0.5) * 4],
         scale: [1.6, 0.55],
       });
       storm.userData.rot = 1.5;
       storm.userData.orbit = {
-        r: 3 + Math.random() * 2, a: (i / 8) * Math.PI * 2, speed: 1.5,
+        r: 3 + bg.__rand() * 2, a: (i / 8) * Math.PI * 2, speed: 1.5,
       };
     }
     bg._labelPlane('【赌人时尚】', {
@@ -614,7 +614,7 @@ export function buildB4(bg, boss) {
     for (let i = 0; i < 6; i++) {
       const p = bg._labelPlane('创', {
         color: '#ff6688',
-        pos: [(Math.random() - 0.5) * 8, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4],
+        pos: [(bg.__rand() - 0.5) * 8, (bg.__rand() - 0.5) * 6, (bg.__rand() - 0.5) * 4],
         scale: [1.0, 0.5],
       });
       p.userData.floatY = true;
@@ -696,7 +696,7 @@ export function buildB5(bg, boss) {
     for (let i = 0; i < 5; i++) {
       const t = bg._labelPlane(['傲娇', '推', '退', '素质'][i % 4], {
         color: '#fdba74',
-        pos: [(Math.random() - 0.5) * 7, (Math.random() - 0.5) * 4, 1],
+        pos: [(bg.__rand() - 0.5) * 7, (bg.__rand() - 0.5) * 4, 1],
         scale: [1.4, 0.5],
       });
       t.userData.floatY = true;
@@ -722,7 +722,7 @@ export function buildB6(bg, boss) {
   for (let i = 0; i < (boss ? 7 : 5); i++) {
     const tower = new THREE.Group();
     const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.4, 3.5 + Math.random(), 6, 1, true),
+      new THREE.CylinderGeometry(0.25, 0.4, 3.5 + bg.__rand(), 6, 1, true),
       new THREE.MeshBasicMaterial({ color: 0x1a2e0a, wireframe: true })
     );
     const top = new THREE.Mesh(
@@ -731,8 +731,8 @@ export function buildB6(bg, boss) {
     );
     top.position.y = 2.2;
     tower.add(shaft, top);
-    tower.position.set((i - 2.5) * 2.2, -2, -2 - Math.random() * 3);
-    if (boss) tower.userData.rot = 0.3 + Math.random() * 0.5;
+    tower.position.set((i - 2.5) * 2.2, -2, -2 - bg.__rand() * 3);
+    if (boss) tower.userData.rot = 0.3 + bg.__rand() * 0.5;
     bg.root.add(tower);
     bg.extras.push(tower);
   }

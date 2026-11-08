@@ -6,11 +6,16 @@ import { THREE } from './threeLoader.js';
 import { resolveBgMode } from '../bgModes.js';
 import { STAGE_BG_BUILDERS } from './builders.js';
 import { makeTextTexture } from './textTexture.js';
-import { withRealRandom } from '../rng.js';
 
 export class StageBackground {
-  constructor(canvas) {
+  /**
+   * @param {HTMLCanvasElement|object} canvas
+   * @param {{ rand?: () => number }} [opts] rand：装饰随机源；默认 Math.random。
+   *   测试可注入 mulberry32 固定 seed，使同一 mode 的构建序列可复现。
+   */
+  constructor(canvas, { rand = Math.random } = {}) {
     this.canvas = canvas;
+    this.__rand = typeof rand === 'function' ? rand : Math.random;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.scene = new THREE.Scene();
@@ -80,8 +85,8 @@ export class StageBackground {
     this._clear();
     const m = resolveBgMode(this.mode);
     const build = STAGE_BG_BUILDERS[m] || STAGE_BG_BUILDERS.s1_mid;
-    // 场景构建是装饰性随机；用真实随机，避免消费录像的种子流（否则切关后回放走样）
-    withRealRandom(() => build(this));
+    // 装饰随机走注入源（默认 Math.random，构造时捕获，不受后续 withSeededRng 全局替换影响）
+    build(this);
   }
 
   _addLights(color = 0x88aaff, intensity = 1.2, amb = 0.55) {
@@ -126,9 +131,9 @@ export class StageBackground {
         opts.place(mesh, i);
       } else if (!mesh.userData.fixed) {
         mesh.position.set(
-          (Math.random() - 0.5) * spread[0],
-          (Math.random() - 0.5) * spread[1],
-          (Math.random() - 0.5) * spread[2],
+          (this.__rand() - 0.5) * spread[0],
+          (this.__rand() - 0.5) * spread[1],
+          (this.__rand() - 0.5) * spread[2],
         );
       }
       if (!opts.skipAdd) {
@@ -155,9 +160,9 @@ export class StageBackground {
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * spread;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * spread;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * spread;
+      pos[i * 3] = (this.__rand() - 0.5) * spread;
+      pos[i * 3 + 1] = (this.__rand() - 0.5) * spread;
+      pos[i * 3 + 2] = (this.__rand() - 0.5) * spread;
     }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({
