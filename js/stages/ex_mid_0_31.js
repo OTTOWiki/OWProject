@@ -9,24 +9,16 @@ import {
 } from '../patterns.js';
 import { acquireBullet } from '../bulletPool.js';
 import { C, exHp, exSp, exN, exFire, SI } from './ex_shared.js';
+import { spawnArch } from './archetypes.js';
 
 
 export function mid_altSides(g) {
   installMidWave(g, {
     interval: SI(0.9),
     maxWaves: 7,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const left = g.waveCount % 2 === 1;
-      const e = mob(left ? 70 : LOGICAL_W - 70, -18, exHp(34), C.green);
-      e.vy = 1.2;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.9), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: C.green,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+      spawnArch(g, 'aimGreen', { x: left ? 70 : LOGICAL_W - 70 });
     },
   });
 }
@@ -35,18 +27,8 @@ export function mid_randomEven(g) {
   installMidWave(g, {
     interval: SI(0.85),
     maxWaves: 7,
-    onWave: (g, wave) => {
-      const e = mob(50 + Math.random() * (LOGICAL_W - 100), -18, exHp(36), C.cyan);
-      e.vy = 1.05;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.95), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(2, 'even'), parity: 'even', type: 'rice',
-            speed: exSp(2.15), spread: 0.2, color: C.cyan,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'aimCyan', { x: 50 + Math.random() * (LOGICAL_W - 100) });
     },
   });
 }

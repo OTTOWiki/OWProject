@@ -1,0 +1,59 @@
+/**
+ * 道中敌机原型（B2 起步）：把「一只怪的开火表」从章节函数里抽出来。
+ * 仅覆盖已迁移的 aim 系；特殊章仍可直接写 tracks/raw script。
+ */
+import { mob, timer } from './_shared.js';
+import { spawnAimed } from '../patterns.js';
+import { exHp, exSp, exN, exFire, C } from './ex_shared.js';
+
+export const ARCHETYPES = {
+  aimGreen: {
+    hp: () => exHp(34),
+    color: C.green,
+    vy: 1.2,
+    fire: {
+      key: 's',
+      interval: () => exFire(0.9),
+      pattern: 'aimed',
+      options: () => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: C.green,
+      }),
+    },
+  },
+  aimCyan: {
+    hp: () => exHp(36),
+    color: C.cyan,
+    vy: 1.05,
+    fire: {
+      key: 's',
+      interval: () => exFire(0.95),
+      pattern: 'aimed',
+      options: () => ({
+        n: exN(2, 'even'), parity: 'even', type: 'rice',
+        speed: exSp(2.15), spread: 0.2, color: C.cyan,
+      }),
+    },
+  },
+};
+
+/**
+ * 按原型生成一只 mob 并挂开火 script。
+ * @param {object} g
+ * @param {keyof typeof ARCHETYPES} id
+ * @param {{ x: number, y?: number }} opts
+ */
+export function spawnArch(g, id, { x, y = -18 } = {}) {
+  const a = ARCHETYPES[id];
+  if (!a) throw new Error(`unknown archetype: ${id}`);
+  const e = mob(x, y, a.hp(g), a.color);
+  e.vy = a.vy;
+  const f = a.fire;
+  e.script = (en, d, game) => {
+    timer(en, f.key, f.interval(game), d, () => {
+      const opts = f.options(game);
+      if (f.pattern === 'aimed') spawnAimed(game, en, game.player, opts);
+    });
+  };
+  g.spawnEnemy(e);
+  return e;
+}
