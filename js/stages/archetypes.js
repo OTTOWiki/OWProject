@@ -15,8 +15,22 @@ export const ARCHETYPES = {
       key: 's',
       interval: () => exFire(0.9),
       pattern: 'aimed',
-      options: () => ({
-        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: C.green,
+      options: (game, en) => ({
+        n: 1, parity: 'odd', type: 'dot', speed: exSp(2.3), color: en.color,
+      }),
+    },
+  },
+  aimFlank: {
+    hp: () => exHp(32),
+    color: C.blue,
+    vy: 1.15,
+    fire: {
+      key: 's',
+      interval: () => exFire(1.0),
+      pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(2, 'even'), parity: 'even', type: 'dot',
+        speed: exSp(2.2), spread: 0.22, color: en.color,
       }),
     },
   },
@@ -28,9 +42,9 @@ export const ARCHETYPES = {
       key: 's',
       interval: () => exFire(0.95),
       pattern: 'aimed',
-      options: () => ({
+      options: (game, en) => ({
         n: exN(2, 'even'), parity: 'even', type: 'rice',
-        speed: exSp(2.15), spread: 0.2, color: C.cyan,
+        speed: exSp(2.15), spread: 0.2, color: en.color,
       }),
     },
   },
@@ -42,15 +56,15 @@ export const ARCHETYPES = {
  * @param {keyof typeof ARCHETYPES} id
  * @param {{ x: number, y?: number }} opts
  */
-export function spawnArch(g, id, { x, y = -18 } = {}) {
+export function spawnArch(g, id, { x, y = -18, color, hp } = {}) {
   const a = ARCHETYPES[id];
   if (!a) throw new Error(`unknown archetype: ${id}`);
-  const e = mob(x, y, a.hp(g), a.color);
+  const e = mob(x, y, hp ?? a.hp(g), color ?? a.color);
   e.vy = a.vy;
   const f = a.fire;
   e.script = (en, d, game) => {
     timer(en, f.key, f.interval(game), d, () => {
-      const opts = f.options(game);
+      const opts = f.options(game, en);
       if (f.pattern === 'aimed') spawnAimed(game, en, game.player, opts);
     });
   };

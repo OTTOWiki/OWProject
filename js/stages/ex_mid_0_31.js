@@ -37,19 +37,13 @@ export function mid_dualFlank(g) {
   installMidWave(g, {
     interval: SI(1.0),
     maxWaves: 5,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (const side of [-1, 1]) {
-        const e = mob(LOGICAL_W / 2 + side * 100, -15, exHp(32), side < 0 ? C.blue : C.orange);
-        e.vy = 1.15;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(1.0), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: exN(2, 'even'), parity: 'even', type: 'dot',
-              speed: exSp(2.2), spread: 0.22, color: en.color,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimFlank', {
+          x: LOGICAL_W / 2 + side * 100,
+          y: -15,
+          color: side < 0 ? C.blue : C.orange,
+        });
       }
     },
   });
