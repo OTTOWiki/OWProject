@@ -615,6 +615,64 @@ export const ARCHETYPES = {
       },
     ],
   },
+  hoverRingAfterGold: {
+    hp: () => exHp(48), color: C.gold, vy: 1.0,
+    tick: (en) => { if (en.y > 100 && en.y < 150) en.vy = 0.12; },
+    fire: {
+      key: 'r', interval: () => exFire(1.0), pattern: 'ringPair',
+      options: (game, en) => ({
+        a: { n: exN(10), speed: exSp(1.7), type: 'talisman', color: C.gold },
+        b: { n: exN(8), speed: exSp(1.4), type: 'dot', color: C.white, angleMul: 0.6 },
+      }),
+    },
+  },
+  fanEchoPink: {
+    hp: () => exHp(36), color: C.pink, vy: 0.9,
+    tick: (en, game, dt) => {
+      if (en.y > 90) en.vy = 0.15;
+      en.data.a = (en.data.a ?? 0) + dt * 0.6;
+      en.x += Math.sin(en.data.a) * 0.6;
+    },
+    fires: [
+      {
+        key: 'f', interval: () => exFire(0.7), pattern: 'aimFan',
+        options: () => ({
+          count: 2, spread: 0.18, speed: exSp(2.1),
+          type: 'rice', color: C.pink,
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(0.6), pattern: 'aimed',
+        options: (game, en) => ({
+          n: 1, parity: 'odd', type: 'rice', speed: exSp(2.3), color: C.white,
+        }),
+      },
+    ],
+  },
+  overwriteVioletA: {
+    elite: true, hp: () => exHp(350), color: C.violet, vy: 0.15,
+    fires: [
+      { key: 'L', interval: () => exFire(1.0), pattern: 'aimedLaser', color: C.violet },
+      {
+        key: 'r', interval: () => exFire(2.5), pattern: 'ringAt',
+        options: (game, en) => ({
+          n: exN(16), speed: exSp(2.0), type: 'talisman', color: C.gold, angle: en.age,
+        }),
+      },
+    ],
+  },
+  overwriteVioletB: {
+    elite: true, hp: () => exHp(350), color: C.violet, vy: 0.15,
+    fires: [
+      { key: 'L', interval: () => exFire(1.2), pattern: 'aimedLaser', color: C.violet },
+      {
+        key: 'r', interval: () => exFire(2.8), pattern: 'ringAt',
+        options: (game, en) => ({
+          n: exN(14), speed: exSp(1.8), type: 'dot', color: C.pink, angle: en.age * 0.5,
+        }),
+      },
+    ],
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -660,6 +718,7 @@ export function spawnArch(g, id, {
     tick?.(en, game, d);
     for (const f of fires) {
       timer(en, f.key, f.interval(game), d, () => {
+        if (f.when && !f.when(en)) return;
         if (f.pattern === 'aimed') {
           spawnAimed(game, en, game.player, f.options(game, en));
         } else if (f.pattern === 'aimedLaser') {
@@ -696,6 +755,13 @@ export function spawnArch(g, id, {
           } else {
             spawnAimed(game, en, game.player, o.aimed);
           }
+        } else if (f.pattern === 'ringPair') {
+          const o = f.options(game, en);
+          spawnRingAt(game, en.x, en.y, o.a.n, o.a.speed, o.a.type, o.a.color, en.age);
+          spawnRingAt(
+            game, en.x, en.y, o.b.n, o.b.speed, o.b.type, o.b.color,
+            en.age * (o.b.angleMul ?? 0.6),
+          );
         } else if (f.pattern === 'ringSpin') {
           const o = f.options(game, en);
           en.data.a = (en.data.a ?? 0) + o.step;
@@ -728,6 +794,15 @@ export function spawnArch(g, id, {
         } else if (f.pattern === 'centerFan') {
           const o = f.options(game, en);
           const base = Math.atan2(LOGICAL_H / 2 - en.y, LOGICAL_W / 2 - en.x);
+          for (let i = -o.count; i <= o.count; i += 1) {
+            game.spawnBullet(acquireBullet({
+              x: en.x, y: en.y, angle: base + i * o.spread, speed: o.speed,
+              type: o.type, color: o.color, from: 'enemy',
+            }));
+          }
+        } else if (f.pattern === 'aimFan') {
+          const o = f.options(game, en);
+          const base = Math.atan2(game.player.y - en.y, game.player.x - en.x);
           for (let i = -o.count; i <= o.count; i += 1) {
             game.spawnBullet(acquireBullet({
               x: en.x, y: en.y, angle: base + i * o.spread, speed: o.speed,

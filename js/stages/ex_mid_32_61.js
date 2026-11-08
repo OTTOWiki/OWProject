@@ -113,29 +113,8 @@ export function mid_fanEcho(g) {
   installMidWave(g, {
     interval: SI(1.0),
     maxWaves: 5,
-    onWave: (g, wave) => {
-      const e = mob(80 + (g.waveCount % 4) * 85, -18, exHp(36), C.pink);
-      e.vy = 0.9;
-      e.script = (en, d, game) => {
-        if (en.y > 90) en.vy = 0.15;
-        en.data.a = (en.data.a || 0) + d * 0.6;
-        en.x += Math.sin(en.data.a) * 0.6;
-        timer(en, 'f', exFire(0.7), d, () => {
-          const base = Math.atan2(game.player.y - en.y, game.player.x - en.x);
-          for (let i = -2; i <= 2; i++) {
-            game.spawnBullet(acquireBullet({
-              x: en.x, y: en.y, angle: base + i * 0.18, speed: exSp(2.1),
-              type: 'rice', color: C.pink, from: 'enemy',
-            }));
-          }
-        });
-        timer(en, 'a', exFire(0.6), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'rice', speed: exSp(2.3), color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'fanEchoPink', { x: 80 + (g.waveCount % 4) * 85 });
     },
   });
 }
@@ -252,18 +231,9 @@ export function mid_hoverRingAfter(g) {
   installMidWave(g, {
     interval: SI(1.3),
     maxWaves: 4,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const x = 90 + ((g.waveCount - 1) % 3) * 130;
-      const e = mob(x, -20, exHp(48), C.gold);
-      e.vy = 1.0;
-      e.script = (en, d, game) => {
-        if (en.y > 100 && en.y < 150) en.vy = 0.12;
-        timer(en, 'r', exFire(1.0), d, () => {
-          spawnRingAt(game, en.x, en.y, exN(10), exSp(1.7), 'talisman', C.gold, en.age);
-          spawnRingAt(game, en.x, en.y, exN(8), exSp(1.4), 'dot', C.white, en.age * 0.6);
-        });
-      };
-      g.spawnEnemy(e);
+      spawnArch(g, 'hoverRingAfterGold', { x });
     },
   });
 }
@@ -680,28 +650,8 @@ export function mid_sanctuary(g) {
 }
 
 export function mid_overwriteEve(g) {
-  const e1 = elite({
-    x: LOGICAL_W * 0.25, y: 90, hp: exHp(350), color: C.violet, kind: 'generic',
-  });
-  e1.vy = 0.15;
-  e1.script = (en, d, game) => {
-    timer(en, 'L', exFire(1.0), d, () => spawnAimedLaser(game, en, game.player, C.violet));
-    timer(en, 'r', exFire(2.5), d, () => {
-      spawnRingAt(game, en.x, en.y, exN(16), exSp(2.0), 'talisman', C.gold, en.age);
-    });
-  };
-  g.spawnEnemy(e1);
-  const e2 = elite({
-    x: LOGICAL_W * 0.75, y: 90, hp: exHp(350), color: C.violet, kind: 'generic',
-  });
-  e2.vy = 0.15;
-  e2.script = (en, d, game) => {
-    timer(en, 'L', exFire(1.2), d, () => spawnAimedLaser(game, en, game.player, C.violet));
-    timer(en, 'r', exFire(2.8), d, () => {
-      spawnRingAt(game, en.x, en.y, exN(14), exSp(1.8), 'dot', C.pink, en.age * 0.5);
-    });
-  };
-  g.spawnEnemy(e2);
+  spawnArch(g, 'overwriteVioletA', { x: LOGICAL_W * 0.25, y: 90 });
+  spawnArch(g, 'overwriteVioletB', { x: LOGICAL_W * 0.75, y: 90 });
   // 仅辅压；不推进 helper waveCount，避免精英击破后提前清章
   installMidWave(g, {
     continuous: (game, dt) => {
