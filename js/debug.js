@@ -524,6 +524,7 @@ OW Debug 用法
   owDebug.kill()            清敌+清弹+本章成功
   owDebug.clear()           清弹
   owDebug.life() / .bomb() / .edit()
+  owDebug.hitstop(秒)       强制停帧（回归自测用，≤1s）
   热键：F8 面板 · F9 循环加速
 EX 起点：stageSelectEntries 中 id=EX 的 startChapter
 `);
@@ -555,6 +556,14 @@ EX 起点：stageSelectEntries 中 id=EX 的 startChapter
   api.life = () => debugAddLife(1);
   api.bomb = () => debugAddBomb(1);
   api.edit = () => debugFillEdit();
+  /** 强制停帧（仅调试/回归）：直接写 _hitStop，不受 addHitStop 的 cap 限制 */
+  api.hitstop = (sec) => {
+    const gm = g();
+    const n = Number(sec);
+    const dur = Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.2;
+    if (gm) gm._hitStop = dur;
+    return dur;
+  };
   api.route = (r) => debugChooseRoute(r);
 
   window.owDebug = api;

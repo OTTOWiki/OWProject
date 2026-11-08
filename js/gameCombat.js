@@ -15,6 +15,7 @@ import { acquireItem, releaseItemList } from './itemPool.js';
 import { updateGameHud, updateLetterHud } from './hud.js';
 import { finishChapter, gameOver, startChapter, softClearForNextChapter } from './chapterFlow.js';
 import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
+import { consumeCombatEdges } from './combatEdges.js';
 
 /**
  * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
@@ -164,6 +165,8 @@ export function updateCombat(game, dt) {
   const p = game.player;
   const ch = game.chapters[game.chapterIndex];
   const settling = !!game.chapterDone;
+  // 停帧块不跑本函数；解冻后的第一个战斗块取走停帧期缓冲的 X/C 边沿
+  const edges = consumeCombatEdges(game._combatEdges);
 
   // 连击窗口衰减：超时清零（击破时在 applyCollisionEvents 续期）
   if (game.combo > 0) {
@@ -182,7 +185,7 @@ export function updateCombat(game, dt) {
     game.el.flash.classList.remove('hidden');
     game.el.flash.textContent = '违规编辑！';
     game._flashTimer = 0;
-    if (game.input.bombPressed() && tryBomb(game, true)) {
+    if (edges.bomb && tryBomb(game, true)) {
       p.arbitration = 0;
       deathSaved = true;
       game.el.flash.classList.add('hidden');
@@ -220,8 +223,7 @@ export function updateCombat(game, dt) {
 
   // 章结算期间：可移动、吸点；不射击、不刷怪、不受伤
   if (!settling) {
-    // shot（toggle 模式在此帧更新锁存）
-    game.input.updateShotToggle();
+    // shot（toggle 锁存已在 _handleGlobalInput 的 capture 中翻转，停帧块也不丢）
     if (game.input.shotHeld() && p.shotCd <= 0 && p.arbitration <= 0) {
       spawnPlayerShot(game, p);
       p.shotCd = BALANCE.playerShotCooldown;
@@ -229,12 +231,12 @@ export function updateCombat(game, dt) {
     }
 
     // bomb（非决死）
-    if (game.input.bombPressed() && p.arbitration <= 0) {
+    if (edges.bomb && p.arbitration <= 0) {
       tryBomb(game, false);
     }
 
     // item / edit war
-    if (game.input.itemPressed() && p.edit >= BALANCE.editMax && p.arbitration <= 0) {
+    if (edges.item && p.edit >= BALANCE.editMax && p.arbitration <= 0) {
       p.edit = 0;
       clearBulletsToItems(game, p.x, p.y, BALANCE.editClearRadius);
       game.audio.sfx('item');
