@@ -2,7 +2,7 @@
  * 道中敌机原型（B2 起步）：把「一只怪的开火表」从章节函数里抽出来。
  * 仅覆盖已迁移的 aim 系；特殊章仍可直接写 tracks/raw script。
  */
-import { mob, timer } from './_shared.js';
+import { mob, elite, timer } from './_shared.js';
 import { spawnAimed, spawnAimedLaser, spawnRingAt } from '../patterns.js';
 import { exHp, exSp, exN, exFire, C } from './ex_shared.js';
 
@@ -137,6 +137,48 @@ export const ARCHETYPES = {
       }),
     },
   },
+  hoverElitePink: {
+    elite: true,
+    hp: () => exHp(200),
+    color: C.pink,
+    vy: 0.25,
+    fire: {
+      key: 'a', interval: () => exFire(0.95), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(3, 'even'), parity: 'even', type: 'medium',
+        speed: exSp(2.0), spread: 0.22, color: en.color,
+      }),
+    },
+  },
+  coreGold: {
+    elite: true,
+    label: '议程核',
+    hp: () => exHp(280),
+    color: C.gold,
+    vy: 0.1,
+    fire: {
+      key: 'a', interval: () => exFire(1.0), pattern: 'aimed',
+      options: (game, en) => ({
+        n: exN(3, 'odd'), parity: 'odd', type: 'talisman',
+        speed: exSp(2.1), spread: 0.14, color: en.color,
+      }),
+    },
+  },
+  laserSniper: {
+    hp: () => exHp(40),
+    color: C.gold,
+    vy: 0.2,
+    fires: [
+      { key: 'L', interval: () => exFire(1.7), pattern: 'aimedLaser', color: C.gold },
+      {
+        key: 's', interval: () => exFire(0.7), pattern: 'aimed',
+        options: (game, en) => ({
+          n: exN(2, 'even'), parity: 'even', type: 'dot',
+          speed: exSp(2.3), spread: 0.28, color: C.white,
+        }),
+      },
+    ],
+  },
   aimHeavyBlue: {
     hp: () => exHp(26),
     color: C.blue,
@@ -208,22 +250,31 @@ export const ARCHETYPES = {
 export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy } = {}) {
   const a = ARCHETYPES[id];
   if (!a) throw new Error(`unknown archetype: ${id}`);
-  const e = mob(x, y, hp ?? a.hp(g), color ?? a.color);
+  const c = color ?? a.color;
+  const made = a.elite
+    ? elite({
+      x, y, hp: hp ?? a.hp(g), color: c, kind: 'generic',
+      ...(a.label ? { label: a.label } : {}),
+    })
+    : mob(x, y, hp ?? a.hp(g), c);
+  const e = made;
   e.vx = vx ?? a.vx ?? 0;
   e.vy = vy ?? a.vy;
-  const f = a.fire;
+  const fires = a.fires || [a.fire];
   e.script = (en, d, game) => {
     a.tick?.(en, game);
-    timer(en, f.key, f.interval(game), d, () => {
-      if (f.pattern === 'aimed') {
-        spawnAimed(game, en, game.player, f.options(game, en));
-      } else if (f.pattern === 'aimedLaser') {
-        spawnAimedLaser(game, en, game.player, f.color ?? en.color);
-      } else if (f.pattern === 'ringAt') {
-        const o = f.options(game, en);
-        spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
-      }
-    });
+    for (const f of fires) {
+      timer(en, f.key, f.interval(game), d, () => {
+        if (f.pattern === 'aimed') {
+          spawnAimed(game, en, game.player, f.options(game, en));
+        } else if (f.pattern === 'aimedLaser') {
+          spawnAimedLaser(game, en, game.player, f.color ?? en.color);
+        } else if (f.pattern === 'ringAt') {
+          const o = f.options(game, en);
+          spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
+        }
+      });
+    }
   };
   g.spawnEnemy(e);
   return e;

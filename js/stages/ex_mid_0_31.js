@@ -110,21 +110,10 @@ export function mid_hoverElite(g) {
   installMidWave(g, {
     interval: SI(2.2),
     maxWaves: 3,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'hoverElitePink', {
         x: 80 + Math.random() * (LOGICAL_W - 160), y: 75,
-        hp: exHp(200), color: C.pink, kind: 'generic',
       });
-      e.vy = 0.25;
-      e.script = (en, d, game) => {
-        timer(en, 'a', exFire(0.95), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(3, 'even'), parity: 'even', type: 'medium',
-            speed: exSp(2.0), spread: 0.22, color: C.pink,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }
@@ -133,19 +122,10 @@ export function mid_laserSniper(g) {
   installMidWave(g, {
     interval: SI(1.4),
     maxWaves: 5,
-    onWave: (g, wave) => {
-      const e = mob(50 + (g.waveCount * 70) % (LOGICAL_W - 100), 55, exHp(40), C.gold);
-      e.vy = 0.2;
-      e.script = (en, d, game) => {
-        timer(en, 'L', exFire(1.7), d, () => spawnAimedLaser(game, en, game.player, C.gold));
-        timer(en, 's', exFire(0.7), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(2, 'even'), parity: 'even', type: 'dot',
-            speed: exSp(2.3), spread: 0.28, color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'laserSniper', {
+        x: 50 + (g.waveCount * 70) % (LOGICAL_W - 100), y: 55,
+      });
     },
   });
 }
@@ -303,19 +283,7 @@ export function mid_zigzag(g) {
 }
 
 export function mid_centerSides(g) {
-  const core = elite({
-    x: LOGICAL_W / 2, y: 100, hp: exHp(280), color: C.gold, kind: 'generic', label: '议程核',
-  });
-  core.vy = 0.1;
-  core.script = (en, d, game) => {
-    timer(en, 'a', exFire(1.0), d, () => {
-      spawnAimed(game, en, game.player, {
-        n: exN(3, 'odd'), parity: 'odd', type: 'talisman',
-        speed: exSp(2.1), spread: 0.14, color: C.gold,
-      });
-    });
-  };
-  g.spawnEnemy(core);
+  spawnArch(g, 'coreGold', { x: LOGICAL_W / 2, y: 100 });
   installMidWave(g, {
     interval: SI(1.1),
     maxWaves: 5,
