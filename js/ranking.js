@@ -4,7 +4,7 @@
  * 与录像完全独立（排行榜不引用 replayId）。
  */
 import { STORAGE_KEYS, RANKING_LIMIT } from './config.js';
-import { parseStored } from './storage.js';
+import { parseStored, writeStored, removeStored } from './storage.js';
 
 const MAX_NAME_CHARS = 3;
 
@@ -33,9 +33,7 @@ export function loadRanking() {
 }
 
 export function saveRanking(ranking) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.ranking, JSON.stringify(ranking));
-  } catch { /* 忽略配额/私密模式 */ }
+  return writeStored(STORAGE_KEYS.ranking, JSON.stringify(ranking));
 }
 
 /** 该分数是否能进入该难度榜（不足 10 条或高于末位） */
@@ -80,10 +78,8 @@ export function loadName(fallbackName) {
 /** 保存昵称；空则清除（下次回落自机名） */
 export function saveName(name) {
   const n = clean(name);
-  try {
-    if (n) localStorage.setItem(STORAGE_KEYS.rankingName, normalizeName(n));
-    else localStorage.removeItem(STORAGE_KEYS.rankingName);
-  } catch { /* 忽略 */ }
+  if (n) return writeStored(STORAGE_KEYS.rankingName, normalizeName(n));
+  return removeStored(STORAGE_KEYS.rankingName);
 }
 
 /**

@@ -14,6 +14,7 @@ import { VERSION_LABEL, applyVersionToDom } from './version.js';
 import { installDebug } from './debug.js';
 import { loadReplay } from './replayStore.js';
 import { bindScoreRanking } from './scoreRanking.js';
+import { onStorageError } from './storage.js';
 import { initLoadingPetals } from './loadingPetals.js';
 
 const canvas = document.getElementById('playfield');
@@ -32,6 +33,18 @@ const btnContinue = document.getElementById('load-continue');
 
 let pendingLoaderChoice = null;
 let loadingPetals = null;
+
+const elSaveToast = document.getElementById('save-toast');
+let saveToastTimer = 0;
+onStorageError(() => {
+  if (!elSaveToast) return;
+  elSaveToast.textContent = '本地存档写入失败，本局进度可能无法保存';
+  elSaveToast.classList.remove('hidden');
+  window.clearTimeout(saveToastTimer);
+  saveToastTimer = window.setTimeout(() => {
+    elSaveToast.classList.add('hidden');
+  }, 4500);
+});
 
 function errorText(error, fallback = '未知错误') {
   const text = error?.message || (error == null ? '' : String(error));

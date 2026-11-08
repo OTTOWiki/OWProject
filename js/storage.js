@@ -17,6 +17,62 @@ export function parseStored(key) {
   }
 }
 
+/** 写失败订阅者（main.js 用来显示非阻塞提示） */
+const storageErrorListeners = new Set();
+
+/**
+ * 订阅本地存储写失败；返回取消函数。
+ * 回调参数为出错的 storage key。
+ * @param {(key: string) => void} fn
+ * @returns {() => void}
+ */
+export function onStorageError(fn) {
+  if (typeof fn !== 'function') return () => {};
+  storageErrorListeners.add(fn);
+  return () => storageErrorListeners.delete(fn);
+}
+
+function notifyStorageError(key) {
+  for (const fn of storageErrorListeners) {
+    try {
+      fn(key);
+    } catch (err) {
+      console.warn('[storage] error listener failed:', err);
+    }
+  }
+}
+
+/**
+ * localStorage 写入：失败（隐私模式 / 配额满）不抛出，返回 false 并通知订阅者。
+ * @param {string} key
+ * @param {string} raw 已序列化的值
+ * @returns {boolean}
+ */
+export function writeStored(key, raw) {
+  try {
+    localStorage.setItem(key, raw);
+    return true;
+  } catch {
+    notifyStorageError(key);
+    return false;
+  }
+}
+
+/**
+ * localStorage 删除：失败不抛出，返回 false 并通知订阅者。
+ * @param {string} key
+ * @returns {boolean}
+ */
+export function removeStored(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch {
+    notifyStorageError(key);
+    return false;
+  }
+}
+
 export function loadKeys() {
   const parsed = parseStored(STORAGE_KEYS.keys);
   if (parsed == null) return { ...DEFAULT_KEYS };
@@ -24,7 +80,7 @@ export function loadKeys() {
 }
 
 export function saveKeys(keys) {
-  localStorage.setItem(STORAGE_KEYS.keys, JSON.stringify(keys));
+  return writeStored(STORAGE_KEYS.keys, JSON.stringify(keys));
 }
 
 function clamp01(v, fallback) {
@@ -89,19 +145,22 @@ export function saveSettings(settings) {
     shotToggle: !!settings.shotToggle,
     fpsLimit: normalizeFpsLimit(settings.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
   };
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(next));
+  writeStored(STORAGE_KEYS.settings, JSON.stringify(next));
   return next;
 }
 
 export function loadHiscore() {
-  return Number(localStorage.getItem(STORAGE_KEYS.hiscore) || 0) || 0;
+  try {
+    return Number(localStorage.getItem(STORAGE_KEYS.hiscore) || 0) || 0;
+  } catch {
+    return 0;
+  }
 }
 
 export function saveHiscore(score) {
   const cur = loadHiscore();
   if (score > cur) {
-    localStorage.setItem(STORAGE_KEYS.hiscore, String(Math.floor(score)));
-    return true;
+    return writeStored(STORAGE_KEYS.hiscore, String(Math.floor(score)));
   }
   return false;
 }
@@ -123,22 +182,19 @@ export function loadUnlocked() {
 }
 
 export function unlockStage(stage) {
-  try {
-    const u = loadUnlocked();
-    if (stage > u.stage) {
-      u.stage = stage;
-      localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
-    }
-  } catch { /* ignore quota / private mode */ }
+  const u = loadUnlocked();
+  if (stage > u.stage) {
+    u.stage = stage;
+    return writeStored(STORAGE_KEYS.unlocked, JSON.stringify(u));
+  }
+  return false;
 }
 
 export function unlockRoute(route) {
-  try {
-    const u = loadUnlocked();
-    if (route === 'A' || route === 'B') u.routes[route] = true;
-    if (u.stage < 4) u.stage = 4;
-    localStorage.setItem(STORAGE_KEYS.unlocked, JSON.stringify(u));
-  } catch { /* ignore quota / private mode */ }
+  const u = loadUnlocked();
+  if (route === 'A' || route === 'B') u.routes[route] = true;
+  if (u.stage < 4) u.stage = 4;
+  return writeStored(STORAGE_KEYS.unlocked, JSON.stringify(u));
 }
 
 /** 练习模式上次选择（章节 id + 难度）；损坏/缺失回落 null */
@@ -152,12 +208,10 @@ export function loadPracticePrefs() {
 }
 
 export function savePracticePrefs(prefs) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.practice, JSON.stringify({
-      chapter: Number(prefs.chapter),
-      diff: prefs.diff || null,
-    }));
-  } catch { /* ignore quota / private mode */ }
+  return writeStored(STORAGE_KEYS.practice, JSON.stringify({
+    chapter: Number(prefs.chapter),
+    diff: prefs.diff || null,
+  }));
 }
 
 /**
@@ -176,15 +230,10 @@ export function loadNomissProgress() {
  * id 为 null/undefined → 清除（通关后从头开始）。
  */
 export function saveNomissProgress(id) {
-  try {
-    if (id == null) {
-      localStorage.removeItem(STORAGE_KEYS.nomissProgress);
-      return;
-    }
-    const n = Number(id);
-    if (!Number.isInteger(n) || n <= 0) return; // 非法值丢弃，不动旧进度
-    localStorage.setItem(STORAGE_KEYS.nomissProgress, JSON.stringify({ nextChapterId: n }));
-  } catch { /* ignore quota / private mode */ }
+  if (id == null) return removeStored(STORAGE_KEYS.nomissProgress);
+  const n = Number(id);
+  if (!Number.isInteger(n) || n <= 0) return false; // 非法值丢弃，不动旧进度
+  return writeStored(STORAGE_KEYS.nomissProgress, JSON.stringify({ nextChapterId: n }));
 }
 
 /**
@@ -209,26 +258,22 @@ export function loadLetterRate() {
 }
 
 export function recordLetterTry(chapterId) {
-  try {
-    const rate = loadLetterRate();
-    const id = String(chapterId);
-    const cur = rate[id] || { tries: 0, captures: 0 };
-    rate[id] = { tries: cur.tries + 1, captures: cur.captures };
-    localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
-  } catch { /* ignore quota / private mode */ }
+  const rate = loadLetterRate();
+  const id = String(chapterId);
+  const cur = rate[id] || { tries: 0, captures: 0 };
+  rate[id] = { tries: cur.tries + 1, captures: cur.captures };
+  return writeStored(STORAGE_KEYS.letterRate, JSON.stringify(rate));
 }
 
 export function recordLetterCapture(chapterId) {
-  try {
-    const rate = loadLetterRate();
-    const id = String(chapterId);
-    const cur = rate[id] || { tries: 0, captures: 0 };
-    // 确保 captures 不超过 tries；无记录时成功收取意味至少尝试过 1 次
-    const newCaptures = cur.captures + 1;
-    const newTries = Math.max(cur.tries, newCaptures);
-    rate[id] = { tries: newTries, captures: newCaptures };
-    localStorage.setItem(STORAGE_KEYS.letterRate, JSON.stringify(rate));
-  } catch { /* ignore quota / private mode */ }
+  const rate = loadLetterRate();
+  const id = String(chapterId);
+  const cur = rate[id] || { tries: 0, captures: 0 };
+  // 确保 captures 不超过 tries；无记录时成功收取意味至少尝试过 1 次
+  const newCaptures = cur.captures + 1;
+  const newTries = Math.max(cur.tries, newCaptures);
+  rate[id] = { tries: newTries, captures: newCaptures };
+  return writeStored(STORAGE_KEYS.letterRate, JSON.stringify(rate));
 }
 
 /** Letter 收取率文案；无记录时显示占位 */
@@ -268,30 +313,28 @@ export function loadPracticeBest() {
 
 /** 写练习各章最佳（覆盖同章同难度）；异常静默 */
 export function savePracticeBest(chapterId, diffId, { score, perfect }) {
-  try {
-    const cid = Number(chapterId);
-    if (!Number.isInteger(cid)) return;
-    const best = loadPracticeBest();
-    const map = best[cid] || (best[cid] = {});
-    const newScore = Math.floor(Number(score) || 0);
-    const existing = map[diffId];
-    if (existing) {
-      if (newScore > existing.score) {
-        map[diffId] = {
-          score: newScore,
-          perfect: !!perfect,
-          date: Date.now(),
-        };
-      } else if (newScore === existing.score) {
-        existing.perfect = existing.perfect || !!perfect;
-      }
-    } else {
+  const cid = Number(chapterId);
+  if (!Number.isInteger(cid)) return false;
+  const best = loadPracticeBest();
+  const map = best[cid] || (best[cid] = {});
+  const newScore = Math.floor(Number(score) || 0);
+  const existing = map[diffId];
+  if (existing) {
+    if (newScore > existing.score) {
       map[diffId] = {
         score: newScore,
         perfect: !!perfect,
         date: Date.now(),
       };
+    } else if (newScore === existing.score) {
+      existing.perfect = existing.perfect || !!perfect;
     }
-    localStorage.setItem(STORAGE_KEYS.practiceBest, JSON.stringify(best));
-  } catch { /* ignore quota / private mode */ }
+  } else {
+    map[diffId] = {
+      score: newScore,
+      perfect: !!perfect,
+      date: Date.now(),
+    };
+  }
+  return writeStored(STORAGE_KEYS.practiceBest, JSON.stringify(best));
 }
