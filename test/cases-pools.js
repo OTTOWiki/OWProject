@@ -10,6 +10,8 @@ import {
 import {
   acquireParticle, releaseParticle, particlePoolStats,
 } from '../js/particlePool.js';
+import { spawnItem } from '../js/gameCombat.js';
+import { BALANCE } from '../js/config.js';
 import { test, assert, assertEqual } from './assert.js';
 
 test('bulletPool：double-release 不重复入池；再 acquire 身份独立', () => {
@@ -60,4 +62,13 @@ test('particlePool：double-release 不重复入池', () => {
   const pt2 = acquireParticle(0, 0, '#f00', 0.1);
   assert(!pt2._pooled);
   releaseParticle(pt2);
+});
+
+
+test('spawnItem：达到 itemLiveCap 后静默丢弃（场上不再增长）', () => {
+  const cap = BALANCE.itemLiveCap;
+  assert(Number.isInteger(cap) && cap > 0, 'itemLiveCap 必须是正整数');
+  const game = { mode: 'story', items: [] };
+  for (let i = 0; i < cap + 3; i++) spawnItem(game, i, 0, 'score');
+  assertEqual(game.items.length, cap, '超过上限的 Item 不再 push');
 });
