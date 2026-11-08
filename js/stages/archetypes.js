@@ -524,7 +524,9 @@ export const ARCHETYPES = {
  * @param {keyof typeof ARCHETYPES} id
  * @param {{ x: number, y?: number }} opts
  */
-export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
+export function spawnArch(g, id, {
+  x, y = -18, color, hp, vx, vy, data, fires: firesOverride, tick: tickOverride,
+} = {}) {
   const a = ARCHETYPES[id];
   if (!a) throw new Error(`unknown archetype: ${id}`);
   const c = color ?? a.color;
@@ -538,10 +540,11 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
   e.vx = vx ?? a.vx ?? 0;
   e.vy = vy ?? a.vy;
   if (data) e.data = { ...e.data, ...data };
-  const fires = a.fires || [a.fire];
+  const fires = firesOverride || a.fires || [a.fire];
+  const tick = tickOverride ?? a.tick;
   e.script = (en, d, game) => {
     a.eachTick?.(en, game);
-    a.tick?.(en, game, d);
+    tick?.(en, game, d);
     for (const f of fires) {
       timer(en, f.key, f.interval(game), d, () => {
         if (f.pattern === 'aimed') {
