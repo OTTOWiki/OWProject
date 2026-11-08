@@ -9,6 +9,7 @@ import {
 } from '../patterns.js';
 import { acquireBullet } from '../bulletPool.js';
 import { C, exHp, exSp, exN, exFire, SI } from './ex_shared.js';
+import { spawnArch } from './archetypes.js';
 
 
 export function mid_diagReturn(g) {
@@ -173,16 +174,7 @@ export function mid_wallRebuild(g) {
           type: 'medium', color: C.dark, from: 'enemy',
         }));
       }
-      const e = mob(gapX, -18, exHp(30), C.orange);
-      e.vy = 0.9;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(0.5), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: 1, parity: 'odd', type: 'medium', speed: exSp(2.4), color: C.orange,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+      spawnArch(game, 'aimOrange30', { x: gapX });
     },
   });
 }
@@ -261,19 +253,9 @@ export function mid_altAfter(g) {
   installMidWave(g, {
     interval: SI(1.0),
     maxWaves: 6,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (const side of [-1, 1]) {
-        const e = mob(LOGICAL_W / 2 + side * 150, -18, exHp(32), C.green);
-        e.vy = 1.1;
-        e.script = (en, d, game) => {
-          timer(en, 's', exFire(0.8), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: exN(2, 'even'), parity: 'even', type: 'rice',
-              speed: exSp(2.2), spread: 0.18, color: C.green,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, 'aimGreen32', { x: LOGICAL_W / 2 + side * 150 });
       }
     },
   });
@@ -283,29 +265,10 @@ export function mid_randomAfter(g) {
   installMidWave(g, {
     interval: SI(0.9),
     maxWaves: 6,
-    onWave: (g, wave) => {
-      const e = mob(50 + Math.random() * (LOGICAL_W - 100), -18, exHp(34), C.cyan);
-      e.vy = 1.0;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(0.85), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: exN(1, 'odd'), parity: 'odd', type: 'talisman',
-            speed: exSp(2.3), spread: 0.12, color: C.cyan,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+    onWave: (g) => {
+      spawnArch(g, 'aimCyan34', { x: 50 + Math.random() * (LOGICAL_W - 100) });
       if (g.waveCount % 2 === 0) {
-        const e2 = mob(Math.random() * (LOGICAL_W - 100) + 50, -18, exHp(28), C.white);
-        e2.vy = 1.2;
-        e2.script = (en, d, game) => {
-          timer(en, 's', exFire(0.7), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: 1, parity: 'odd', type: 'dot', speed: exSp(2.1), color: C.white,
-            });
-          });
-        };
-        g.spawnEnemy(e2);
+        spawnArch(g, 'aimWhite28', { x: Math.random() * (LOGICAL_W - 100) + 50 });
       }
     },
   });
@@ -315,23 +278,11 @@ export function mid_dualAfter(g) {
   installMidWave(g, {
     interval: SI(1.0),
     maxWaves: 5,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (const side of [-1, 1]) {
-        const e = mob(LOGICAL_W / 2 + side * 100, -15, exHp(30), side < 0 ? C.blue : C.orange);
-        e.vy = 1.1;
-        e.script = (en, d, game) => {
-          game.spawnBullet(acquireBullet({
-            x: en.x, y: en.y, angle: Math.PI / 2, speed: exSp(1.5),
-            type: 'dot', color: C.gold, from: 'enemy',
-          }));
-          timer(en, 's', exFire(0.9), d, () => {
-            spawnAimed(game, en, game.player, {
-              n: exN(2, 'even'), parity: 'even', type: 'dot',
-              speed: exSp(2.1), spread: 0.2, color: en.color,
-            });
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, side < 0 ? 'dualAfterBlue' : 'dualAfterOrange', {
+          x: LOGICAL_W / 2 + side * 100, y: -15,
+        });
       }
     },
   });
