@@ -1,8 +1,12 @@
 /**
+ * @deprecated 2026-11-08：旧版面背景系统已冻结，待按
+ *   docs/background-rebuild-plan.md 重做。保留运行时直到替换完成；
+ *   不要在此新增 mode、主题、原子或视觉分支。
+ *
  * 伪 3D 前推场景背景 + 阶段转场 + 主题侧景装饰
  * Mode-7 地面 + 侧柱/标线/掠过物/剪影（纯 Canvas 几何）
  * mode 登记 / 贴图路径：js/bgModes.js
- * 主题色表：js/playfieldBgThemes.js（新 mode 加一行 sky/accent/侧景）
+ * 主题色表：js/playfieldBgThemes.js
  */
 import { LOGICAL_W, LOGICAL_H } from './config.js';
 import { PLAYFIELD_BG_TEX, resolveBgMode, getAllBgModes } from './bgModes.js';

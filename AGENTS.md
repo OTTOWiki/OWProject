@@ -176,11 +176,11 @@ docs/                  # 内部改造队列等（非运行时）
 | `pool.js` | 泛型对象池（bullet/item/particle 共用 acquire/release/purge） | 实体语义 |
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
-| `backgrounds/atoms2d.js` | 版面剪影/侧柱具名原子（P1，原样搬出） | 场景数据 / 时间轴 |
+| `backgrounds/atoms2d.js` | 版面剪影/侧柱具名原子（P1，来源系统已废弃，仅参考） | 新背景实现 / 场景数据 |
 | `backgrounds/easing.js` | 32 条背景缓动 + Interpolation（P3，暂未接线） | 运行时场景 / 绘制 |
 | `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
 | `backgrounds/*` | 共享舞台 Three 场景 | 版面 Canvas |
-| `playfieldBgThemes.js` | `MODE_THEME` 一行表 | Three 场景 |
+| `playfieldBgThemes.js` | **已废弃待重做**的旧版面主题表；冻结新增 | Three 场景 / 新背景 |
 | `rng.js` | 种子 PRNG（mulberry32）+ `withSeededRng` | 业务逻辑 |
 | `ranking.js` | 排行榜纯函数 + localStorage（按难度 top10） | UI / 录像 |
 | `rankingScreen.js` | 排行榜屏（难度切换 + 列表） | 游戏逻辑 |
@@ -244,6 +244,7 @@ docs/                  # 内部改造队列等（非运行时）
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
 - 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
 - `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo/倾向只保留 HUD 主读数，难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
+- **旧版面背景系统已废弃待重做**（`playfieldBg.js` / `playfieldBgThemes.js` / `atoms2d.js` 冻结，不再新增 mode/视觉；见 `docs/background-rebuild-plan.md`）。
 - 背景构建：`StageBackground(canvas, { rand })` 可注入装饰随机源（默认 `Math.random`），scenes 全走 `bg.__rand`，不消费玩法种子流。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）
 - Boss：`DEDICATED_BOSS_BY_KIND`；占位 `PLACEHOLDER_BOSS_SPRITES`（`null`=几何）；未知 kind **禁止**默认爱丽丝脸。环形血条显示值按逻辑帧缓动（掉血即时、回血/换阶段平滑），仅影响绘制。
@@ -293,7 +294,7 @@ docs/                  # 内部改造队列等（非运行时）
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
 2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）；通用 aim 怪用 `spawnArch`。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
-4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）→ `playfieldBgThemes.js` 的 `MODE_THEME`。
+4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）用于左侧 Three；旧版面 `MODE_THEME` 已冻结，不再新增。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。
 6. UI/剧情中文；标识符英文。
 7. 勿运行时改 playfield 的 `width`/`height`。
@@ -323,7 +324,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
 | 改 BGM | `audio.js` |
 | 改共享舞台 3D | `backgrounds/*` + `bgModes.js` |
-| 改版面主题色 | `playfieldBgThemes.js` |
+| 改版面主题色（旧系统已冻结，勿扩展） | `playfieldBgThemes.js` + `docs/background-rebuild-plan.md` |
 | 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
 | 改排行榜 | `ranking.js` + `rankingScreen.js` + `scoreRanking.js` + `index.html` |
 | 改录像/回放 | `replay.js` + `replayStore.js` + `replayScreen.js` + `game.js` + `rng.js` |
