@@ -575,26 +575,30 @@ export class Game {
     }
 
     let wasPlaying = false;
-    withSeededRng(() => {
-      this._handleGlobalInput();
-      wasPlaying = !this.paused; // 在 tickAdvance/updateCombat 前判定：对话/选线/死帧/取消暂停都要录
-      // 对局计时：仅正常游玩帧累计（暂停/对话/选线/过渡不计）
-      if (!this.paused && this.state === 'playing') this.stats.time += dt;
-      // 震屏按游戏钟衰减：停帧时也衰减，观感更好（纯视觉）
-      if (!this.paused) this._shakeT = Math.max(0, this._shakeT - dt);
-      if (!this.paused && this._hitStop > 0) {
-        // 停帧：本轮跳过战斗推进，只扣 hitStop 计时
-        this._hitStop -= dt;
-      } else {
-        if (!this.paused) tickAdvance(this, dt);
-        if (this.state === 'stageTransit' && !this.paused) {
-          updateStageTransit(this, dt);
-        } else if (this.state === 'playing' && !this.paused) {
-          updateCombat(this, dt);
+    // 种子作用域只包玩法：debug / 背景更新 / 边沿清理都留在外面，
+    // 避免将来它们消费 Math.random 时污染录像种子流。
+    try {
+      withSeededRng(() => {
+        this._handleGlobalInput();
+        wasPlaying = !this.paused; // 在 tickAdvance/updateCombat 前判定：对话/选线/死帧/取消暂停都要录
+        // 对局计时：仅正常游玩帧累计（暂停/对话/选线/过渡不计）
+        if (!this.paused && this.state === 'playing') this.stats.time += dt;
+        // 震屏按游戏钟衰减：停帧时也衰减，观感更好（纯视觉）
+        if (!this.paused) this._shakeT = Math.max(0, this._shakeT - dt);
+        if (!this.paused && this._hitStop > 0) {
+          // 停帧：本轮跳过战斗推进，只扣 hitStop 计时
+          this._hitStop -= dt;
+        } else {
+          if (!this.paused) tickAdvance(this, dt);
+          if (this.state === 'stageTransit' && !this.paused) {
+            updateStageTransit(this, dt);
+          } else if (this.state === 'playing' && !this.paused) {
+            updateCombat(this, dt);
+          }
         }
-      }
-      debugTick();
+      }, this._rngNext);
 
+      debugTick();
       try {
         const bgMul = this.paused ? 0
           : this.state === 'dialogue' || this.state === 'stageTransit' ? 0.35
@@ -603,11 +607,11 @@ export class Game {
         this.background?.setTendency(this.totalTendency);
       } catch (err) {
         console.error('[game bg]', err);
-      } finally {
-        // 仅逻辑块清边沿；失败也必须清，否则 justPressed 卡死 → 暂停连闪
-        this.input.endFrame();
       }
-    }, this._rngNext);
+    } finally {
+      // 仅逻辑块清边沿；失败也必须清，否则 justPressed 卡死 → 暂停连闪
+      this.input.endFrame();
+    }
 
     // 录制：本逻辑块确实推进了游戏流程（含对话/选线/死亡/取消暂停）
     if (this.recording && !this.replaying && wasPlaying) {
