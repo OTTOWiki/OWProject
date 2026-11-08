@@ -17,13 +17,13 @@
 | [th20-handling-plan.md](../docs/th20-handling-plan.md)（手感） | 否 | 否 | 否 | 若要**重新核对** TH20 侧判定/擦弹行号，才需 `~/Touhou20` |
 | [items-score-progress-plan.md](../docs/items-score-progress-plan.md) | 否 | 否 | 否 | 改动全在本仓；TH20 侧只作文档引用 |
 | [background-rebuild-plan.md](../docs/background-rebuild-plan.md)（背景） | **否** | 否 | 否 | STD **脚本**在 `~/Touhou20/scripts/recovered/std/`（静态文本）；STD 源码只是参考 |
-| [loading-petals-plan.md](../docs/loading-petals-plan.md)（落花） | 否 | 否 | 否 | 按方案走**自绘素材**路径就完全自足；只有"再核对原作贴图"才需 dat+thanm |
+| [loading-petals-plan.md](../docs/loading-petals-plan.md)（落花） | 否 | 否 | 否 | 已用 FreeGameSprites **CC0** 素材处理成无缝纹理；只有"再核对原作贴图"才需 dat+thanm |
 | [stage-content-plan.md](../docs/stage-content-plan.md)（关卡） | 否 | 否 | 否 | runner 与原型表全在本仓写 |
 | [stage-difficulty-model.md](../docs/stage-difficulty-model.md)（难度模型） | 需（**仅复核**） | 否 | 否 | 数字已固化在 `th20-ecl-shots.json`；重算才需 ECL 文本 |
 | [content-volume-outlook.md](../docs/content-volume-outlook.md) | 否 | 否 | 否 | 内容量数字全部来自已入库的提取结果 |
 
 **唯一"实现时会用到"的外部物**是 `.scratch/th20-extract/tex/ascii/loading@ascii@7.png`
-——它**已明确排除、且不应用于产品**（原作素材），只作逆向参考。产品素材必须自绘。
+——它**已明确排除、且不应用于产品**（原作素材），只作逆向参考。产品素材必须自绘或使用 CC0/明确可授权的素材。
 
 ---
 
@@ -161,7 +161,7 @@ thanm -uux20 ../ascii.anm                    # → ascii/loading@ascii@7.png（2
 |---|---|---|
 | `~/Touhou20` | `v3.py` 无法重跑 | 已入库的 `th20-ecl-shots.json` 仍可引用；文档行号仍可读 |
 | 98MB 捕获未重跑 | `face-difficulty.mjs` 无法算 | 文档中的数字已固化；重跑 ①（约 3 分钟）即可 |
-| thtk | 无法再解 `th20.dat` | 落花方案走**自绘素材**路径即自足，不需要 thtk |
+| thtk | 无法再解 `th20.dat` | 落花方案已走 CC0 素材处理路径，不需要 thtk |
 | `th20.dat` | 无法再解原作素材 | 同上；`.scratch/th20-extract/` 已在本地留存 |
 | `plNN.sht` | **任何来源都拿不到** TH20 自机速度 | 已在文档 §8.2 标记为"不可比"，不要试图补 |
 

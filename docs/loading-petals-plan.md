@@ -1,199 +1,307 @@
-# 加载界面「落花 + 变速」实施方案
+# 加载界面「黑带 + 落花」实施方案
 
-> 日期: 2026-10-05
-> 参考: `~/Touhou20`（TH20 的独立 C++ 源码重建，**只读**）+ 从 `th20.dat` 提取的原作加载资源 + thtk 官方仓库的指令格式表。
-> 依据: 素材与语义解码见 [`.scratch/loading-petals-factsheet.md`](../.scratch/loading-petals-factsheet.md)（含逐条 `文件:行号` 证据）。
-> 状态: **方案，未实施**。运行时零改动。
+> 日期：2026-11-08
+> 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ [`参考/loading.png`](../参考/loading.png)（TH20 原版加载画面，仅作构图参考）
+> 依据：TH20 素材与 ANM 语义见 [`.scratch/loading-petals-factsheet.md`](../.scratch/loading-petals-factsheet.md)（逐条 `文件:行号` 证据）。
+> **状态**：开屏黑带复刻、真实进度、恢复面板、落花与进度联动 **均已实施**（2026-11-08）。落花素材为 FreeGameSprites CC0 水彩樱花，处理成 512×1024 无缝纵铺纹理；不使用原作像素。
+> **2026-11-08 修订**：落花收进右下“少女祈祷中”局部盒，并置于其**上层**；黑带始终居中、加载角始终右下；关键帧改为向下落，基础周期 14s→8s，WAAPI 只改 playbackRate；手机横屏统一紧凑布局，不再让加载角与黑带重叠。
 
-## 1. 参考对象的实际做法（已解出）
+## 0. 一句话
 
-TH20 的加载画面**不是粒子系统**，而是**一张 256×256 贴图切成 3 块，各自跑一条小时间轴**：
+保留 PR #10 真正有效的部分——**满幅暗色幻想底 + 贯穿屏幕的中央黑带 + 右下角「少女祈祷中／Now Loading」**；丢掉它的错字、低清底图、无状态/无恢复、移动端硬贴角；落花已作为下一层动画接入，用**一张无缝纵铺纹理 + 真实加载进度驱动的播放速率**实现，不引入粒子系统或 rAF 主循环。
 
-| 层 | 精灵区域（`ascii.anm.txt:1658-1678`） | 动画（已解码，见事实卡 §4） |
+## 1. 从 PR #10 与参考图里取什么、舍什么
+
+| 元素 | PR #10 / 参考图 | 取舍 | 现行实现 |
+|---|---|---|---|
+| 满幅幻想底 | 参考图：紫黑天空、蝶/花剪影；PR #10：128×128 `loading.avif` 直接放大 | 取氛围，舍低清与糊成色块 | 新 `assets/ui/loading-bg.avif`（1440×900，18KB），由既有 AI 底材压暗、加暗角与颗粒；紫光用 CSS `mix-blend-mode: screen` 叠加 |
+| 中央黑带 | 参考图与 PR #10 都是贯穿全宽的黑色横带 | 取；去掉旧版的纸卡片/双栏 `load-sheet` | `.load-band` 全宽、上下金色细线、低透明纹理；标题/声明/制作居中 |
+| 标题 | 参考图「東方Project」大字；PR #10 写成「棍維Project」 | 取大字书法；**舍错字/中西混排** | 五字「棍維何意味」逐字错落，「棍維」朱金、「何意味」象牙白；`lang="ja"` + `aria-label` |
+| 虚构声明 | 参考图绿色小字 | 取；用低饱和青绿而不是荧光绿 | `.load-notice`「本游戏为虚构作品……」 |
+| Presented by | 参考图小号衬线 + 制作名义 | 取；恢复混合大小写 | `.load-presented` + `.load-maker`「OTTOWiki 幻乐团」 |
+| 右下加载角 | 参考图与 PR #10 都有「少女祈祷中 / Now Loading / 细进度条」 | 取；保留真实百分比与资源计数 | `.load-corner`：`.load-pray` + `.load-now` + `#load-progress` + `#load-status` |
+| 失败恢复 | PR #10 把 `load-hint` 与恢复路径删了 | **舍**；这是旧版最大退步 | `#load-reload` / `#load-continue` + `aria-busy="false"` 驱动的状态面板；44px 移动端命中区 |
+| 移动端 | PR #10 的 `.load-corner` 绝对定位，窄屏容易压字 | 舍硬贴角 | ≤720px：黑带纵向居中、加载角贴底；失败态改为「黑带 + 暗色状态面板」流式排布，可滚动 |
+| 减少动态效果 | PR #10 无处理 | 舍 | `prefers-reduced-motion` 下停掉背景漂移、横带淡入与进度条过渡 |
+| 原作素材 | `参考/loading.png` 是原作截图 | **只取构图，不取像素** | 新背景与落花素材均自绘/由项目内既有 AI 素材派生；`assets/NOTICE.md` 逐文件记录 |
+
+**一句话取舍**：PR #10 的“开屏构图”是对的，“工程完整性”是退化的；复刻构图，保留现有真实进度、可访问性与恢复能力。
+
+## 2. 现行实现（2026-11-08）
+
+### 2.1 DOM
+
+`index.html` 的加载层只有三层，不再有 `load-sheet` / `load-progress-panel`：
+
+```html
+<div id="load-screen" aria-busy="true">
+  <div class="load-bg" aria-hidden="true"></div>
+
+  <section class="load-band" aria-labelledby="load-title">
+    <h1 id="load-title" class="load-title" lang="ja" aria-label="棍維何意味">…五字…</h1>
+    <p class="load-sub">OTTOWiki Project</p>
+    <p class="load-notice">本游戏为虚构作品，登场人物、团体等均为幻想设定。</p>
+    <p class="load-presented">Presented by</p>
+    <p class="load-maker">OTTOWiki 幻乐团</p>
+  </section>
+
+  <aside class="load-corner" aria-label="加载状态">
+    <p class="load-pray" aria-hidden="true">少女祈祷中</p>
+    <p class="load-now">Now Loading <span id="load-text">0%</span></p>
+    <div id="load-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="load-fill" id="load-fill"></div>
+    </div>
+    <p class="load-status" id="load-status" role="status" aria-live="polite">正在加载游戏资源</p>
+    <div class="load-actions">
+      <button id="load-reload" hidden>重新加载</button>
+      <button id="load-continue" hidden>继续进入</button>
+    </div>
+  </aside>
+</div>
+```
+
+关键约束：
+
+- `#load-progress` 的 `role="progressbar"` 与三个 `aria-value*` 不删；`#load-status` 保持 `role="status"` / `aria-live="polite"`。
+- `#load-text` / `#load-progress` 在失败态被 JS 隐藏；`.load-pray` / `.load-now` 由 `[aria-busy="false"]` 隐藏，状态与按钮保留。
+- 标题的完整可访问名仍是「棍維何意味」；五个 `.title-glyph` 只承担视觉错落。
+
+### 2.2 CSS 分层
+
+- `.load-bg::before`：`loading-bg.avif` 全屏 `cover`，34s 极慢漂移；`.load-bg::after`：两层径向渐变，`mix-blend-mode: screen` 叠出紫光。
+- `.load-band`：全宽，竖向黑渐变 + `loading.avif` 拉伸纹理，`border-block` 金色细线。
+- `.load-title`：`clamp(2.9rem, 6.2vw, 5.3rem)`；逐字 `translateY/rotate/scale`；`-webkit-text-stroke` 只做 1px 描边。
+- `.load-corner`：桌面右下绝对定位；`#load-progress` 高 3px，填充为朱红→金→青。
+- `.load-petals`（z-index 4，在加载角之上）：不是全屏层，而是右下“少女祈祷中”加载角周围的局部盒子（桌面约 520×300，移动端底部约 200px 高）；内部 `.load-petals-track` 用 CSS `transform` 8s 循环向下落，边缘用径向 mask 渐隐；恢复态降到 `0.12` 并暂停。
+- 断点：
+  - `≤720px`：`#load-screen` 改 flex；黑带 `margin: auto 0` 纵向居中；加载角贴底、避让 safe-area。
+  - `(max-width:720px) and (max-height:520px) and (orientation:portrait)`：只缩小黑带、加载角与花瓣盒；黑带仍居中、加载角仍右下。
+  - `(max-height:620px) and (orientation:landscape)`：所有横屏（含 667/736/740/812 宽）统一走紧凑尺寸；黑带仍居中、加载角仍右下。
+  - `aria-busy="false"`：仅恢复态改 flex 流式；黑带置顶，`.load-corner` 变成暗色状态面板，320×568 也完整可见。正常加载态不走这条。
+  - `prefers-reduced-motion`：停掉漂移、淡入与进度条过渡；CSS 落花动画 `none`，JS 也不调速。
+
+### 2.3 JS 状态
+
+`js/main.js` 的加载链路与 `js/loadingPetals.js` 控制器：
+
+- `setLoadProgress(pct)`：真实“已处理资源 / 总数”，同步 `#load-fill` 宽度、`#load-text` 与 `aria-valuenow`。
+- `setLoadProgressVisible(bool)` / `setLoadStatus(text)`：资源不可计量时隐藏百分比，只保留状态文字。
+- `waitForLoaderChoice(issues)`：可恢复问题出现时隐藏进度、展示「继续进入 / 重新加载」。
+- `setRecoveryControls()`：统一写 `aria-busy`，并把焦点交给「重新加载」。
+- `showBootFailure()`：核心失败时保留加载层，只给「重新加载」。
+- `dismissLoadScreen()`：初始化与恢复选择都完成后才移除加载层。
+- `initLoadingPetals(elLoad)`：只查询 `.load-petals-track`；按盒宽设置轨道高度（两个 tile），读取 CSS `petalsFall` 动画，初始 `playbackRate = petalPlaybackRate(0)`；`setProgress` 只改倍率，`setPaused` 暂停/恢复，`cancel` 取消。即使 `getAnimations` 不可用，CSS 动画仍以 1× 播放。
+- `setLoadProgress(pct)` 末尾同步 `loadingPetals?.setProgress(p)`；`setRecoveryControls()` 在 `aria-busy="false"` 时暂停；`dismissLoadScreen()` 取消。
+
+**`aria-busy` 同时是布局开关**：`true` 是开屏，`false` 是恢复页。不要另加一套 `load-failed` 类，避免两套状态漂移。
+
+### 2.4 素材与授权
+
+- `assets/ui/loading-bg.avif`：1440×900，18KB；以 `assets/bg/difficulty-cathedral.avif` 为底，压暗、暗角、颗粒后导出；**不含 `参考/loading.png` 的像素**。
+- `assets/ui/loading.avif`：既有 128×128 暗纹理，仅作黑带材质叠加。
+- `assets/ui/petals-scroll.avif`：512×1024，14KB，38 片；由 [FreeGameSprites「Cherry Blossom Petals」](https://freegamesprites.com/en/assets/cherry-blossom-petals)（CC0 1.0）的 256×256 透明水彩图裁出三片花瓣重排；源图与处理脚本不进运行时。
+- `assets/NOTICE.md` 已补 `loading-bg` / `loading` / `petals-scroll` 三条逐文件记录。
+
+### 2.5 本轮验证
+
+- `npm test`：117 pass / 0 fail（新增 3 条落花速率用例）。
+- 系统 Chromium + Playwright（Android 平台 shim）实测：
+  - 1365×900：真实进度 64% 开屏，单轨 CSS 动画 1 个、`playbackRate=1.5`；花瓣在加载角上层，向下落。
+  - 1365×600 / 844×390：黑带中心与视口中心误差 0px；“少女祈祷中”仍在右下。
+  - 667×375 / 736×414 / 740×360 / 812×375：手机横屏统一紧凑布局；黑带中心误差 0px，加载角右下且与黑带至少 6px 间距，无重叠。
+  - 390×844 / 320×568 / 320×480：黑带中心与视口中心误差 0px（移除了移动端底部 padding）；加载角右下。
+  - 恢复态：动画 `paused`；`prefers-reduced-motion`：动画数 0。
+  - `pageerror` 为空。
+- 定向 e2e：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次因既有 Three 场景加载超时 7/8，单跑均通过。完整 `npm run test:e2e` 仍未在本机跑：标准 runner 在 Termux/Android 报 `Unsupported platform: android`；CI 的 `Test` / `E2E` 仍是合并门禁。
+
+## 3. 落花参考：TH20 实际做了什么（只取结构）
+
+参考图 `参考/loading.png` 是 646×493 的原版加载画面：紫黑满幅底、中央黑色横带、右下「少女祈祷中／Now Loading」。它的“落花”不是粒子系统，而是**一张 256×256 贴图切成 3 块，各自跑一条小时间轴**：
+
+| 层 | 精灵区域 | 已解出的动画 |
 |---|---|---|
-| 少女祈祷中 | `sprite912` (1,1) 254×62 | 静止；alpha 8 帧淡入 → **20 帧一档在 255↔128 之间呼吸** |
-| Now Loading | `sprite913` (1,65) 254×62 | **x: 192 → 32（4 帧，mode 4）→ 240（30 帧，mode 4）**；y 恒为 32；alpha 呼吸 + 末段 30 帧淡出 |
-| 莲花 | `sprite914` (1,129) 62×62 | 由 `script17` **每 4 帧重放**；脚本内用浮点运算算位置（轨迹未完全解出，见 §7） |
+| 少女祈祷中 | `sprite912` (1,1) 254×62 | 静止；alpha 淡入 → 20 帧一档在 255↔128 呼吸 |
+| Now Loading | `sprite913` (1,65) 254×62 | x: 192 → 32（4 帧）→ 240（30 帧），y 恒为 32；alpha 呼吸 + 末段淡出 |
+| 莲花 | `sprite914` (1,129) 62×62 | 由 `script17` 每 4 帧重放；浮点轨迹未完全解出 |
 
-三条指令承担全部动画，语义来自重建的 ANM 解释器（`sprite_renderer/anm_vm.cpp`）：
+三条 ANM 指令承担全部动画：`ins_407` 位置插值、`ins_409` alpha 插值、`ins_408` 颜色插值；`mode` 是缓动号。更关键的是 **动画时钟与游戏时钟共用 `timer_rate`**——所以“变速”在引擎里是免费的。
 
-- `ins_407(dur, mode, x, y, z)` = **位置插值**（`:103-104`）
-- `ins_409(dur, mode, end)` = **alpha 插值**（`:106`）
-- `ins_408(dur, mode, r, g, b)` = **颜色插值**（`:105`）
-- `mode` 是**缓动号**，与 STD 背景共用同一套 32 条（`ecl_vm/math.cpp:34-52`）：`0=线性`、`9=缓入缓出`、`4=另一种缓动`
+**不能直接抄贴图**：`参考/loading.png` 与 TH20 的 `loading@ascii@7.png` 都属于官方指南禁止的“截图/游玩视频以外的游戏素材”。我们只抄“分层 + 小时间轴 + 时钟倍率”的结构，像素全部自绘。
 
-**"变速"是引擎级的、免费的**：ANM 的时间推进是 `timer_tick(timer, env::timer_rate())`（`anm_vm.cpp:218,248`），而 `timer_rate` 就是全局 `clock_scale` 的别名；精灵的旋转/位移速度也乘同一倍率（`:252-254`）。
-⇒ **动画时钟与游戏时钟是同一个旋钮。**
+## 4. 落花设计目标
 
-## 2. 我们这边的现状
+1. **落点在右下加载角**：花瓣围绕「少女祈祷中／Now Loading」，不穿过标题、声明与制作名义；黑带本身保持干净。
+2. **变速来自真实进度**：速度跟随 `setLoadProgress` 的“已处理 / 总数”，不是墙钟假动画。
+3. **一张无缝纵铺纹理 + 单轨局部下落**：只在右下加载角盒子内运动，不写粒子系统，不加 rAF 主循环。
+4. **可降级**：`prefers-reduced-motion` 静态；恢复态暂停；素材失败时只是没有花瓣，加载功能不受影响。
+5. **首屏不抢资源**：落花图 <40KB，CSS 背景加载；不进入 `preloadAll` 的关键路径。
 
-- `index.html:13-36`：`#load-screen` 已有完整结构——`load-bg` / `load-sheet` / `load-band`（标题「棍維何意味」+ OTTOWiki Project + 虚构声明 + Presented by）/ `load-progress-panel`（少女祈祷中 / Now Loading + `#load-progress` + `#load-fill` + `#load-status` + 两个恢复按钮）。
-- `css/style.css:99-131`：`load-bg` 是**纯静态**（径向渐变 ×2 + 线性渐变 + 重复线性渐变 ×2 + 一个 clip-path 多边形），`::before`/`::after` **没有任何 animation**。全库 `@keyframes` 只用在主菜单入场、暂停/结算 overlay、flash（`css/style.css:897-902, 1911-1967`）。
-- `js/main.js:334+` `boot()`：`setLoadProgress(0..100)` / `setLoadProgressVisible(bool)` / `setLoadStatus(text)`，异步预载 + 缓存预热，**真实进度**（模块缓存不可计量时会把百分比隐藏，改为状态文字）。
-- 生成 `<script onerror>`（`index.html:499`）与 `showBootFailure` 提供失败路径；`load-reload` / `load-continue` 是可访问的恢复按钮。
+## 5. 实现选型：局部 CSS transform 轨道
 
-⇒ **结构够了，缺的只是动画层。**而且我们已经有"少女祈祷中 / Now Loading"的对应位置。
+### 5.1 为什么不是全屏，也不是 background-position
 
-## 3. 设计目标（从参考里提炼的四条）
+- **落点**：用户明确要求花瓣只在右下“少女祈祷中”组件位置显示。原来的全屏 far 层已删除，只保留一个右下局部盒。
+- **位置**：用户明确要求黑带居中、“少女祈祷中”在右下。短屏不再把黑带顶置、加载角居中；只缩小尺寸，保持构图。
+- **动画**：原来的 `background-position` WAAPI 在部分浏览器/环境下可能看不到位移。现在由 **CSS `transform` 关键帧**持续播放；`getAnimations()` + `playbackRate` 只负责按真实进度调速。即使调速 API 不可用，CSS 动画仍以 1× 播放。
+- **性能**：`transform` 走合成层，避免 `background-position` 的逐帧绘制；不加 rAF。
 
-1. **落花在"Now Loading"区块**（用户明确的落点），不是全屏乱飘。
-2. **变速**：动画速度与**真实加载进度**联动，而不是与墙钟死绑。
-3. **一张贴图纵向下落**的实现方式（用户描述的做法）——即**用一张可平铺的花瓣纹理做垂直滚动 + 少量分层**，而不是粒子系统。
-4. **可降级**：`prefers-reduced-motion` 下静态呈现；加载失败路径（`#load-status` + 按钮）必须仍然可用、可聚焦。
-
-## 4. 实现选型
-
-### 方案 A（推荐）：CSS 垂直滚动纹理 + 进度联动的 duration
+### 5.2 局部盒与轨道几何
 
 ```css
 .load-petals {
-  position: absolute; inset: 0;
-  background-image: url("../assets/ui/petals-scroll.avif");
-  background-repeat: repeat-y;            /* 纵向平铺 */
-  background-size: 100% auto;
-  animation: petalsFall var(--petal-dur, 14s) linear infinite;
+  position: absolute;
+  right: clamp(20px, 4.5vw, 68px);
+  bottom: clamp(20px, 5.5vh, 56px);
+  z-index: 4;
+  width: min(520px, 44vw);
+  height: min(300px, 38vh);
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 72% 72% at 68% 72%, #000 0 34%, transparent 84%);
+  mask-image: radial-gradient(ellipse 72% 72% at 68% 72%, #000 0 34%, transparent 84%);
+}
+.load-petals-track {
+  position: absolute;
+  top: 0; left: 0; width: 100%;
+  background: url("../assets/ui/petals-scroll.avif") center top / 100% auto repeat-y;
+  will-change: transform;
+  animation: petalsFall 8s linear infinite;
 }
 @keyframes petalsFall {
-  from { background-position-y: 0; }
-  to   { background-position-y: 100%; }    /* 一个纹理高度 = 一个循环 */
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
 }
 ```
 
-- **"变速"**：`js/main.js` 在 `setLoadProgress(p)` 里更新 `--petal-dur`（例如 `dur = 16 - 10 * p/100`，进度越满落得越快），并同时给一个整体时间缩放变量。
-- **优点**：零 JS 主循环开销；GPU 合成；不抢主线程；`prefers-reduced-motion` 直接 `animation: none`。
-- **缺点**：纹理必须是**可无缝纵向平铺**的（首尾行要接得上），且只能整体变速，不能分层相位。
+- 纹理 512×1024：**一个 tile 高 = 2 × 盒宽**。
+- 轨道高 = **4 × 盒宽**（两个 tile）；关键帧从 `translateY(-50%)` 到 `0`，即**向下**移动一个 tile 高；首尾同相，循环无缝。
+- 轨道始终比盒高至少一个 tile，移动过程中不会露底。
+- JS 只写 `track.style.height`（初始化/resize），不逐帧写样式。
+- 桌面 520×300；移动端底部约 200px 高；短屏只缩小，不改变相对位置。
 
-### 方案 B：独立 2D canvas 粒子层
+### 5.3 位置与层级
 
-- 在 `.load-bg` 上叠一个 `<canvas>`，用与 `playfieldBg` 同款离屏思路画花瓣（复用 `js/playfieldBg.js` 的 `_propsFor` 式确定性散布）。
-- **优点**：分层相位、逐瓣旋转/摆动都容易；可做"进度越满越密"。
-- **缺点**：加载界面本身就在抢资源（预载图片/OGG/Three），再加一个 rAF 循环不划算；`prefers-reduced-motion` 要自己实现。
-- **结论**：**不推荐**做加载界面。若将来在**暂停/结算**用同样效果，再考虑。
+- `.load-petals` z-index 4，盖在 `.load-corner`（z-index 3）之上；`.load-band` z-index 2。花瓣只占右下局部盒，不拦指针。
+- 花瓣不盖标题、不盖“少女祈祷中”、不拦截指针。
+- 恢复态：`#load-screen[aria-busy="false"] .load-petals { opacity:.12; }`，并 `animation-play-state: paused`。
+- `prefers-reduced-motion`：`.load-petals-track { animation: none; }`，静态纹理保留。
 
-### 方案 C：静态分层 + 少量 CSS 动画（最保守）
+## 6. 素材：CC0 在线素材处理
 
-只做 2~3 条不同速度/透明度的滚动带（`background-position-y` 分别 14s/22s/30s），做出视差深度。
+`assets/ui/petals-scroll.avif`（已产出）：
 
-- **优点**：几乎零风险，纹理只要 3 张小图。
-- **缺点**：没有"逐瓣"感。
+- **512×1024**，带 alpha，38 片花瓣，**14KB**；首尾纵向接缝已实测无横线。
+- 来源：[FreeGameSprites — Cherry Blossom Petals](https://freegamesprites.com/en/assets/cherry-blossom-petals)，页面标注 **CC0 1.0**（公共领域）；原图 256×256 透明水彩樱花。
+- 处理：从原图裁出三片独立花瓣（避开整朵花与叶片），本地用 Pillow 以固定 seed 重排到 512×1024；上下越界花瓣在 y±1024 处复制，保证纵铺无缝。
+- 处理脚本与源图只在 `.local-evidence/loading-petals/source/`（本机证据），不进运行时。
+- `assets/NOTICE.md` 已记录来源、许可证与“非原作提取”。
 
-**推荐组合：A 为主 + C 做视差分层**（同一条 `@keyframes`，三个不同 `--petal-dur` 与 `opacity` 的层）。**不引入 canvas，不引入新依赖。**
+若替换素材，仍须满足：512×1024 / alpha / 纵铺无缝 / <40KB / CC0 或明确可商用；不要使用 `参考/loading.png`、TH20 原贴图或来源不明的素材。
 
-## 5. 进度联动（"变速"的具体规则）
+## 7. 进度 → 播放速率
 
-TH20 是"动画时钟 = 全局时钟"。我们没有全局时钟，但我们有**真实进度**，比固定时钟更好：
-
-| 进度区间 | 行为 | 理由 |
-|---|---|---|
-| 0–15% | 慢（如 22s/循环），花瓣稀疏 | 让"正在准备"有呼吸感，不像卡住 |
-| 15–85% | 随百分比线性加速到最快（如 9s/循环） | 进度可见地"越跑越顺" |
-| 85–100% | 提前减速到 16s | **避免"快好了突然冲刺"的假象**——这是最常见的加载动画错觉 |
-| 完成（boot 结束） | 花瓣层 300ms 淡出，与 `#load-screen` 一起收 | 与现有移除加载层的时序对齐 |
-
-实现要点（`js/main.js`）：
+纯函数在 `js/loadingPetals.js`（已单测）：
 
 ```js
-// 在 setLoadProgress 内，随 p 更新 CSS 变量；不要每帧写 style，只在变化 ≥1% 时写
-const dur = p < 15 ? 22 : p < 85 ? 22 - (22 - 9) * (p - 15) / 70 : 9 + (16 - 9) * (p - 85) / 15;
-el.loadScreen.style.setProperty('--petal-dur', dur.toFixed(2) + 's');
+export function petalPlaybackRate(pct) {
+  const n = Number(pct);
+  const p = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+  if (p < 15) return 0.55 + (p / 15) * 0.25;
+  if (p < 85) return 0.8 + ((p - 15) / 70);
+  return 1.8 - ((p - 85) / 15) * 0.8;
+}
 ```
 
-**为什么不用 `animation-duration` 直接改**：改 `animation-duration` 会让动画**跳回相位**。用 CSS 变量参与 `animation-duration` 时同样会重算相位。**做法**：把时长变化累积成 `animation-delay` 偏移，或改用 `animation-play-state` + 一个由进度驱动的 `transform`。这条是本次实施里**最容易做错的技术点**，实施时必须实测（见 §8 验证）。
-
-## 6. 素材
-
-**不能使用原作贴图。** 依据：
-
-- `assets/NOTICE.md:14-22`：BGM 是原作音乐并已按官方二创指南标注**受限**；立绘/背景为 **AI 生成**同人素材。
-- 官方指南禁止「スクリーンショット、プレイ動画以外のゲーム素材を使用、公開する行為」（`NOTICE.md:16`）。原作加载贴图属于该范围。
-- 我们提取出的 `loading@ascii@7.png` **只用于本次逆向参考**，放 `.scratch/`（非运行时、非提交），**不得进 `assets/`**。
-
-**要做的事**：自绘一张**可纵向无缝平铺**的花瓣条带图。
-
-- 生成方式走项目既有流程（`NOTICE.md:21-27` 记录的 AI 生成 + `tools/to-avif` 转 AVIF）。
-- 建议规格：`512×1024`（竖条），首尾行接缝连续；含 2–4 种花瓣形态、不同大小与透明度，避免规律感。
-- `assets/NOTICE.md` **必须补一条逐文件记录**（格式照 `:25` 的 `bg/battle-print.avif` 那条：生成方式 + 原图尺寸 + 明确"非原作提取"）。
-  > 顺带：`assets/bg/tex_*.avif` 19 个文件目前**没有逐文件来源记录**（`:21-24` 只有整段概括），这是既有缺口，建议一并补。
-
-## 7. 已知不确定项（实施前需补齐）
-
-1. **莲花（`sprite914`）的完整轨迹未解出**：`script16` 用浮点运算写寄存器 `10004-10012`，而这些编号到名字的映射（thtk 的 `gvar_names` 表）**不在 thtk 仓库里**，是按游戏逐代提供的。所以"莲花是否下落"仍**未确证**——已确证的是"Now Loading 那条是横向漂移（x: 192→32→240），y 恒定"。
-   ⇒ **我们按"下落"做是符合用户诉求的，但不要声称"复刻了 TH20 的莲花轨迹"。**
-2. 原作屏幕缩放/放置（640×480 还是其它）未确认。
-3. 若你后续能给一张**原版加载界面截图**，我可以把莲花的相位、周期、方向对出来，届时这份规格可从"横向漂移"升级为完整复刻。
-
-## 8. 验证方式
-
-- **单测（node）**：`--petal-dur` 由进度换算的纯函数（0/15/50/85/100 五个点 + 边界），放进新 `test/cases-loadanim.js`；不改动现有 `test/cases-*.js`。
-- **e2e（Playwright）**：`test/e2e/boot.spec.js` 已有 boot 用例，扩展：
-  - 加载层存在时 `.load-petals` 的 `getComputedStyle(...).animationName` 非 `none`；
-  - 注入 `prefers-reduced-motion: reduce` 后为 `none`；
-  - 进度推进时 `--petal-dur` 单调（先降后升）变化；
-  - **不破坏现有断言**：`aria-busy`、`#load-status` 文本、`load-reload`/`load-continue` 可见性与可聚焦。
-- **截图回归**：按 `AGENTS.md` 的「UI 截图对比」要求，改前/改后同状态各截一张（加载中 50%、加载完成、reduced-motion），人工并排比对；**API 动画的相位不受控，截图只比对构图/色彩/层级，不对逐帧像素**。
-- **真机确认**：加载界面在低端机上是首屏，必须实测首帧时间与内存没有回归（新增 1 张 AVIF + CSS 动画，预期可忽略）。
-
-## 9. 落地步骤（每步独立可回退）
-
-| 步 | 内容 | 验收 |
+| 进度 | 行为 | 理由 |
 |---|---|---|
-| P1 | 产出 `assets/ui/petals-scroll.avif`（无缝纵铺）+ 补 `assets/NOTICE.md` 记录 | 首尾接缝目视连续；AVIF 体积合理 |
-| P2 | `index.html` 加 `.load-petals` 层；`css/style.css` 加 `@keyframes petalsFall` 与 reduced-motion 分支 | 加载层出现落花；reduced-motion 下静态 |
-| P3 | `js/main.js` 的 `setLoadProgress` 写 `--petal-dur`（纯函数抽出以便单测） | 单测绿；进度 0→100 时速度先加速后减速 |
-| P4 | 完成时花瓣层与加载层同步淡出 | 无残留层、无闪烁 |
-| P5 | e2e 扩展 + 截图对比 | 新用例绿，旧用例不回归 |
-| P6 | 文档同步：`AGENTS.md`（若新增文件/mode）、`README.md`（若玩家可见） | 文档与代码一致 |
+| 0–15% | 0.55→0.80，慢 | 给“正在准备”呼吸感，不像卡住 |
+| 15–85% | 0.80→1.80，线性加速 | 进度可见地越跑越顺 |
+| 85–100% | 1.80→1.00，提前减速 | 避免“快好了突然冲刺”的假象 |
+| 恢复态 `aria-busy="false"` | `pause()` | 状态面板优先，不抢注意力 |
+| `prefers-reduced-motion` | 不播放 | 静态纹理即可 |
 
-**红线**：不改 450×600 逻辑坐标；不引入打包器/框架；不修改 `#load-progress` 的 `role="progressbar"` 与 `aria-*`；不把版本说明/修复列表写进玩家可见文案（`AGENTS.md` 改代码约定 §11）。
+基础动画 8s/循环；实测 64% 时 `playbackRate=1.5`，桌面约 217px/s，约为原 14s 方案的 1.75×。速率只由**真实已处理资源数**驱动；百分比隐藏时保持 1.0，不假装加速。
 
----
+## 8. DOM / CSS 接入（已实施）
 
-## 10. 与并行 PR #37 / #38 的关系（2026-10-05 核对）
-
-仓库当时有两个 open 的 UI PR，本方案也会改 `css/style.css`，因此必须先确认重叠面。
-
-| PR | 分支 | 改动文件 | 规模 | 状态 |
-|---|---|---|---|---|
-| **#37** | `feat/th-ui-known-targets-clean` | `AGENTS.md` / `README.md` / `css/style.css` | +806 −115（CSS） | open，`mergeable_state: dirty` |
-| **#38** | `feat/th-original-title-select` | `css/style.css` | +425 −2 | open，`mergeable_state: dirty` |
-
-### 10.1 已核：**区域不重叠**
-
-对两者 `pulls/{n}/files` 的 `patch` 逐条检索加载屏选择器
-（`#load-screen`、`.load-bg`、`.load-sheet`、`.load-band`、`.load-progress`、`.load-fill`、`#load-progress`、`#load-fill`）：
-
-```
-PR #37  css/style.css patch 41,148 字节 → 命中 0
-PR #38  css/style.css patch 14,878 字节 → 命中 0
+```html
+<div class="load-petals" aria-hidden="true">
+  <div class="load-petals-track"></div>
+</div>
 ```
 
-并且两者都**不碰** `index.html`（#37 正文明确"不包含 index.html"；#38 只改 CSS）与 `js/main.js`（P3 的改动点）。
-⇒ **本方案与它们功能无冲突**。
+- 只有**一个** `.load-petals-track`，不再有 `.load-petals-far` / `.load-petals-near` / 全屏 layer。
+- `.load-petals` 是右下局部盒；`overflow:hidden` + 径向 mask 让边缘渐隐，不出现矩形硬边。
+- 断点：
+  - `≤720px`：盒子贴底，宽 `min(360px, 100vw-24px)`，高 200px。
+  - `(max-height:620px) and (orientation:landscape)`：盒子约 340×200（窄横屏随 `40vw` 缩小），仍在右下；黑带仍居中；加载角与黑带至少留 6px。
+  - `(max-width:720px) and (max-height:520px) and (orientation:portrait)`：盒子贴底 150px；黑带仍居中、加载角仍右下。
+- 正常加载态**不**把黑带顶置，也不把加载角居中；只有 `aria-busy="false"` 的恢复态改成“黑带 + 状态面板”流式。
+- 恢复态：花瓣降到 0.12 并暂停；淡出前 `cancel()`。
 
-### 10.2 已核：插入点落在谁都不碰的区间
+## 9. 启动与进度接线（已实施）
 
-加载屏 CSS 在 `css/style.css` 的 **81–330 行**（`#load-screen` 起，到 `.load-action-secondary` 止）。
-新增的 `.load-petals` / `@keyframes petalsFall` / reduced-motion 分支**插在该区间内**，
-不追加到文件末尾——因为两 PR 的大块改动更容易落在外围区域。
+`js/main.js` 没有把花瓣图加入 `preloadAll`；素材随 CSS 加载，不拖慢真实进度。
 
-### 10.3 #37 与 #38 互相竞争（不是本方案能定的）
+1. `boot()` 里 `initLoadingPetals(elLoad)`；查询不到轨道或 API 不支持时 no-op/静态。
+2. 初始化：量 `.load-petals` 宽度，设置轨道高 = 4 × 宽；读取 CSS `petalsFall` 动画。
+3. `setProgress` 只写 `anim.playbackRate`；不重新创建动画、不逐帧写样式。
+4. `setRecoveryControls()` 写 `aria-busy` 时同步 `setPaused(!busy)`；CSS 同时 `animation-play-state: paused` 兜底。
+5. `dismissLoadScreen()` 前 `cancel()`；取消 CSS 动画并解绑 resize。
+6. `prefers-reduced-motion` 初始化时读一次；CSS 动画被媒体查询关闭，JS 不调速。
+7. `resize` 时只重设轨道高度，保持同一动画相位。
 
-#38 正文写明「旧产品 PR #37 不修改、不合并」，两者覆盖的是**同一批页面**（主菜单 / 难度 / 自机）。
-且两者相对当前 `main` 都是 `dirty`。⇒ **先合哪个由维护者决定**，本方案不选边。
+## 10. 验证（本轮结果）
 
-### 10.4 处理顺序（建议）
+### 单元（node）
 
-1. **文档分支可先独立合并**：本分支（`docs/th20-reference-and-plans`）**不含任何 CSS/HTML/JS 改动**，
-   只加 `docs/`、`.scratch/`、`.gitignore`，且**不碰 `AGENTS.md`/`README.md`**（这两个是 #37 改的）
-   ⇒ 与 #37/#38 **零冲突**，不阻塞。
-2. **#37 vs #38 先定**，落地后 `main` 才稳定。
-3. **落花实现单独开 PR**，基于"37/38 落地后的 main"，按 §9 的 P1–P6 做。
-   若想并行开发也可以（加载区块无人动），但 merge 前需 rebase。
+- `test/cases-loadanim.js`：0/15/50/85/100 关键点、0→85 单调加速、85→100 减速、非法/越界 clamp。
+- `npm test`：**117 pass / 0 fail**；`test:syntax`：OK 131 files。
 
-### 10.5 可选：彻底零冲突的做法（有代价）
+### E2E（Playwright）
 
-把落花样式放进**独立文件** `css/load-petals.css`，在 `index.html` 的 `<head>` 加一行 `<link>`。
-因为两 PR 都不改 `index.html` 的 head，这样文本冲突面为 0。
+- `test/e2e/loading-petals.spec.js`：
+  - 单轨 CSS 动画存在，完成后随加载层移除。
+  - `prefers-reduced-motion` 下 0 动画，静态层仍在。
+  - 可恢复失败时动画 `paused`，继续按钮可用。
+  - **1365×600 与 667×375 布局守卫**：黑带中心 = 视口中心（≤1px），“少女祈祷中”与花瓣盒仍在右下；667×375 还断言加载角不与黑带重叠。
+  - 首条用例还断言：花瓣层 z-index > 加载角；动画 8s；两次采样 `translateY` 递增（向下）。
+- 本机用系统 Chromium + 平台 shim：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次 7/8，失败项是既有 Three 场景加载超时，单跑通过。完整 `npm run test:e2e` 仍未在本机跑（Android/Termux 平台限制），CI 为准。
+- 实拍：1365×900 / 1365×600 / 1264×625 / 844×390 / 667×375 / 740×360 / 812×375 / 390×844 / 320×568 / 320×480；恢复态 390；reduced 1365。黑带中心误差 0px，加载角右下；花瓣只在加载角盒子内。
 
-**代价**：偏离现有"单一样式表 `css/style.css`"的约定（`AGENTS.md` 目录树只列了 `css/style.css`），
-且多一次请求。**默认不采用**；只有在 #37/#38 反复 rebase 导致 `style.css` 长期冲突时才值得切换。
+### 截图与实拍
+
+- 证据存 `.local-evidence/loading-petals/`（本地，不入库）；与 `参考/loading.png` 并排检查“满幅底 + 居中黑带 + 右下加载角 + 局部落花”。
+- 只比对构图/色彩/层级，不对逐帧像素；动画用 `transform` 两次采样确认在动。
+- 低端机首帧未测：新增 14KB AVIF + 1 条 CSS transform 动画；若掉帧，先减到静态，不回到 background-position。
+
+## 11. 落地步骤（当前状态）
+
+| 步 | 内容 | 状态 | 验收 |
+|---|---|---|---|
+| P1 | 产出 `assets/ui/petals-scroll.avif` + `assets/NOTICE.md` 记录 | **完成** | 512×1024、38 片、14KB；纵铺接缝目检无横线 |
+| P2 | `index.html` 加 `.load-petals` 局部盒 + 单轨；CSS 加 transform 动画/遮罩/降级 | **完成** | 花瓣只在右下加载角；黑带居中、加载角右下 |
+| P3 | 新增 `js/loadingPetals.js`（速率纯函数 + CSS 动画调速）；`main.js` 接线 | **完成** | 3 条单测绿；64% 时 1.5× |
+| P4 | 恢复/致命失败/淡出时暂停或取消动画 | **完成** | 恢复态 `paused`；reduced 0 动画；移除后 cancel |
+| P5 | e2e + 多档截图 + 真机首帧 | **部分** | boot 4/4 + 落花 4/4（合并跑首次 7/8）；含 1365×600/667×375 布局守卫；低端真机首帧未测 |
+| P6 | 文档同步：`AGENTS.md` / `README.md` / `assets/NOTICE.md` | **完成** | 文档与代码一致 |
+
+**红线**：不改 450×600 逻辑坐标；不引入打包器/框架；不动 `#load-progress` 的 `role`/`aria-*`；不把版本说明/修复列表写进加载文案；不使用 `参考/loading.png` 或 TH20 原贴图像素。
+
+## 12. 风险与未决
+
+1. **无缝接缝**：当前纹理已实测无横线；替换素材时必须重新做 y±1024 复制并复检。
+2. **相位跳变**：只改 `playbackRate`，不改 `animation-duration`；轨道高度在 resize 时更新。
+3. **首屏重量**：花瓣图 14KB，未进 `preloadAll`；CSS 动画不依赖 JS 也能播放。
+4. **局部空间**：花瓣只在加载角盒子内，短屏可见区域更小、花瓣更稀；这是“只在组件位置”的代价，不改成全屏。
+5. **原作合规**：使用 CC0 素材并记录；不复制 `参考/loading.png` 与 `loading@ascii@7.png`。
+6. **“变速”语义**：速度只跟真实处理进度；百分比隐藏时不要伪造加速。
+7. **低端帧率**：CSS transform 已比 background-position 更省，但未在低端真机测帧率；若掉帧，减到静态。
+8. **极窄横屏**：667/740 这类宽度已统一紧凑布局；若低于约 640×360，仍可能需要进一步压缩字号或减少黑带内容。
+
+## 13. 相关状态
+
+- PR #10：`Feat/loading screen th style`，2026-07-27 已合并；后续 `ce31a4a` 把加载层改成纸墨卡片。本轮重新采用黑带构图，保留纸墨版建立的真实进度与恢复能力。
+- PR #37 / #38：均已关闭、未合并；旧版“并行冲突”分析已失效，删除。
+- 本轮落花实现：`index.html` / `css/style.css` / `js/loadingPetals.js` / `js/main.js` / `assets/ui/petals-scroll.avif` / `assets/NOTICE.md` / `test/cases-loadanim.js` / `test/e2e/loading-petals.spec.js`；素材来源 FreeGameSprites CC0。
+- 当前状态：P1–P4、P6 完成；P5 的低端真机首帧与完整 CI E2E 仍待执行。

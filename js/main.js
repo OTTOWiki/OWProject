@@ -14,6 +14,7 @@ import { VERSION_LABEL, applyVersionToDom } from './version.js';
 import { installDebug } from './debug.js';
 import { loadReplay } from './replayStore.js';
 import { bindScoreRanking } from './scoreRanking.js';
+import { initLoadingPetals } from './loadingPetals.js';
 
 const canvas = document.getElementById('playfield');
 const bgCanvas = document.getElementById('bg3d');
@@ -30,6 +31,7 @@ const btnReload = document.getElementById('load-reload');
 const btnContinue = document.getElementById('load-continue');
 
 let pendingLoaderChoice = null;
+let loadingPetals = null;
 
 function errorText(error, fallback = '未知错误') {
   const text = error?.message || (error == null ? '' : String(error));
@@ -45,6 +47,7 @@ function setLoadProgress(pct) {
   if (elFill) elFill.style.width = `${p}%`;
   if (elPct) elPct.textContent = `${p}%`;
   if (elProgress) elProgress.setAttribute('aria-valuenow', String(p));
+  loadingPetals?.setProgress(p);
 }
 
 function setLoadProgressVisible(visible) {
@@ -58,9 +61,11 @@ function setLoadStatus(text) {
 }
 
 function setRecoveryControls({ reload = false, continueEntry = false } = {}) {
+  const busy = !reload && !continueEntry;
   if (btnReload) btnReload.hidden = !reload;
   if (btnContinue) btnContinue.hidden = !continueEntry;
-  elLoad?.setAttribute('aria-busy', String(!reload && !continueEntry));
+  elLoad?.setAttribute('aria-busy', String(busy));
+  loadingPetals?.setPaused(!busy);
   if (reload) btnReload?.focus();
 }
 
@@ -308,6 +313,8 @@ async function preloadAll(audio) {
 function dismissLoadScreen() {
   if (!elLoad || elLoad.dataset.dismissed) return;
   elLoad.dataset.dismissed = '1';
+  loadingPetals?.cancel();
+  loadingPetals = null;
   elLoad.classList.add('done');
   elLoad.remove();
 }
@@ -333,6 +340,12 @@ function showBootFailure(error) {
  */
 async function boot() {
   bindLoaderControls();
+  try {
+    loadingPetals = initLoadingPetals(elLoad);
+  } catch (e) {
+    // 落花只是装饰；初始化失败不能阻塞加载。
+    console.warn('Loading petals init failed:', e);
+  }
   const startupIssues = [];
   setLoadProgress(0);
   setLoadProgressVisible(true);

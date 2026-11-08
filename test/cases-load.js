@@ -30,6 +30,7 @@ const CORE_MODULES = [
   '../js/draw/enemyDraw.js',
   '../js/draw/itemDraw.js',
   '../js/collision.js',
+  '../js/loadingPetals.js',
 ];
 
 if (isBrowser) {

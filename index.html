@@ -9,30 +9,31 @@
 </head>
 <body>
   <div id="app">
-    <!-- 加载界面 -->
+    <!-- 加载界面：满幅幻想底 + 中央黑带 + 右下加载角 -->
     <div id="load-screen" aria-busy="true">
       <div class="load-bg" aria-hidden="true"></div>
-      <div class="load-sheet">
-        <div class="load-band">
-          <h1 class="load-title" lang="ja" aria-label="棍維何意味"><span class="title-glyph title-glyph-1">棍</span><span class="title-glyph title-glyph-2">維</span><span class="title-glyph title-glyph-3">何</span><span class="title-glyph title-glyph-4">意</span><span class="title-glyph title-glyph-5">味</span></h1>
-          <p class="load-sub">OTTOWiki Project</p>
-          <p class="load-notice">本游戏为虚构作品，登场人物、团体等均为幻想设定。</p>
-          <p class="load-presented">Presented by</p>
-          <p class="load-maker">OTTOWiki 幻乐团</p>
-        </div>
-        <div class="load-progress-panel">
-          <p class="load-pray">少女祈祷中</p>
-          <p class="load-now">Now Loading <span class="load-text" id="load-text">0%</span></p>
-          <div id="load-progress" role="progressbar" aria-label="加载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div class="load-fill" id="load-fill"></div>
-          </div>
-          <p class="load-status" id="load-status" role="status" aria-live="polite">正在加载游戏资源</p>
-          <div class="load-actions">
-            <button type="button" class="load-action" id="load-reload" hidden>重新加载</button>
-            <button type="button" class="load-action load-action-secondary" id="load-continue" hidden>继续进入</button>
-          </div>
-        </div>
+      <div class="load-petals" aria-hidden="true">
+        <div class="load-petals-track"></div>
       </div>
+      <section class="load-band" aria-labelledby="load-title">
+        <h1 class="load-title" id="load-title" lang="ja" aria-label="棍維何意味"><span class="title-glyph title-glyph-1">棍</span><span class="title-glyph title-glyph-2">維</span><span class="title-glyph title-glyph-3">何</span><span class="title-glyph title-glyph-4">意</span><span class="title-glyph title-glyph-5">味</span></h1>
+        <p class="load-sub">OTTOWiki Project</p>
+        <p class="load-notice">本游戏为虚构作品，登场人物、团体等均为幻想设定。</p>
+        <p class="load-presented">Presented by</p>
+        <p class="load-maker">OTTOWiki 幻乐团</p>
+      </section>
+      <aside class="load-corner" aria-label="加载状态">
+        <p class="load-pray" aria-hidden="true">少女祈祷中</p>
+        <p class="load-now">Now Loading <span class="load-text" id="load-text">0%</span></p>
+        <div id="load-progress" role="progressbar" aria-label="加载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="load-fill" id="load-fill"></div>
+        </div>
+        <p class="load-status" id="load-status" role="status" aria-live="polite">正在加载游戏资源</p>
+        <div class="load-actions">
+          <button type="button" class="load-action" id="load-reload" hidden>重新加载</button>
+          <button type="button" class="load-action load-action-secondary" id="load-continue" hidden>继续进入</button>
+        </div>
+      </aside>
     </div>
 
     <!-- 主菜单 -->
