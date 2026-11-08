@@ -186,27 +186,10 @@ export function mid_splitLarge(g) {
   installMidWave(g, {
     interval: SI(1.6),
     maxWaves: 4,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'eliteSplitOrange', {
         x: 70 + Math.random() * (LOGICAL_W - 140), y: 90,
-        hp: exHp(180), color: C.orange, kind: 'generic',
       });
-      e.vy = 0.2;
-      e.script = (en, d, game) => {
-        timer(en, 'big', exFire(1.9), d, () => {
-          game.spawnBullet(acquireBullet({
-            x: en.x, y: en.y, vx: 0, vy: exSp(1.2),
-            type: 'large', color: C.orange, from: 'enemy', gravity: 0.01, life: 5,
-            onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(8), exSp(1.5), 'dot', C.gold),
-          }));
-        });
-        timer(en, 'a', exFire(1.1), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'rice', speed: exSp(2.2), color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }
@@ -553,27 +536,10 @@ export function mid_splitRing(g) {
   installMidWave(g, {
     interval: SI(1.6),
     maxWaves: 4,
-    onWave: (g, wave) => {
-      const e = elite({
+    onWave: (g) => {
+      spawnArch(g, 'eliteSplitCyan', {
         x: 70 + Math.random() * (LOGICAL_W - 140), y: 80,
-        hp: exHp(200), color: C.cyan, kind: 'generic',
       });
-      e.vy = 0.2;
-      e.script = (en, d, game) => {
-        timer(en, 'big', exFire(2.0), d, () => {
-          game.spawnBullet(acquireBullet({
-            x: en.x, y: en.y, vx: 0, vy: exSp(1.2),
-            type: 'large', color: C.cyan, from: 'enemy', gravity: 0.01, life: 5,
-            onSplit: (self) => spawnRingAt(game, self.x, self.y, exN(10), exSp(1.6), 'dot', C.white),
-          }));
-        });
-        timer(en, 'a', exFire(0.8), d, () => {
-          spawnAimed(game, en, game.player, {
-            n: 1, parity: 'odd', type: 'talisman', speed: exSp(2.3), color: C.white,
-          });
-        });
-      };
-      g.spawnEnemy(e);
     },
   });
 }

@@ -358,6 +358,48 @@ export const ARCHETYPES = {
       }),
     },
   },
+  eliteSplitOrange: {
+    elite: true,
+    hp: () => exHp(180),
+    color: C.orange,
+    vy: 0.2,
+    fires: [
+      {
+        key: 'big', interval: () => exFire(1.9), pattern: 'largeSplit',
+        options: (game, en) => ({
+          speed: exSp(1.2), type: 'large', color: C.orange, life: 5, gravity: 0.01,
+          split: { n: exN(8), speed: exSp(1.5), type: 'dot', color: C.gold },
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(1.1), pattern: 'aimed',
+        options: (game, en) => ({
+          n: 1, parity: 'odd', type: 'rice', speed: exSp(2.2), color: C.white,
+        }),
+      },
+    ],
+  },
+  eliteSplitCyan: {
+    elite: true,
+    hp: () => exHp(200),
+    color: C.cyan,
+    vy: 0.2,
+    fires: [
+      {
+        key: 'big', interval: () => exFire(2.0), pattern: 'largeSplit',
+        options: (game, en) => ({
+          speed: exSp(1.2), type: 'large', color: C.cyan, life: 5, gravity: 0.01,
+          split: { n: exN(10), speed: exSp(1.6), type: 'dot', color: C.white },
+        }),
+      },
+      {
+        key: 'a', interval: () => exFire(0.8), pattern: 'aimed',
+        options: (game, en) => ({
+          n: 1, parity: 'odd', type: 'talisman', speed: exSp(2.3), color: C.white,
+        }),
+      },
+    ],
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -406,6 +448,15 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy, data } = {}) {
         } else if (f.pattern === 'ringAt') {
           const o = f.options(game, en);
           spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
+        } else if (f.pattern === 'largeSplit') {
+          const o = f.options(game, en);
+          game.spawnBullet(acquireBullet({
+            x: en.x, y: en.y, vx: 0, vy: o.speed, type: o.type, color: o.color,
+            from: 'enemy', gravity: o.gravity, life: o.life,
+            onSplit: (self) => spawnRingAt(
+              game, self.x, self.y, o.split.n, o.split.speed, o.split.type, o.split.color,
+            ),
+          }));
         } else if (f.pattern === 'directAim') {
           const o = f.options(game, en);
           const ang = Math.atan2(game.player.y - en.y, game.player.x - en.x);
