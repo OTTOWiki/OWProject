@@ -329,16 +329,7 @@ export function mid_centerSides(g) {
     maxWaves: 5,
     onWave: (game, wave) => {
       const side = wave % 2 ? 55 : LOGICAL_W - 55;
-      const e = mob(side, -15, exHp(28), C.white);
-      e.vy = 1.25;
-      e.script = (en, d, gm) => {
-        timer(en, 's', exFire(1.0), d, () => {
-          spawnAimed(gm, en, gm.player, {
-            n: 1, parity: 'odd', type: 'dot', speed: exSp(2.2), color: C.white,
-          });
-        });
-      };
-      game.spawnEnemy(e);
+      spawnArch(game, 'aimWhite', { x: side, y: -15 });
     },
   });
 }
@@ -664,12 +655,7 @@ export function mid_laserDot(g) {
       }
     },
     onWave: (game, wave) => {
-      const e = mob(50 + (wave * 80) % (LOGICAL_W - 100), 50, exHp(38), C.cyan);
-      e.vy = 0.2;
-      e.script = (en, d, gm) => {
-        timer(en, 'L', exFire(1.2), d, () => spawnAimedLaser(gm, en, gm.player, C.cyan));
-      };
-      game.spawnEnemy(e);
+      spawnArch(game, 'laserCyan', { x: 50 + (wave * 80) % (LOGICAL_W - 100), y: 50 });
     },
   });
 }

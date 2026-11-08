@@ -3,7 +3,7 @@
  * 仅覆盖已迁移的 aim 系；特殊章仍可直接写 tracks/raw script。
  */
 import { mob, timer } from './_shared.js';
-import { spawnAimed } from '../patterns.js';
+import { spawnAimed, spawnAimedLaser } from '../patterns.js';
 import { exHp, exSp, exN, exFire, C } from './ex_shared.js';
 
 export const ARCHETYPES = {
@@ -87,6 +87,12 @@ export const ARCHETYPES = {
       }),
     },
   },
+  laserCyan: {
+    hp: () => exHp(38),
+    color: C.cyan,
+    vy: 0.2,
+    fire: { key: 'L', interval: () => exFire(1.2), pattern: 'aimedLaser', color: C.cyan },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -118,8 +124,11 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy } = {}) {
   const f = a.fire;
   e.script = (en, d, game) => {
     timer(en, f.key, f.interval(game), d, () => {
-      const opts = f.options(game, en);
-      if (f.pattern === 'aimed') spawnAimed(game, en, game.player, opts);
+      if (f.pattern === 'aimed') {
+        spawnAimed(game, en, game.player, f.options(game, en));
+      } else if (f.pattern === 'aimedLaser') {
+        spawnAimedLaser(game, en, game.player, f.color ?? en.color);
+      }
     });
   };
   g.spawnEnemy(e);
