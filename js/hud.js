@@ -127,6 +127,29 @@ function updateModeMarkers(el, game, cache) {
 }
 
 /**
+ * 分数显示滚动：对局中加速逼近真值，暂停/结算直对齐；夹钳保证不过冲。
+ * 仅用于显示，不得回写 game.score / hiscore。
+ * @param {number} shown 当前显示值
+ * @param {number} speed 上一帧速度（持久化以形成加速感）
+ * @param {number} target 真值
+ * @param {boolean} animate 是否滚动；false 时立即对齐
+ * @returns {{shown: number, speed: number}}
+ */
+export function stepScoreRoll(shown, speed, target, animate = true) {
+  const t = Number.isFinite(Number(target)) ? Number(target) : 0;
+  const s = Number.isFinite(Number(shown)) ? Number(shown) : 0;
+  if (!animate || !(t > s)) return { shown: t, speed: 0 };
+  const gap = t - s;
+  const step = Math.max(1, Math.min(gap / 32, 0x8d55e));
+  const nextSpeed = Math.min(Math.max(Number(speed) || 0, step), gap);
+  const nextShown = Math.min(s + nextSpeed, t);
+  return {
+    shown: nextShown,
+    speed: nextShown >= t ? 0 : nextSpeed,
+  };
+}
+
+/**
  * 刷新右侧分数板等（脏更新）
  * @param {import('./game.js').Game} game
  */
@@ -136,10 +159,21 @@ export function updateGameHud(game) {
   if (!p || !el) return;
   const cache = game._hudCache || (game._hudCache = createHudCache());
 
-  const score = fullScore(game.score);
+  // 分数滚动：暂停/对话/转场/结算直接对齐真值；仅对局中缓动
+  const roll = stepScoreRoll(
+    game._scoreShown,
+    game._scoreSpeed,
+    game.score,
+    game.state === 'playing' && !game.paused,
+  );
+  game._scoreShown = roll.shown;
+  game._scoreSpeed = roll.speed;
+  const shownScore = Math.floor(roll.shown);
+
+  const score = fullScore(shownScore);
   setText(el.score, score, 'score', cache);
   setText(el.scoreDetails, score, 'scoreDetails', cache);
-  const compact = compactScore(game.score);
+  const compact = compactScore(shownScore);
   setText(el.scoreCompact, compact, 'scoreCompact', cache);
   if (el.scoreCompact && el.scoreCompact.title !== score) el.scoreCompact.title = score;
 

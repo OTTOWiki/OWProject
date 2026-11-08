@@ -5,6 +5,7 @@ import { BALANCE, STORAGE_KEYS } from '../js/config.js';
 import { formatRunTime, formatRunStats } from '../js/runStats.js';
 import { addScore } from '../js/gameCombat.js';
 import { loadPracticeBest, savePracticeBest } from '../js/storage.js';
+import { stepScoreRoll } from '../js/hud.js';
 import { test, assert, assertEqual } from './assert.js';
 
 // Node/bun 无 localStorage：注入最小内存实现，测写读路径；浏览器用原生
@@ -117,4 +118,25 @@ test('loadPracticeBest：坏数据丢弃 / 非法 JSON 回落 {}', () => {
 
   localStorage.setItem(STORAGE_KEYS.practiceBest, '{oops');
   assertEqual(Object.keys(loadPracticeBest()).length, 0);
+});
+
+
+test('stepScoreRoll：加速式滚动、夹钳不过冲、非对局直对齐', () => {
+  let r = stepScoreRoll(0, 0, 1000, true);
+  assert(r.shown > 0 && r.shown < 1000, 'playing 时逐帧逼近而非瞬变');
+  const firstSpeed = r.speed;
+  r = stepScoreRoll(r.shown, r.speed, 1000, true);
+  assert(r.speed >= firstSpeed, '速度持久化（越滚越快）');
+  r = stepScoreRoll(999, 500, 1000, true);
+  assert(r.shown <= 1000, '夹钳：绝不过冲');
+  assertEqual(r.shown, 1000);
+  assertEqual(r.speed, 0, '到达目标后速度清零');
+
+  r = stepScoreRoll(0, 99, 1000, false);
+  assertEqual(r.shown, 1000, '暂停/结算直接对齐真值');
+  assertEqual(r.speed, 0);
+
+  r = stepScoreRoll(500, 10, 100, true);
+  assertEqual(r.shown, 100, '目标变小（重开/续关）直接回落');
+  assertEqual(r.speed, 0);
 });
