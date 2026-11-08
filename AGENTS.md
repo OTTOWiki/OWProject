@@ -219,6 +219,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 - 章节 Perfect × `BALANCE.chapterPerfectMul`（1.05）；超时失败不发
 - 擦弹 → edit；满 100 按 Item → 半径 `editClearRadius`（150）消弹
+- 场上道具上限：`BALANCE.itemLiveCap`（480，超出后新道具静默丢弃）
 - 决死窗：`BALANCE.deathBombWindow`
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore

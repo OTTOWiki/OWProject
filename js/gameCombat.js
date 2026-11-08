@@ -572,6 +572,8 @@ export function grantLetterResource(game, ch, perfect, success) {
 export function spawnItem(game, x, y, kind = 'score') {
   // nomiss 禁用生命道具（含 Letter 末卡 NMNB 奖励的 life 掉落）
   if (game.mode === 'nomiss' && kind === 'life') return;
+  // 场上道具存活上限：密集消弹时宁可少掉一个，避免无限累积
+  if (game.items.length >= BALANCE.itemLiveCap) return;
   game.items.push(acquireItem(x, y, kind));
 }
 
