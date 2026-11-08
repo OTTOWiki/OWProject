@@ -3,7 +3,7 @@
  * 仅覆盖已迁移的 aim 系；特殊章仍可直接写 tracks/raw script。
  */
 import { mob, timer } from './_shared.js';
-import { spawnAimed, spawnAimedLaser } from '../patterns.js';
+import { spawnAimed, spawnAimedLaser, spawnRingAt } from '../patterns.js';
 import { exHp, exSp, exN, exFire, C } from './ex_shared.js';
 
 export const ARCHETYPES = {
@@ -93,6 +93,22 @@ export const ARCHETYPES = {
     vy: 0.2,
     fire: { key: 'L', interval: () => exFire(1.2), pattern: 'aimedLaser', color: C.cyan },
   },
+  ringGold: {
+    hp: () => exHp(50),
+    color: C.gold,
+    vy: 1.0,
+    tick: (en) => {
+      if (en.y > 100 && en.y < 160) en.vy = 0.12;
+    },
+    fire: {
+      key: 'r',
+      interval: () => exFire(1.5),
+      pattern: 'ringAt',
+      options: (game, en) => ({
+        n: exN(12), speed: exSp(1.85), type: 'talisman', color: en.color, angle: en.age,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -123,11 +139,15 @@ export function spawnArch(g, id, { x, y = -18, color, hp, vx, vy } = {}) {
   e.vy = vy ?? a.vy;
   const f = a.fire;
   e.script = (en, d, game) => {
+    a.tick?.(en, game);
     timer(en, f.key, f.interval(game), d, () => {
       if (f.pattern === 'aimed') {
         spawnAimed(game, en, game.player, f.options(game, en));
       } else if (f.pattern === 'aimedLaser') {
         spawnAimedLaser(game, en, game.player, f.color ?? en.color);
+      } else if (f.pattern === 'ringAt') {
+        const o = f.options(game, en);
+        spawnRingAt(game, en.x, en.y, o.n, o.speed, o.type, o.color, o.angle);
       }
     });
   };

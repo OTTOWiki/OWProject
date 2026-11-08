@@ -53,17 +53,9 @@ export function mid_hoverRing(g) {
   installMidWave(g, {
     interval: SI(1.35),
     maxWaves: 4,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       const x = 90 + ((g.waveCount - 1) % 3) * 130;
-      const e = mob(x, -20, exHp(50), C.gold);
-      e.vy = 1.0;
-      e.script = (en, d, game) => {
-        if (en.y > 100 && en.y < 160) en.vy = 0.12;
-        timer(en, 'r', exFire(1.5), d, () => {
-          spawnRingAt(game, en.x, en.y, exN(12), exSp(1.85), 'talisman', C.gold, en.age);
-        });
-      };
-      g.spawnEnemy(e);
+      spawnArch(g, 'ringGold', { x });
     },
   });
 }
