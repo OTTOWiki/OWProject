@@ -29,13 +29,30 @@ export function fnv1a(str) {
   return h >>> 0;
 }
 
-/** 生成该章节的稳定哈希（含 build 与 600 帧 wave） */
+/** 生成该章节的稳定哈希（含生成事件时序 + build 与 600 帧最终状态） */
 export function hashChapter(ch) {
   const g = createMockGame();
   return withSeededRng(() => {
+    const events = [];
+    let frame = 0;
+    const spawnEnemy = g.spawnEnemy.bind(g);
+    g.spawnEnemy = (e) => {
+      if (e) events.push(`SE@${frame}:${e.type}:${e.x.toFixed(2)}:${e.y.toFixed(2)}`);
+      return spawnEnemy(e);
+    };
+    const spawnBullet = g.spawnBullet.bind(g);
+    g.spawnBullet = (b) => {
+      if (b) events.push(`SB@${frame}:${b.type}:${b.x.toFixed(2)}:${b.y.toFixed(2)}:${(b.angle ?? 0).toFixed(3)}`);
+      return spawnBullet(b);
+    };
+
     ch.build(g);
-    if (typeof g.waveFn === 'function') g.tickWaves(GOLDEN_FRAMES, 1 / 60);
-    const parts = [];
+    for (let i = 0; i < GOLDEN_FRAMES; i += 1) {
+      g.chapterTime += 1 / 60;
+      g.waveFn?.(1 / 60);
+      frame += 1;
+    }
+    const parts = [...events];
     for (const e of g.enemies) {
       parts.push(`E:${e.type}:${e.x.toFixed(2)}:${e.y.toFixed(2)}:${e.hp}`);
     }
