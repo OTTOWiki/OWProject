@@ -108,7 +108,7 @@ css/style.css
 playwright.config.mjs
 js/
   main.js              # 组装 Input / Audio / Background / Game / UI
-  loadingPetals.js     # 加载落花：进度→playbackRate + WAAPI 背景位移
+  loadingPetals.js     # 加载落花：局部 CSS transform + 进度→playbackRate
   config.js            # LOGICAL_*、BALANCE、DIFFICULTIES、Unstable、说明书
   version.js / git-hash.js
   game.js              # Game 门面：主循环、spawn API、状态字段
@@ -160,7 +160,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 模块 | 做什么 | 别在这里做 |
 |------|--------|------------|
 | `config.js` | 数值、难度、文案常量 | 游戏逻辑 |
-| `loadingPetals.js` | 加载落花纯函数 + WAAPI 控制器 | 游戏逻辑 / 资源预载 |
+| `loadingPetals.js` | 加载落花纯函数 + 局部 CSS 动画控制器 | 游戏逻辑 / 资源预载 |
 | `game.js` | 门面、主循环、`spawnEnemy`/`spawnBullet` | 弹幕公式、章流程细节 |
 | `chapterFlow.js` | 章开/结、对话、路线、结局、面过渡 | 逐帧弹幕 |
 | `gameCombat.js` | 战斗帧、Bomb/Miss、得分、道具、collision 消费 | 对话/路线 |
@@ -191,7 +191,7 @@ docs/                  # 内部改造队列等（非运行时）
 **`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`  
 暂停：`paused` 标志（不是 state）。
 
-**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。开屏为满幅暗色幻想底 + 中央黑带 + 右下真实进度角；落花层跟随真实进度调速，恢复态暂停，减少动态效果时静态呈现；可恢复失败改为黑带下的暗色状态面板，窄屏按钮保持 44px 命中区。游戏首帧启动失败会停止已初始化的游戏并恢复真实来源页。新主菜单人物为明确占位。
+**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。开屏为满幅暗色幻想底 + 中央黑带 + 右下真实进度角；落花只在右下加载角的局部盒内跟随真实进度调速，恢复态暂停，减少动态效果时静态呈现；可恢复失败改为黑带下的暗色状态面板，窄屏按钮保持 44px 命中区。游戏首帧启动失败会停止已初始化的游戏并恢复真实来源页。新主菜单人物为明确占位。
 标题为逐字DOM排版：五字大小／上下错位，「棍維」与「何意味」异色，完整可访问名称与日文字形优先不变；魔幻背景候选暂未进入运行时资源列表。
 
 **`Game.mode`**：`story` | `practice` | `stage` | `extra` | `nomiss`
