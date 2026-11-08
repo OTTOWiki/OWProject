@@ -1,17 +1,16 @@
 /**
  * 加载界面落花。
  *
- * 只用一张 512×1024 的纵向无缝纹理 + WAAPI 背景位移：
- * - 不建粒子对象、不起 rAF；
- * - 真实处理进度只改 playbackRate，不重置动画相位；
- * - prefers-reduced-motion 下返回空控制器，CSS 仍显示静态花瓣。
+ * 只在右下“少女祈祷中”加载角的局部盒子里播放：
+ * - 一层 512×1024 无缝纹理，用 CSS transform 持续下落；
+ * - JS 只设置轨道高度（两个 tile）并用 WAAPI 改 playbackRate；
+ * - 即使 getAnimations 不可用，CSS 动画仍以 1× 播放；
+ * - prefers-reduced-motion 下不创建/不调速，静态纹理保留。
  *
  * 纹理来源见 assets/NOTICE.md（CC0）。
  */
 
-const BASE_DURATION_MS = 18000;
-const TILE_W = 512;
-const TILE_H = 1024;
+const TILE_ASPECT = 1024 / 512; // tile 高 = 2 × 盒宽
 
 /**
  * 把真实加载进度映射为落花播放倍率。
@@ -34,7 +33,7 @@ function prefersReducedMotion() {
 }
 
 /**
- * 初始化加载层里的两层落花。找不到节点或 API 不支持时返回 null，调用方可直接可选链。
+ * 初始化右下加载角里的落花。
  * @param {Document|HTMLElement} [root]
  * @returns {{
  *   setProgress(pct: number): void,
@@ -44,84 +43,72 @@ function prefersReducedMotion() {
  * } | null}
  */
 export function initLoadingPetals(root = document) {
-  if (!root || typeof root.querySelectorAll !== 'function') return null;
-  const layers = [...root.querySelectorAll('.load-petals-layer')];
-  if (!layers.length) return null;
+  if (!root || typeof root.querySelector !== 'function') return null;
+  const box = root.querySelector('.load-petals');
+  const track = root.querySelector('.load-petals-track');
+  if (!box || !track) return null;
 
   const state = {
     progress: 0,
     paused: false,
-    entries: [],
-    reduced: prefersReducedMotion(),
+    anim: null,
     cancelled: false,
-  };
-  const canAnimate = !state.reduced
-    && typeof window !== 'undefined'
-    && typeof Element !== 'undefined'
-    && typeof Element.prototype.animate === 'function';
-
-  const tileHeightFor = (layer) => {
-    const style = getComputedStyle(layer);
-    const scale = Number.parseFloat(style.getPropertyValue('--petal-scale')) || 1;
-    const width = layer.getBoundingClientRect().width
-      || layer.clientWidth
-      || root.clientWidth
-      || 0;
-    return (TILE_H / TILE_W) * width * scale;
+    reduced: prefersReducedMotion(),
   };
 
-  const build = () => {
-    for (const entry of state.entries) entry.anim.cancel();
-    state.entries = [];
-    if (!canAnimate || state.cancelled) return;
-    for (const layer of layers) {
-      if (typeof layer.animate !== 'function') continue;
-      const tileHeight = tileHeightFor(layer);
-      if (!(tileHeight > 0)) continue;
-      const speed = Number.parseFloat(layer.dataset.petalSpeed) || 1;
-      const anim = layer.animate(
-        [
-          { backgroundPositionY: '0px' },
-          { backgroundPositionY: `-${tileHeight}px` },
-        ],
-        { duration: BASE_DURATION_MS, iterations: Infinity, easing: 'linear' },
-      );
-      anim.playbackRate = petalPlaybackRate(state.progress) * speed;
-      if (state.paused) anim.pause();
-      state.entries.push({ layer, speed, anim });
-    }
+  const measure = () => {
+    const width = box.getBoundingClientRect().width || box.clientWidth || 0;
+    if (!(width > 0)) return;
+    // 轨道放两个 tile；CSS keyframe 的 -50% 正好移动一个 tile 高度。
+    track.style.height = `${width * TILE_ASPECT * 2}px`;
   };
+
+  const attach = () => {
+    if (state.cancelled || state.reduced) return;
+    if (typeof track.getAnimations !== 'function') return;
+    const animations = track.getAnimations();
+    state.anim = animations.find((anim) => anim.animationName === 'petalsFall')
+      || animations[0]
+      || null;
+    if (!state.anim) return;
+    state.anim.playbackRate = petalPlaybackRate(state.progress);
+    if (state.paused) state.anim.pause();
+  };
+
+  measure();
+  attach();
+  if (!state.anim && !state.reduced && typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => {
+      if (!state.cancelled) attach();
+    });
+  }
 
   const onResize = () => {
-    if (!state.cancelled) build();
+    if (!state.cancelled) measure();
   };
   if (typeof window !== 'undefined') window.addEventListener('resize', onResize);
-  build();
 
   return {
     setProgress(pct) {
       const n = Number(pct);
       state.progress = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
-      for (const entry of state.entries) {
-        entry.anim.playbackRate = petalPlaybackRate(state.progress) * entry.speed;
-      }
+      if (state.anim) state.anim.playbackRate = petalPlaybackRate(state.progress);
     },
     setPaused(paused) {
       state.paused = !!paused;
-      for (const entry of state.entries) {
-        if (state.paused) entry.anim.pause();
-        else entry.anim.play();
-      }
+      if (!state.anim) return;
+      if (state.paused) state.anim.pause();
+      else state.anim.play();
     },
     cancel() {
       if (state.cancelled) return;
       state.cancelled = true;
       if (typeof window !== 'undefined') window.removeEventListener('resize', onResize);
-      for (const entry of state.entries) entry.anim.cancel();
-      state.entries = [];
+      state.anim?.cancel();
+      state.anim = null;
     },
     get animationCount() {
-      return state.entries.length;
+      return state.anim ? 1 : 0;
     },
   };
 }
