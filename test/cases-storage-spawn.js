@@ -5,6 +5,7 @@ import { FPS_LIMIT_MIN, FPS_LIMIT_CAP, FPS_SLIDER_UNLIMITED, STORAGE_KEYS } from
 import {
   normalizeFpsLimit, fpsLimitToSlider, sliderToFpsLimit,
   writeStored, onStorageError, saveSettings, saveNomissProgress, loadHiscore,
+  loadUnlocked, unlockStage, loadNomissProgress,
 } from '../js/storage.js';
 import { applyEnemyDifficulty, applyEnemyBulletDifficulty } from '../js/spawnScale.js';
 import { test, assert, assertEqual } from './assert.js';
@@ -105,4 +106,24 @@ test('写成功：writeStored 返回 true 且不通知', () => {
     off();
   }
   assertEqual(seen.length, 0);
+});
+
+
+test('关键键备份：主键损坏时回落上一份，清除时连备份删除', () => {
+  withStorage({}, (map) => {
+    unlockStage(5);
+    unlockStage(6); // 备份 = 5，主键 = 6
+    map.set('gunwei_unlocked', '{broken');
+    assertEqual(loadUnlocked().stage, 5, '主键坏 JSON 时回落上一份');
+
+    saveNomissProgress(7);
+    saveNomissProgress(8); // 备份 = 7，主键 = 8
+    map.set('gunwei_nomiss_progress', 'not-json');
+    assertEqual(loadNomissProgress(), 7, 'Nomiss 进度回落备份');
+
+    saveNomissProgress(null);
+    assertEqual(map.has('gunwei_nomiss_progress'), false);
+    assertEqual(map.has('gunwei_nomiss_progress_bak'), false, '清除时备份一并删除');
+    assertEqual(loadNomissProgress(), null);
+  });
 });

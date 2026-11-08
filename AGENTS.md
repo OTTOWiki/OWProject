@@ -260,6 +260,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_practice_best` | 练习模式各章最佳（得分 + 是否 NMNB） |
 
 - 所有写入走 `storage.js` 的 `writeStored` / `removeStored`：失败不抛、返回 `false`，并通过 `onStorageError` 通知；`main.js` 显示非阻塞「本地存档写入失败」提示。
+- 关键进度键（`gunwei_unlocked` / `gunwei_nomiss_progress`）写前备份到 `<key>_bak`，主键坏 JSON 时回落备份；清除进度时连备份一起删。
 
 ---
 
