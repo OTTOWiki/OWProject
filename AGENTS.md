@@ -91,7 +91,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
 - E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges|golden|bg-rng|bg-easing.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。E2E 默认**不在每个 PR 跑**：仅给最终集成 PR 加 `run-e2e` 标签，或 `workflow_dispatch` 手动触发；小改动只等 `Test`
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 由最终 PR 的 `run-e2e` 标签统一跑一次，避免逐 PR 等待 14–16 分钟
@@ -175,6 +175,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `pool.js` | 泛型对象池（bullet/item/particle 共用 acquire/release/purge） | 实体语义 |
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
+| `backgrounds/atoms2d.js` | 版面剪影/侧柱具名原子（P1，原样搬出） | 场景数据 / 时间轴 |
 | `backgrounds/easing.js` | 32 条背景缓动 + Interpolation（P3，暂未接线） | 运行时场景 / 绘制 |
 | `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
 | `backgrounds/*` | 共享舞台 Three 场景 | 版面 Canvas |

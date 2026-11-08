@@ -246,10 +246,10 @@ js/bg/apply3d.js    // Scene3D → StageBackground 的解释器
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| **P0 冻结基线** | 给 `StageBackground` 加可注入 RNG（`bg.__rand`，缺省 `Math.random`），测试注入 `js/rng.js` 的 mulberry32。**不加这个，后面所有"逐像素一致"都无法验证**（`scenes.js` 有 42 处 `Math.random`） | 同 seed 连跑两次截图逐像素一致 |
-| **P1 版面几何原子化** | `_drawPillar` 12 个 `kind` 与 `_drawSilhouette` 12 个 `sil` **原样**搬进 `atoms2d.js`（函数体逐字不动，只换签名） | 21 mode 截图与 P0 **逐像素一致**（版面 `hash()` 本就确定性） |
+| **P0 冻结基线** ✅ (#58) | 给 `StageBackground` 加可注入 RNG（`bg.__rand`，缺省 `Math.random`），测试注入 `js/rng.js` 的 mulberry32。**不加这个，后面所有"逐像素一致"都无法验证**（`scenes.js` 有 42 处 `Math.random`） | 同 seed 连跑两次截图逐像素一致 |
+| **P1 版面几何原子化** ✅ (#66) | `_drawPillar` 12 个 `kind` 与 `_drawSilhouette` 12 个 `sil` **原样**搬进 `atoms2d.js`（函数体逐字不动，只换签名） | 21 mode 截图与 P0 **逐像素一致**（版面 `hash()` 本就确定性） |
 | **P2 左侧场景数据化** | 13 个 builder → `SCENES3D`；新增 `apply3d.js`；`builders.js` 改为由表生成 | 注入同 seed，21 mode 截图与 P0 逐像素一致 + 单测"每 mode 有 Scene3D、atom 都存在、count 与 P0 记录一致" |
-| **P3 移植 easing + Interpolation** | 新增 `easing.js`（32 条）与 `Interpolation`（含 mode 7/17/8 特例）。**运行时不 import** | node 表驱动单测（端点 0/1、单调性、mode7 累加、`duration=0` 立刻取 `end`） |
+| **P3 移植 easing + Interpolation** ✅ (#63) | 新增 `easing.js`（32 条）与 `Interpolation`（含 mode 7/17/8 特例）。**运行时不 import** | node 表驱动单测（端点 0/1、单调性、mode7 累加、`duration=0` 立刻取 `end`） |
 | **P4 接线解释器但数据为空** | `timeline.js` + `Scene2D.timeline` 缺省 `[]`；空时间轴退化为现有 `scrollZ += dt*speed*48` | 截图仍逐像素一致 |
 | **P5 用时间轴复刻现有运动** | 把 `scrollZ` 速度、`speed`、扫描线相位、转场闪白表达成 op；旧分支用 `?bg=timeline` 保留 A/B | 先比 `scrollZ(t)`/`_time(t)` 轨迹，再在 t = 0 / 1.2 / 3.7s 抽样帧比对 |
 | **P6（可选，独立美术变更）** | 用新原子与新 op 做新观感 | 单独 PR + 视觉验收，不混进重构 |
