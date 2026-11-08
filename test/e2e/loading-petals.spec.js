@@ -55,31 +55,50 @@ test('加载落花：可恢复失败时暂停，继续按钮仍可用', async ({
   await expect(page.locator('#load-screen')).toHaveCount(0);
 });
 
-test('加载落花：矮屏仍保持黑带居中、少女祈祷中在右下', async ({ page }) => {
+test('加载落花：矮屏 / 手机横屏仍保持黑带居中、少女祈祷中在右下', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 600 });
   const release = await holdAudio(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-  const layout = await page.evaluate(() => {
+  const readLayout = () => page.evaluate(() => {
     const band = document.querySelector('.load-band').getBoundingClientRect();
     const corner = document.querySelector('.load-corner').getBoundingClientRect();
     const petals = document.querySelector('.load-petals').getBoundingClientRect();
     return {
+      vw: window.innerWidth,
+      vh: window.innerHeight,
       bandCenter: band.top + band.height / 2,
-      viewportCenter: window.innerHeight / 2,
+      bandBottom: band.bottom,
+      cornerLeft: corner.left,
       cornerRight: window.innerWidth - corner.right,
       cornerBottom: window.innerHeight - corner.bottom,
+      cornerTop: corner.top,
+      petalsWidth: petals.width,
       petalsTop: petals.top,
       petalsRight: window.innerWidth - petals.right,
       petalsBottom: window.innerHeight - petals.bottom,
     };
   });
-  expect(Math.abs(layout.bandCenter - layout.viewportCenter)).toBeLessThanOrEqual(1);
-  expect(layout.cornerRight).toBeLessThanOrEqual(30);
-  expect(layout.cornerBottom).toBeLessThanOrEqual(30);
-  expect(layout.petalsTop).toBeGreaterThan(layout.viewportCenter);
-  expect(layout.petalsRight).toBeLessThanOrEqual(30);
-  expect(layout.petalsBottom).toBeLessThanOrEqual(30);
+
+  const desktop = await readLayout();
+  expect(Math.abs(desktop.bandCenter - desktop.vh / 2)).toBeLessThanOrEqual(1);
+  expect(desktop.cornerRight).toBeLessThanOrEqual(30);
+  expect(desktop.cornerBottom).toBeLessThanOrEqual(30);
+  expect(desktop.petalsTop).toBeGreaterThan(desktop.vh / 2);
+
+  // iPhone SE 一类的手机横屏：宽度 ≤720，必须仍走紧凑横屏，而不是大字号移动布局。
+  await page.setViewportSize({ width: 667, height: 375 });
+  await page.waitForTimeout(250);
+  const mobile = await readLayout();
+  expect(Math.abs(mobile.bandCenter - mobile.vh / 2)).toBeLessThanOrEqual(1);
+  expect(mobile.cornerLeft).toBeGreaterThan(mobile.vw * 0.5);
+  expect(mobile.cornerTop).toBeGreaterThanOrEqual(mobile.bandBottom - 1);
+  expect(mobile.cornerRight).toBeLessThanOrEqual(30);
+  expect(mobile.cornerBottom).toBeLessThanOrEqual(30);
+  expect(mobile.petalsWidth).toBeLessThanOrEqual(340);
+  expect(mobile.petalsTop).toBeGreaterThan(mobile.vh * 0.5);
+  expect(mobile.petalsRight).toBeLessThanOrEqual(30);
+  expect(mobile.petalsBottom).toBeLessThanOrEqual(30);
 
   release();
 });

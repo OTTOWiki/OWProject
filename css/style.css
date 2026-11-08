@@ -438,16 +438,17 @@ input, select, textarea {
 }
 
 /* 紧凑桌面 / 横屏：只缩小尺寸，黑带仍居中、加载角仍在右下 */
-@media (min-width: 721px) and (max-height: 620px) {
-  .load-band { padding: 16px 24px 18px; }
+@media (max-height: 620px) and (orientation: landscape) {
+  .load-band { padding: 12px 20px 14px; }
   .load-title { font-size: clamp(2rem, 7vh, 3rem); }
-  .load-sub { margin-top: 5px; font-size: 10px; }
-  .load-notice { margin: 8px auto; font-size: 11px; line-height: 1.45; }
+  .load-sub { margin-top: 4px; font-size: 10px; }
+  .load-notice { margin: 6px auto; font-size: 11px; line-height: 1.4; }
   .load-presented { font-size: 10px; }
   .load-maker { font-size: 15px; }
   .load-corner {
-    right: 20px;
-    bottom: 14px;
+    right: 16px;
+    bottom: clamp(8px, 2vh, 14px);
+    left: auto;
     width: min(300px, 44vw);
   }
   .load-pray { font-size: clamp(1.3rem, 4.5vh, 1.8rem); }
@@ -457,15 +458,16 @@ input, select, textarea {
   .load-actions { margin-top: 8px; }
   .load-action { min-height: 36px; padding: 6px 12px; }
   .load-petals {
-    right: 20px;
-    bottom: 14px;
+    right: 16px;
+    bottom: clamp(8px, 2vh, 14px);
+    left: auto;
     width: min(340px, 40vw);
     height: min(200px, 34vh);
   }
 }
 
 /* 极矮竖屏：只缩小尺寸，黑带仍居中、加载角仍在右下 */
-@media (max-width: 720px) and (max-height: 520px) {
+@media (max-width: 720px) and (max-height: 520px) and (orientation: portrait) {
   .load-band { padding: 18px 16px; }
   .load-title { font-size: clamp(1.9rem, 9vw, 2.4rem); }
   .load-sub { margin-top: 6px; font-size: 10px; }
