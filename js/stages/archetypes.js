@@ -109,6 +109,34 @@ export const ARCHETYPES = {
       }),
     },
   },
+  ringDuoGold: {
+    hp: () => exHp(45),
+    color: C.gold,
+    vy: 1.0,
+    tick: (en) => { if (en.y > 115) en.vy = 0.15; },
+    fire: {
+      key: 'r',
+      interval: () => exFire(1.3),
+      pattern: 'ringAt',
+      options: (game, en) => ({
+        n: exN(10), speed: exSp(1.8), type: 'talisman', color: en.color, angle: en.age,
+      }),
+    },
+  },
+  ringDuoViolet: {
+    hp: () => exHp(45),
+    color: C.violet,
+    vy: 1.0,
+    tick: (en) => { if (en.y > 165) en.vy = 0.15; },
+    fire: {
+      key: 'r',
+      interval: () => exFire(1.3),
+      pattern: 'ringAt',
+      options: (game, en) => ({
+        n: exN(10), speed: exSp(1.8), type: 'dot', color: en.color, angle: en.age,
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,

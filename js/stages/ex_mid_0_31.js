@@ -519,20 +519,10 @@ export function mid_hoverRingDuo(g) {
   installMidWave(g, {
     interval: SI(1.4),
     maxWaves: 3,
-    onWave: (g, wave) => {
+    onWave: (g) => {
       for (let i = 0; i < 2; i++) {
         const x = 100 + i * 200 + (g.waveCount % 2) * 30;
-        const e = mob(x, -20, exHp(45), i ? C.violet : C.gold);
-        e.vy = 1.0;
-        e.script = (en, d, game) => {
-          const stopY = en.color === C.gold ? 120 : 170;
-          if (en.y > stopY - 5) en.vy = 0.15;
-          const type = en.color === C.gold ? 'talisman' : 'dot';
-          timer(en, 'r', exFire(1.3), d, () => {
-            spawnRingAt(game, en.x, en.y, exN(10), exSp(1.8), type, en.color, en.age);
-          });
-        };
-        g.spawnEnemy(e);
+        spawnArch(g, i ? 'ringDuoViolet' : 'ringDuoGold', { x });
       }
     },
   });
