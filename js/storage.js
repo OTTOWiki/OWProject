@@ -73,6 +73,27 @@ export function removeStored(key) {
   }
 }
 
+/** 关键键备份后缀：写主键前把上一份内容放到 `<key>_bak` */
+const BACKUP_SUFFIX = '_bak';
+
+function readRaw(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 写入关键键：先把上一份主键内容写 `<key>_bak`，再覆盖主键。
+ * 主键写坏/被截断时，读路径可回落上一份完整快照。
+ */
+function writeWithBackup(key, raw) {
+  const prev = readRaw(key);
+  if (prev != null) writeStored(key + BACKUP_SUFFIX, prev);
+  return writeStored(key, raw);
+}
+
 export function loadKeys() {
   const parsed = parseStored(STORAGE_KEYS.keys);
   if (parsed == null) return { ...DEFAULT_KEYS };
@@ -168,24 +189,25 @@ export function saveHiscore(score) {
 /** 进度记录（Stage Select 不门禁；见 AGENTS.md）。损坏数据时回落默认 */
 export function loadUnlocked() {
   const fallback = { stage: 1, routes: { A: false, B: false } };
-  const u = parseStored(STORAGE_KEYS.unlocked);
-  if (u == null) return { ...fallback, routes: { ...fallback.routes } };
-  const stage = Number(u?.stage);
-  const routes = u?.routes && typeof u.routes === 'object' ? u.routes : {};
-  return {
-    stage: Number.isFinite(stage) && stage >= 1 ? stage : 1,
-    routes: {
-      A: !!routes.A,
-      B: !!routes.B,
-    },
-  };
+  for (const key of [STORAGE_KEYS.unlocked, STORAGE_KEYS.unlocked + BACKUP_SUFFIX]) {
+    const u = parseStored(key);
+    if (u == null || typeof u !== 'object') continue;
+    const stage = Number(u.stage);
+    if (!Number.isFinite(stage) || stage < 1) continue;
+    const routes = u.routes && typeof u.routes === 'object' ? u.routes : {};
+    return {
+      stage,
+      routes: { A: !!routes.A, B: !!routes.B },
+    };
+  }
+  return { ...fallback, routes: { ...fallback.routes } };
 }
 
 export function unlockStage(stage) {
   const u = loadUnlocked();
   if (stage > u.stage) {
     u.stage = stage;
-    return writeStored(STORAGE_KEYS.unlocked, JSON.stringify(u));
+    return writeWithBackup(STORAGE_KEYS.unlocked, JSON.stringify(u));
   }
   return false;
 }
@@ -194,7 +216,7 @@ export function unlockRoute(route) {
   const u = loadUnlocked();
   if (route === 'A' || route === 'B') u.routes[route] = true;
   if (u.stage < 4) u.stage = 4;
-  return writeStored(STORAGE_KEYS.unlocked, JSON.stringify(u));
+  return writeWithBackup(STORAGE_KEYS.unlocked, JSON.stringify(u));
 }
 
 /** 练习模式上次选择（章节 id + 难度）；损坏/缺失回落 null */
@@ -219,10 +241,12 @@ export function savePracticePrefs(prefs) {
  * @returns {number|null} 下一章 id（正整数），无进度时 null
  */
 export function loadNomissProgress() {
-  const p = parseStored(STORAGE_KEYS.nomissProgress);
-  const id = Number(p?.nextChapterId);
-  if (!Number.isInteger(id) || id <= 0) return null;
-  return id;
+  for (const key of [STORAGE_KEYS.nomissProgress, STORAGE_KEYS.nomissProgress + BACKUP_SUFFIX]) {
+    const p = parseStored(key);
+    const id = Number(p?.nextChapterId);
+    if (Number.isInteger(id) && id > 0) return id;
+  }
+  return null;
 }
 
 /**
@@ -230,10 +254,14 @@ export function loadNomissProgress() {
  * id 为 null/undefined → 清除（通关后从头开始）。
  */
 export function saveNomissProgress(id) {
-  if (id == null) return removeStored(STORAGE_KEYS.nomissProgress);
+  if (id == null) {
+    // 清除进度时连备份一起删，避免读路径把旧进度复活
+    removeStored(STORAGE_KEYS.nomissProgress + BACKUP_SUFFIX);
+    return removeStored(STORAGE_KEYS.nomissProgress);
+  }
   const n = Number(id);
   if (!Number.isInteger(n) || n <= 0) return false; // 非法值丢弃，不动旧进度
-  return writeStored(STORAGE_KEYS.nomissProgress, JSON.stringify({ nextChapterId: n }));
+  return writeWithBackup(STORAGE_KEYS.nomissProgress, JSON.stringify({ nextChapterId: n }));
 }
 
 /**
