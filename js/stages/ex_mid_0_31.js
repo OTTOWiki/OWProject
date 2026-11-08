@@ -72,16 +72,17 @@ export function mid_rainSparse(g) {
       }
     },
     onWave: (g, wave) => {
-      const e = mob(60 + Math.random() * (LOGICAL_W - 120), -18, exHp(34), C.violet);
-      e.vy = 1.0;
-      e.script = (en, d, game) => {
-        timer(en, 's', exFire(1.15), d, () => {
-          spawnAimed(game, en, game.player, {
+      spawnArch(g, 'aimCyan', {
+        x: 60 + Math.random() * (LOGICAL_W - 120), hp: exHp(34), color: C.violet, vy: 1.0,
+        fires: [{
+          key: 's',
+          interval: () => exFire(1.15),
+          pattern: 'aimed',
+          options: (game, en) => ({
             n: 1, parity: 'odd', type: 'dot', speed: exSp(2.25), color: C.pink,
-          });
-        });
-      };
-      g.spawnEnemy(e);
+          }),
+        }],
+      });
     },
   });
 }

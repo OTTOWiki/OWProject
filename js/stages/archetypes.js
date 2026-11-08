@@ -573,6 +573,22 @@ export const ARCHETYPES = {
       }),
     },
   },
+  ringEvenAfterViolet: {
+    elite: true,
+    hp: () => exHp(210),
+    color: C.violet,
+    vy: 0.15,
+    fire: {
+      key: 'r', interval: () => exFire(0.9), pattern: 'altRingAim',
+      options: (game, en) => ({
+        ring: { n: exN(12), speed: exSp(1.7), type: 'talisman', color: C.violet },
+        aimed: {
+          n: exN(2, 'even'), parity: 'even', type: 'rice',
+          speed: exSp(2.25), spread: 0.18, color: C.white,
+        },
+      }),
+    },
+  },
   aimCyan: {
     hp: () => exHp(36),
     color: C.cyan,
@@ -643,6 +659,16 @@ export function spawnArch(g, id, {
               x: en.x, y: en.y, angle: en.data.a + i * Math.PI, speed: o.speed,
               type: o.type, color: o.colors?.[i] ?? o.color, from: 'enemy',
             }));
+          }
+        } else if (f.pattern === 'altRingAim') {
+          const o = f.options(game, en);
+          en.data.alt = (en.data.alt || 0) + 1;
+          if (en.data.alt % 2) {
+            spawnRingAt(
+              game, en.x, en.y, o.ring.n, o.ring.speed, o.ring.type, o.ring.color, en.age,
+            );
+          } else {
+            spawnAimed(game, en, game.player, o.aimed);
           }
         } else if (f.pattern === 'ringSpin') {
           const o = f.options(game, en);
