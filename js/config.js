@@ -28,6 +28,9 @@ export const STORAGE_KEYS = {
   practiceBest: 'gunwei_practice_best',
 };
 
+/** 菜单按住重复：首延迟 / 重复间隔（毫秒）；与系统键盘连发无关 */
+export const MENU_REPEAT = Object.freeze({ firstMs: 350, rateMs: 80 });
+
 /** 每难度排行榜条目上限 */
 export const RANKING_LIMIT = 10;
 /**

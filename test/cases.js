@@ -1,6 +1,6 @@
 /**
  * 用例聚合入口（浏览器 / Node 均 import 本文件注册全部用例）
- * 分文件：config / patterns / collision / feedback / pools / stages / boss-dps / storage-spawn / letterrate / runstats / continue / assets / ranking / replay / smoke / load / loadanim / edges / golden / bg-rng / bg-easing / bg-schema
+ * 分文件：config / patterns / collision / feedback / pools / stages / boss-dps / storage-spawn / letterrate / runstats / continue / assets / ranking / replay / smoke / load / loadanim / edges / golden / bg-rng / bg-easing / bg-schema / menu-repeat
  */
 import './cases-config.js';
 import './cases-patterns.js';
@@ -26,3 +26,4 @@ import './cases-golden.js';
 import './cases-bg-rng.js';
 import './cases-bg-easing.js';
 import './cases-bg-schema.js';
+import './cases-menu-repeat.js';
