@@ -27,7 +27,9 @@ import { getDialogues } from './dialogue.js';
 import { chapterStageLabel } from './chapterLabel.js';
 import { loadHiscore, loadSettings } from './storage.js';
 import { withSeededRng, createRng, randomSeed } from './rng.js';
-import { buildReplay, validateReplay, createPlayer, createReplayInput } from './replay.js';
+import {
+  buildReplay, validateAnyReplay, createPlayer, createReplayInput, replayVersionOf,
+} from './replay.js';
 import { saveReplay } from './replayStore.js';
 import { formatRunStats } from './runStats.js';
 import { handleScoreRankingKey, isScoreRankingOpen } from './scoreRanking.js';
@@ -208,6 +210,9 @@ export class Game {
     this.recording = !this.replaying;   // 普通对局常驻缓冲；回放不录制
     if (mode === 'nomiss') this.recording = false; // Nomiss 全程不录制录像
     this._recordFrames = [];
+    /** H8：本局 Letter 记录（回放携带；回放本身不追加） */
+    this.letterLog = [];
+    this._letterLogEntry = null;
     this._replayDone = false;
     this._replayFast = false;
     this._startChapterId = startId;
@@ -226,7 +231,9 @@ export class Game {
       this._replayInput.keys = replay.keys ? { ...replay.keys } : { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' };
       this._replayInput.shotToggleMode = !!replay.shotToggleMode;
       this.input = this._replayInput;
-      this._replayPlayer = createPlayer(replay.frames);
+      this._replayPlayer = createPlayer(replay.frames, {
+        version: replayVersionOf(replay), keys: replay.keys,
+      });
     } else {
       this.input = this.realInput;
     }
@@ -573,7 +580,7 @@ export class Game {
     if (this.replaying) {
       this.input.set(snap);
     } else {
-      recSnap = this.input.snapshot();
+      recSnap = this.input.recordSnapshot();
     }
 
     let wasPlaying = false;
@@ -617,6 +624,7 @@ export class Game {
 
     // 录制：本逻辑块确实推进了游戏流程（含对话/选线/死亡/取消暂停）
     if (this.recording && !this.replaying && wasPlaying) {
+      if (Array.isArray(recSnap)) recSnap[0] = steps;
       this._recordFrames.push({ s: steps, i: recSnap });
     }
   }
@@ -685,7 +693,7 @@ export class Game {
 
   /** 从录像数据启动回放 */
   startReplay(replay) {
-    if (!validateReplay(replay)) return false;
+    if (!validateAnyReplay(replay)) return false;
     if (!replay.playerId) return false;
     this.start({
       playerId: replay.playerId,
@@ -726,6 +734,7 @@ export class Game {
         stageReached: chapterStageLabel(ch),
         chapterIndex: this.chapterIndex,
         stats: this.stats,
+        letters: this.letterLog || [],
       },
       partial: !!partial,
     });

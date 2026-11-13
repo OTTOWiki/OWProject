@@ -3,9 +3,13 @@
  */
 import { createRng, withSeededRng, withRealRandom } from '../js/rng.js';
 import {
-  encodeRuns, createPlayer, buildReplay, validateReplay, createReplayInput, makeReplayId,
-  serializeReplay, deserializeReplay,
+  encodeRuns, createPlayer, buildReplay, validateReplay, validateLegacyReplay, validateAnyReplay,
+  createReplayInput, makeReplayId, serializeReplay, deserializeReplay, replayVersionOf,
 } from '../js/replay.js';
+import {
+  encodeReplayFrame, decodeReplayFrame, replayKeyTable, sameReplayFrame, isCompactReplayFrame,
+} from '../js/replayCodec.js';
+import { REPLAY_VERSION } from '../js/config.js';
 import { moveAxisFromSeq } from '../js/input.js';
 import { test, assert, assertEqual } from './assert.js';
 
@@ -80,7 +84,16 @@ test('serializeReplay / deserializeReplay 往返', () => {
       unstable: true, shotToggleMode: true,
       keys: { shot: 'KeyJ', bomb: 'KeyX', item: 'KeyC' },
     },
-    frames: [{ s: 2, i: { d: ['KeyJ'], p: [], m: ['ArrowLeft'], t: [3, 4], v: null, a: 1, b: 0, i: 0, l: 0 } }],
+    frames: [(() => {
+      const table = replayKeyTable({ shot: 'KeyJ', bomb: 'KeyX', item: 'KeyC' });
+      const frame = encodeReplayFrame(
+        { d: ['KeyJ'], p: [], m: ['ArrowLeft'], t: [3, 4], v: null, a: 1, b: 0, i: 0, l: 0 },
+        table,
+        { x: -1, y: 0 },
+      );
+      frame[0] = 2;
+      return { s: 2, i: frame };
+    })()],
     endState: { score: 12345, cleared: true, stageReached: 'Stage 3', chapterIndex: 20 },
     partial: true,
   });
@@ -134,7 +147,12 @@ test('buildReplay / validateReplay', () => {
       unstable: true, shotToggleMode: false,
       keys: { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' },
     },
-    frames: [{ s: 1, i: { ...EMPTY_SNAP } }],
+    frames: [(() => {
+      const table = replayKeyTable({ shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' });
+      const frame = encodeReplayFrame({ ...EMPTY_SNAP }, table, { x: 0, y: 0 });
+      frame[0] = 1;
+      return { s: 1, i: frame };
+    })()],
     endState: { score: 100, cleared: false, stageReached: 'Stage 1', chapterIndex: 0 },
     partial: false,
   });
@@ -164,4 +182,80 @@ test('createReplayInput：快照语义（moveAxis / 单击发射 / bombTap）', 
   assert(!ri.shotHeld());
   ri.updateShotToggle();
   assert(ri.shotHeld());
+});
+
+
+test('H7 紧凑帧：掩码 / flags / 轴 / tap / virtual 往返', () => {
+  const keys = { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' };
+  const table = replayKeyTable(keys);
+  assert(table.includes('KeyZ') && table.includes('ShiftLeft'));
+
+  const snap = {
+    ...EMPTY_SNAP, d: ['ArrowLeft', 'KeyZ'], p: ['KeyZ'], a: true, l: true,
+    t: [12.5, 34.25],
+  };
+  const frame = encodeReplayFrame(snap, table, { x: -1, y: 0 });
+  assert(isCompactReplayFrame(frame));
+  const back = decodeReplayFrame(frame, table);
+  assertEqual(back.d.join(','), 'ArrowLeft,KeyZ');
+  assertEqual(back.p.join(','), 'KeyZ');
+  assertEqual(back.m.join(','), 'ArrowLeft');
+  assertEqual(back.t.join(','), '12.5,34.25');
+  assert(back.a && back.l && !back.b && !back.i);
+
+  const virtual = encodeReplayFrame({ ...EMPTY_SNAP, b: true, v: [100.5, 200.25] }, table, { x: 0, y: 1 });
+  const vb = decodeReplayFrame(virtual, table);
+  assertEqual(vb.v.join(','), '100.5,200.25');
+  assertEqual(vb.m.join(','), 'ArrowDown');
+  assert(vb.b);
+});
+
+test('H7 紧凑帧参与 RLE 合并', () => {
+  const table = replayKeyTable({ shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' });
+  const a = encodeReplayFrame({ ...EMPTY_SNAP }, table, { x: 0, y: 0 });
+  a[0] = 1;
+  const b = encodeReplayFrame({ ...EMPTY_SNAP, a: true }, table, { x: 0, y: 0 });
+  b[0] = 1;
+  const runs = encodeRuns([{ s: 1, i: a }, { s: 1, i: a }, { s: 1, i: b }]);
+  assertEqual(runs.length, 2);
+  assertEqual(runs[0][0], 2);
+  assert(sameReplayFrame(runs[0][2], a));
+});
+
+test('H7 v2 校验：steps 与帧内 steps 必须一致', () => {
+  const table = replayKeyTable({ shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' });
+  const frame = encodeReplayFrame({ ...EMPTY_SNAP }, table, { x: 0, y: 0 });
+  frame[0] = 1;
+  const base = {
+    version: REPLAY_VERSION, seed: 1, playerId: 'yinquan', mode: 'story',
+    frames: [[1, 1, frame]],
+  };
+  assert(validateReplay(base));
+  const bad = { ...base, frames: [[1, 2, frame]] };
+  assert(!validateReplay(bad));
+});
+
+test('H7/H8 旧格式冻结分支仍可读，新字段随 v2 携带', () => {
+  const legacy = {
+    version: 1, seed: 2, playerId: 'shama', mode: 'story',
+    frames: [[1, 1, { ...EMPTY_SNAP }]],
+    endState: { score: 10 },
+  };
+  assertEqual(replayVersionOf(legacy), 1);
+  assert(validateLegacyReplay(legacy));
+  assert(validateAnyReplay(legacy));
+  assert(!validateReplay(legacy), '旧格式不算新格式');
+
+  const table = replayKeyTable({ shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' });
+  const frame = encodeReplayFrame({ ...EMPTY_SNAP }, table, { x: 0, y: 0 });
+  frame[0] = 1;
+  const letters = [{ chapterId: 3, name: '三章', attempts: 1, captures: 1, bestTimeSec: 12 }];
+  const r = buildReplay({
+    header: { seed: 3, playerId: 'yinquan', keys: { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' } },
+    frames: [{ s: 1, i: frame }],
+    endState: { score: 1, letters },
+  });
+  assertEqual(r.version, REPLAY_VERSION);
+  assertEqual(r.endState.letters[0].bestTimeSec, 12);
+  assert(validateAnyReplay(JSON.parse(serializeReplay(r))));
 });

@@ -30,8 +30,14 @@ export const STORAGE_KEYS = {
 
 /** 每难度排行榜条目上限 */
 export const RANKING_LIMIT = 10;
-/** 录像文件格式版本（向前兼容校验） */
-export const REPLAY_VERSION = 1;
+/**
+ * 录像文件格式版本。
+ * v2：每帧紧凑输入（掩码 + flags），见 js/replayCodec.js。
+ * v1：旧对象快照，只保留冻结的播放分支，不再维护（不新增字段/不修缺陷）。
+ */
+export const REPLAY_VERSION = 2;
+/** 仍可播放的旧格式版本（冻结分支；不做功能维护） */
+export const REPLAY_LEGACY_VERSIONS = [1];
 
 /** 自机子弹不透明度下限（设置滑条与存档钳制） */
 export const PLAYER_BULLET_OPACITY_MIN = 0.1;

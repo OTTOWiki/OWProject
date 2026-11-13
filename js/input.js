@@ -1,4 +1,5 @@
 import { loadKeys } from './storage.js';
+import { replayKeyTable, encodeReplayFrame } from './replayCodec.js';
 import { LOGICAL_W, LOGICAL_H, TOUCH_SENSITIVITY } from './config.js';
 
 /** 移动键集合（方向键 + WASD） */
@@ -307,6 +308,17 @@ export class Input {
       i: !!this.itemTap,
       l: !!this.shotLatched,
     };
+  }
+
+  /**
+   * 录像录制帧（H7）：直接把当前输入编码成紧凑数组。
+   * 第 0 位是 steps 占位（调用方在知道本块步数后写回），其余见 replayCodec。
+   */
+  recordSnapshot() {
+    const snap = this.snapshot();
+    const frame = encodeReplayFrame(snap, replayKeyTable(this.keys), this.moveAxis());
+    frame[0] = 1;
+    return frame;
   }
 
   isDown(code) { return this.down.has(code); }

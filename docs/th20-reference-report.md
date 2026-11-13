@@ -30,7 +30,8 @@
 | M1 弹体修饰符时长 | ✅ 已完成 | `tSpin/tAccel/tGravity/tHoming`，PR #88 |
 | 平衡项 A5/A6/H2/H6（P6） | ⏳ 未做 | 改变手感，需手测/倍率决策 |
 | 内容扩充 E1/E3/E4（P7） | ⏳ 未做 | 需章节/主题方向 |
-| H7/H8/H9、M2 | ⏳ 未做 | 录像格式/菜单重复行为，需产品取舍 |
+| H7/H8 | ✅ 已完成 | v2 紧凑帧 + `endState.letters`；v1 冻结分支可读不维护 |
+| H9、M2 | ⏳ 未做 | 菜单按住重复行为 / 弹种表重构，需产品取舍 |
 
 > 本表只记实施状态；需求与取舍仍以下文原始条目为准。
 
@@ -285,7 +286,7 @@ const gain = BALANCE.editPerGraze * (bossUp ? (BALANCE.editPerGrazeBossMul ?? 3)
 
 ---
 
-### H7 录像每帧输入可以压到 6 字节
+### H7 录像每帧输入可以压到 6 字节【✅ 已完成（v2 紧凑帧）】
 
 **现状**：`js/input.js:298-310` `snapshot()` 每逻辑块返回**新对象 + 3 个新数组**：
 
@@ -318,7 +319,7 @@ struct RecordingChunk { InputFrame inputs[36000]; std::uint8_t fps[36000]; ... }
 
 ---
 
-### H8 录像可携带"本章数据"（我们在意的 Letter 用时）
+### H8 录像可携带"本章数据"（我们在意的 Letter 用时）【✅ 已完成（本局 Letter 记录）】
 
 **现状**：我们已有 `gunwei_letter_rate`（`STORAGE_KEYS`）记录 Letter 收取成功/尝试，但**不随录像保存**，回放时看不到那一局的信息。`endState` 只有终局快照（`game.js:717-724`）。
 

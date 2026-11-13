@@ -186,7 +186,8 @@ docs/                  # 内部改造队列等（非运行时）
 | `ranking.js` | 排行榜纯函数 + localStorage（按难度 top10） | UI / 录像 |
 | `rankingScreen.js` | 排行榜屏（难度切换 + 列表） | 游戏逻辑 |
 | `scoreRanking.js` | 成绩排行结算弹层（入榜时名次高亮 + 机签 + 保存/取消） | 游戏逻辑 |
-| `replay.js` | 录像：快照 RLE 编解码、回放游标、虚拟输入 | 存档 I/O |
+| `replay.js` | 录像：RLE 编解码、回放游标、虚拟输入；v1 旧格式为冻结分支 | 存档 I/O |
+| `replayCodec.js` | 录像每帧紧凑输入（掩码 + flags + 可选触摸坐标） | 回放状态机 |
 | `replayStore.js` | 录像帧数据 IndexedDB + localStorage 索引 | 游戏逻辑 |
 | `replayScreen.js` | 录像列表屏（播放/删除） | 游戏逻辑 |
 
@@ -207,6 +208,8 @@ docs/                  # 内部改造队列等（非运行时）
 **练习模式**：难度用内联标签选择（`DIFFICULTIES`），关卡用标签二选、章节列表只显示当前关卡的章节（`practiceChapterGroups`，替代原生 select）；记住上次选择（`gunwei_practice`）；不经难度页，直接选自机。
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
+
+**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像 `endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。
 
 ### 章节流
 
@@ -330,7 +333,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 改版面主题色（旧系统已冻结，勿扩展） | `playfieldBgThemes.js` + `docs/background-rebuild-plan.md` |
 | 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
 | 改排行榜 | `ranking.js` + `rankingScreen.js` + `scoreRanking.js` + `index.html` |
-| 改录像/回放 | `replay.js` + `replayStore.js` + `replayScreen.js` + `game.js` + `rng.js` |
+| 改录像/回放 | `replay.js` + `replayCodec.js` + `replayStore.js` + `replayScreen.js` + `game.js` + `rng.js` |
 | 发版 | `VERSION_NAME` + hooks；CF `pages:build`；tag |
 | 测试 | `npm test`（优先 bun，无 bun 退 node）、`npm run test:e2e`（Playwright）、`npm run test:bun` 或 `/test/` |
 

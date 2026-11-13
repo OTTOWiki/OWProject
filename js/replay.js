@@ -3,8 +3,20 @@
  * 快照字段与 Input.snapshot() 约定一致：d,p,m,t,v,a,b,i,l。
  * 帧数据结构：{ s: steps(0..3), i: snapshot }；仅 s>0 帧进入录像。
  */
-import { REPLAY_VERSION } from './config.js';
+import { REPLAY_VERSION, REPLAY_LEGACY_VERSIONS } from './config.js';
 import { moveAxisFromSeq } from './input.js';
+import {
+  decodeReplayFrame, isCompactReplayFrame, replayKeyTable, sameReplayFrame,
+} from './replayCodec.js';
+
+/** 录像格式版本（缺失视为 v1 旧格式） */
+export function replayVersionOf(data) {
+  return Number.isSafeInteger(data?.version) ? data.version : 1;
+}
+
+export function isLegacyReplay(data) {
+  return REPLAY_LEGACY_VERSIONS.includes(replayVersionOf(data));
+}
 
 /**
  * 录像 id 生成用真实随机：模块加载时捕获，避免在暂停菜单（键盘 Z 保存）时
@@ -32,21 +44,31 @@ function sameSnap(a, b) {
   return true;
 }
 
-/** 原始帧 [{s,i}] → RLE runs [[n,s,i], ...]（连续相同 (s,i) 合并） */
+/**
+ * 原始帧 [{s,i}] → RLE runs [[n,s,i], ...]（连续相同 (s,i) 合并）。
+ * i 为紧凑数组（v2）或旧对象快照（v1，冻结）。
+ */
 export function encodeRuns(frames) {
   const runs = [];
   for (const f of frames) {
     const last = runs[runs.length - 1];
-    if (last && last[1] === f.s && sameSnap(last[2], f.i)) last[0]++;
+    const same = last && last[1] === f.s
+      && (Array.isArray(f.i) ? sameReplayFrame(last[2], f.i) : sameSnap(last[2], f.i));
+    if (same) last[0]++;
     else runs.push([1, f.s, f.i]);
   }
   return runs;
 }
 
-/** RLE runs → 顺序播放游标 */
-export function createPlayer(runs) {
+/**
+ * RLE runs → 顺序播放游标。
+ * @param {Array} runs
+ * @param {{ version?: number, keys?: object }} [opts] v2 需要键位表解码
+ */
+export function createPlayer(runs, { version = REPLAY_VERSION, keys = {} } = {}) {
   let run = 0;
   let pos = 0;
+  const table = replayKeyTable(keys);
   return {
     reset() { run = 0; pos = 0; },
     /** @returns {{steps:number, snapshot:object}|null} */
@@ -55,6 +77,11 @@ export function createPlayer(runs) {
         const r = runs[run];
         if (pos < r[0]) {
           pos++;
+          if (Array.isArray(r[2])) {
+            // 同一 run 内输入相同：解一次并复用，避免逐帧分配
+            if (!r[3]) r[3] = decodeReplayFrame(r[2], table);
+            return { steps: r[1], snapshot: r[3] };
+          }
           return { steps: r[1], snapshot: r[2] };
         }
         run++;
@@ -82,8 +109,32 @@ export function buildReplay({ header, frames, endState, partial }) {
   };
 }
 
+/**
+ * 当前格式（v2）校验。
+ * @param {object} data
+ */
 export function validateReplay(data) {
   if (!(data && data.version === REPLAY_VERSION && Array.isArray(data.frames) && data.seed != null)) {
+    return false;
+  }
+  for (const run of data.frames) {
+    if (!Array.isArray(run) || run.length !== 3) return false;
+    const [count, steps, frame] = run;
+    if (!Number.isSafeInteger(count) || count < 1) return false;
+    if (!Number.isSafeInteger(steps) || steps < 0) return false;
+    if (!isCompactReplayFrame(frame)) return false;
+    if (frame[0] !== steps) return false;
+  }
+  return true;
+}
+
+/**
+ * v1 旧格式校验（冻结分支，不再维护）。
+ * @deprecated 旧录像只保证可读可播，不随新功能更新。
+ */
+export function validateLegacyReplay(data) {
+  if (!(data && REPLAY_LEGACY_VERSIONS.includes(replayVersionOf(data))
+    && Array.isArray(data.frames) && data.seed != null)) {
     return false;
   }
   // Validate every frame run as [count, steps, snapshot]
@@ -99,6 +150,13 @@ export function validateReplay(data) {
   return true;
 }
 
+/** 任一新旧格式均可播放 */
+export function validateAnyReplay(data) {
+  return replayVersionOf(data) === REPLAY_VERSION
+    ? validateReplay(data)
+    : validateLegacyReplay(data);
+}
+
 /** 录像 → JSON 文本（导出） */
 export function serializeReplay(replay) {
   return JSON.stringify(replay);
@@ -112,7 +170,7 @@ export function deserializeReplay(text) {
   } catch {
     return { ok: false, error: '不是有效的 JSON 文件' };
   }
-  if (!validateReplay(data)) return { ok: false, error: '录像版本不符或数据损坏' };
+  if (!validateAnyReplay(data)) return { ok: false, error: '录像版本不符或数据损坏' };
   return { ok: true, replay: data };
 }
 
