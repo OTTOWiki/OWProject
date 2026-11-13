@@ -168,6 +168,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `combatEdges.js` | 停帧期 X/C 边沿缓冲（capture/consume/clear） | 战斗推进 / 输入事件绑定 |
 | `chapterEnd.js` | 章结束条件纯函数 | 改 game 状态 |
 | `runStats.js` | 对局统计纯格式化（用时/统计行） | 改 game 状态 |
+| `chapterLabel.js` | 章节展示标签（`Stage N`）纯函数，不读 DOM | 章流程 / UI |
 | `collision.js` | 碰撞几何；`runCollisions` 返回事件 | 得分/掉落/SFX |
 | `stages/*` | 章节定义 + 刷怪 | 全局状态机 |
 | `stages/archetypes.js` | 道中敌机原型表 + `spawnArch` 开火脚本 | 章流程 / 通用弹幕公式 |
@@ -227,6 +228,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 屏外剔除：子弹出生 0.08s 宽限；速度仍指向场内时保留（回场弹/雨弹第一帧不消失）
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
+- 排行榜条目记录 `duration`（秒）与 `furthestChapterId`（本局最远章，`startChapter` 维护）；`stageReached` 由章节数据生成，不再读 DOM。
 - 排行榜条目记录 `duration`（秒）；榜单桌面显示日期与「用时 mm:ss」，窄屏隐藏玩家/路线/日期，保留分数与用时。
 - 续关：每次 Game Over 先过成绩排行；还有续关次数（`BALANCE.continue.max`=2，练习除外）时结算可选继续，续关后残机/Bomb=2（`BALANCE.continue.lives/bombs`）、**分数清零**（hiscore 保留），排行榜标「续」，续关后不再录制录像
 - 默认 **4 残 4B**；Stage Select **不锁关**
