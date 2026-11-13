@@ -390,6 +390,39 @@ test('入场时按住 Z 后鼠标开局，重复按键可推进游戏对话', as
   }
 });
 
+test('菜单按住导航：首延迟内不动，超过后重复，松手停止', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await waitForGameReady(page);
+  await page.evaluate(() => {
+    const rows = Array.from({ length: 6 }, (_, i) => ({
+      score: 1000 - i, name: 'TST', playerName: '饮泉思源', playerId: 'yinquan',
+      difficultyId: 'easy', mode: 'story', route: 'A', cleared: false,
+      continued: false, stageReached: 'Stage 1', duration: 60 + i, date: Date.now() - i,
+    }));
+    localStorage.setItem('gunwei_ranking', JSON.stringify({ easy: rows }));
+  });
+  await page.locator('#main-menu-nav [data-action="ranking"]').click();
+  await expect(page.locator('#screen-ranking')).toHaveClass(/active/);
+
+  const selectedIndex = () => page.locator('#ranking-list').evaluate((list) => {
+    const rows = [...list.querySelectorAll('.ranking-row')];
+    return rows.findIndex((row) => row.classList.contains('selected'));
+  });
+
+  await expect.poll(selectedIndex).toBe(0);
+  await page.keyboard.down('ArrowDown');
+  await page.waitForTimeout(150);
+  expect(await selectedIndex()).toBe(1); // 首次按下只走一格，首延迟内不重复
+  await page.waitForTimeout(450);         // 越过 350ms 首延迟
+  expect(await selectedIndex()).toBeGreaterThanOrEqual(2);
+  await page.keyboard.up('ArrowDown');
+  await page.waitForTimeout(120);
+  const stopped = await selectedIndex();
+  await page.waitForTimeout(300);
+  expect(await selectedIndex()).toBe(stopped); // 松手后停止
+});
+
 test('返回按住和键位捕获取消不泄漏到主菜单', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');

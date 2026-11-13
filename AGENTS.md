@@ -154,6 +154,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 版面画布无 CSS 边框，装饰由外围容器承载；Letter 信息使用版面上方独立区域，Boss 标记仍贴底边。
 - `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作。
 - HUD 详情使用原生 `details.open`：桌面展开，进入紧凑断点时折叠，玩家可手动展开；不依赖 `::details-content` 才显示低频信息。
+- 菜单导航按住方向键由 `config.MENU_REPEAT`（350ms 首延迟 / 80ms 间隔）驱动，与系统键盘连发无关；确认/返回/删除始终边沿触发，设置屏左右调值不自动重复。
 - 战斗 UI 精修按20票执行：th14/th18为主视觉参考，梦无垠仅辅助。版面是首要视觉主体，外围题字、资源符号和多色装饰服务战斗；网页设计技能的卡片/控件模板不直接套用。正式数据与输入契约不因风格改动而变化，功能验证和用户视觉认可分别报告。
 
 ### 模块职责
@@ -168,6 +169,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `combatEdges.js` | 停帧期 X/C 边沿缓冲（capture/consume/clear） | 战斗推进 / 输入事件绑定 |
 | `chapterEnd.js` | 章结束条件纯函数 | 改 game 状态 |
 | `runStats.js` | 对局统计纯格式化（用时/统计行） | 改 game 状态 |
+| `menuRepeat.js` | 菜单按住重复调度（首延迟/间隔，计时器可注入） | 菜单业务/游戏逻辑 |
 | `chapterLabel.js` | 章节展示标签（`Stage N`）纯函数，不读 DOM | 章流程 / UI |
 | `collision.js` | 碰撞几何；`runCollisions` 返回事件 | 得分/掉落/SFX |
 | `stages/*` | 章节定义 + 刷怪 | 全局状态机 |
@@ -326,7 +328,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 调难度/手感 | `config.js` |
 | 改某一章弹幕 | `js/stages/*` + `patterns.js` |
 | 改碰撞/Bomb/擦弹 | `collision.js` / `gameCombat.js` |
-| 改菜单 | `ui.js` + `index.html` |
+| 改菜单 | `ui.js` + `index.html` + `menuRepeat.js` |
 | 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
 | 改 BGM | `audio.js` |
 | 改共享舞台 3D | `backgrounds/*` + `bgModes.js` |

@@ -1,7 +1,8 @@
 import {
   MANUAL_CHAPTERS, displayKey, DEFAULT_KEYS, DEFAULT_SETTINGS,
-  BALANCE, DIFFICULTIES, DIFFICULTY_ORDER,
+  BALANCE, DIFFICULTIES, DIFFICULTY_ORDER, MENU_REPEAT,
 } from './config.js';
+import { createRepeatScheduler } from './menuRepeat.js';
 import {
   loadKeys, saveKeys, saveSettings,
   loadPracticePrefs, savePracticePrefs,
@@ -150,6 +151,8 @@ export class UI {
     this._menuStarted = false;
     this._menuHeldConfirm = null;
     this._menuSkipPointer = null;
+    /** H9：菜单按住重复（与 OS 连发解耦） */
+    this._menuRepeat = createRepeatScheduler(MENU_REPEAT);
     this._menuMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     this._menuMotionQuery.addEventListener('change', () => {
       if (this._menuMotionQuery.matches) this._finishMenuEntrance();
@@ -1259,10 +1262,12 @@ export class UI {
     }, true);
     window.addEventListener('keyup', (e) => {
       if (e.code === this._menuHeldConfirm) this._menuHeldConfirm = null;
+      if (this._menuRepeat.code === e.code) this._menuRepeat.stop();
     }, true);
     window.addEventListener('blur', () => {
       this._menuHeldConfirm = null;
       this._menuSkipPointer = null;
+      this._menuRepeat.stop();
     });
     window.addEventListener('keydown', (e) => {
       if (this._sceneTransition) { e.preventDefault(); e.stopImmediatePropagation(); return; }
@@ -1288,9 +1293,17 @@ export class UI {
       const name = this._activeScreenName();
       if (!name || name === 'game') return;
       if (name === 'menu' && menu.inert) return;
-      if ((name === 'menu' || name === 'exit') && e.repeat && (isConfirm(e) || isBack(e))) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
+
+      // H9：任何新按键都重置重复；OS 连发不再直接驱动菜单。
+      // 导航改由定时器产生；确认/返回/删除保持边沿触发。
+      const navKey = isNavNext(e) || isNavPrev(e) || isNavLeft(e) || isNavRight(e);
+      const horizontal = isNavLeft(e) || isNavRight(e);
+      if (!e.repeat) this._menuRepeat.stop();
+      if (e.repeat) {
+        if (navKey || isConfirm(e) || isBack(e) || e.code === 'Delete' || e.code === 'Backspace') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
         return;
       }
       if (this._menuHeldConfirm === e.code) {
@@ -1314,8 +1327,36 @@ export class UI {
         }
       }
       this._navHandlers[name]?.(e);
+
+      // 设置屏的左右是调值：允许单次调整，不进入自动重复，避免连续写盘
+      const repeatable = navKey && !(name === 'settings' && horizontal);
+      if (repeatable && !this.menuEntering) {
+        const screen = name;
+        this._menuRepeatMods = {
+          shiftKey: !!e.shiftKey, altKey: !!e.altKey, ctrlKey: !!e.ctrlKey, metaKey: !!e.metaKey,
+        };
+        this._menuRepeat.start(e.code, (code) => this._repeatNav(screen, code));
+      }
     }, true);
     this._highlightMenu(items, false);
+  }
+
+  /** 定时器驱动的菜单重复：屏幕/转场/抓键变化时立即停止 */
+  _repeatNav(screen, code) {
+    const stop = () => this._menuRepeat.stop();
+    if (this._activeScreenName() !== screen) return stop();
+    if (this._sceneTransition || this._selectionTransition || this._playerConfirmTransition) return stop();
+    if (screen === 'menu' && (this.menuEntering || this.screens.menu?.inert)) return stop();
+    if (screen === 'settings' && this.binding) return stop();
+    const before = this._activeScreenName();
+    this._navHandlers[screen]?.({
+      code,
+      repeat: true,
+      ...(this._menuRepeatMods || {}),
+      preventDefault() {},
+      stopImmediatePropagation() {},
+    });
+    if (this._activeScreenName() !== before) stop();
   }
 
   _highlightMenu(list, focus = true) {
@@ -1615,6 +1656,7 @@ export class UI {
   }
 
   show(name, selectionComplete = false) {
+    this._menuRepeat?.stop();
     if (!selectionComplete && this._selectionTransition && this._selectionDispatch) {
       this._continueSelectionTo(name);
       return;
