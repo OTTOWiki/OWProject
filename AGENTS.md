@@ -151,7 +151,7 @@ docs/                  # 内部改造队列等（非运行时）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
 - **移动端仅横屏**：竖屏显示全屏旋转引导（`#rotate-gate`），进行中的对局先暂停，不提供竖屏战斗版面。横屏中央版面优先利用可用宽高，右侧 HUD 固定完整显示、不内部滚动；低速/Item/Bomb/暂停操作条位于 HUD 下方，不占用版面，也不在 970px 处切回三栏。
-- 触屏移动事件面是 `#screen-game` 全屏（按钮、叠加层、面板控件除外）；`TOUCH_DRAG_SCALE=0.5` 是**硬约束**（手指逻辑位移 × 0.5），不得改动。自机默认按桌面同速上限跟随，设置可关闭；关闭后实际触屏拖动会写入本局作弊标记，并在录像/排行显示。
+- 触屏移动事件面是 `#screen-game` 全屏（按钮、叠加层、面板控件除外）；动态摇杆把相对按下点的位移映射为 8 向移动键（右上 = →+↑），走与桌面相同的移动轴/速度；`TOUCH_DRAG_SCALE=0.5` 是**硬约束**（摇杆死区判定前的位移缩放），不得改动。默认与桌面同速，设置可关闭；关闭后仅触屏手势获得更高速度上限，并写入本局作弊标记，回放/排行显示。
 - 版面画布无 CSS 边框，装饰由外围容器承载；Letter 信息使用版面上方独立区域，Boss 标记仍贴底边。
 - `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击/触屏低速，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作；触屏低速键按住/释放成对处理。
 - HUD 详情使用原生 `details.open`，横屏始终展开并完整显示；不依赖 `::details-content` 才显示低频信息。
@@ -212,7 +212,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
-**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（保留旧直接跟随语义）。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。
+**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（旧绝对目标按旧语义回放）。动态摇杆方向复用既有 axis 位；限速关闭时的摇杆提速由已记录的 autoShot + 限速位复现，不新增帧字段。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。
 
 ### 章节流
 
@@ -320,7 +320,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 ### 操作（默认）
 
-方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏全屏滑动移动（0.5 缩放，默认桌面同速限速）+ 触屏低速/Item/Bomb/暂停。
+方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏全屏动态摇杆（8 向映射到移动键，0.5 死区缩放，默认桌面同速）+ 触屏低速/Item/Bomb/暂停。
 
 ### 常见任务
 

@@ -133,7 +133,7 @@ test('隐藏与失焦释放键盘和触控持有状态', async ({ page }) => {
   expect(blurState.moveAxis).toEqual({ x: 0, y: 0 });
 });
 
-test('主触点独占手势，缩放映射与越界钳制保持稳定', async ({ page }) => {
+test('主触点独占手势，摇杆方向映射保持稳定', async ({ page }) => {
   const frame = await makeInputFixture(page);
 
   await touch(frame, 'touchstart', [{ id: 1, x: 155, y: 100 }]);
@@ -148,25 +148,43 @@ test('主触点独占手势，缩放映射与越界钳制保持稳定', async ({
 
   const mapped = await frame.evaluate(() => {
     const { input } = window.__touchFixture;
-    return { snapshot: input.snapshot(), touchActive: input.touchActive };
+    return { snapshot: input.snapshot(), touchActive: input.touchActive, axis: input.moveAxis() };
   });
   expect(mapped.touchActive).toBe(true);
   expect(mapped.snapshot.a).toBe(true);
-  expect(mapped.snapshot.v).toEqual([275, 340]);
+  expect(mapped.snapshot.v).toBeNull();
+  expect(mapped.snapshot.m).toEqual(expect.arrayContaining(['ArrowRight', 'ArrowDown']));
+  expect(mapped.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
+  expect(mapped.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
 
   await touch(frame, 'touchend', [{ id: 1, x: 205, y: 140 }], [{ id: 2, x: 300, y: 150 }]);
-  const afterSecondaryEnd = await frame.evaluate(() => window.__touchFixture.input.snapshot());
-  expect(afterSecondaryEnd.a).toBe(true);
-  expect(afterSecondaryEnd.v).toEqual([275, 340]);
+  const afterSecondaryEnd = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+  }));
+  expect(afterSecondaryEnd.snapshot.a).toBe(true);
+  expect(afterSecondaryEnd.snapshot.v).toBeNull();
+  expect(afterSecondaryEnd.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
+  expect(afterSecondaryEnd.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
 
   await touch(frame, 'touchmove', [{ id: 1, x: 600, y: -100 }], [{ id: 1, x: 600, y: -100 }]);
-  const clamped = await frame.evaluate(() => window.__touchFixture.input.snapshot());
-  expect(clamped.v).toEqual([450, 100]);
+  const far = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+  }));
+  expect(far.snapshot.v).toBeNull();
+  expect(far.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
+  expect(far.axis.y).toBeCloseTo(-Math.SQRT1_2, 6);
   await touch(frame, 'touchend', [], [{ id: 1, x: 600, y: -100 }]);
-  const released = await frame.evaluate(() => window.__touchFixture.input.snapshot());
-  expect(released.a).toBe(false);
-  expect(released.v).toBeNull();
-  expect(released.t).toBeNull();
+  const released = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+  }));
+  expect(released.snapshot.a).toBe(false);
+  expect(released.snapshot.v).toBeNull();
+  expect(released.snapshot.t).toBeNull();
+  expect(released.snapshot.m).toEqual([]);
+  expect(released.axis).toEqual({ x: 0, y: 0 });
 
   await touch(frame, 'touchstart', [{ id: 3, x: 155, y: 100 }]);
   await touch(frame, 'touchmove', [{ id: 3, x: 205, y: 100 }], [{ id: 3, x: 205, y: 100 }]);
@@ -264,8 +282,14 @@ test('全屏任意位置（版面外/HUD）拖动都能移动，控件自身不�
 
   await touch(frame, 'touchstart', [{ id: 21, x: 20, y: 20 }]);
   await touch(frame, 'touchmove', [{ id: 21, x: 60, y: 40 }]);
-  const outside = await frame.evaluate(() => window.__touchFixture.input.snapshot());
-  expect(outside.v).toEqual([265, 320]);
+  const outside = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+  }));
+  expect(outside.snapshot.v).toBeNull();
+  expect(outside.snapshot.m).toEqual(expect.arrayContaining(['ArrowRight', 'ArrowDown']));
+  expect(outside.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
+  expect(outside.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
 
   await frame.evaluate(() => {
     const { button } = window.__touchFixture;
@@ -278,8 +302,14 @@ test('全屏任意位置（版面外/HUD）拖动都能移动，控件自身不�
       touches: [makeTouch()], targetTouches: [makeTouch()], changedTouches: [makeTouch()],
     }));
   });
-  const control = await frame.evaluate(() => window.__touchFixture.input.snapshot());
-  expect(control.v).toEqual([265, 320]);
+  const control = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+  }));
+  expect(control.snapshot.v).toBeNull();
+  expect(control.snapshot.m).toEqual(expect.arrayContaining(['ArrowRight', 'ArrowDown']));
+  expect(control.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
+  expect(control.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
   await touch(frame, 'touchend', [], [{ id: 21, x: 60, y: 40 }]);
 });
 

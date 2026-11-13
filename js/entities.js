@@ -1,4 +1,4 @@
-import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
+import { BALANCE, LOGICAL_W, LOGICAL_H, TOUCH_JOYSTICK_UNLIMITED_MUL } from './config.js';
 
 let _id = 1;
 const nid = () => _id++;
@@ -288,12 +288,14 @@ export class Player {
     if (this.shotCd > 0) this.shotCd -= dt;
 
     this.slow = input.slowHeld();
-    const speed = this.slow ? BALANCE.playerSlowSpeed : BALANCE.playerSpeed;
+    // 触屏摇杆走与桌面相同的 8 向移动键/速度；限速关闭时仅触屏手势（autoShot）
+    // 获得更高上限。autoShot 已随录像记录，回放无需新增字段。
+    const touchBoost = !!(input.autoShot && input.touchSpeedLimit === false);
+    const speed = (this.slow ? BALANCE.playerSlowSpeed : BALANCE.playerSpeed)
+      * (touchBoost ? TOUCH_JOYSTICK_UNLIMITED_MUL : 1);
 
     if (input.virtualMove) {
-      // 触屏相对移动的最终目标（绝对逻辑坐标）。默认按桌面同速上限跟随：
-      // 每帧自机最多走 speed * dt * 60，避免快速滑动瞬间横穿版面。
-      // 关闭限速（设置项）时保留旧的直接置位，并在录像头标记作弊。
+      // 旧录像兼容：绝对目标置位/限速跟随。实时触屏已改为摇杆键位，不再走这里。
       const tx = Math.max(8, Math.min(LOGICAL_W - 8, input.virtualMove.x));
       const ty = Math.max(8, Math.min(LOGICAL_H - 8, input.virtualMove.y));
       if (input.touchSpeedLimit === false) {

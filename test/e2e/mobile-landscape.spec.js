@@ -159,12 +159,37 @@ test('全屏触屏拖动、低速键与关闭限速后的作弊标记', async ({
     await page.waitForTimeout(250);
     const drag = await call(`function() {
       return { x: this.player.x, y: this.player.y, active: this.realInput.touchActive,
-        vm: this.realInput.virtualMove, cheat: this._mobileCheat };
+        vm: this.realInput.virtualMove, axis: this.realInput.moveAxis(), cheat: this._mobileCheat };
     }`);
     expect(drag.active).toBe(true);
+    expect(drag.vm).toBeNull();
+    expect(drag.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(drag.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
     expect(Math.hypot(drag.x - before.x, drag.y - before.y)).toBeGreaterThan(1);
     expect(drag.cheat).toBe(false);
+
+    // 摇杆按住时持续移动；松手后立即停止（不是一次性绝对目标）。
+    await page.waitForTimeout(220);
+    const dragHold = await call(`function() {
+      return { x: this.player.x, y: this.player.y };
+    }`);
+    expect(Math.hypot(dragHold.x - drag.x, dragHold.y - drag.y)).toBeGreaterThan(1);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(120);
+    const dragSettled = await call(`function() {
+      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis(),
+        active: this.realInput.touchActive };
+    }`);
+    await page.waitForTimeout(220);
+    const dragReleased = await call(`function() {
+      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis(),
+        active: this.realInput.touchActive };
+    }`);
+    expect(dragSettled.active).toBe(false);
+    expect(dragSettled.axis).toEqual({ x: 0, y: 0 });
+    expect(dragReleased.active).toBe(false);
+    expect(dragReleased.axis).toEqual({ x: 0, y: 0 });
+    expect(Math.hypot(dragReleased.x - dragSettled.x, dragReleased.y - dragSettled.y)).toBeLessThan(0.5);
 
     await page.locator('#btn-slow').dispatchEvent('pointerdown', {
       pointerId: 9, pointerType: 'touch', button: 0,
@@ -230,8 +255,10 @@ test('排行榜与录像列表展示「作弊」标签', async ({ page }) => {
   await page.locator('#main-menu-nav [data-action="ranking"]').click();
   await expect(page.locator('#screen-ranking')).toHaveClass(/active/);
   await expect(page.locator('#ranking-list .rk-badge.cheat')).toHaveText('作弊');
-  await page.reload();
-  await waitForGameReady(page);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#screen-menu')).toHaveClass(/active/);
+  await expect(page.locator('#screen-menu')).not.toHaveClass(/menu-entering/);
+  await page.waitForTimeout(300);
 
   await page.locator('#main-menu-nav [data-action="replay"]').click();
   await expect(page.locator('#screen-replay')).toHaveClass(/active/);
