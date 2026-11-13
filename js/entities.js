@@ -68,6 +68,11 @@ export class Bullet {
       && opts.laserExtending !== false;
     this.owner = opts.owner || null;
     this.gravity = opts.gravity || 0;
+    // M1：运动修饰符可带时长（秒）；null = 永久，与历史行为一致
+    this.tSpin = opts.tSpin ?? null;
+    this.tAccel = opts.tAccel ?? null;
+    this.tGravity = opts.tGravity ?? null;
+    this.tHoming = opts.tHoming ?? null;
     this.onSplit = opts.onSplit || null;
     this.age = 0;
     this._hitIds = null;
@@ -93,6 +98,7 @@ export class Bullet {
     }
     if (this.cullGrace > 0) this.cullGrace = Math.max(0, this.cullGrace - dt);
     this.age += dt;
+    this._tickMods(dt);
 
     const isLaser = this.type === 'laser';
     const extending = isLaser && this.laserExtending;
@@ -194,6 +200,26 @@ export class Bullet {
       && this._cullAllowed()
     ) {
       this.dead = true;
+    }
+  }
+
+  /** M1：到时清除运动修饰符；返回后本帧按清除后的状态运行 */
+  _tickMods(dt) {
+    if (this.tSpin != null) {
+      this.tSpin -= dt;
+      if (this.tSpin <= 0) { this.tSpin = null; this.spin = 0; }
+    }
+    if (this.tAccel != null) {
+      this.tAccel -= dt;
+      if (this.tAccel <= 0) { this.tAccel = null; this.accel = 0; }
+    }
+    if (this.tGravity != null) {
+      this.tGravity -= dt;
+      if (this.tGravity <= 0) { this.tGravity = null; this.gravity = 0; }
+    }
+    if (this.tHoming != null) {
+      this.tHoming -= dt;
+      if (this.tHoming <= 0) { this.tHoming = null; this.homing = 0; }
     }
   }
 

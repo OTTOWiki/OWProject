@@ -310,6 +310,8 @@ docs/                  # 内部改造队列等（非运行时）
 
 `dot` / `rice` / `talisman` / `medium` / `large` / `laser` 等；绘制半径与判定半径分离。
 
+子弹运动修饰符（`spin` / `accel` / `gravity` / `homing`）可传 `tSpin` / `tAccel` / `tGravity` / `tHoming`（秒）；不传 = 永久，到期自动清除。
+
 ### 操作（默认）
 
 方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏滑动移动+按住射击。
