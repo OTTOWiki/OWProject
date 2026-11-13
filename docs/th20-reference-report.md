@@ -24,8 +24,13 @@
 | 背景 P0 随机注入 | ✅ 已完成 | `StageBackground({ rand })`，PR #58 |
 | 背景 P3 easing | ✅ 已完成 | `backgrounds/easing.js`，PR #63 |
 | 背景 P1/P2 原子化/数据化 | ⏳ 未做 | 需逐像素基线 |
-| B2 EX pattern 迁移 | ⏳ 未做 | 依赖 B0/B1 |
-| 平衡项 / 内容扩充（P6/P7） | ⏳ 未做 | 需手测与产品决策 |
+| B2 EX mob 原型化 | ✅ 53/62 | `stages/archetypes.js`，PR #61–#83 |
+| A7 排行用时 | ✅ 已完成 | `duration` + 榜单列，PR #70 |
+| A8 stageReached 去 DOM | ✅ 已完成 | `chapterLabel.js` + `furthestChapterId`，PR #87 |
+| M1 弹体修饰符时长 | ✅ 已完成 | `tSpin/tAccel/tGravity/tHoming`，PR #88 |
+| 平衡项 A5/A6/H2/H6（P6） | ⏳ 未做 | 改变手感，需手测/倍率决策 |
+| 内容扩充 E1/E3/E4（P7） | ⏳ 未做 | 需章节/主题方向 |
+| H7/H8/H9、M2 | ⏳ 未做 | 录像格式/菜单重复行为，需产品取舍 |
 
 > 本表只记实施状态；需求与取舍仍以下文原始条目为准。
 
