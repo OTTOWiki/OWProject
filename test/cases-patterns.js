@@ -86,3 +86,28 @@ test('屏外宽限：飞出上边界但 vy>0 的追踪弹不剔除', () => {
   for (let i = 0; i < 30; i++) b.update(1 / 60, { x: 100, y: 100 });
   assert(!b.dead, '回场弹继续存活');
 });
+
+
+test('M1：运动修饰符可带时长，到期自动清除', () => {
+  const b = new Bullet({
+    x: 100, y: 100, vx: 1, vy: 0, type: 'dot', from: 'enemy',
+    accel: 2, tAccel: 0.1, gravity: 0.5, tGravity: 0.05,
+  });
+  for (let i = 0; i < 4; i++) b.update(1 / 60, null);
+  assert(b.accel > 0, '加速未到期');
+  for (let i = 0; i < 3; i++) b.update(1 / 60, null);
+  assertEqual(b.tAccel, null, '加速计时清除');
+  assertEqual(b.accel, 0, '加速字段清零');
+  assertEqual(b.tGravity, null, '重力计时清除');
+  assertEqual(b.gravity, 0, '重力字段清零');
+});
+
+test('M1：不传时长 = 永久（与历史行为一致）', () => {
+  const b = new Bullet({
+    x: 100, y: 100, vx: 1, vy: 0, type: 'dot', from: 'enemy', gravity: 0.5,
+  });
+  for (let i = 0; i < 30; i++) b.update(1 / 60, null);
+  assertEqual(b.tGravity, null);
+  assert(b.gravity > 0, '永久重力保持');
+  assert(b.vy > 0, '弹体持续下落');
+});
