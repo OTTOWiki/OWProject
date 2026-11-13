@@ -13,7 +13,7 @@ import { REPLAY_VERSION } from '../js/config.js';
 import { moveAxisFromSeq } from '../js/input.js';
 import { test, assert, assertEqual } from './assert.js';
 
-const EMPTY_SNAP = { d: [], p: [], m: [], t: null, v: null, a: 0, b: 0, i: 0, l: 0 };
+const EMPTY_SNAP = { d: [], p: [], m: [], t: null, v: null, a: 0, b: 0, i: 0, l: 0, sl: 0, tl: 0 };
 
 test('createRng：同种子序列一致且 ∈[0,1)', () => {
   const a = createRng(123);
@@ -208,6 +208,23 @@ test('H7 紧凑帧：掩码 / flags / 轴 / tap / virtual 往返', () => {
   assertEqual(vb.v.join(','), '100.5,200.25');
   assertEqual(vb.m.join(','), 'ArrowDown');
   assert(vb.b);
+
+  // 移动端低速/限速标志：新帧写入 flags 位 8/9；旧帧缺位时解码为 false。
+  const mobile = encodeReplayFrame({ ...EMPTY_SNAP, sl: true, tl: true }, table, { x: 0, y: 0 });
+  const mb = decodeReplayFrame(mobile, table);
+  assert(mb.sl && mb.tl);
+  const old = decodeReplayFrame([1, 0, 0, 0], table);
+  assert(!old.sl && !old.tl);
+});
+
+test('回放输入：触屏低速与逐帧限速语义', () => {
+  const ri = createReplayInput();
+  ri.set({ ...EMPTY_SNAP, sl: true, tl: true });
+  assert(ri.slowHeld());
+  assertEqual(ri.touchSpeedLimit, true);
+  ri.set({ ...EMPTY_SNAP, sl: false, tl: false });
+  assert(!ri.slowHeld());
+  assertEqual(ri.touchSpeedLimit, false);
 });
 
 test('H7 紧凑帧参与 RLE 合并', () => {

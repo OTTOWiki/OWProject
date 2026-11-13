@@ -70,6 +70,8 @@ export async function saveReplay(replay) {
       ? replay.endState.letters
       : [],
     partial: !!replay.partial,
+    /** 关闭移动端相对移动限速并实际触屏拖动过的对局 */
+    cheat: !!replay.cheat,
   };
   const list = loadReplayIndex().filter((it) => it.replayId !== meta.replayId);
   list.push(meta);

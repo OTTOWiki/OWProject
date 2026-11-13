@@ -78,10 +78,12 @@ test('submitRanking：无 el / 无 stageLabel 时仍记录章节标签与最远�
     furthestChapterId: 7,
     el: null,
     _rankingResult: null,
+    _mobileCheat: true,
   };
   const entry = submitRanking(game, { cleared: false });
   assert(entry, '应生成入榜条目');
   assertEqual(entry.stageReached, 'Stage 2');
   assertEqual(entry.furthestChapterId, 7);
   assertEqual(entry.duration, 65);
+  assertEqual(entry.cheat, true);
 });

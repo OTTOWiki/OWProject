@@ -734,6 +734,8 @@ export function submitRanking(game, { cleared = false } = {}) {
     route: game.routeChoice || (game.mode === 'extra' ? 'EX' : null),
     cleared: !!cleared,
     continued: (game.continuesUsed || 0) > 0,
+    /** 关闭移动端相对移动限速并实际触屏拖动过：回放/排行展示「作弊」 */
+    cheat: !!(game._mobileCheat || game.realInput?.mobileCheat),
     stageReached: chapterStageLabel(game.chapters[game.chapterIndex]),
     furthestChapterId: game.furthestChapterId || game.chapters[game.chapterIndex]?.id || null,
     duration: Math.round(game.stats?.time || 0),

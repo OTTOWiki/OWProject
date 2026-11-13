@@ -22,6 +22,40 @@ const bgCanvas = document.getElementById('bg3d');
 const itemBtn = document.getElementById('btn-item');
 const bombBtn = document.getElementById('btn-bomb');
 const pauseBtn = document.getElementById('btn-pause');
+const slowBtn = document.getElementById('btn-slow');
+const rotateGate = document.getElementById('rotate-gate');
+
+/** 供竖屏门禁读取当前对局（boot 内创建） */
+let activeGame = null;
+
+/**
+ * 竖屏门禁：仅横屏可玩。进入竖屏就以全屏提示覆盖，
+ * 若对局正在进行则先暂停，旋转回横屏后由玩家自行继续。
+ */
+function installRotationGate(getGame) {
+  const portrait = window.matchMedia?.('(orientation: portrait)');
+  const app = document.getElementById('app');
+  let blocking = false;
+  const sync = () => {
+    const next = !!portrait?.matches;
+    if (next === blocking) return;
+    blocking = next;
+    rotateGate?.classList.toggle('hidden', !blocking);
+    document.documentElement.classList.toggle('rotate-required', blocking);
+    if (app) app.inert = blocking;
+    if (!blocking) return;
+    const game = getGame?.();
+    if (game && !game.overlayMode
+      && (game.state === 'playing' || game.state === 'dialogue' || game.state === 'stageTransit')) {
+      game._openPause?.();
+    }
+  };
+  portrait?.addEventListener?.('change', sync);
+  window.addEventListener('resize', sync);
+  window.addEventListener('orientationchange', sync);
+  sync();
+  return { sync, isBlocking: () => blocking };
+}
 
 const elLoad = document.getElementById('load-screen');
 const elFill = document.getElementById('load-fill');
@@ -517,6 +551,7 @@ async function boot() {
     });
 
     game = new Game({ canvas, input, audio, background, ui });
+    activeGame = game;
     // 启动时套用本地设置
     game.applySettings();
     installDebug(game);
@@ -546,7 +581,8 @@ async function boot() {
 
     // Item / Bomb use Input's one-shot frame flags; Pause owns one pointer press.
     // Pointer events prevent touch compatibility mouse events from toggling twice.
-    input.bindTouchButtons(itemBtn, bombBtn);
+    input.bindTouchButtons(itemBtn, bombBtn, slowBtn);
+    input.bindSlowButton(slowBtn);
     if (pauseBtn) {
       let activePointerId = null;
       let legacyActive = false;
@@ -671,6 +707,7 @@ async function boot() {
   }
 }
 
+installRotationGate(() => activeGame);
 boot().catch((e) => {
   console.error('Boot crashed:', e);
   showBootFailure(e);

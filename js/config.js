@@ -56,10 +56,16 @@ export const FPS_LIMIT_CAP = 240;
 export const FPS_SLIDER_UNLIMITED = 241;
 
 /**
- * 触屏灵敏度：相对拖拽时自机位移 = 手指位移 × 此系数（>1 加速，<1 减速）。
- * 只作用于实时触控增量；virtualMove 仍为绝对逻辑坐标，录像快照/回放不受影响。
+ * 触屏相对拖拽缩放（硬约束：0.5，不得更改）。
+ *
+ * 自机位移 = 手指在版面逻辑坐标中的位移 × 0.5。该值是移动端移动手感契约的一部分，
+ * 不是可调灵敏度：改动会让手机与桌面的相对位移关系失效，也会让旧录像手感漂移。
+ * 只作用于实时触控增量；virtualMove 仍为绝对逻辑坐标，录像以该绝对目标记录。
  */
-export const TOUCH_SENSITIVITY = 1.2;
+export const TOUCH_DRAG_SCALE = 0.5;
+
+/** @deprecated 旧名；仅为避免外部引用断裂，值与硬约束一致。 */
+export const TOUCH_SENSITIVITY = TOUCH_DRAG_SCALE;
 
 /** 玩家设置默认值 */
 export const DEFAULT_SETTINGS = {
@@ -69,6 +75,11 @@ export const DEFAULT_SETTINGS = {
   playerBulletOpacity: 0.3,
   /** 单击 Shot 键切换发射/停止（默认关闭，按住发射） */
   shotToggle: false,
+  /**
+   * 移动端相对移动限速（默认开启）：自机跟随触屏目标的速度不超过桌面移动速度。
+   * 关闭后触屏可瞬时贴到目标，但本局会在录像与排行榜标记「作弊」。
+   */
+  mobileSpeedLimit: true,
   /**
    * 描画帧率上限：0 = 不限制；否则 24–240
    * 逻辑步进始终锁定 60fps。←→ 调数值（到不了无限制）；Z/Enter 切换无限制；拖最右=无限制
@@ -458,13 +469,14 @@ export const MANUAL_CHAPTERS = [
 · Esc：暂停。
 
 默认键位 Shot / Bomb / Item 为 Z / X / C，可在 Settings 中自定义。
-· Settings：音乐音量、自机子弹不透明度、单击 Shot 切换发射、键位绑定。`,
+· Settings：音乐音量、自机子弹不透明度、单击 Shot 切换发射、移动端相对移动限速、键位绑定。`,
   },
   {
     title: '二、移动端操作',
-    body: `· 相对滑动：手指在【版面】内任意位置滑动，自机产生相同相对位移。
-· 自动射击：手指接触版面时自动开火，松手停止。
-· 虚拟键：轻触【分数板】下方的 Item / Bomb / 暂停 触屏键。`,
+    body: `· 横屏专用：竖屏会提示旋转设备，不提供竖屏战斗版面。
+· 全屏相对滑动：在按钮与叠加层之外的任意位置滑动，自机产生 0.5 倍相对位移；手指接触屏幕时自动开火，松手停止。
+· 移动限速：默认与桌面移动速度同速（设置可关闭）。关闭后触屏可瞬时跟手，但本局会在录像与排行榜标记「作弊」。
+· 操作条：右侧 HUD 下方的 低速 / Item / Bomb / 暂停 四键；低速按住生效，松开即恢复。`,
   },
   {
     title: '三、难度等级',

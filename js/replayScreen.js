@@ -108,17 +108,27 @@ export class ReplayScreen {
     date.className = 'replay-date';
     date.textContent = m.date ? new Date(m.date).toLocaleString('zh-CN') : '';
 
+    const parts = [];
+    if (letterSpan.textContent) parts.push(meta, letterSpan);
+    else parts.push(meta);
+    parts.push(score);
+    if (m.cheat) {
+      const cheat = document.createElement('span');
+      cheat.className = 'replay-tag cheat';
+      cheat.textContent = '作弊';
+      cheat.title = '本局关闭了移动端相对移动限速并使用触屏移动';
+      parts.push(cheat);
+    }
     if (m.partial) {
       const tag = document.createElement('span');
       tag.className = 'replay-tag';
       tag.textContent = '部分';
-      if (letterSpan.textContent) item.append(meta, letterSpan);
-      item.append(score, tag, date);
+      parts.push(tag);
     } else {
-      const placeholder = document.createElement('span');
-      if (letterSpan.textContent) item.append(meta, letterSpan);
-      item.append(score, placeholder, date);
+      parts.push(document.createElement('span'));
     }
+    parts.push(date);
+    item.append(...parts);
 
     item.addEventListener('click', () => {
       this.audio.sfx('ok');

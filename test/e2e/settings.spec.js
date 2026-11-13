@@ -46,3 +46,23 @@ test('存档写入失败：设置页显示非阻塞提示，操作不中断', as
 
   await page.evaluate(() => { localStorage.setItem = window.__realSetItem; });
 });
+
+test('移动端相对移动限速默认开启，关闭后持久化并在 UI 回读', async ({ page }) => {
+  await page.locator('button[data-action="settings"]').click();
+  await expect(page.locator('#screen-settings')).toHaveClass(/active/);
+  const limit = page.locator('#set-mobile-speed-limit');
+  await expect(limit).toBeChecked();
+  await expect(page.locator('#set-mobile-speed-limit-val')).toHaveText('开启');
+  await expect(page.locator('.settings-note')).toContainText('作弊');
+
+  await limit.uncheck();
+  await expect(page.locator('#set-mobile-speed-limit-val')).toHaveText('关闭');
+  const stored = await page.evaluate(() => localStorage.getItem('gunwei_settings'));
+  expect(stored).toContain('"mobileSpeedLimit":false');
+
+  await page.reload();
+  await waitForGameReady(page);
+  await page.locator('button[data-action="settings"]').click();
+  await expect(page.locator('#set-mobile-speed-limit')).not.toBeChecked();
+  await expect(page.locator('#set-mobile-speed-limit-val')).toHaveText('关闭');
+});

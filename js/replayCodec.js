@@ -3,7 +3,9 @@
  *
  * 每帧是定长数组 `[steps, downMask, pressMask, flags, ...tapVirtual]`：
  * - downMask / pressMask：位掩码，位序由 `replayKeyTable(keys)` 决定
- * - flags：a=1 b=2 i=4 l=8；位 4-5 为 x 轴（1=左 2=右），位 6-7 为 y 轴（1=上 2=下）
+ * - flags：a=1 b=2 i=4 l=8；位 4-5 为 x 轴（1=左 2=右），位 6-7 为 y 轴（1=上 2=下）；
+ *   位 8（256）= 触屏低速键按住；位 9（512）= 本帧移动端相对移动限速开启。
+ *   旧 v2 帧没有 8/9 位，解码为 false（等价于旧版直接跟随/无触屏低速）。
  * - 仅当 tap / virtualMove 存在时追加 `[tapX,tapY,vX,vY]`（缺项 null），保持触摸回放精确
  *
  * 解码结果与旧版 `Input.snapshot()` 的对象形状一致，回放输入无需改语义。
@@ -50,6 +52,7 @@ function masksFor(codes, table) {
  */
 export function encodeReplayFrame(snap, table, axis = { x: 0, y: 0 }) {
   const flags = (snap.a ? 1 : 0) | (snap.b ? 2 : 0) | (snap.i ? 4 : 0) | (snap.l ? 8 : 0)
+    | (snap.sl ? 256 : 0) | (snap.tl ? 512 : 0)
     | ((AXIS_ENCODE[axis.x] ?? 0) << 4) | ((AXIS_ENCODE[axis.y] ?? 0) << 6);
   const frame = [
     Number.isSafeInteger(snap.s) ? snap.s : 1,
@@ -100,6 +103,8 @@ export function decodeReplayFrame(frame, table) {
     b: !!(flags & 2),
     i: !!(flags & 4),
     l: !!(flags & 8),
+    sl: !!(flags & 256),
+    tl: !!(flags & 512),
   };
 }
 

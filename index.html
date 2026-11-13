@@ -253,6 +253,14 @@
                 <span class="settings-value" id="set-shot-toggle-val">关闭</span>
               </div>
             </label>
+            <label class="settings-row check">
+              <span class="settings-label">移动端相对移动限速</span>
+              <div class="settings-control">
+                <input type="checkbox" id="set-mobile-speed-limit" checked />
+                <span class="settings-value" id="set-mobile-speed-limit-val">开启</span>
+              </div>
+            </label>
+            <p class="settings-note">开启时触屏相对移动与桌面同速。关闭后触屏可瞬时跟手，但本局会在录像与排行榜标记为“作弊”。</p>
           </div>
           <h3 class="settings-section-title">键位配置 · Key Config</h3>
           <div class="key-list" id="key-list">
@@ -407,68 +415,71 @@
           </div>
         </main>
 
-        <aside class="panel-right">
-          <div class="score-panel th-score">
-            <div class="hud-heading">
-              <div class="th-score-title">OTTOWiki Project</div>
-              <div class="difficulty-sign" aria-label="Difficulty">
-                <span>Difficulty</span>
-                <strong id="ui-difficulty">—</strong>
-              </div>
-              <div class="stage-label" id="stage-label">—</div>
-            </div>
-            <div id="ui-mode" class="mode-markers" aria-label="对局模式">
-              <span id="ui-mode-replay" class="hud-mode hidden">Replay</span>
-              <span id="ui-mode-nomiss" class="hud-mode hidden">Nomiss</span>
-              <span id="ui-mode-practice" class="hud-mode hidden">Practice</span>
-              <span id="ui-mode-stage" class="hud-mode hidden">Stage</span>
-            </div>
-            <div class="stat-block">
-              <div class="stat-row score-row th-sc"><span>Score</span><strong id="ui-score">—</strong><strong id="ui-score-compact" class="score-compact" title="—">—</strong></div>
-              <div class="stat-row resource-row lives">
-                <span class="stat-label">Lives <small>残机</small></span>
-                <div id="ui-lives" class="resource-control" data-resource="lives">
-                  <span class="resource-cells" aria-hidden="true"></span>
-                  <strong class="resource-count">—</strong>
-                  <span class="resource-overflow" aria-hidden="true"></span>
+        <div class="panel-right-wrap">
+          <aside class="panel-right">
+            <div class="score-panel th-score">
+              <div class="hud-heading">
+                <div class="th-score-title">OTTOWiki Project</div>
+                <div class="difficulty-sign" aria-label="Difficulty">
+                  <span>Difficulty</span>
+                  <strong id="ui-difficulty">—</strong>
                 </div>
+                <div class="stage-label" id="stage-label">—</div>
               </div>
-              <div class="stat-row resource-row bombs">
-                <span class="stat-label">Bomb <small>符卡</small></span>
-                <div id="ui-bombs" class="resource-control" data-resource="bombs">
-                  <span class="resource-cells" aria-hidden="true"></span>
-                  <strong class="resource-count">—</strong>
-                  <span class="resource-overflow" aria-hidden="true"></span>
+              <div id="ui-mode" class="mode-markers" aria-label="对局模式">
+                <span id="ui-mode-replay" class="hud-mode hidden">Replay</span>
+                <span id="ui-mode-nomiss" class="hud-mode hidden">Nomiss</span>
+                <span id="ui-mode-practice" class="hud-mode hidden">Practice</span>
+                <span id="ui-mode-stage" class="hud-mode hidden">Stage</span>
+              </div>
+              <div class="stat-block">
+                <div class="stat-row score-row th-sc"><span>Score</span><strong id="ui-score">—</strong><strong id="ui-score-compact" class="score-compact" title="—">—</strong></div>
+                <div class="stat-row resource-row lives">
+                  <span class="stat-label">Lives <small>残机</small></span>
+                  <div id="ui-lives" class="resource-control" data-resource="lives">
+                    <span class="resource-cells" aria-hidden="true"></span>
+                    <strong class="resource-count">—</strong>
+                    <span class="resource-overflow" aria-hidden="true"></span>
+                  </div>
                 </div>
-              </div>
-              <div class="stat-row edit-row">
-                <span class="stat-label">Edit <small>编辑度</small></span>
-                <strong id="ui-edit-value" class="edit-value">—</strong>
-                <div id="ui-edit-meter" class="edit-meter" role="progressbar" aria-label="Edit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="—">
-                  <div id="ui-edit" class="edit-fill"></div>
+                <div class="stat-row resource-row bombs">
+                  <span class="stat-label">Bomb <small>符卡</small></span>
+                  <div id="ui-bombs" class="resource-control" data-resource="bombs">
+                    <span class="resource-cells" aria-hidden="true"></span>
+                    <strong class="resource-count">—</strong>
+                    <span class="resource-overflow" aria-hidden="true"></span>
+                  </div>
                 </div>
+                <div class="stat-row edit-row">
+                  <span class="stat-label">Edit <small>编辑度</small></span>
+                  <strong id="ui-edit-value" class="edit-value">—</strong>
+                  <div id="ui-edit-meter" class="edit-meter" role="progressbar" aria-label="Edit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="—">
+                    <div id="ui-edit" class="edit-fill"></div>
+                  </div>
+                </div>
+                <div id="ui-combo-row" class="stat-row combo-row"><span>Combo</span><strong id="ui-combo">—</strong></div>
+                <div class="stat-row status-row"><span>Unstable</span><strong id="ui-unstable">—</strong></div>
+                <div class="stat-row status-row"><span>Tendency</span><div class="tendency-values"><strong id="ui-tendency">—</strong><small id="ui-chapter-tendency" class="hidden"></small></div></div>
               </div>
-              <div id="ui-combo-row" class="stat-row combo-row"><span>Combo</span><strong id="ui-combo">—</strong></div>
-              <div class="stat-row status-row"><span>Unstable</span><strong id="ui-unstable">—</strong></div>
-              <div class="stat-row status-row"><span>Tendency</span><div class="tendency-values"><strong id="ui-tendency">—</strong><small id="ui-chapter-tendency" class="hidden"></small></div></div>
+              <details id="ui-details" class="hud-details" open>
+                <summary>详情</summary>
+                <div class="details-body">
+                  <div class="stat-row score-detail"><span>Score</span><strong id="ui-score-details">—</strong></div>
+                  <div class="stat-row th-hi"><span>HiScore</span><strong id="ui-hiscore">—</strong></div>
+                  <div class="stat-row"><span>Player</span><strong id="ui-player-name">—</strong></div>
+                  <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>
+                  <div class="stat-row"><span>Bonus</span><strong id="ui-bonus">—</strong></div>
+                </div>
+              </details>
             </div>
-            <details id="ui-details" class="hud-details" open>
-              <summary>详情</summary>
-              <div class="details-body">
-                <div class="stat-row score-detail"><span>Score</span><strong id="ui-score-details">—</strong></div>
-                <div class="stat-row th-hi"><span>HiScore</span><strong id="ui-hiscore">—</strong></div>
-                <div class="stat-row"><span>Player</span><strong id="ui-player-name">—</strong></div>
-                <div class="stat-row"><span>Chapter</span><strong id="ui-chapter">—</strong></div>
-                <div class="stat-row"><span>Bonus</span><strong id="ui-bonus">—</strong></div>
-              </div>
-            </details>
-            <div class="touch-keys">
-              <button type="button" id="btn-item" class="touch-btn">Item</button>
-              <button type="button" id="btn-bomb" class="touch-btn bomb">Bomb</button>
-              <button type="button" id="btn-pause" class="touch-btn pause">暂停</button>
-            </div>
+          </aside>
+          <div class="touch-controls" id="touch-controls" role="group" aria-label="触屏操作">
+            <button type="button" id="btn-slow" class="touch-btn slow" aria-pressed="false">低速</button>
+            <button type="button" id="btn-item" class="touch-btn">Item</button>
+            <button type="button" id="btn-bomb" class="touch-btn bomb">Bomb</button>
+            <button type="button" id="btn-pause" class="touch-btn pause">暂停</button>
           </div>
-        </aside>
+        </div>
       </div>
 
       <!-- 成绩排行结算弹层（入榜时先于 game over 结算展示） -->
@@ -488,6 +499,15 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- 移动端竖屏引导：本作仅支持横屏 -->
+  <div id="rotate-gate" class="rotate-gate hidden" role="alertdialog" aria-modal="true" aria-labelledby="rotate-title" aria-describedby="rotate-desc">
+    <div class="rotate-gate-panel">
+      <div class="rotate-device" aria-hidden="true"><span class="rotate-device-screen"></span></div>
+      <h2 id="rotate-title">请横屏游玩</h2>
+      <p id="rotate-desc">本作仅支持横屏。请旋转设备；若画面没有跟随旋转，请关闭系统竖屏锁定后重试。</p>
+    </div>
   </div>
 
   <p id="save-toast" class="save-toast hidden" role="status" aria-live="polite"></p>

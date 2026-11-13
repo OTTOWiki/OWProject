@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { waitForGameReady } from './helpers.js';
 
+test.use({ hasTouch: true, viewport: { width: 844, height: 390 } });
+
 async function makeInputFixture(page) {
   await page.goto('/');
   const frameAttached = page.waitForEvent('frameattached');
@@ -14,27 +16,34 @@ async function makeInputFixture(page) {
   await frame.waitForLoadState('domcontentloaded');
   await frame.evaluate(async () => {
     document.body.style.margin = '0';
-    document.body.innerHTML = '<canvas id="fixture-canvas" width="450" height="600"></canvas>';
+    document.body.innerHTML = '<div id="fixture-surface"><canvas id="fixture-canvas" width="450" height="600"></canvas><button type="button" id="fixture-button">button</button></div>';
+    const surface = document.getElementById('fixture-surface');
+    surface.style.position = 'fixed';
+    surface.style.inset = '0';
     const canvas = document.getElementById('fixture-canvas');
     canvas.style.position = 'absolute';
     canvas.style.left = '100px';
     canvas.style.top = '40px';
     canvas.style.width = '225px';
     canvas.style.height = '300px';
+    const button = document.getElementById('fixture-button');
+    button.style.position = 'absolute';
+    button.style.left = '600px';
+    button.style.top = '400px';
     const { Input } = await import(`${parent.location.origin}/js/input.js`);
     const input = new Input();
-    input.bindCanvas(canvas, () => ({ x: 225, y: 300 }));
-    window.__touchFixture = { canvas, input };
+    input.bindCanvas(canvas, () => ({ x: 225, y: 300 }), surface);
+    window.__touchFixture = { canvas, surface, button, input };
   });
   return frame;
 }
 
 async function touch(frame, type, points, changed = points) {
   await frame.evaluate(({ type: eventType, points: pointData, changed: changedData }) => {
-    const { canvas } = window.__touchFixture;
+    const { surface } = window.__touchFixture;
     const makeTouch = ({ id, x, y }) => new Touch({
       identifier: id,
-      target: canvas,
+      target: surface,
       clientX: x,
       clientY: y,
       screenX: x,
@@ -42,7 +51,7 @@ async function touch(frame, type, points, changed = points) {
       pageX: x,
       pageY: y,
     });
-    canvas.dispatchEvent(new TouchEvent(eventType, {
+    surface.dispatchEvent(new TouchEvent(eventType, {
       bubbles: true,
       cancelable: true,
       touches: pointData.map(makeTouch),
@@ -143,16 +152,16 @@ test('主触点独占手势，缩放映射与越界钳制保持稳定', async ({
   });
   expect(mapped.touchActive).toBe(true);
   expect(mapped.snapshot.a).toBe(true);
-  expect(mapped.snapshot.v).toEqual([345, 396]);
+  expect(mapped.snapshot.v).toEqual([275, 340]);
 
   await touch(frame, 'touchend', [{ id: 1, x: 205, y: 140 }], [{ id: 2, x: 300, y: 150 }]);
   const afterSecondaryEnd = await frame.evaluate(() => window.__touchFixture.input.snapshot());
   expect(afterSecondaryEnd.a).toBe(true);
-  expect(afterSecondaryEnd.v).toEqual([345, 396]);
+  expect(afterSecondaryEnd.v).toEqual([275, 340]);
 
   await touch(frame, 'touchmove', [{ id: 1, x: 600, y: -100 }], [{ id: 1, x: 600, y: -100 }]);
   const clamped = await frame.evaluate(() => window.__touchFixture.input.snapshot());
-  expect(clamped.v).toEqual([450, 0]);
+  expect(clamped.v).toEqual([450, 100]);
   await touch(frame, 'touchend', [], [{ id: 1, x: 600, y: -100 }]);
   const released = await frame.evaluate(() => window.__touchFixture.input.snapshot());
   expect(released.a).toBe(false);
@@ -249,8 +258,76 @@ test('Item 与 Bomb 的一次指针按下只产生一个动作边沿并正确释
   expect(bombCancelled.active).toBe(false);
 });
 
+
+test('全屏任意位置（版面外/HUD）拖动都能移动，控件自身不吞成移动手势', async ({ page }) => {
+  const frame = await makeInputFixture(page);
+
+  await touch(frame, 'touchstart', [{ id: 21, x: 20, y: 20 }]);
+  await touch(frame, 'touchmove', [{ id: 21, x: 60, y: 40 }]);
+  const outside = await frame.evaluate(() => window.__touchFixture.input.snapshot());
+  expect(outside.v).toEqual([265, 320]);
+
+  await frame.evaluate(() => {
+    const { button } = window.__touchFixture;
+    const makeTouch = () => new Touch({
+      identifier: 22, target: button, clientX: 610, clientY: 410,
+      screenX: 610, screenY: 410, pageX: 610, pageY: 410,
+    });
+    button.dispatchEvent(new TouchEvent('touchstart', {
+      bubbles: true, cancelable: true,
+      touches: [makeTouch()], targetTouches: [makeTouch()], changedTouches: [makeTouch()],
+    }));
+  });
+  const control = await frame.evaluate(() => window.__touchFixture.input.snapshot());
+  expect(control.v).toEqual([265, 320]);
+  await touch(frame, 'touchend', [], [{ id: 21, x: 60, y: 40 }]);
+});
+
+test('触屏低速键按住/释放，且限速关闭时拖动写入作弊标记', async ({ page }) => {
+  const frame = await makeInputFixture(page);
+  await frame.evaluate(() => {
+    const { input } = window.__touchFixture;
+    const slow = document.createElement('button');
+    slow.id = 'slow';
+    document.body.append(slow);
+    input.bindSlowButton(slow);
+    window.__touchFixture.slow = slow;
+    input.applySettings({ shotToggle: false, mobileSpeedLimit: false });
+    input.resetMobileCheat();
+  });
+  await frame.evaluate(() => window.__touchFixture.slow.dispatchEvent(new PointerEvent('pointerdown', {
+    bubbles: true, cancelable: true, pointerId: 71, pointerType: 'touch',
+  })));
+  const held = await frame.evaluate(() => ({
+    snap: window.__touchFixture.input.snapshot(),
+    held: window.__touchFixture.input.slowHeld(),
+    pressed: window.__touchFixture.slow.getAttribute('aria-pressed'),
+  }));
+  expect(held.held).toBe(true);
+  expect(held.snap.sl).toBe(true);
+  expect(held.pressed).toBe('true');
+
+  await touch(frame, 'touchstart', [{ id: 23, x: 120, y: 80 }]);
+  await touch(frame, 'touchmove', [{ id: 23, x: 180, y: 120 }]);
+  const cheat = await frame.evaluate(() => ({
+    cheat: window.__touchFixture.input.mobileCheat,
+    tl: window.__touchFixture.input.snapshot().tl,
+  }));
+  expect(cheat.cheat).toBe(true);
+  expect(cheat.tl).toBe(false);
+
+  await frame.evaluate(() => window.__touchFixture.slow.dispatchEvent(new PointerEvent('pointerup', {
+    bubbles: true, pointerId: 71, pointerType: 'touch',
+  })));
+  const released = await frame.evaluate(() => ({
+    held: window.__touchFixture.input.slowHeld(),
+    pressed: window.__touchFixture.slow.getAttribute('aria-pressed'),
+  }));
+  expect(released.held).toBe(false);
+  expect(released.pressed).toBe('false');
+});
+
 test('真实游戏暂停按钮不重复消费，下一次独立点击立即恢复', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await waitForGameReady(page);
   await page.locator('[data-action="practice"]').click();
@@ -258,10 +335,11 @@ test('真实游戏暂停按钮不重复消费，下一次独立点击立即恢�
   await page.locator('.player-card').first().click();
   await expect(page.locator('#screen-game')).toHaveClass(/active/);
   await expect(page.locator('#screen-game')).toHaveJSProperty('inert', false);
+  await page.waitForTimeout(2000);
   const pause = page.locator('#btn-pause');
   await pause.click();
   await expect(page.locator('#game-overlay')).not.toHaveClass(/hidden/);
-  await pause.click();
+  await page.locator('#game-overlay [data-overlay="resume"]').click();
   await expect(page.locator('#game-overlay')).toHaveClass(/hidden/);
   await pause.focus();
   await page.keyboard.press('Enter');
