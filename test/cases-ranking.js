@@ -3,6 +3,8 @@
  */
 import { RANKING_LIMIT } from '../js/config.js';
 import { qualifies, rankFor, submitEntry, normalizeName } from '../js/ranking.js';
+import { chapterStageLabel } from '../js/chapterLabel.js';
+import { submitRanking } from '../js/chapterFlow.js';
 import { test, assert, assertEqual } from './assert.js';
 
 test('normalizeName：截断 3 字 / 去控制字符 / 回落', () => {
@@ -46,4 +48,40 @@ test('submitEntry：降序 + 同分日期更早在前 + 截断上限', () => {
   }
   assertEqual(ranking.easy.length, RANKING_LIMIT);
   assertEqual(ranking.easy[0].id, `e${RANKING_LIMIT + 4}`);
+});
+
+
+test('chapterStageLabel：从章节数据生成标签，不读 DOM', () => {
+  assertEqual(chapterStageLabel({ stage: 3 }), 'Stage 3');
+  assertEqual(chapterStageLabel({ stage: 'EX' }), 'EX');
+  assertEqual(chapterStageLabel({ stage: 'A4' }), 'A4');
+  assertEqual(chapterStageLabel(null), '');
+  assertEqual(chapterStageLabel({}), '');
+});
+
+test('submitRanking：无 el / 无 stageLabel 时仍记录章节标签与最远章节', () => {
+  const chapters = [
+    { id: 1, stage: 1, name: '一章' },
+    { id: 7, stage: 2, name: '二章' },
+  ];
+  const game = {
+    mode: 'story',
+    score: 1234,
+    difficultyId: 'easy',
+    playerId: 'yinquan',
+    player: { def: { name: '饮泉思源' } },
+    routeChoice: null,
+    continuesUsed: 0,
+    stats: { time: 65 },
+    chapters,
+    chapterIndex: 1,
+    furthestChapterId: 7,
+    el: null,
+    _rankingResult: null,
+  };
+  const entry = submitRanking(game, { cleared: false });
+  assert(entry, '应生成入榜条目');
+  assertEqual(entry.stageReached, 'Stage 2');
+  assertEqual(entry.furthestChapterId, 7);
+  assertEqual(entry.duration, 65);
 });

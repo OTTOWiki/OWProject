@@ -208,7 +208,7 @@ else if (e._hpShown < real) e._hpShown = Math.min(e._hpShown + 0.025 * (dt * 60)
 
 ---
 
-### A8 `stageReached` 语义【已核·潜在隐 bug】
+### A8 `stageReached` 语义【已核 · ✅ 已完成】
 
 **现状**：`js/chapterFlow.js:713` `stageReached: game.el?.stageLabel?.textContent || ''`——**它读的是当前 DOM 文本**。这有两个问题：
 1. 依赖渲染层文本作为数据源（脆）；

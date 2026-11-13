@@ -7,6 +7,7 @@ import {
   rollUnstableEffects, unstableStackCount, calcLetterBonus, unstableCompMul,
 } from './config.js';
 import { stageIntroFor } from './stages/index.js';
+import { chapterStageLabel } from './chapterLabel.js';
 import { getEndingDialogue } from './dialogue.js';
 import { saveHiscore, unlockStage, unlockRoute, saveNomissProgress, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
@@ -65,6 +66,8 @@ export function startChapter(game) {
     gameClear(game);
     return;
   }
+  // A8：显式维护「本局到达过的最远章节 id」，不依赖结算时的 DOM 文本
+  game.furthestChapterId = Math.max(game.furthestChapterId || 0, ch.id);
 
   softClearForNextChapter(game, { convert: false });
 
@@ -141,7 +144,7 @@ export function startChapter(game) {
   const doTrans = game._lastBgMode != null && game._lastBgMode !== bgMode;
   game.playBg.setMode(bgMode, { transition: doTrans });
   game._lastBgMode = bgMode;
-  game.el.stageLabel.textContent = typeof ch.stage === 'number' ? `Stage ${ch.stage}` : String(ch.stage);
+  game.el.stageLabel.textContent = chapterStageLabel(ch);
 
   if (ch.letter) {
     game.el.letterBanner.classList.remove('hidden');
@@ -710,7 +713,8 @@ export function submitRanking(game, { cleared = false } = {}) {
     route: game.routeChoice || (game.mode === 'extra' ? 'EX' : null),
     cleared: !!cleared,
     continued: (game.continuesUsed || 0) > 0,
-    stageReached: game.el?.stageLabel?.textContent || '',
+    stageReached: chapterStageLabel(game.chapters[game.chapterIndex]),
+    furthestChapterId: game.furthestChapterId || game.chapters[game.chapterIndex]?.id || null,
     duration: Math.round(game.stats?.time || 0),
     date: Date.now(),
   };

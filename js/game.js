@@ -24,6 +24,7 @@ import {
 } from './gameCombat.js';
 import { buildChapterList } from './stages/index.js';
 import { getDialogues } from './dialogue.js';
+import { chapterStageLabel } from './chapterLabel.js';
 import { loadHiscore, loadSettings } from './storage.js';
 import { withSeededRng, createRng, randomSeed } from './rng.js';
 import { buildReplay, validateReplay, createPlayer, createReplayInput } from './replay.js';
@@ -293,6 +294,7 @@ export class Game {
     this.laserT = 0;
 
     this.chapterIndex = this._indexForChapterId(startId);
+    this.furthestChapterId = 0;
     this._hudCache = createHudCache();
     releaseBulletList(this.playerBullets);
     releaseBulletList(this.enemyBullets);
@@ -721,7 +723,7 @@ export class Game {
       endState: {
         score: this.score,
         cleared: !!cleared,
-        stageReached: this.el.stageLabel?.textContent || (ch ? ch.name : ''),
+        stageReached: chapterStageLabel(ch),
         chapterIndex: this.chapterIndex,
         stats: this.stats,
       },
