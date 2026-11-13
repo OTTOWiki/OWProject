@@ -124,7 +124,20 @@ export function startChapter(game) {
 
   game.letterTimeMax = ch.letterTime || 0;
   game.letterTimeLeft = game.letterTimeMax;
-  if (game.letterTimeMax > 0 && !game.replaying) recordLetterTry(ch.id);
+  if (game.letterTimeMax > 0 && !game.replaying) {
+    recordLetterTry(ch.id);
+    // H8：本局 Letter 记录（回放携带；Nomiss 重开同一章只累计尝试次数）
+    const log = game.letterLog || (game.letterLog = []);
+    let entry = log.find((e) => e.chapterId === ch.id);
+    if (!entry) {
+      entry = {
+        chapterId: ch.id, name: ch.name, attempts: 0, captures: 0, bestTimeSec: null,
+      };
+      log.push(entry);
+    }
+    entry.attempts += 1;
+    game._letterLogEntry = entry;
+  }
   game.isBossChapter = ch.kind === 'boss' || ch.kind === 'midboss';
 
   const isBoss = ch.kind === 'boss';
@@ -333,7 +346,15 @@ export function finishChapter(game, success) {
       addShake(game, ...BALANCE.feedback.shake.letter);
     }
     grantLetterResource(game, ch, true, true);
-    if (!game.replaying) recordLetterCapture(ch.id);
+    if (!game.replaying) {
+      recordLetterCapture(ch.id);
+      const entry = game._letterLogEntry;
+      if (entry && entry.chapterId === ch.id) {
+        entry.captures += 1;
+        const used = Math.max(0, Math.round(game.letterTimeMax - game.letterTimeLeft));
+        if (entry.bestTimeSec == null || used < entry.bestTimeSec) entry.bestTimeSec = used;
+      }
+    }
   }
 
   if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {

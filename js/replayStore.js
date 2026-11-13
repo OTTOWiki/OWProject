@@ -66,6 +66,9 @@ export async function saveReplay(replay) {
     cleared: !!(replay.endState && replay.endState.cleared),
     score: (replay.endState && replay.endState.score) || 0,
     stageReached: (replay.endState && replay.endState.stageReached) || '',
+    letters: Array.isArray(replay.endState && replay.endState.letters)
+      ? replay.endState.letters
+      : [],
     partial: !!replay.partial,
   };
   const list = loadReplayIndex().filter((it) => it.replayId !== meta.replayId);

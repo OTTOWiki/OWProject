@@ -88,6 +88,22 @@ export class ReplayScreen {
     score.className = 'replay-score';
     score.textContent = String(m.score ?? 0);
 
+    const letters = Array.isArray(m.letters) ? m.letters : [];
+    const letterSpan = document.createElement('span');
+    if (letters.length) {
+      const captures = letters.filter((e) => (e.captures || 0) > 0).length;
+      const best = letters
+        .map((e) => e.bestTimeSec)
+        .filter((v) => Number.isFinite(v))
+        .sort((a, b) => a - b)[0];
+      letterSpan.className = 'replay-letters';
+      letterSpan.textContent = `Letter ${captures}/${letters.length}`
+        + (best != null ? ` · ${String(Math.floor(best / 60)).padStart(2, '0')}:${String(best % 60).padStart(2, '0')}` : '');
+      letterSpan.title = letters
+        .map((e) => `${e.name || `#${e.chapterId}`}: ${e.captures ? '收取' : '未收'}${e.bestTimeSec != null ? ` ${e.bestTimeSec}s` : ''}`)
+        .join('\n');
+    }
+
     const date = document.createElement('span');
     date.className = 'replay-date';
     date.textContent = m.date ? new Date(m.date).toLocaleString('zh-CN') : '';
@@ -96,10 +112,12 @@ export class ReplayScreen {
       const tag = document.createElement('span');
       tag.className = 'replay-tag';
       tag.textContent = '部分';
-      item.append(meta, score, tag, date);
+      if (letterSpan.textContent) item.append(meta, letterSpan);
+      item.append(score, tag, date);
     } else {
       const placeholder = document.createElement('span');
-      item.append(meta, score, placeholder, date);
+      if (letterSpan.textContent) item.append(meta, letterSpan);
+      item.append(score, placeholder, date);
     }
 
     item.addEventListener('click', () => {
