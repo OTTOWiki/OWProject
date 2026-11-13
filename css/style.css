@@ -2411,7 +2411,7 @@ input, select, textarea {
   .panel-left { display: none; }
   .panel-right-wrap { grid-column: 2; gap: 6px; }
   .panel-center {
-    --letter-height: 40px;
+    --letter-height: 48px;
     justify-content: center;
     padding-bottom: 0;
   }
@@ -2484,7 +2484,7 @@ input, select, textarea {
 }
 @media (orientation: landscape) and (max-height: 360px) {
   .game-layout { padding-block: 4px; }
-  .panel-center { --letter-height: 30px; }
+  .panel-center { --letter-height: 46px; }
   .letter-banner { padding-bottom: 2px; }
   .touch-btn { min-height: 44px; }
   .details-body .stat-row { font-size: 8px; }
