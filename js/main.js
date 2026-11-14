@@ -688,9 +688,8 @@ async function boot() {
     });
 
     const unlockTrackPreload = () => {
-      audio.ensure()
-        .then(() => audio.loadTrackData('s1_mid'))
-        .catch(() => {});
+      // 首次手势后补预载第一面 BGM（loadAudioBuffer 是现行 API；旧 loadTrackData 已不存在）
+      audio.loadAudioBuffer('s1_mid').catch(() => {});
       window.removeEventListener('pointerdown', unlockTrackPreload);
       window.removeEventListener('keydown', unlockTrackPreload);
     };

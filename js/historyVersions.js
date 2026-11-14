@@ -47,13 +47,18 @@ export async function fetchHistoryVersions() {
   }
 }
 
-/** 当前页面是否就是某条部署（用于标「当前」） */
+/**
+ * 当前页面是否就是某条部署（用于标「当前」）。
+ * 只比 hostname 会把同一域名下所有 deployment 都标成当前，故按 origin+pathname 精确比较
+ * （忽略 query/hash 与尾斜杠）。
+ */
 export function isCurrentDeployment(versionUrl) {
   if (!versionUrl || typeof window === 'undefined') return false;
   try {
     const a = new URL(versionUrl);
     const b = new URL(window.location.href);
-    return a.hostname === b.hostname;
+    const norm = (u) => `${u.origin}${u.pathname.replace(/\/+$/, '')}`;
+    return norm(a) === norm(b);
   } catch {
     return false;
   }

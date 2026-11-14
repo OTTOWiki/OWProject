@@ -109,6 +109,24 @@ export class AudioEngine {
     this.sfxGain.connect(this.comp);
   }
 
+  /**
+   * ensure() 的安全包装：AudioContext 创建/恢复失败时只告警一次并返回 false。
+   * playTrack/sfx 等公共异步 API 在调用点都是 fire-and-forget，直接 await ensure() 会产生 unhandled rejection。
+   * @returns {Promise<boolean>}
+   */
+  async _ensureSafe() {
+    try {
+      await this.ensure();
+      return true;
+    } catch (err) {
+      if (!this._ensureWarned) {
+        this._ensureWarned = true;
+        console.warn('[audio] AudioContext unavailable; running silent:', err);
+      }
+      return false;
+    }
+  }
+
   _wireMusicBus() {
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = this._musicTargetGain();
@@ -147,7 +165,7 @@ export class AudioEngine {
     if (this._audioBufferLoading.has(path)) return this._audioBufferLoading.get(path);
 
     const p = (async () => {
-      await this.ensure();
+      if (!(await this._ensureSafe())) return null;
       // 路径含日文/全角符号时用分段 encode，避免部分环境 fetch 失败
       const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
       const res = await fetch(url);
@@ -170,7 +188,7 @@ export class AudioEngine {
    * 移动端常见 boot 时 context suspended 导致预载静默失败。
    */
   async unlockAndRetryPreload() {
-    await this.ensure();
+    if (!(await this._ensureSafe())) return;
     const missing = [];
     for (const path of Object.values(AUDIO_FILE_MAP)) {
       if (path && !this._audioBufferCache.has(path)) missing.push(path);
@@ -213,7 +231,7 @@ export class AudioEngine {
 
   async playTrack(id) {
     if (!this.enabled) return;
-    await this.ensure();
+    if (!(await this._ensureSafe())) return;
     const musicId = id || 's1_mid';
     if (this.currentId === musicId) return;
 
@@ -294,7 +312,7 @@ export class AudioEngine {
 
   async sfx(type) {
     if (!this.enabled) return;
-    await this.ensure();
+    if (!(await this._ensureSafe())) return;
     const t = this.ctx.currentTime;
     const blip = (f, d, v, typ = 'square') => {
       const o = this.ctx.createOscillator();
