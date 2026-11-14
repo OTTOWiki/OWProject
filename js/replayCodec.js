@@ -1,7 +1,7 @@
 /**
  * 录像输入帧的紧凑编码（H7，格式 v2）。
  *
- * 每帧是定长数组 `[steps, downMask, pressMask, flags, ...tapVirtual]`：
+ * 每帧是紧凑数组：基础 4 项 `[steps, downMask, pressMask, flags]`，含触摸数据时 8 项：
  * - downMask / pressMask：位掩码，位序由 `replayKeyTable(keys)` 决定
  * - flags：a=1 b=2 i=4 l=8；位 4-5 为 x 轴（1=左 2=右），位 6-7 为 y 轴（1=上 2=下）；
  *   位 8（256）= 触屏低速键按住；位 9（512）= 本帧移动端相对移动限速开启。

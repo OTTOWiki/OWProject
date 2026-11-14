@@ -1,5 +1,5 @@
 /**
- * 用 Node 对仓库内 ES 模块做语法检查（node --check）。
+ * 用 Node 对 `js/` 与 `test/` 下的 ES 模块做语法检查（node --check）。
  * 不执行代码，故不依赖 Three CDN / DOM；能抓住 game.js 等主路径的 SyntaxError。
  */
 import { readdirSync, statSync } from 'node:fs';

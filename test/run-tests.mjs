@@ -1,6 +1,6 @@
 /**
  * npm test 入口：优先 bun test，无 bun 退回 node 全流程。
- * - 有 bun（PATH 可解析）：bun test（入口 test/run-bun.test.mjs，含 56 项单测/冒烟）
+ * - 有 bun（PATH 可解析）：bun test（入口 test/run-bun.test.mjs；用例数以 npm test 实际输出为准）
  * - 无 bun：node test/check-syntax.mjs + node test/run-node.mjs（原 npm test 行为）
  * 子进程 stdio 透传，退出码原样上抛。
  */

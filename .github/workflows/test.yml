@@ -1,4 +1,4 @@
-# 纯逻辑 + mock 冒烟（node test/run-node.mjs）+ Playwright e2e（test/e2e）
+# 逻辑测试（npm test：bun 优先；无 bun 时 node --check 语法检查 + node:test 单测/冒烟）+ Playwright e2e（test/e2e）
 # 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
 #
 # 分支保护 required checks：**Test**（逻辑）+ **E2E**（Playwright）+ CodeRabbit。
