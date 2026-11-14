@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. **`Test`** 与 **`CodeRabbit`** 通过后即可合并（**允许作者自合**；欢迎互相 Review，但不强制 Approve）；全量 **`E2E`** 默认只在最终集成 PR 打 `run-e2e` 标签时跑一次  
+4. 合并门禁（ruleset `protect-main`）required checks = **`Test`** + **`E2E`** + **`CodeRabbit`**（**允许作者自合**；欢迎互相 Review，但不强制 Approve）；全量 **`E2E`** 默认只在最终集成 PR 打 `run-e2e` 标签（或 `workflow_dispatch`）时触发一次  
 
 ```bash
 git fetch origin
@@ -109,15 +109,15 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 | 约束 | 说明 |
 |------|------|
 | 逻辑分辨率 | `450×600`；**禁止**改 playfield `canvas.width/height` |
-| 出怪/出弹 | 必须 `game.spawnEnemy` / `game.spawnBullet`（或 StageContext 等价封装），**禁止**直接 `enemies.push` / `bullets.push` |
+| 出怪/出弹 | 必须 `game.spawnEnemy` / `game.spawnBullet`（或 StageContext 等价封装），**禁止**直接 push `enemies` / `playerBullets` / `enemyBullets` |
 | 数值 | 优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`，忌在战斗逻辑散落魔法数 |
 | 模块边界 | 弹幕公式 → `patterns` / `stages`；碰撞只吐事件 → `collision`；得分/Bomb/Miss → `gameCombat`；章流程 → `chapterFlow` |
 | Stage Select | **全开放**，不加 unlock 门禁 |
-| 立绘/Boss 图 | 无图则隐藏或几何；**禁止**把 A 角立绘/脸挂到 B 名下（见 AGENTS 立绘策略） |
+| 立绘/Boss 图 | 无专用图：立绘未登记 `PORTRAIT_PATHS` 则隐藏；Boss 未登记走几何；暂借他角图必须显式登记 `PLACEHOLDER_BOSS_SPRITES` 并在注释写明借图来源，**禁止静默回落**（如默认爱丽丝脸）；补美术后移入 `DEDICATED_BOSS_BY_KIND` 并删占位项 |
 | 关卡文件 | 新内容写 `js/stages/` 对应子目录；`a4_menbailiang.js` 等仅为兼容 re-export |
 
-**状态**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`（暂停用 `paused` 标志）。  
-**模式**：`story` | `practice` | `stage` | `extra`。
+**状态**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover`（暂停用 `paused` 标志；结局用 `endingCinematic` 标志，state 进入 `gameover`）。  
+**模式**：`story` | `practice` | `stage` | `extra` | `nomiss`（Nomiss 无伤模式；入口 = Start Game 后先在模式页选普通/Nomiss）。
 
 ---
 
@@ -143,18 +143,18 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 
 1. `bgModes.js` 登记 mode + 贴图  
 2. `backgrounds/builders.js`（+ `scenes.js`）左侧 Three  
-3. `playfieldBgThemes.js` 的 `MODE_THEME` 一行主题  
+3. 旧版面主题 `MODE_THEME`（`js/playfieldBgThemes.js`）已随旧 Mode-7 版面系统冻结，**不要新增/修改主题**；左侧 Three 背景走 `bgModes.js` → `backgrounds/builders.js`  
 
 ### 改美术
 
-- 仅 **AVIF**；写入 `PORTRAIT_PATHS` / `DEDICATED_BOSS_BY_KIND`，并从 HIDDEN_OK / PLACEHOLDER 去掉对应项  
+- 仅 **AVIF**；写入 `PORTRAIT_PATHS` / `DEDICATED_BOSS_BY_KIND`，并从 `PORTRAIT_HIDDEN_OK` / `PLACEHOLDER_BOSS_SPRITES` 去掉对应项  
 - 无 jpg/png runtime fallback
 
 ### 补测试
 
 - 新用例放 `test/cases-*.js`，并在 `test/cases.js` import  
 - 纯逻辑优先；**不要**在 CLI 用例里强依赖 Three / 真实主循环  
-- 参考队列 T05：章节 id、dialogue 键、letterTime、spawn 缩放等
+- 参考队列 T05（章节 id、dialogue 键、letterTime、storage clamp）与 T09（spawn API / 难度缩放）
 
 ### 走改造队列
 
@@ -183,13 +183,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - **禁止** `git push` 到 `main`（见 §0）  
 - 日常在功能分支上多 commit 迭代；推远程分支后开 PR  
 - 涉及玩法/UI：作者先手测，再在 PR 里写手测要点；Reviewer 抽查  
-- 合并前 PR 上 **`Test`** 与 **`CodeRabbit`** 须通过（本地可先跑 `npm test`）  
+- 合并前 PR 上 **`Test`**、**`E2E`**、**`CodeRabbit`** 须通过（本地可先跑 `npm test`；E2E 由最终集成 PR 的 `run-e2e` 标签触发）  
 - 队列任务：测绿 → 等手测 → PR 合并后再开下一项  
 
 ### PR 建议自检（作者）
 
 - [ ] 目标分支是 **`main`**，且分支基于较新的 `main`  
-- [ ] 本地 `npm test` 通过；PR 上 **`Test`**、**`CodeRabbit`** 绿
+- [ ] 本地 `npm test` 通过；PR 上 **`Test`**、**`E2E`**、**`CodeRabbit`** 绿
 - [ ] 最终集成 PR 已加 `run-e2e` 标签（或手动 dispatch）跑过全量 E2E  
 - [ ] 未改 playfield 画布逻辑尺寸  
 - [ ] 出怪/出弹走 spawn API  

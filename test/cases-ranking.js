@@ -29,6 +29,15 @@ test('qualifies / rankFor：不足上限或高于末位', () => {
   assertEqual(rankFor(full, 999), 0);
 });
 
+test('rankFor：同分名次与 submitEntry 最终名次一致（成绩排行预览）', () => {
+  const list = [{ score: 100, date: 1 }, { score: 50, date: 2 }];
+  const entry = { score: 100, date: 10 };
+  assertEqual(rankFor(list, entry.score, entry.date), 1, '同分旧条目在前，预览名次为 1');
+  const ranking = { normal: list.slice() };
+  assertEqual(submitEntry(ranking, 'normal', entry), 1, '最终名次与预览一致');
+  assertEqual(rankFor([...list], 100, 0), 0, '更早日期的同分条目排前');
+});
+
 test('submitEntry：降序 + 同分日期更早在前 + 截断上限', () => {
   const ranking = {};
   const a = { score: 100, date: 5, id: 'a' };

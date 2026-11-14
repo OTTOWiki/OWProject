@@ -108,7 +108,8 @@ function paintTalisman(ctx, b, col, col2, grazeFx) {
   const w = b.w + 2;
   const h = b.h + 2;
   ctx.beginPath();
-  ctx.roundRect?.(-w / 2, -h / 2, w, h, 2) || ctx.rect(-w / 2, -h / 2, w, h);
+  if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, 2);
+  else ctx.rect(-w / 2, -h / 2, w, h);
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
@@ -146,7 +147,8 @@ function buildTalismanSprite(w, h, col, col2, grazeFx) {
   g.strokeStyle = 'rgba(255,255,255,0.75)';
   g.lineWidth = 1.2;
   g.beginPath();
-  g.roundRect?.(-rectW / 2, -rectH / 2, rectW, rectH, 2) || g.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+  if (g.roundRect) g.roundRect(-rectW / 2, -rectH / 2, rectW, rectH, 2);
+  else g.rect(-rectW / 2, -rectH / 2, rectW, rectH);
   g.fill();
   g.stroke();
   g.fillStyle = 'rgba(255,255,255,0.55)';

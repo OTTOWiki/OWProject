@@ -27,7 +27,6 @@ const storageErrorListeners = new Set();
  * @returns {() => void}
  */
 export function onStorageError(fn) {
-  if (typeof fn !== 'function') return () => {};
   storageErrorListeners.add(fn);
   return () => storageErrorListeners.delete(fn);
 }
@@ -84,14 +83,29 @@ function readRaw(key) {
   }
 }
 
+/** 读取原始字符串（非 JSON 键）；不可用/读失败回落 ''. */
+export function readStoredString(key) {
+  return readRaw(key) ?? '';
+}
+
 /**
  * 写入关键键：先把上一份主键内容写 `<key>_bak`，再覆盖主键。
  * 主键写坏/被截断时，读路径可回落上一份完整快照。
  */
 function writeWithBackup(key, raw) {
   const prev = readRaw(key);
-  if (prev != null) writeStored(key + BACKUP_SUFFIX, prev);
+  // 主键可能是坏 JSON（读路径已回落到备份）：坏内容不得覆盖仍可用的备份
+  if (prev != null && isJson(prev)) writeStored(key + BACKUP_SUFFIX, prev);
   return writeStored(key, raw);
+}
+
+function isJson(raw) {
+  try {
+    JSON.parse(raw);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function loadKeys() {
@@ -118,11 +132,12 @@ function clampBulletOpacity(v, fallback = DEFAULT_SETTINGS.playerBulletOpacity) 
 }
 
 /**
- * 描画帧率上限：0 = 无限制；有限时钳制到 24–240
- * （逻辑固定 60fps，与此项无关）
+ * 描画帧率上限：0 = 无限制；有限值钳制到 24–240（非法/缺失按 0）
+ * 逻辑固定 60fps，与此项无关。
+ * @param {unknown} v
+ * @returns {number}
  */
-export function normalizeFpsLimit(v, fallback = DEFAULT_SETTINGS.fpsLimit) {
-  if (v == null || v === '' || v === 'unlimited') return 0;
+export function normalizeFpsLimit(v) {
   const n = Math.round(Number(v));
   if (!Number.isFinite(n) || n <= 0) return 0;
   return Math.max(FPS_LIMIT_MIN, Math.min(FPS_LIMIT_CAP, n));
@@ -130,7 +145,7 @@ export function normalizeFpsLimit(v, fallback = DEFAULT_SETTINGS.fpsLimit) {
 
 /** 设置值 → 滑条 DOM 值（无限制 = FPS_SLIDER_UNLIMITED） */
 export function fpsLimitToSlider(fpsLimit) {
-  const n = normalizeFpsLimit(fpsLimit, 0);
+  const n = normalizeFpsLimit(fpsLimit);
   return n <= 0 ? FPS_SLIDER_UNLIMITED : n;
 }
 
@@ -153,7 +168,7 @@ export function loadSettings() {
     ),
     shotToggle: !!parsed.shotToggle,
     mobileSpeedLimit: parsed.mobileSpeedLimit !== false,
-    fpsLimit: normalizeFpsLimit(parsed.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
+    fpsLimit: normalizeFpsLimit(parsed.fpsLimit),
   };
 }
 
@@ -166,18 +181,14 @@ export function saveSettings(settings) {
     ),
     shotToggle: !!settings.shotToggle,
     mobileSpeedLimit: settings.mobileSpeedLimit !== false,
-    fpsLimit: normalizeFpsLimit(settings.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
+    fpsLimit: normalizeFpsLimit(settings.fpsLimit),
   };
   writeStored(STORAGE_KEYS.settings, JSON.stringify(next));
   return next;
 }
 
 export function loadHiscore() {
-  try {
-    return Number(localStorage.getItem(STORAGE_KEYS.hiscore) || 0) || 0;
-  } catch {
-    return 0;
-  }
+  return Number(readStoredString(STORAGE_KEYS.hiscore) || 0) || 0;
 }
 
 export function saveHiscore(score) {
@@ -188,7 +199,7 @@ export function saveHiscore(score) {
   return false;
 }
 
-/** 进度记录（Stage Select 不门禁；见 AGENTS.md）。损坏数据时回落默认 */
+/** 进度记录（Stage Select 不门禁；见 AGENTS.md）。主键坏 → 回落 `<key>_bak` → 默认 */
 export function loadUnlocked() {
   const fallback = { stage: 1, routes: { A: false, B: false } };
   for (const key of [STORAGE_KEYS.unlocked, STORAGE_KEYS.unlocked + BACKUP_SUFFIX]) {
@@ -239,7 +250,7 @@ export function savePracticePrefs(prefs) {
 }
 
 /**
- * Nomiss 模式章节进度（存 { nextChapterId }）；无/坏数据返回 null。
+ * Nomiss 模式章节进度（存 { nextChapterId }）；主键坏 → 回落 `<key>_bak`，仍无效返回 null。
  * @returns {number|null} 下一章 id（正整数），无进度时 null
  */
 export function loadNomissProgress() {
@@ -326,7 +337,7 @@ export function loadPracticeBest() {
     if (!diffs || typeof diffs !== 'object' || Array.isArray(diffs)) continue;
     const diffMap = {};
     for (const [diffId, rec] of Object.entries(diffs)) {
-      if (typeof diffId !== 'string' || !rec || typeof rec !== 'object') continue;
+      if (!rec || typeof rec !== 'object') continue;
       const score = Number(rec.score);
       if (!Number.isFinite(score)) continue;
       if (typeof rec.perfect !== 'boolean') continue;

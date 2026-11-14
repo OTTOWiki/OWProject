@@ -4,7 +4,7 @@
  * 与录像完全独立（排行榜不引用 replayId）。
  */
 import { STORAGE_KEYS, RANKING_LIMIT } from './config.js';
-import { parseStored, writeStored, removeStored } from './storage.js';
+import { parseStored, writeStored, removeStored, readStoredString } from './storage.js';
 
 const MAX_NAME_CHARS = 3;
 
@@ -42,13 +42,21 @@ export function qualifies(list, score) {
   return score > (list[list.length - 1]?.score ?? -Infinity);
 }
 
-/** 该分数在榜单中的 0-based 名次；不入榜返回 -1 */
-export function rankFor(list, score) {
+/**
+ * 该分数在榜单中的 0-based 名次；不入榜返回 -1。
+ * 同分按 date 升序（更早在前），与 submitEntry 排序一致；默认 date=Infinity 表示排在已有同分条目之后。
+ * @param {Array} list
+ * @param {number} score
+ * @param {number} [date] 新条目日期（毫秒）
+ */
+export function rankFor(list, score, date = Infinity) {
   const arr = Array.isArray(list) ? list : [];
   const last = arr.length ? arr[arr.length - 1].score : -Infinity;
   if (arr.length >= RANKING_LIMIT && score <= last) return -1;
   let pos = 0;
-  for (const e of arr) if (e.score > score) pos++;
+  for (const e of arr) {
+    if (e.score > score || (e.score === score && (e.date ?? 0) < date)) pos++;
+  }
   return pos;
 }
 
@@ -67,12 +75,7 @@ export function submitEntry(ranking, difficultyId, entry) {
 
 /** 上次使用的 3 字昵称（默认回落自机名前 3 字） */
 export function loadName(fallbackName) {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.rankingName);
-    return normalizeName(raw, fallbackName);
-  } catch {
-    return normalizeName('', fallbackName);
-  }
+  return normalizeName(readStoredString(STORAGE_KEYS.rankingName), fallbackName);
 }
 
 /** 保存昵称；空则清除（下次回落自机名） */

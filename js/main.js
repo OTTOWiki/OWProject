@@ -488,11 +488,12 @@ async function boot() {
     };
     const hideBgFallback = () => elBgFallback?.classList.add('hidden');
 
+    const screenGameEl = document.getElementById('screen-game');
     const initBackground = () => {
       const bg = new StageBackground(bgCanvas);
       bg.setMode('s1_mid');
       const idle = () => {
-        if (!document.getElementById('screen-game')?.classList.contains('active')) {
+        if (!screenGameEl.classList.contains('active')) {
           bg.update();
         }
         requestAnimationFrame(idle);
@@ -532,7 +533,7 @@ async function boot() {
         if (game) game.applySettings(s);
         else {
           input.applySettings(s);
-          audio.setMusicVolume(s.musicVolume ?? 1);
+          audio.setMusicVolume(s.musicVolume);
         }
       },
       onPlayReplay(replayId) {
@@ -540,13 +541,20 @@ async function boot() {
           .then((data) => {
             if (!data) {
               console.warn('[replay] not found:', replayId);
+              ui.showReplayScreen();
               return;
             }
-            if (!game) return;
             ui.showGame();
-            game.startReplay(data);
+            // 录像校验失败时不能停在 game 屏（会黑屏无提示）：退回 Replay 屏
+            if (!game.startReplay(data)) {
+              console.warn('[replay] rejected:', replayId);
+              ui.showReplayScreen();
+            }
           })
-          .catch((e) => console.error('[replay] load failed:', e));
+          .catch((e) => {
+            console.error('[replay] load failed:', e);
+            ui.showReplayScreen();
+          });
       },
     });
 
@@ -581,7 +589,7 @@ async function boot() {
 
     // Item / Bomb use Input's one-shot frame flags; Pause owns one pointer press.
     // Pointer events prevent touch compatibility mouse events from toggling twice.
-    input.bindTouchButtons(itemBtn, bombBtn, slowBtn);
+    input.bindTouchButtons(itemBtn, bombBtn);
     input.bindSlowButton(slowBtn);
     if (pauseBtn) {
       let activePointerId = null;

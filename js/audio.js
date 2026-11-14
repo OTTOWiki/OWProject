@@ -1,5 +1,5 @@
 /**
- * BGM + SFX：仅音频文件（OGG）播放
+ * 音频引擎：BGM 播放 OGG 音频文件；SFX 由 WebAudio 振荡器实时合成。
  */
 
 /**
@@ -191,17 +191,21 @@ export class AudioEngine {
   stopMusic(fade = 0.4) {
     if (!this.ctx) return;
 
-    if (this._audioSourceNode) {
-      try { this._audioSourceNode.stop(); } catch (_) {}
-      this._audioSourceNode.disconnect();
-      this._audioSourceNode = null;
-    }
-
-    if (this.musicGain) {
+    const src = this._audioSourceNode;
+    if (src) {
       const t = this.ctx.currentTime;
-      this.musicGain.gain.cancelScheduledValues(t);
-      this.musicGain.gain.setValueAtTime(Math.max(1e-4, this.musicGain.gain.value), t);
-      this.musicGain.gain.linearRampToValueAtTime(1e-4, t + fade);
+      if (fade > 0) {
+        // 先让 music bus 淡出，淡出结束再停源/释放节点（否则 fade 参数没有听感）
+        this.musicGain.gain.cancelScheduledValues(t);
+        this.musicGain.gain.setValueAtTime(Math.max(1e-4, this.musicGain.gain.value), t);
+        this.musicGain.gain.linearRampToValueAtTime(1e-4, t + fade);
+        try { src.stop(t + fade); } catch (_) { /* source 已停止 */ }
+        src.onended = () => src.disconnect();
+      } else {
+        try { src.stop(); } catch (_) { /* source 已停止 */ }
+        src.disconnect();
+      }
+      this._audioSourceNode = null;
     }
     this.currentId = null;
     this._musicBuf = null;
@@ -264,10 +268,8 @@ export class AudioEngine {
     if (!this._audioSourceNode || !this._musicBuf || !(this._musicBufDur > 0)) return;
     const o = Number(offset);
     if (!Number.isFinite(o)) return;
-    let clamped = ((o % this._musicBufDur) + this._musicBufDur) % this._musicBufDur;
-    // 防御钳制：src.start(when, offset) 要求 offset ∈ [0, dur)；
-    // 公式本身保证 ∈[0,dur)，此处兜底避免浮点/实现差异把 offset 推到 dur
-    if (!(clamped < this._musicBufDur)) clamped = 0;
+    // 取模保证 offset ∈ [0, dur)，满足 src.start(when, offset) 的取值要求
+    const clamped = ((o % this._musicBufDur) + this._musicBufDur) % this._musicBufDur;
 
     // 停掉当前 source（不淡出增益；短淡入由下方 ramp 负责）
     try { this._audioSourceNode.stop(); } catch (_) {}

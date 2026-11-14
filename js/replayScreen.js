@@ -1,5 +1,5 @@
 /**
- * 录像列表屏：列出本地已保存录像（含练习/部分），播放、删除 + 键盘导航。
+ * 录像列表屏：列出本地已保存录像（含练习/部分），播放、删除、导出/导入 + 键盘导航。
  * 帧数据在 IndexedDB（replayStore），本屏只读 localStorage 索引。
  * 删除：每行右侧「删除」按钮，二次确认（首次点→「再按一次确认删除」，再点→删除）。
  */
@@ -36,7 +36,6 @@ export class ReplayScreen {
     this.items = [];
     this.index = 0;
     this._confirmTimer = null;
-    this._importBound = false;
     this._bindImport();
   }
 
@@ -217,11 +216,10 @@ export class ReplayScreen {
     }
   }
 
-  /** 绑定导入文件选择器（一次） */
+  /** 绑定导入文件选择器（构造时调用一次） */
   _bindImport() {
     const input = document.getElementById('replay-import-input');
-    if (!input || this._importBound) return;
-    this._importBound = true;
+    if (!input) return;
     input.addEventListener('change', () => {
       const files = [...input.files];
       input.value = '';

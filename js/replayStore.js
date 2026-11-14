@@ -48,13 +48,25 @@ function saveReplayIndex(list) {
   return writeStored(STORAGE_KEYS.replayIndex, JSON.stringify(list));
 }
 
-/** 保存录像（帧数据入 IndexedDB + 索引入 localStorage）。返回索引 meta。 */
-export async function saveReplay(replay) {
-  await withStore('readwrite', (store) => new Promise((resolve, reject) => {
+function putFrame(replay) {
+  return withStore('readwrite', (store) => new Promise((resolve, reject) => {
     const req = store.put(replay);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   }));
+}
+
+function deleteFrame(replayId) {
+  return withStore('readwrite', (store) => new Promise((resolve, reject) => {
+    const req = store.delete(replayId);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+/** 保存录像（帧数据入 IndexedDB + 索引入 localStorage）。返回索引 meta。 */
+export async function saveReplay(replay) {
+  await putFrame(replay);
 
   const meta = {
     replayId: replay.replayId,
@@ -77,16 +89,10 @@ export async function saveReplay(replay) {
   list.push(meta);
   list.sort((a, b) => b.date - a.date);
 
-  try {
-    saveReplayIndex(list);
-  } catch (err) {
-    // Rollback IndexedDB on index write failure
-    await withStore('readwrite', (store) => new Promise((resolve, reject) => {
-      const req = store.delete(replay.replayId);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    }));
-    throw err;
+  if (!saveReplayIndex(list)) {
+    // 索引写失败：回滚已写入的帧，避免 IndexedDB 孤儿记录
+    await deleteFrame(replay.replayId);
+    throw new Error('replay index write failed');
   }
 
   return meta;
@@ -103,22 +109,10 @@ export async function loadReplay(replayId) {
 
 export async function deleteReplay(replayId) {
   const original = await loadReplay(replayId);
-  await withStore('readwrite', (store) => new Promise((resolve, reject) => {
-    const req = store.delete(replayId);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  }));
-  try {
-    saveReplayIndex(loadReplayIndex().filter((it) => it.replayId !== replayId));
-  } catch (err) {
+  await deleteFrame(replayId);
+  if (!saveReplayIndex(loadReplayIndex().filter((it) => it.replayId !== replayId))) {
     // 索引写失败：把已删的帧记录放回，与 saveReplay 的反向回滚对称，避免半应用
-    if (original) {
-      await withStore('readwrite', (store) => new Promise((resolve, reject) => {
-        const req = store.put(original);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      }));
-    }
-    throw err;
+    if (original) await putFrame(original);
+    throw new Error('replay index write failed');
   }
 }

@@ -90,7 +90,8 @@
         </div>
       </nav>
 
-      <p class="version-badge" data-app-version>v0.4.2</p>
+      <!-- 版本文字由 js/version.js 的 applyVersionToDom 注入，避免与 VERSION_NAME 漂移 -->
+      <p class="version-badge" data-app-version></p>
     </div>
 
     <!-- 退出反馈 -->
@@ -408,7 +409,7 @@
                 </div>
                 <p class="game-overlay-hint" id="overlay-hint"></p>
               </div>
-              <p class="version-badge version-badge-overlay" data-app-version>v0.4.2</p>
+              <p class="version-badge version-badge-overlay" data-app-version></p>
             </div>
             <div id="flash-msg" class="flash-msg hidden"></div>
           </div>

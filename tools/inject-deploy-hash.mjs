@@ -11,7 +11,7 @@
  *
  * Cloudflare Pages 推荐：
  *   Build command:  npm run pages:build
- *   Build output directory: /   （或留空 / 项目根，按控制台选项）
+ *   Build output directory: 留空 或 .  （项目根；不要填 /，会指错目录导致注入无效）
  */
 import fs from 'node:fs';
 import path from 'node:path';

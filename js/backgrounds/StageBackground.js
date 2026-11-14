@@ -15,7 +15,7 @@ export class StageBackground {
    */
   constructor(canvas, { rand = Math.random } = {}) {
     this.canvas = canvas;
-    this.__rand = typeof rand === 'function' ? rand : Math.random;
+    this.__rand = rand;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.scene = new THREE.Scene();
@@ -83,10 +83,8 @@ export class StageBackground {
 
   _rebuild() {
     this._clear();
-    const m = resolveBgMode(this.mode);
-    const build = STAGE_BG_BUILDERS[m] || STAGE_BG_BUILDERS.s1_mid;
-    // 装饰随机走注入源（默认 Math.random，构造时捕获，不受后续 withSeededRng 全局替换影响）
-    build(this);
+    // setMode 已把 mode 解析为合法值；数据表共用同一 mode 集合，缺失应立即暴露而非静默回退
+    STAGE_BG_BUILDERS[this.mode](this);
   }
 
   _addLights(color = 0x88aaff, intensity = 1.2, amb = 0.55) {

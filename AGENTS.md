@@ -91,7 +91,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
 - E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/mobile-landscape/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|mobile.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|three|nomiss|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|menu-repeat|mobile.js` + `mockGame.js`（共 26 个用例模块，以 `test/cases.js` 为准）
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。E2E 默认**不在每个 PR 跑**：仅给最终集成 PR 加 `run-e2e` 标签，或 `workflow_dispatch` 手动触发；小改动只等 `Test`
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 由最终 PR 的 `run-e2e` 标签统一跑一次，避免逐 PR 等待 14–16 分钟
@@ -117,21 +117,21 @@ js/
   runStats.js          # 对局统计纯格式化（formatRunTime / formatRunStats）
   collision.js / patterns.js / entities.js / spawnScale.js
   draw/                # drawUtils + bulletDraw / enemyDraw / playerDraw / itemDraw（index 聚合）
-  stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_van/ex_mid/ex_mid_0_31/ex_mid_32_61/ex_shared；_shared + stageContext
-  ui.js / menuNav.js / settingsForm.js / startMode.js
+  stages/              # index 聚合；s1–s3、patrol、a4–a6/、b4–b6/、ex_van/ex_mid/ex_mid_0_31/ex_mid_32_61/ex_shared；_shared + stageContext + archetypes
+  ui.js / menuNav.js / menuRepeat.js / settingsForm.js / startMode.js / chapterLabel.js
   historyScreen.js / historyVersions.js
-  ranking.js / rankingScreen.js / scoreRanking.js / replay.js / replayStore.js / replayScreen.js / rng.js
+  ranking.js / rankingScreen.js / scoreRanking.js / replay.js / replayCodec.js / replayStore.js / replayScreen.js / rng.js
   input.js / audio.js / storage.js / debug.js
   backgrounds.js       # re-export → backgrounds/*
-  backgrounds/         # StageBackground、builders、scenes、textTexture、threeLoader
+  backgrounds/         # StageBackground、builders、scenes、textTexture、threeLoader、atoms2d、easing
   bgModes.js / playfieldBg.js / playfieldBgThemes.js
   sprites.js / assets.js
   pool.js              # 泛型对象池（bullet/item/particle 共用）
   bulletPool.js / itemPool.js / particlePool.js
   dialogue.js
-test/                  # 零第三方自动化测试；test/e2e/ = Playwright e2e；e2e-results.js = /test 页展示 e2e 结果
+test/                  # CLI 测试零第三方（npm test）；test/e2e/ = Playwright e2e；e2e-results.js = /test 页展示 e2e 结果
 assets/                # bg portraits sprites ui + bgm/*.ogg；NOTICE.md = 素材授权说明
-tools/                 # inject-deploy-hash、hooks、bump-version、to-avif
+tools/                 # inject-deploy-hash、install-git-hooks、bump-build-version、gen-chapter-hashes、to-avif
 functions/api/         # CF Pages Functions（History 等）
 docs/                  # 内部改造队列等（非运行时）
 参考/                  # 过时设计稿
@@ -151,7 +151,7 @@ docs/                  # 内部改造队列等（非运行时）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
 - **移动端页面视口缩放 0.5 是硬约束**：`index.html` 的 viewport 使用 `initial-scale=0.5, maximum-scale=0.5, user-scalable=no`，不得改回 1；它与触控位移系数 `TOUCH_DRAG_SCALE` 是两件事。
-- **移动端仅横屏**：竖屏显示全屏旋转引导（`#rotate-gate`），进行中的对局先暂停，不提供竖屏战斗版面。横屏中央版面优先利用可用宽高，右侧 HUD 固定完整显示、不内部滚动；低速/Item/Bomb/暂停操作条位于 HUD 下方，不占用版面，也不在 970px 处切回三栏。
+- **移动端仅横屏**：竖屏显示全屏旋转引导（`#rotate-gate`），进行中的对局先暂停，不提供竖屏战斗版面。横屏中央版面优先利用可用宽高，右侧 HUD 固定完整显示、不内部滚动；低速/Item/Bomb/暂停操作条位于 HUD 下方，不占用版面；横屏 ≤1100px 固定两区（版面 + HUD），仅在 `min-width:1101px` 桌面宽屏恢复三栏。
 - 触屏移动事件面是 `#screen-game` 全屏（按钮、叠加层、面板控件除外）；相对按下点的拖动 ×0.5 生成绝对目标，自机按住时按桌面同速平滑追平（保留拖动距离），抬手/取消/失焦立即停止；无死区、方向连续，不做 8 向离散映射。`TOUCH_DRAG_SCALE=0.5` 是**硬约束**，不得改动。默认与桌面同速，设置可关闭；关闭后触屏直接跟到目标位置，并写入本局作弊标记，回放/排行显示。
 - 版面画布无 CSS 边框，装饰由外围容器承载；Letter 卡是版面内右上角叠加层，不占用版面布局；Boss 标记仍贴底边。
 - `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击/触屏低速，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作；触屏低速键按住/释放成对处理。
@@ -178,11 +178,11 @@ docs/                  # 内部改造队列等（非运行时）
 | `stages/archetypes.js` | 道中敌机原型表 + `spawnArch` 开火脚本 | 章流程 / 通用弹幕公式 |
 | `patterns.js` | 弹幕工具 | UI / 存档 |
 | `entities.js` | 实体 update | 绘制（在 `draw/`） |
-| `pool.js` | 泛型对象池（bullet/item/particle 共用 acquire/release/purge） | 实体语义 |
+| `pool.js` | 泛型对象池（bullet/item/particle 共用 `acquire`/`release`/`releaseList`/`purgeDead`） | 实体语义 |
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
-| `backgrounds/atoms2d.js` | 版面剪影/侧柱具名原子（P1，来源系统已废弃，仅参考） | 新背景实现 / 场景数据 |
-| `backgrounds/easing.js` | 32 条背景缓动 + Interpolation（P3，暂未接线） | 运行时场景 / 绘制 |
+| `backgrounds/atoms2d.js` | 旧版面剪影/侧柱具名 Canvas2D 原子；仍被 `playfieldBg.js` 运行时 import（随旧系统冻结，不再扩展 kind/sil；新系统只可作视觉参考） | 新背景实现 / 场景数据 |
+| `backgrounds/easing.js` | 32 个背景缓动 mode（26 条曲线；0/7/8/17 在 `ease()` 内退化为线性，7/8/17 由 Interpolation 承接；15/16 为常量）+ Interpolation（P3，运行时不 import，仅测试/待接线） | 运行时场景 / 绘制 |
 | `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
 | `backgrounds/*` | 共享舞台 Three 场景 | 版面 Canvas |
 | `playfieldBgThemes.js` | **已废弃待重做**的旧版面主题表；冻结新增 | Three 场景 / 新背景 |
@@ -193,14 +193,16 @@ docs/                  # 内部改造队列等（非运行时）
 | `replay.js` | 录像：RLE 编解码、回放游标、虚拟输入；v1 旧格式为冻结分支 | 存档 I/O |
 | `replayCodec.js` | 录像每帧紧凑输入（掩码 + flags + 可选触摸坐标） | 回放状态机 |
 | `replayStore.js` | 录像帧数据 IndexedDB + localStorage 索引 | 游戏逻辑 |
-| `replayScreen.js` | 录像列表屏（播放/删除） | 游戏逻辑 |
+| `replayScreen.js` | 录像列表屏（播放/删除/导出/导入） | 游戏逻辑 |
+| `historyScreen.js` | History 屏（部署版本列表 UI） | 游戏逻辑 |
+| `historyVersions.js` | History 数据拉取/格式化（`/api/versions`） | 游戏逻辑 |
 
-出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**，勿直接 `enemies.push` / `bullets.push`。
+出怪/出弹须走 **`game.spawnEnemy` / `game.spawnBullet`**，勿直接 push `enemies` / `playerBullets` / `enemyBullets`（后两者为权威分表）。
 
 ### 状态与模式
 
-**`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover` | `ending`  
-暂停：`paused` 标志（不是 state）。
+**`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover`  
+暂停：`paused` 标志（不是 state）。结局演出用 `endingCinematic` 标志，state 进入 `gameover`。
 
 **主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。开屏为满幅暗色幻想底 + 中央黑带 + 右下真实进度角；落花只在右下加载角的局部盒内跟随真实进度调速，恢复态暂停，减少动态效果时静态呈现；可恢复失败改为黑带下的暗色状态面板，窄屏按钮保持 44px 命中区。游戏首帧启动失败会停止已初始化的游戏并恢复真实来源页。新主菜单人物为明确占位。
 标题为逐字DOM排版：五字大小／上下错位，「棍維」与「何意味」异色，完整可访问名称与日文字形优先不变；魔幻背景候选暂未进入运行时资源列表。
@@ -209,7 +211,7 @@ docs/                  # 内部改造队列等（非运行时）
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。
 `nomiss` 无伤模式：**入口 = Start Game 后先选普通模式 / Nomiss，再选难度与自机**；有 `gunwei_nomiss_progress` 时从保存的下一章续接，无进度从第1章开始。被弹自动重开当前章、保留资源、禁录像、进度持久化、仅暂停结算或结局结算，不入榜。）
 
-**练习模式**：难度用内联标签选择（`DIFFICULTIES`），关卡用标签二选、章节列表只显示当前关卡的章节（`practiceChapterGroups`，替代原生 select）；记住上次选择（`gunwei_practice`）；不经难度页，直接选自机。
+**练习模式**：难度用内联标签选择（`DIFFICULTIES`），关卡用标签单选（11 组，按 `stageSelectEntries` 分组）、章节列表只显示当前关卡的章节（`practiceChapterGroups`，替代原生 select）；记住上次选择（`gunwei_practice`）；不经难度页，直接选自机。
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
@@ -221,9 +223,9 @@ docs/                  # 内部改造队列等（非运行时）
 2. 3 面后：|倾向| ≥ `BALANCE.tendencyThreshold`（**70**）进 A/B；否则巡查 **23–24**
 3. 拦截胜 → `routeSelect` 手选 A/B
 4. A 线（门百梁 → 对手 → 一美个）/ B 线（赌人 → 棍电 → 拉斯特）→ 对应结局；**EX** 自 id **129**
-5. 每面多 mid + midboss + 多 Letter；以 `js/stages/` 为准
+5. 每面多 mid + midboss + 多 Letter（中立拦截 23–24 例外：仅 2 个 Letter Boss，无道中）；以 `js/stages/` 为准
 
-章节字段：`id, name, stage, stageKey, kind, music, bg, duration?, unstable?, dialogue?, letter?, letterTime?, build(g)`  
+章节字段：`id, name, stage, stageKey, kind, music, bg, duration?, unstable?, dialogue?, letter?, letterTime?, onClear?('routeCheck'|'routeSelect'), winDialogue?, loseDialogue?, ending?('A'|'B'|'EX'), build(g)`  
 `kind`: `mid` | `midboss` | `boss`
 
 ### 核心机制
@@ -245,14 +247,14 @@ docs/                  # 内部改造队列等（非运行时）
 - `yinquan` 饮泉思源、`shama` 誓约沙玛（机制同；5 面对手随自机）
 - 常规：`easy` / `normal` / `hard` / `lunatic`（中文：这么菜啊 / 白银 / S6第一个王者 / 职业选手）
 - **Extra 专用**：`DIFFICULTIES.extra`（参数同 lunatic，文案独立）；仅 Extra Start / EX 路径
-- 难度只缩 `bulletSpeed` / `fireInterval` / `spawnMul` / `bulletCount` / `grazeMul` / `scoreMul`；资源与敌血等见 `BALANCE`
+- 难度只缩 `bulletSpeed` / `fireInterval` / `spawnMul` / `bulletCount` / `grazeMul` / `scoreMul`；资源（Extend/掉落）见 `BALANCE.resource`，敌血写在 `js/stages/*` 章节数据、由 `spawnScale.applyEnemyDifficulty` 缩放（当前全难度 `enemyHpMul=1`）
 
 ### 音频 / 视觉
 
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
 - 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
 - `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo 同时有版面内连击/剩余窗口与 HUD 主读数；前三面底部绘制 A/B 倾向条。难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
-- **旧版面背景系统已废弃待重做**（`playfieldBg.js` / `playfieldBgThemes.js` / `atoms2d.js` 冻结，不再新增 mode/视觉；见 `docs/background-rebuild-plan.md`）。
+- **旧版面背景系统已废弃待重做**（`playfieldBg.js` / `playfieldBgThemes.js` / `atoms2d.js` 冻结，不再新增 mode/视觉；`atoms2d.js` 仍被 `playfieldBg.js` 运行时 import，勿删；见 `docs/background-rebuild-plan.md`）。
 - 背景构建：`StageBackground(canvas, { rand })` 可注入装饰随机源（默认 `Math.random`），scenes 全走 `bg.__rand`，不消费玩法种子流。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）
 - Boss：`DEDICATED_BOSS_BY_KIND`；占位 `PLACEHOLDER_BOSS_SPRITES`（`null`=几何）；未知 kind **禁止**默认爱丽丝脸。环形血条显示值按逻辑帧缓动（掉血即时、回血/换阶段平滑），仅影响绘制。
@@ -284,7 +286,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 字段 | 含义 |
 |------|------|
 | `VERSION` | 构建号（自然数，pre-commit +1） |
-| `VERSION_NAME` | 展示语义段（如 `0.4.4`） |
+| `VERSION_NAME` | 展示语义段（以 `js/version.js` 为准，现值 `0.5.0`） |
 | `DEPLOY_GIT_HASH` | 仓库恒 `''`；CF 构建注入 |
 | `VERSION_LABEL` | 有 hash → `v{NAME}.{hash}`，否则 `v{NAME}` |
 
@@ -352,12 +354,12 @@ docs/                  # 内部改造队列等（非运行时）
 
 - 每轮 UI 工作必须先由主代理亲自查看当前游戏截图与命名原作参考图，再根据实际差异写规划；不得先凭代码或文字印象设计。每次交付前主代理再次亲自并排对比实际游戏截图与原作截图，报告差距与实测边界。
 - 美术实现：简单 SVG／CSS 达不到目标视觉效果时，一律使用图片资产（可生成或使用已有授权素材）；不要反复堆叠渐变、滤镜、随机 SVG 图形模拟复杂材质。图片负责材质、剪影与装饰，CSS 负责布局、响应式和交互状态；真实文字、读数与控件保持可访问 DOM。运行时图片按项目约定使用 AVIF，记录来源，并实拍验证裁切与可读性。
-- 参考图位于主项目内 `.worktrees/hud06/参考/参考截图/`，从当前 worktree 使用 `../hud06/参考/参考截图/` 定位；评审写出具体文件。战斗优先 `th14 游戏界面.png`；暂停/主界面分别使用 `th18暂停界面.png`、`th18主界面.png`，不得用菜单构图证明战斗相似度。
+- 参考图曾位于主项目内 `.worktrees/hud06/参考/参考截图/`（本地工作区证据，gitignored，可能已清理）：若目录存在，从当前 worktree 使用 `../hud06/参考/参考截图/` 定位；评审写出具体文件。战斗优先 `th14 游戏界面.png`；暂停/主界面分别使用 `th18暂停界面.png`、`th18主界面.png`，不得用菜单构图证明战斗相似度。
 - 在精确源 worktree 与 build hash 启动实际改动运行时，确认入口路由、active preview URL、可恢复加载失败后的真实 continue/recovery 流程和 ready 状态；再按 `1365x900`、`1264x625`、`844x390`、`667x375`、`568x320` 截图；`390x844` 只采集竖屏旋转引导，不再采集竖屏战斗 HUD。
 - 每轮将实际 PNG 同时与命名参考图及改动前的 matched-state baseline 对照，逐项记录已匹配、观察到的差距和下一项改动；发现明显不相似就自动修订并重跑，不要求用户重新描述显而易见的缺口。
 - 视觉证据与行为证据分开：截图只证明构图、色彩、纹理、字形、层级和可见状态；动画、时序、数据、输入、触控、恢复与素材身份必须通过真实运行路径验证。测试通过、PNG 存在或矩形检查单独都不能证明相似度或触控交互。
 - 保持原生 canvas `450x600` 及现有数据/输入契约；比较实际 CSS canvas 的 x/y/width/height 与三分区、响应式几何相对基线，允许子像素误差，不要强行把 CSS 显示尺寸设为 `450x600`。
-- 战斗当前视觉方向：以 TH14 战斗画面为主要参考，强化作品题字、主资源轮廓与连续印刷底材。外围使用 `assets/bg/battle-print.avif`（AI 生成，来源见 `assets/NOTICE.md`），由 `.game-backdrop` CSS 加载；不叠加旧 SVG 噪声或纹章。背景加载失败时使用深紫纯色底，不阻塞游戏。保留三分区、450×600 逻辑画布和真实数据；HUD 内部尺寸可按层级调整，但须实拍检查溢出、裁切和移动操作。视觉认可与运行验证分别记录，不自动提交或更新 PR。详细计划见主项目 `.local-evidence/warm-review/visual-plan.json`。
+- 战斗当前视觉方向：以 TH14 战斗画面为主要参考，强化作品题字、主资源轮廓与连续印刷底材。外围使用 `assets/bg/battle-print.avif`（AI 生成，来源见 `assets/NOTICE.md`），由 `.game-backdrop` CSS 加载；不叠加旧 SVG 噪声或纹章。背景加载失败时使用深紫纯色底，不阻塞游戏。保留三分区、450×600 逻辑画布和真实数据；HUD 内部尺寸可按层级调整，但须实拍检查溢出、裁切和移动操作。视觉认可与运行验证分别记录，不自动提交或更新 PR。详细计划曾存于主项目 `.local-evidence/warm-review/visual-plan.json`（gitignored，可能已清理）。
 - 将最终实际截图与对比报告保留在主项目 `.local-evidence/` 内（不属于运行时产物），直到用户看过后再清理；工作副本只放主项目 `.worktrees/` 内。交付时提供已验证的 active preview URL 与入口路由。
 - 2026-09-20 用户审阅 `generated-print-final` 后确认战斗 HUD 基本通过：当前视觉作为收尾基线，后续优先处理边界验证、回归与审查，不主动重开整体风格迭代；此认可不代表全部测试或 PR 合并已完成。
 - 暂停与结果菜单位于画布左下，选项错落排列；`assets/ui/pause-vine.avif` 为透明生成藤蔓，轻摆装饰不参与命中。选中项短促抖动，减少动态效果时停用。主菜单、重试、结算、续关经统一输入入口进入二次确认，默认“否”，Esc/否恢复原选项；继续、设置、保存录像不二次确认。转场锁定重复输入，真实动作仅在选择“是”后执行。

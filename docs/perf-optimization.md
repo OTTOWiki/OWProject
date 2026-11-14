@@ -3,6 +3,7 @@
 > 日期: 2026-08-13
 > 依据: `main` 全库热点审查。结论均来自代码现状；真机掉帧数据需按文末「验证方式」实测。
 > 状态: 实现完成（2026-08-13），待浏览器/真机视觉验证。验证未通过前不视为完成。
+> 说明：下文各节「现状」为 2026-08-13 审查时（实施前）的快照，落地结果见文末「实施状态」；文件路径已按 2026-11-14 拆分后的模块名更新。
 
 ---
 
@@ -32,13 +33,13 @@
 
 ## P0 — 主力弹种每弹每帧 shadowBlur + 渐变
 
-**现状**：`rice`（stages/patterns 中 110 处）与 `talisman`（72 处）为弹幕主力。`drawBullet`（`js/draw/entitiesDraw.js`）对每颗弹每帧执行：
+**现状**：`rice`（stages/patterns 中 110 处）与 `talisman`（72 处）为弹幕主力。`drawBullet`（`js/draw/bulletDraw.js`）对每颗弹每帧执行：
 
-- `ctx.shadowColor` + `ctx.shadowBlur = 12~16`（`entitiesDraw.js:314, 330`）→ 每次 fill 走阴影管线，Canvas 2D 最贵操作之一
-- `createRadialGradient` / `createLinearGradient`（`entitiesDraw.js:315, 331`）→ 每弹每帧分配 Gradient 对象 + 栅格化
+- `ctx.shadowColor` + `ctx.shadowBlur = 12~16`（`js/draw/bulletDraw.js` 的未缓存回退路径）→ 每次 fill 走阴影管线，Canvas 2D 最贵操作之一
+- `createRadialGradient` / `createLinearGradient`（`js/draw/bulletDraw.js` 的未缓存回退路径）→ 每弹每帧分配 Gradient 对象 + 栅格化
 - 弹体 + 白芯两次 ellipse fill
 
-**对照**：`dot`/`medium`/`large`（107 处）已走 softGlow 离屏缓存（`entitiesDraw.js:101-128`，`_glowCache` key=`r|color|color2`，`drawImage` 平移复用）——正确姿势，未覆盖主力弹种。
+**对照**：`dot`/`medium`/`large`（107 处）已走 softGlow 离屏缓存（`js/draw/drawUtils.js` 的 `_glowCache`，`drawImage` 平移复用）——正确姿势，未覆盖主力弹种。
 
 **改法建议**：rice/talisman 同样 sprite 化——按「形状×半径×颜色」预渲染到离屏 canvas（扩展 `_glowCache`，key 加形状维度），每帧仅 `drawImage` + 平移旋转；`shadowBlur` 仅保留给擦弹中的少量子弹（`grazeFx` 分支）。
 
@@ -46,7 +47,7 @@
 
 ## P1 — 激光每帧重建 5 层纺锤路径
 
-**现状**：`drawLaserBeam`（`js/draw/entitiesDraw.js:141-215`）对每道激光每帧执行 `buildSpindle` × 5 层（外柔光/色晕/主体/白芯/针芯线），segs = `max(10, min(28, round(len/14)))`。
+**现状**：`drawLaserBeam`（`js/draw/bulletDraw.js`，已改为预渲染 `strip` 贴图）对每道激光每帧执行 `buildSpindle` × 5 层（外柔光/色晕/主体/白芯/针芯线），segs = `max(10, min(28, round(len/14)))`。
 
 **改法建议**：预渲染成拉伸贴图（`drawImage` + 纵向 scale），或把 segs 上限压到 ~12。
 
@@ -70,7 +71,7 @@
 
 ## P2 — withAlpha() 每弹每帧拼 rgba 字符串
 
-**现状**：`withAlpha(hex, a)`（`js/draw/entitiesDraw.js:45-60`）每弹每帧解析 hex → 拼 `rgba(r,g,b,a)` 字符串，用于弹体 `strokeStyle` / `fillStyle`。
+**现状**：`withAlpha(hex, a)`（`js/draw/drawUtils.js`）每弹每帧解析 hex → 拼 `rgba(r,g,b,a)` 字符串，用于弹体 `strokeStyle` / `fillStyle`。
 
 **改法建议**：颜色预解析缓存 `{r,g,b}`，alpha 用预拼模板复用。
 

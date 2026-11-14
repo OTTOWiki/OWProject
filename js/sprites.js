@@ -2,7 +2,7 @@
  * 自机 / 敌机 / Boss 贴图
  *
  * Boss 贴图策略（T18）：
- * - DEDICATED_BOSS_KINDS：文件与角色一一对应
+ * - DEDICATED_BOSS_BY_KIND：角色 kind → 专用 sprite key（文件一一对应）
  * - PLACEHOLDER_BOSS_SPRITES：暂无专用图时的**显式**占位（注释写清借了谁的图）
  * - 未登记 kind：返回 null → 绘制走几何，**禁止**静默回落 boss_alice（避免误读成爱丽丝）
  */
@@ -105,10 +105,10 @@ export function preloadSprites() {
  */
 export function spriteKeyForEnemy(e) {
   if (e.type === 'boss' || e.kind === 'boss') {
-    const kind = e.kind === 'boss' ? e.data?.bossKind : e.kind;
-    const k = kind || e.kind;
-    if (k && DEDICATED_BOSS_BY_KIND[k]) return DEDICATED_BOSS_BY_KIND[k];
-    if (k && Object.prototype.hasOwnProperty.call(PLACEHOLDER_BOSS_SPRITES, k)) {
+    // Boss 的 character kind 直接写在 e.kind（boss() 构造时传入）
+    const k = e.kind;
+    if (DEDICATED_BOSS_BY_KIND[k]) return DEDICATED_BOSS_BY_KIND[k];
+    if (Object.prototype.hasOwnProperty.call(PLACEHOLDER_BOSS_SPRITES, k)) {
       return PLACEHOLDER_BOSS_SPRITES[k];
     }
     // 未知 boss kind：几何，禁止默认爱丽丝

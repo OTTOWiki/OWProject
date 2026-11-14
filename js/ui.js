@@ -85,9 +85,10 @@ const UI_ACTION_HANDLERS = {
     ui.show('practice');
   },
   'practice-start'(ui) {
-    const rawLives = Number(document.getElementById('practice-lives').value);
-    // 练习残机不封顶（仅下限 0）；空/非法回落 2
-    const lives = Number.isFinite(rawLives) ? Math.max(0, Math.floor(rawLives)) : 2;
+    const rawLives = document.getElementById('practice-lives').value.trim();
+    // 空/非法回落 2；有效值下限 0、不封顶（number 输入的 value 为空串时不能当 0）
+    const parsedLives = rawLives === '' ? NaN : Number(rawLives);
+    const lives = Number.isFinite(parsedLives) ? Math.max(0, Math.floor(parsedLives)) : 2;
     const unstable = document.getElementById('practice-unstable').checked;
     ui.pendingStart = {
       startChapter: ui.practiceChapterId,
@@ -414,7 +415,7 @@ export class UI {
   }
 
   _availableDifficulties() {
-    if (this._isExtraStart()) return extraDifficultyIds(DIFFICULTY_ORDER);
+    if (this._isExtraStart()) return extraDifficultyIds();
     return DIFFICULTY_ORDER;
   }
 
@@ -1128,7 +1129,7 @@ export class UI {
   _action(action) {
     if (this._sceneTransition) return;
     // 返回类只播 cancel；确认/进入类播 ok（避免 back 叠两声）
-    const isCancel = action === 'back' || action === 'back-diff';
+    const isCancel = action.startsWith('back');
     this._sfx(isCancel ? 'cancel' : 'ok');
     const handler = UI_ACTION_HANDLERS[action];
     if (handler) handler(this);

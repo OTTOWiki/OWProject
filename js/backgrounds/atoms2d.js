@@ -2,8 +2,8 @@
  * 版面背景 2D 原子：地平线剪影 / 侧柱（P1）。
  * 从 playfieldBg.js 原样搬出，绘制顺序与参数不变。
  *
- * @deprecated 2026-11-08：来源版面背景系统已废弃待重做。
- *   本文件只作为新系统的视觉参考，不再扩展 kind/sil。
+ * @deprecated 2026-11-08：来源版面背景系统已废弃待重做；但本文件仍是其运行时绘制实现
+ *   （playfieldBg.js import，勿删）。新系统只可作视觉参考，不再扩展 kind/sil。
  */
 
 function hash(n) {

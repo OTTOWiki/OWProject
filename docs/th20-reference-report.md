@@ -23,7 +23,8 @@
 | 黄金哈希 B1 | ✅ 已完成 | 202 章 × 600 帧，PR #56 / #64 |
 | 背景 P0 随机注入 | ✅ 已完成 | `StageBackground({ rand })`，PR #58 |
 | 背景 P3 easing | ✅ 已完成 | `backgrounds/easing.js`，PR #63 |
-| 背景 P1/P2 原子化/数据化 | ⏳ 未做 | 需逐像素基线 |
+| 背景 P1 版面原子化 | ✅ 已完成 | `backgrounds/atoms2d.js`（`playfieldBg.js` 运行时 import），PR #66 |
+| 背景 P2 左侧场景数据化 | ⏳ 未做 | 需逐像素基线 |
 | B2 EX mob 原型化 | ✅ 53/62 | `stages/archetypes.js`，PR #61–#83 |
 | A7 排行用时 | ✅ 已完成 | `duration` + 榜单列，PR #70 |
 | A8 stageReached 去 DOM | ✅ 已完成 | `chapterLabel.js` + `furthestChapterId`，PR #87 |

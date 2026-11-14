@@ -421,9 +421,9 @@ export function finishChapter(game, success) {
     if (game.mode === 'practice') {
       savePracticeBest(ch.id, game.difficultyId, { score: game.score, perfect });
     }
-    const statsLines = formatRunStats(game.stats || {});
+    const statsLines = formatRunStats(game.stats);
     const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n${perfect ? 'Perfect Clear!' : ''}`
-      + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+      + ('\n' + statsLines.join('\n'));
     scheduleAdvance(game, NEXT_DELAY_SEC, () => {
       openResult(game, {
         title: '练习结束',
@@ -617,9 +617,9 @@ export function showEnding(game, which) {
       retryChapter = exIdx != null ? game.chapters[exIdx]?.id : 1;
     }
     const openFinal = () => {
-      const statsLines = formatRunStats(game.stats || {});
+      const statsLines = formatRunStats(game.stats);
       const body = `难度：${game.diff.rank} ${game.diff.name}\n最终得分：${game.score}`
-        + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+        + ('\n' + statsLines.join('\n'));
       openResult(game, {
         title,
         body,
@@ -635,8 +635,8 @@ export function showEnding(game, which) {
 function buildGameOverBody(game) {
   const ch = game.chapters[game.chapterIndex];
   const body = `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch.name}\n得分：${game.score}\n倾向：${game.totalTendency.toFixed(0)}%`;
-  const statsLines = formatRunStats(game.stats || {});
-  return statsLines.length ? body + '\n' + statsLines.join('\n') : body;
+  const statsLines = formatRunStats(game.stats);
+  return body + '\n' + statsLines.join('\n');
 }
 
 /**
@@ -659,19 +659,6 @@ export function finalizeGameOver(game) {
 
 export function gameOver(game) {
   if (game.replaying) { game._showReplayEnd(); return; }
-  if (game.mode === 'nomiss') {
-    // 不应走到（miss 已被 nomissRestart 劫持）；兜底为手动结算语义，并清空进度
-    const ch = game.chapters[game.chapterIndex];
-    saveNomissProgress(null);
-    saveHiscore(game.score);
-    openResult(game, {
-      title: 'Nomiss 结算',
-      body: `难度：${game.diff.rank} ${game.diff.name}\n章节：${ch?.name ?? '—'}\n得分：${game.score}\n${formatRunStatsShort(game.stats)}`,
-      retryChapter: ch?.id ?? 1,
-      actions: ['retry', 'menu'],
-    });
-    return;
-  }
   const ch = game.chapters[game.chapterIndex];
   if (ch.loseDialogue && game.dialogues[ch.loseDialogue]) {
     openDialogue(game, game.dialogues[ch.loseDialogue], () => finalizeGameOver(game));
@@ -697,9 +684,9 @@ export function gameClear(game) {
   }
   submitRanking(game, { cleared: true });
   const openFinal = () => {
-    const statsLines = formatRunStats(game.stats || {});
+    const statsLines = formatRunStats(game.stats);
     const body = `全关卡完成！\n难度：${game.diff.rank} ${game.diff.name}\n得分：${game.score}`
-      + (statsLines.length ? '\n' + statsLines.join('\n') : '');
+      + ('\n' + statsLines.join('\n'));
     openResult(game, {
       title: 'All Clear',
       body,
@@ -742,7 +729,7 @@ export function submitRanking(game, { cleared = false } = {}) {
     date: Date.now(),
   };
   const list = loadRanking()[difficultyId] || [];
-  const rank = rankFor(list, entry.score);
+  const rank = rankFor(list, entry.score, entry.date);
   if (rank < 0) {
     game._rankingResult = { qualifies: false };
     return null;

@@ -28,7 +28,7 @@ import { chapterStageLabel } from './chapterLabel.js';
 import { loadHiscore, loadSettings } from './storage.js';
 import { withSeededRng, createRng, randomSeed } from './rng.js';
 import {
-  buildReplay, validateAnyReplay, createPlayer, createReplayInput, replayVersionOf,
+  buildReplay, validateAnyReplay, createPlayer, createReplayInput,
 } from './replay.js';
 import { saveReplay } from './replayStore.js';
 import { formatRunStats } from './runStats.js';
@@ -76,7 +76,7 @@ export class Game {
 
     this.running = false;
     this.paused = false;
-    this.mode = 'story'; // story | practice | stage
+    this.mode = 'story'; // story | practice | stage | extra | nomiss
     this.raf = 0;
     this.lastT = 0;
     this.playBg = new PlayfieldBackground();
@@ -84,7 +84,7 @@ export class Game {
     const initSettings = loadSettings();
     this.playerBulletOpacity = initSettings.playerBulletOpacity;
     /** 描画帧率上限：0 = 不限制；>0 = 24–240（仅限描画，逻辑固定 60） */
-    this.fpsLimit = Number(initSettings.fpsLimit) > 0 ? Math.round(Number(initSettings.fpsLimit)) : 0;
+    this.fpsLimit = initSettings.fpsLimit; // loadSettings 已归一为 0（无限制）或 24–240
     /** 逻辑步进银行（ms），累加 rAF 间隔后按固定 60fps 扣款 */
     this._fpsBankMs = 0;
     /** 描画节流：上次实际出帧的 performance.now()；0 表示尚未出过帧 */
@@ -92,6 +92,8 @@ export class Game {
     this._hudCache = createHudCache();
     this.playerBullets = [];
     this.enemyBullets = [];
+    this.items = [];
+    this.particles = [];
     this._homeList = null;
     this._homeTarget = null;
     /** 版面左上角：描画帧率（约 0.5s 平滑，仅统计实际 _draw 次数） */
@@ -127,21 +129,19 @@ export class Game {
   /** 从设置同步运行时参数（菜单改设置后 / 开局） */
   applySettings(settings) {
     const s = settings || loadSettings();
-    this.playerBulletOpacity = s.playerBulletOpacity ?? 0.3;
-    this.mobileSpeedLimit = s.mobileSpeedLimit !== false;
-    const nextCap = Number(s.fpsLimit) > 0 ? Math.round(Number(s.fpsLimit)) : 0;
-    if (nextCap !== this.fpsLimit) {
-      this.fpsLimit = nextCap;
+    this.playerBulletOpacity = s.playerBulletOpacity;
+    this.mobileSpeedLimit = s.mobileSpeedLimit;
+    if (s.fpsLimit !== this.fpsLimit) {
+      this.fpsLimit = s.fpsLimit;
       this._lastDrawT = 0;
-    } else {
-      this.fpsLimit = nextCap;
     }
     this.realInput.applySettings(s);
-    this.audio.setMusicVolume(s.musicVolume ?? 1);
+    this.audio.setMusicVolume(s.musicVolume);
   }
 
   _bindUI() {
     this.el = {
+      screenGame: document.getElementById('screen-game'),
       score: document.getElementById('ui-score'),
       scoreCompact: document.getElementById('ui-score-compact'),
       scoreDetails: document.getElementById('ui-score-details'),
@@ -235,9 +235,7 @@ export class Game {
       this._replayInput.keys = replay.keys ? { ...replay.keys } : { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' };
       this._replayInput.shotToggleMode = !!replay.shotToggleMode;
       this.input = this._replayInput;
-      this._replayPlayer = createPlayer(replay.frames, {
-        version: replayVersionOf(replay), keys: replay.keys,
-      });
+      this._replayPlayer = createPlayer(replay.frames, { keys: replay.keys });
     } else {
       this.input = this.realInput;
     }
@@ -293,8 +291,6 @@ export class Game {
     releaseItemList(this.items);
     releaseParticleList(this.particles);
     this.enemies = [];
-    this.items = this.items || [];
-    this.particles = this.particles || [];
     this._grazeParticleCount = 0;
 
     this.bossRef = null;
@@ -309,8 +305,6 @@ export class Game {
     this._hudCache = createHudCache();
     releaseBulletList(this.playerBullets);
     releaseBulletList(this.enemyBullets);
-    this.playerBullets = this.playerBullets || [];
-    this.enemyBullets = this.enemyBullets || [];
     this._homeList = null;
     this._homeTarget = null;
     this._colEvents = [];
@@ -329,7 +323,7 @@ export class Game {
     this.noBomb = false;
     this.bombCost = 1;
 
-    this.state = 'playing'; // playing | dialogue | routeSelect | gameover | ending | paused
+    this.state = 'playing'; // playing | dialogue | routeSelect | stageTransit | gameover（暂停 paused / 结局演出 endingCinematic 是独立标志）
     this.dialogueQueue = [];
     this.dialogueIdx = 0;
     this.pendingAfterDialogue = null;
@@ -364,7 +358,7 @@ export class Game {
     this.input.bindCanvas(
       this.canvas,
       () => ({ x: this.player.x, y: this.player.y }),
-      this.replaying ? this.canvas : document.getElementById('screen-game'),
+      this.replaying ? this.canvas : this.el.screenGame,
     );
     this.audio.ensure();
     withSeededRng(() => startChapter(this), this._rngNext);
@@ -395,8 +389,7 @@ export class Game {
    * 关卡与 patterns 应走此 API，勿直接 enemies.push。
    */
   spawnEnemy(e) {
-    if (!e) return e;
-    applyEnemyDifficulty(e, this.enemyHpMul ?? 1, this.fireIntervalMul ?? 1);
+    applyEnemyDifficulty(e, this.enemyHpMul, this.fireIntervalMul);
     if (this.state === 'playing') {
       this._hadWaveEnemySpawn = true;
       this._lastEnemySpawnChapterTime = this.chapterTime;
@@ -412,8 +405,7 @@ export class Game {
    * 写入 playerBullets / enemyBullets 分表（权威）；勿直接 push 数组。
    */
   spawnBullet(b) {
-    if (!b) return b;
-    applyEnemyBulletDifficulty(b, this.bulletSpeedMul ?? 1);
+    applyEnemyBulletDifficulty(b, this.bulletSpeedMul);
     if (b.from === 'player') this.playerBullets.push(b);
     else this.enemyBullets.push(b);
     return b;
@@ -523,7 +515,7 @@ export class Game {
 
       // ---- 描画：跟 rAF / 设置上限，与逻辑 60 完全独立 ----
       let shouldDraw = true;
-      const cap = this.fpsLimit > 0 ? Math.max(24, Math.min(240, this.fpsLimit)) : 0;
+      const cap = this.fpsLimit;
       if (cap > 0) {
         const minDrawMs = 1000 / cap;
         if (this._lastDrawT > 0 && (t - this._lastDrawT) < minDrawMs * 0.92) {
@@ -641,7 +633,6 @@ export class Game {
     }
   }
 
-  /** 回放控制（真实按键）：Esc 退出、R 重开、F/Shift 快进 */
   /**
    * 回放控制（真实按键）：Esc 退出、R 重开、F/Shift 快进。
    * @returns {boolean} 是否已触发退出/重开（调用方应跳过本 rAF 的逻辑，避免重入/多消费帧）
@@ -770,7 +761,7 @@ export class Game {
     if (this.state !== 'playing' || this.paused) clearCombatEdges(this._combatEdges);
 
     // 设置页等非游戏屏时不吃输入（避免 Esc 误开暂停）
-    if (!document.getElementById('screen-game')?.classList.contains('active')) {
+    if (!this.el.screenGame.classList.contains('active')) {
       clearCombatEdges(this._combatEdges);
       this.input.consumePause();
       return;

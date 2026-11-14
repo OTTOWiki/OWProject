@@ -109,6 +109,20 @@ test('写成功：writeStored 返回 true 且不通知', () => {
 });
 
 
+test('关键键备份：主键坏 JSON 时不覆盖仍可用的备份，并正常写入新值', () => {
+  withStorage({}, (map) => {
+    unlockStage(5);
+    unlockStage(6); // 备份 = 5，主键 = 6
+    map.set('gunwei_unlocked', '{broken');
+    assertEqual(loadUnlocked().stage, 5, '主键坏 → 回落备份');
+    unlockStage(7); // 写主键前不应把坏 JSON 写进 _bak
+    const bak = map.get('gunwei_unlocked_bak');
+    assert(bak && !bak.startsWith('{broken'), '坏主键不得覆盖备份');
+    assertEqual(JSON.parse(bak).stage, 5, '备份仍为上一份合法快照');
+    assertEqual(JSON.parse(map.get('gunwei_unlocked')).stage, 7);
+  });
+});
+
 test('关键键备份：主键损坏时回落上一份，清除时连备份删除', () => {
   withStorage({}, (map) => {
     unlockStage(5);

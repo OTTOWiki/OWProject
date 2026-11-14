@@ -1,6 +1,6 @@
 /**
  * 录像：输入快照 RLE 编解码 + 顺序播放游标 + 录像对象组装。
- * 快照字段与 Input.snapshot() 约定一致：d,p,m,t,v,a,b,i,l。
+ * 快照字段与 Input.snapshot() 约定一致：d,p,m,t,v,a,b,i,l,sl,tl（见 input.js snapshot()）。
  * 帧数据结构：{ s: steps(0..3), i: snapshot }；仅 s>0 帧进入录像。
  */
 import { REPLAY_VERSION, REPLAY_LEGACY_VERSIONS } from './config.js';
@@ -61,14 +61,16 @@ export function encodeRuns(frames) {
 }
 
 /**
- * RLE runs → 顺序播放游标。
+ * RLE runs → 顺序播放游标。不修改传入的 runs（录像对象会被重复校验/重开）。
  * @param {Array} runs
- * @param {{ version?: number, keys?: object }} [opts] v2 需要键位表解码
+ * @param {{ keys?: object }} [opts] v2 需要键位表解码
  */
-export function createPlayer(runs, { version = REPLAY_VERSION, keys = {} } = {}) {
+export function createPlayer(runs, { keys = {} } = {}) {
   let run = 0;
   let pos = 0;
   const table = replayKeyTable(keys);
+  /** run 下标 → 解码快照（同一 run 内输入相同，解一次复用） */
+  const decoded = new Map();
   return {
     reset() { run = 0; pos = 0; },
     /** @returns {{steps:number, snapshot:object}|null} */
@@ -78,9 +80,12 @@ export function createPlayer(runs, { version = REPLAY_VERSION, keys = {} } = {})
         if (pos < r[0]) {
           pos++;
           if (Array.isArray(r[2])) {
-            // 同一 run 内输入相同：解一次并复用，避免逐帧分配
-            if (!r[3]) r[3] = decodeReplayFrame(r[2], table);
-            return { steps: r[1], snapshot: r[3] };
+            let snap = decoded.get(run);
+            if (!snap) {
+              snap = decodeReplayFrame(r[2], table);
+              decoded.set(run, snap);
+            }
+            return { steps: r[1], snapshot: snap };
           }
           return { steps: r[1], snapshot: r[2] };
         }

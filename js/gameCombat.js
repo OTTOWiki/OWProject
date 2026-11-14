@@ -17,13 +17,6 @@ import { finishChapter, gameOver, startChapter, softClearForNextChapter } from '
 import { evaluateChapterEnd, chapterEndSnapFromGame } from './chapterEnd.js';
 import { consumeCombatEdges } from './combatEdges.js';
 
-/**
- * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
- * 须在 runCollisions 之后、purge 敌机之前调用（onDeath 依赖实体仍在场上）
- * @param {import('./game.js').Game} game
- * @param {import('./collision.js').CollisionEvent[]} events
- */
-
 /* ========== 打击反馈（纯视觉；不影响判定/回放） ========== */
 
 /** 停帧：max 语义 + cap，不叠加（Boss 连中只保留最长一次） */
@@ -40,7 +33,6 @@ export function addShake(game, mag, dur) {
 
 /** 冲击波：扩张淡出圆环（r 由 vr 匀速增大，alpha 随 life/maxLife 衰减） */
 export function addShockwave(game, x, y, color, maxR, life) {
-  if (!game._shockwaves) game._shockwaves = [];
   game._shockwaves.push({
     x, y, r: 0, vr: maxR / life, color, life, maxLife: life, dead: false,
   });
@@ -75,6 +67,12 @@ function spawnGrazeParticles(game, p) {
 
 // 受击白闪（hurtT）保留；命中停帧只给一次性大事件（击破/Bomb/Miss/Letter），
 // 避免持续输出把逻辑压到低速（旧版每帧 addHitStop → _hitStop 恒 >0 → updateCombat 被节流）。
+/**
+ * 消费 collision 事件：得分 / 掉落 / 粒子 / onDeath / 擦弹 / 中弹
+ * 须在 runCollisions 之后、purge 敌机之前调用（onDeath 依赖实体仍在场上）
+ * @param {import('./game.js').Game} game
+ * @param {import('./collision.js').CollisionEvent[]} events
+ */
 export function applyCollisionEvents(game, events) {
   if (!events || !events.length) return;
   const p = game.player;
@@ -135,7 +133,7 @@ export function updateStageTransit(game, dt) {
     // 过渡中仍可移动，但不射击/不碰伤
     for (const it of game.items) {
       it.update(dt, p, true);
-      if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
+      if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + BALANCE.itemPickupRadius) {
         it.dead = true;
         collectItem(game, it);
       }
@@ -311,7 +309,7 @@ export function updateCombat(game, dt) {
   // items（结算中强制吸引）
   for (const it of game.items) {
     it.update(dt, p, settling || p.bombTimer > 0);
-    if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + (BALANCE.itemPickupRadius ?? 20)) {
+    if (Math.hypot(it.x - p.x, it.y - p.y) < it.r + BALANCE.itemPickupRadius) {
       it.dead = true;
       collectItem(game, it);
     }
@@ -321,12 +319,10 @@ export function updateCombat(game, dt) {
   for (const pt of game.particles) pt.update(dt);
 
   // shockwaves（打击反馈冲击波：扩张 + 计时）
-  if (game._shockwaves) {
-    for (const sw of game._shockwaves) {
-      sw.r += sw.vr * dt;
-      sw.life -= dt;
-      if (sw.life <= 0) sw.dead = true;
-    }
+  for (const sw of game._shockwaves) {
+    sw.r += sw.vr * dt;
+    sw.life -= dt;
+    if (sw.life <= 0) sw.dead = true;
   }
 
   // collisions：几何命中 → 事件 → 得分/掉落/onDeath（purge 前）
@@ -359,7 +355,7 @@ export function updateCombat(game, dt) {
   // cleanup：分表 swap-remove + 对象池归还
   game._purgeDeadBullets();
   game._purgeDead(game.enemies);
-  if (game._shockwaves) game._purgeDead(game._shockwaves);
+  game._purgeDead(game._shockwaves);
   game._purgeDeadItems();
   game._purgeDeadParticles();
 
@@ -423,15 +419,14 @@ export function nomissRestart(game) {
   game.player.resetPos();
   game.player.invuln = 1.5;
 
+  // startChapter 在 Nomiss 下必写快照；miss 劫持只发生在进章后的 playing 帧
   const snap = game._nomissSnapshot;
-  if (snap) {
-    if (snap.unstableFx) game.nextUnstableFx = snap.unstableFx;
-    game.score = snap.score ?? game.score;
-    game.baseScore = snap.baseScore ?? game.baseScore;
-    game.extendCount = snap.extendCount ?? game.extendCount;
-    game.player.lives = snap.lives ?? game.player.lives;
-    game.player.bombs = snap.bombs ?? game.player.bombs;
-  }
+  if (snap.unstableFx) game.nextUnstableFx = snap.unstableFx;
+  game.score = snap.score;
+  game.baseScore = snap.baseScore;
+  game.extendCount = snap.extendCount;
+  game.player.lives = snap.lives;
+  game.player.bombs = snap.bombs;
   if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
   flashMsg(game, '无伤重开', 1.2);
 
@@ -462,7 +457,7 @@ export function miss(game) {
     gameOver(game);
     return;
   }
-  const floor = BALANCE.resource.missBombFloor ?? 2;
+  const floor = BALANCE.resource.missBombFloor;
   p.bombs = Math.max(p.bombs, floor);
   p.invuln = 3;
   p.resetPos();
@@ -523,12 +518,12 @@ export function flashMsg(game, text, sec = 1.2) {
 }
 
 export function defaultKillDrop(game, e) {
-  if (e.drop) return e.drop;
+  // 调用方仅在 e.drop 为空时调用本函数
   const ch = game.chapters[game.chapterIndex];
   if (!ch) return null;
   if (
     ch.kind === 'midboss'
-    && BALANCE.resource.midbossDrop !== false
+    && BALANCE.resource.midbossDrop
     && (e.type === 'boss' || e.type === 'elite')
   ) {
     return 'bomb';
@@ -582,7 +577,7 @@ export function grantLetterResource(game, ch, perfect, success) {
     return;
   }
 
-  const chance = res.letterNmnbBombChance ?? 0.4;
+  const chance = res.letterNmnbBombChance;
   if (Math.random() < chance) {
     spawnItem(game, bx + (Math.random() - 0.5) * 30, by + 18, 'bomb');
   }
