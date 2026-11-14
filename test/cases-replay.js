@@ -139,6 +139,33 @@ test('encodeRuns / createPlayer 往返（含 RLE 合并）', () => {
   assertEqual(out[2].m[0], 'ArrowLeft');
 });
 
+test('createPlayer：不修改传入 runs（消费后录像仍可通过校验/可重开）', () => {
+  const snap = { ...EMPTY_SNAP, d: ['KeyZ'] };
+  const runs = encodeRuns([
+    { s: 1, i: snap },
+    { s: 2, i: { ...EMPTY_SNAP, m: ['ArrowLeft'] } },
+  ]);
+  const before = runs.map((r) => r.length);
+  const p = createPlayer(runs, { keys: { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' } });
+  while (p.next()) { /* 消费全部帧 */ }
+  assertEqual(runs.map((r) => r.length).join(','), before.join(','), 'runs 长度不被解码缓存改写');
+  const keys = { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' };
+  const compact = encodeReplayFrame(snap, replayKeyTable(keys));
+  const replay = buildReplay({
+    header: {
+      seed: 5, playerId: 'yinquan', difficultyId: 'normal', mode: 'story',
+      route: null, startChapter: 1, lives: null, singleChapter: false,
+      unstable: true, shotToggleMode: false, keys,
+    },
+    frames: [{ s: 1, i: compact }],
+    endState: { score: 1 },
+    partial: true,
+  });
+  const player = createPlayer(replay.frames, { keys: replay.keys });
+  player.next();
+  assert(validateAnyReplay(replay), '消费过快照缓存后仍应通过 validateAnyReplay（R 重开依赖）');
+});
+
 test('buildReplay / validateReplay', () => {
   const r = buildReplay({
     header: {
