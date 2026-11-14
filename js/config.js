@@ -61,6 +61,7 @@ export const FPS_SLIDER_UNLIMITED = 241;
  * 自机位移 = 手指在版面逻辑坐标中的位移 × 0.5。该值是移动端移动手感契约的一部分，
  * 不是可调灵敏度：改动会让手机与桌面的相对位移关系失效，也会让旧录像手感漂移。
  * 只作用于实时触控增量；virtualMove 仍为绝对逻辑坐标，录像以该绝对目标记录。
+ * 注意：这是触控位移系数，不是页面 viewport 缩放；页面缩放 0.5 见 index.html 的 viewport 硬约束。
  */
 export const TOUCH_DRAG_SCALE = 0.5;
 

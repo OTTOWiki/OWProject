@@ -150,6 +150,7 @@ docs/                  # 内部改造队列等（非运行时）
 - `LOGICAL_W=450`, `LOGICAL_H=600`（`config.js`）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
+- **移动端页面视口缩放 0.5 是硬约束**：`index.html` 的 viewport 使用 `initial-scale=0.5, maximum-scale=0.5, user-scalable=no`，不得改回 1；它与触控位移系数 `TOUCH_DRAG_SCALE` 是两件事。
 - **移动端仅横屏**：竖屏显示全屏旋转引导（`#rotate-gate`），进行中的对局先暂停，不提供竖屏战斗版面。横屏中央版面优先利用可用宽高，右侧 HUD 固定完整显示、不内部滚动；低速/Item/Bomb/暂停操作条位于 HUD 下方，不占用版面，也不在 970px 处切回三栏。
 - 触屏移动事件面是 `#screen-game` 全屏（按钮、叠加层、面板控件除外）；相对按下点的拖动 ×0.5 生成绝对目标，自机按住时按桌面同速平滑追平（保留拖动距离），抬手/取消/失焦立即停止；无死区、方向连续，不做 8 向离散映射。`TOUCH_DRAG_SCALE=0.5` 是**硬约束**，不得改动。默认与桌面同速，设置可关闭；关闭后触屏直接跟到目标位置，并写入本局作弊标记，回放/排行显示。
 - 版面画布无 CSS 边框，装饰由外围容器承载；Letter 卡是版面内右上角叠加层，不占用版面布局；Boss 标记仍贴底边。
