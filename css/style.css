@@ -2406,8 +2406,10 @@ input, select, textarea {
   .letter-timer { font-size: 13px; }
   .letter-remain, .letter-bonus, .letter-rate { font-size: 10px; }
   .playfield-wrap {
-    width: min(100cqw, calc(100cqh * 0.75));
-    height: min(calc(100cqw * 4 / 3), 100cqh);
+    /* Reserve the ENEMY marker strip below the field: .game-layout clips overflow,
+       so a marker positioned at top:100% would otherwise disappear on short screens. */
+    width: min(100cqw, calc((100cqh - 24px) * 0.75));
+    height: min(calc(100cqw * 4 / 3), calc(100cqh - 24px));
     aspect-ratio: 3 / 4;
   }
   #playfield { touch-action: none; }
@@ -2455,7 +2457,7 @@ input, select, textarea {
   .touch-controls { display: grid; gap: 4px; }
   .touch-btn { min-height: 44px; padding: 4px 2px; font-size: 12px; touch-action: manipulation; }
   .touch-btn.slow { font-size: 13px; }
-  .boss-enemy-marker { margin-top: 4px; }
+  .boss-enemy-marker { margin-top: 0; }
   .boss-enemy-marker > span { font-size: 9px; }
 }
 /* 0.5 viewport scaling doubles the CSS viewport: keep the desktop three-column
