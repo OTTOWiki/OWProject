@@ -315,14 +315,13 @@ export function runOverlayAction(game, action) {
   }
   if (action === 'save-replay') {
     const isPause = game.overlayMode === 'pause';
+    // _saveReplay 已把存储失败收敛为 {ok:false}；catch 仅兜程序性异常，文案一致
     game._saveReplay({
       partial: isPause,
       cleared: !isPause && !!game._endCleared,
     }).then((r) => {
-      if (game.el.overlayHint) {
-        game.el.overlayHint.textContent = r && r.ok ? '录像已保存' : '录像保存失败';
-      }
-    }).catch(() => {
+      if (game.el.overlayHint) game.el.overlayHint.textContent = r.ok ? '录像已保存' : '录像保存失败';
+    }, () => {
       if (game.el.overlayHint) game.el.overlayHint.textContent = '录像保存失败';
     });
     return;
