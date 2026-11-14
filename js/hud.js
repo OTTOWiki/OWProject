@@ -4,6 +4,17 @@
  */
 import { BALANCE, LOGICAL_W, LOGICAL_H, calcLetterBonus } from './config.js';
 
+/**
+ * Combo 主读数：连击数、得分倍率与剩余窗口秒数。
+ * combo ≤ 1 时不显示（首次击破不打扰 HUD）。
+ */
+export function formatComboText(combo, timer, perPercent) {
+  const n = Number(combo) || 0;
+  if (n <= 1) return '—';
+  const left = Math.max(0, Number(timer) || 0);
+  return `${n} ×${(1 + n * perPercent).toFixed(2)} · ${left.toFixed(1)}s`;
+}
+
 /** @returns {object} 脏缓存 */
 export function createHudCache() {
   return {
@@ -204,9 +215,7 @@ export function updateGameHud(game) {
   setText(el.unstable, game.unstableFx ? game.unstableFx.label : '关', 'unstable', cache);
   setText(el.tendency, tendencyText(game.totalTendency), 'tendency', cache);
   const comboActive = game.combo > 1;
-  const comboText = comboActive
-    ? `${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`
-    : '—';
+  const comboText = formatComboText(game.combo, game.comboTimer, BALANCE.combo.perPercent);
   setText(el.combo, comboText, 'combo', cache);
   if (cache.comboActive !== comboActive) {
     cache.comboActive = comboActive;

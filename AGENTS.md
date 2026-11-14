@@ -152,7 +152,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
 - **移动端仅横屏**：竖屏显示全屏旋转引导（`#rotate-gate`），进行中的对局先暂停，不提供竖屏战斗版面。横屏中央版面优先利用可用宽高，右侧 HUD 固定完整显示、不内部滚动；低速/Item/Bomb/暂停操作条位于 HUD 下方，不占用版面，也不在 970px 处切回三栏。
 - 触屏移动事件面是 `#screen-game` 全屏（按钮、叠加层、面板控件除外）；相对按下点的拖动 ×0.5 生成绝对目标，自机按住时按桌面同速平滑追平（保留拖动距离），抬手/取消/失焦立即停止；无死区、方向连续，不做 8 向离散映射。`TOUCH_DRAG_SCALE=0.5` 是**硬约束**，不得改动。默认与桌面同速，设置可关闭；关闭后触屏直接跟到目标位置，并写入本局作弊标记，回放/排行显示。
-- 版面画布无 CSS 边框，装饰由外围容器承载；Letter 信息使用版面上方独立区域，Boss 标记仍贴底边。
+- 版面画布无 CSS 边框，装饰由外围容器承载；Letter 卡是版面内右上角叠加层，不占用版面布局；Boss 标记仍贴底边。
 - `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击/触屏低速，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作；触屏低速键按住/释放成对处理。
 - HUD 详情使用原生 `details.open`，横屏始终展开并完整显示；不依赖 `::details-content` 才显示低频信息。
 - 菜单导航按住方向键由 `config.MENU_REPEAT`（350ms 首延迟 / 80ms 间隔）驱动，与系统键盘连发无关；确认/返回/删除始终边沿触发，设置屏左右调值不自动重复。
@@ -233,7 +233,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 决死窗：`BALANCE.deathBombWindow`
 - 屏外剔除：子弹出生 0.08s 宽限；速度仍指向场内时保留（回场弹/雨弹第一帧不消失）
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
-- Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
+- Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore；版面内显示连击数、倍率、剩余窗口秒数与进度条，HUD 同步主读数
 - 排行榜条目记录 `duration`（秒）与 `furthestChapterId`（本局最远章，`startChapter` 维护）；`stageReached` 由章节数据生成，不再读 DOM。榜单桌面显示日期与「用时 mm:ss」，窄屏隐藏玩家/路线/日期，保留分数与用时。`cheat` 为 true 时显示「作弊」徽标。
 - 续关：每次 Game Over 先过成绩排行；还有续关次数（`BALANCE.continue.max`=2，练习除外）时结算可选继续，续关后残机/Bomb=2（`BALANCE.continue.lives/bombs`）、**分数清零**（hiscore 保留），排行榜标「续」，续关后不再录制录像
 - 默认 **4 残 4B**；Stage Select **不锁关**
@@ -250,7 +250,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
 - 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
-- `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo/倾向只保留 HUD 主读数，难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
+- `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo 同时有版面内连击/剩余窗口与 HUD 主读数；前三面底部绘制 A/B 倾向条。难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
 - **旧版面背景系统已废弃待重做**（`playfieldBg.js` / `playfieldBgThemes.js` / `atoms2d.js` 冻结，不再新增 mode/视觉；见 `docs/background-rebuild-plan.md`）。
 - 背景构建：`StageBackground(canvas, { rand })` 可注入装饰随机源（默认 `Math.random`），scenes 全走 `bg.__rand`，不消费玩法种子流。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）

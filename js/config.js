@@ -133,6 +133,8 @@ export const BALANCE = {
   combo: {
     perPercent: 0.01,
     window: 3,
+    /** 版面内 Combo 显示：半透明 / 自机避让距离 */
+    display: { alpha: 0.88, evadeDist: 110 },
   },
   /** 续关：Game Over 后可续关次数 / 续关后残机 / Bomb（续关后分数清零，hiscore 保留） */
   continue: { max: 2, lives: 2, bombs: 2 },
