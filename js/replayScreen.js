@@ -193,7 +193,16 @@ export class ReplayScreen {
       this.load();
     } catch (err) {
       console.error('[replay delete]', err);
+      this._setStatus('删除失败：本地录像存储不可用', true);
     }
+  }
+
+  /** 写入 Replay 屏状态行（error=true 使用错误样式） */
+  _setStatus(text, error = false) {
+    const statusEl = document.getElementById('replay-status');
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.classList.toggle('error', error);
   }
 
   /** 导出单条录像为 JSON 文件 */
@@ -236,34 +245,38 @@ export class ReplayScreen {
   async _importFiles(files) {
     if (!files.length) return;
     let imported = 0;
-    let failed = 0;
-    const statusEl = document.getElementById('replay-status');
+    let invalid = 0;
+    let storeFailed = 0;
     for (const file of files) {
+      let res;
       try {
-        const text = await file.text();
-        const res = deserializeReplay(text);
-        if (!res.ok) {
-          failed++;
-          continue;
-        }
+        res = deserializeReplay(await file.text());
+      } catch (err) {
+        console.error('[replay import] read', file.name, err);
+        invalid++;
+        continue;
+      }
+      if (!res.ok) {
+        invalid++;
+        continue;
+      }
+      try {
         // 导入为新的本地条目，避免 replayId 冲突覆盖
-        const replay = { ...res.replay, replayId: makeReplayId() };
-        await saveReplay(replay);
+        await saveReplay({ ...res.replay, replayId: makeReplayId() });
         imported++;
       } catch (err) {
-        console.error('[replay import]', file.name, err);
-        failed++;
+        console.error('[replay import] save', file.name, err);
+        storeFailed++;
       }
     }
     this.load();
-    if (statusEl) {
-      if (imported > 0) {
-        statusEl.textContent = `已导入 ${imported} 条录像${failed ? `，${failed} 条失败` : ''}`;
-        statusEl.classList.remove('error');
-      } else {
-        statusEl.textContent = `导入失败（${failed} 个文件无效或版本不符）`;
-        statusEl.classList.add('error');
-      }
+    if (imported > 0) {
+      const extra = invalid + storeFailed;
+      this._setStatus(`已导入 ${imported} 条录像${extra ? `，${extra} 条失败` : ''}`);
+    } else if (storeFailed > 0) {
+      this._setStatus('导入失败：本地存储写入失败，请检查浏览器存储权限/配额', true);
+    } else {
+      this._setStatus(`导入失败（${invalid} 个文件无效或版本不符）`, true);
     }
     if (imported > 0) this.audio.sfx('ok');
   }

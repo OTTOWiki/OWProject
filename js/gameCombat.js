@@ -269,6 +269,7 @@ export function updateCombat(game, dt) {
         }
       } catch (err) {
         console.error('[enemy script]', e?.label || e?.kind, err);
+        game._chapterScriptError = err;
         e.script = null;
       }
     }

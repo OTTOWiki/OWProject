@@ -306,6 +306,21 @@ export function recordLetterTry(chapterId) {
   return writeStored(STORAGE_KEYS.letterRate, JSON.stringify(rate));
 }
 
+/**
+ * 撤回一次 Letter 尝试（本章脚本异常作废时不污染收率记录）。
+ * 无记录返回 false；写盘失败返回 false。
+ */
+export function rollbackLetterTry(chapterId) {
+  const rate = loadLetterRate();
+  const id = String(chapterId);
+  const cur = rate[id];
+  if (!cur) return false;
+  const tries = Math.max(0, cur.tries - 1);
+  if (tries === 0 && cur.captures === 0) delete rate[id];
+  else rate[id] = { tries: Math.max(tries, cur.captures), captures: cur.captures };
+  return writeStored(STORAGE_KEYS.letterRate, JSON.stringify(rate));
+}
+
 export function recordLetterCapture(chapterId) {
   const rate = loadLetterRate();
   const id = String(chapterId);
