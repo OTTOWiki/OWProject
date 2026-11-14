@@ -2381,7 +2381,8 @@ input, select, textarea {
   #bg3d-fallback { display: none !important; }
 }
 /* ===== 移动端横屏战斗：全屏版面 + 不可滚动 HUD + HUD 下方操作条 ===== */
-@media (orientation: landscape) and (max-height: 560px) {
+@media (orientation: landscape) and (max-height: 560px),
+       (orientation: landscape) and (pointer: coarse) and (min-aspect-ratio: 2/1) {
   #screen-game { overscroll-behavior: none; }
   .game-layout {
     grid-template-columns: minmax(0, 1fr) minmax(236px, 31vw);
@@ -2457,6 +2458,18 @@ input, select, textarea {
   .boss-enemy-marker { margin-top: 4px; }
   .boss-enemy-marker > span { font-size: 9px; }
 }
+/* 0.5 viewport scaling doubles the CSS viewport: keep the desktop three-column
+   composition on wide touch screens, but use the compact HUD from the mobile
+   rules above so the right panel and controls still fit without scrolling. */
+@media (orientation: landscape) and (pointer: coarse) and (min-aspect-ratio: 2/1) {
+  .game-layout {
+    grid-template-columns: minmax(96px, .35fr) minmax(0, 1.65fr) minmax(280px, .8fr);
+    gap: 16px;
+  }
+  .panel-left { display: flex; }
+  .panel-right-wrap { grid-column: 3; }
+}
+
 @media (orientation: landscape) and (max-height: 560px) and (max-width: 620px) {
   .game-layout { grid-template-columns: minmax(0, 1fr) minmax(196px, 34vw); gap: 6px; }
   .stat-label { font-size: 12px; }
