@@ -89,9 +89,9 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 
 - CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
-- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
+- E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/mobile-landscape/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema.js` + `mockGame.js`
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|mobile.js` + `mockGame.js`
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。E2E 默认**不在每个 PR 跑**：仅给最终集成 PR 加 `run-e2e` 标签，或 `workflow_dispatch` 手动触发；小改动只等 `Test`
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 由最终 PR 的 `run-e2e` 标签统一跑一次，避免逐 PR 等待 14–16 分钟
@@ -150,10 +150,11 @@ docs/                  # 内部改造队列等（非运行时）
 - `LOGICAL_W=450`, `LOGICAL_H=600`（`config.js`）
 - `<canvas id="playfield" width="450" height="600">` **禁止**运行时改 `width`/`height`
 - 触屏：`client * (canvas.width / rect.width)` → 逻辑坐标（`.playfield-wrap` 恒按 450:600 等比内嵌，画布 CSS 盒与逻辑坐标同比，映射才精确）
-- 画布显示尺寸不受 450×600 CSS 像素上限限制，逻辑尺寸不变。横屏中央版面优先利用可用宽高；所有战斗竖屏（或宽度 `≤520px`）按可用宽度显示，HUD 在下方，不用 HUD 高度压缩画布，也不在970px处切回三栏。窄屏通过画布外的 HUD／空白区纵向手势滚动，画布内手势继续控制自机；其他菜单断点不变。
+- **移动端仅横屏**：竖屏显示全屏旋转引导（`#rotate-gate`），进行中的对局先暂停，不提供竖屏战斗版面。横屏中央版面优先利用可用宽高，右侧 HUD 固定完整显示、不内部滚动；低速/Item/Bomb/暂停操作条位于 HUD 下方，不占用版面，也不在 970px 处切回三栏。
+- 触屏移动事件面是 `#screen-game` 全屏（按钮、叠加层、面板控件除外）；相对按下点的拖动 ×0.5 生成绝对目标，自机按住时按桌面同速平滑追平（保留拖动距离），抬手/取消/失焦立即停止；无死区、方向连续，不做 8 向离散映射。`TOUCH_DRAG_SCALE=0.5` 是**硬约束**，不得改动。默认与桌面同速，设置可关闭；关闭后触屏直接跟到目标位置，并写入本局作弊标记，回放/排行显示。
 - 版面画布无 CSS 边框，装饰由外围容器承载；Letter 信息使用版面上方独立区域，Boss 标记仍贴底边。
-- `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作。
-- HUD 详情使用原生 `details.open`：桌面展开，进入紧凑断点时折叠，玩家可手动展开；不依赖 `::details-content` 才显示低频信息。
+- `input.js` 跟踪首个触点；松开、取消及失焦释放移动/射击/触屏低速，取消或拖动不产生轻点。Item/Bomb/Pause 采用单次指针动作；触屏低速键按住/释放成对处理。
+- HUD 详情使用原生 `details.open`，横屏始终展开并完整显示；不依赖 `::details-content` 才显示低频信息。
 - 菜单导航按住方向键由 `config.MENU_REPEAT`（350ms 首延迟 / 80ms 间隔）驱动，与系统键盘连发无关；确认/返回/删除始终边沿触发，设置屏左右调值不自动重复。
 - 战斗 UI 精修按20票执行：th14/th18为主视觉参考，梦无垠仅辅助。版面是首要视觉主体，外围题字、资源符号和多色装饰服务战斗；网页设计技能的卡片/控件模板不直接套用。正式数据与输入契约不因风格改动而变化，功能验证和用户视觉认可分别报告。
 
@@ -211,7 +212,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
-**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像 `endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。
+**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（旧绝对目标按旧语义回放）。触屏相对拖动以既有 `v` 绝对目标记录；抬手后 `virtualMove` 清空，回放按原目标/限速语义行走，不新增帧字段。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。
 
 ### 章节流
 
@@ -233,7 +234,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 屏外剔除：子弹出生 0.08s 宽限；速度仍指向场内时保留（回场弹/雨弹第一帧不消失）
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
 - Combo：击破连击，3s 窗口（`BALANCE.combo.window`），每连击 +1% 分数（`BALANCE.combo.perPercent`），只乘实时得分、不计入 baseScore
-- 排行榜条目记录 `duration`（秒）与 `furthestChapterId`（本局最远章，`startChapter` 维护）；`stageReached` 由章节数据生成，不再读 DOM。榜单桌面显示日期与「用时 mm:ss」，窄屏隐藏玩家/路线/日期，保留分数与用时。
+- 排行榜条目记录 `duration`（秒）与 `furthestChapterId`（本局最远章，`startChapter` 维护）；`stageReached` 由章节数据生成，不再读 DOM。榜单桌面显示日期与「用时 mm:ss」，窄屏隐藏玩家/路线/日期，保留分数与用时。`cheat` 为 true 时显示「作弊」徽标。
 - 续关：每次 Game Over 先过成绩排行；还有续关次数（`BALANCE.continue.max`=2，练习除外）时结算可选继续，续关后残机/Bomb=2（`BALANCE.continue.lives/bombs`）、**分数清零**（hiscore 保留），排行榜标「续」，续关后不再录制录像
 - 默认 **4 残 4B**；Stage Select **不锁关**
 - Nomiss：`miss()` 被 `nomissRestart` 劫持——不扣残机不 Game Over，回滚分数/资源到进章时状态（`_nomissSnapshot`，该次尝试作废，hiscore 保留）+ BGM 回带（`audio.seekMusic`），重开当前章；**生命道具禁用**（`spawnItem`/`collectItem` 拦截）；进度存 `gunwei_nomiss_progress`
@@ -263,7 +264,7 @@ docs/                  # 内部改造队列等（非运行时）
 | `gunwei_hiscore` | 高分 |
 | `gunwei_unlocked` | 进度记录（Stage Select **不门禁**） |
 | `gunwei_difficulty` | 上次难度 |
-| `gunwei_settings` | 音量、弹透明度、单击发射、FPS 上限等 |
+| `gunwei_settings` | 音量、弹透明度、单击发射、移动端相对移动限速、FPS 上限等 |
 | `gunwei_ranking` | 排行榜（按难度 top10，与录像独立） |
 | `gunwei_ranking_name` | 上次入榜昵称（3 字） |
 | `gunwei_replays_index` | 录像索引（元数据；帧数据在 IndexedDB `owproject-replays`） |
@@ -319,7 +320,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 ### 操作（默认）
 
-方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏滑动移动+按住射击。
+方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏全屏相对拖动（位移 ×0.5、平滑追平、抬手即停、低速仅由低速键触发）+ 触屏低速/Item/Bomb/暂停。
 
 ### 常见任务
 
@@ -351,7 +352,7 @@ docs/                  # 内部改造队列等（非运行时）
 - 每轮 UI 工作必须先由主代理亲自查看当前游戏截图与命名原作参考图，再根据实际差异写规划；不得先凭代码或文字印象设计。每次交付前主代理再次亲自并排对比实际游戏截图与原作截图，报告差距与实测边界。
 - 美术实现：简单 SVG／CSS 达不到目标视觉效果时，一律使用图片资产（可生成或使用已有授权素材）；不要反复堆叠渐变、滤镜、随机 SVG 图形模拟复杂材质。图片负责材质、剪影与装饰，CSS 负责布局、响应式和交互状态；真实文字、读数与控件保持可访问 DOM。运行时图片按项目约定使用 AVIF，记录来源，并实拍验证裁切与可读性。
 - 参考图位于主项目内 `.worktrees/hud06/参考/参考截图/`，从当前 worktree 使用 `../hud06/参考/参考截图/` 定位；评审写出具体文件。战斗优先 `th14 游戏界面.png`；暂停/主界面分别使用 `th18暂停界面.png`、`th18主界面.png`，不得用菜单构图证明战斗相似度。
-- 在精确源 worktree 与 build hash 启动实际改动运行时，确认入口路由、active preview URL、可恢复加载失败后的真实 continue/recovery 流程和 ready 状态；再按 `1365x900`、`1264x625`、`390x844`、`320x568` 截图，移动端另在真实滚动后采集 HUD。
+- 在精确源 worktree 与 build hash 启动实际改动运行时，确认入口路由、active preview URL、可恢复加载失败后的真实 continue/recovery 流程和 ready 状态；再按 `1365x900`、`1264x625`、`844x390`、`667x375`、`568x320` 截图；`390x844` 只采集竖屏旋转引导，不再采集竖屏战斗 HUD。
 - 每轮将实际 PNG 同时与命名参考图及改动前的 matched-state baseline 对照，逐项记录已匹配、观察到的差距和下一项改动；发现明显不相似就自动修订并重跑，不要求用户重新描述显而易见的缺口。
 - 视觉证据与行为证据分开：截图只证明构图、色彩、纹理、字形、层级和可见状态；动画、时序、数据、输入、触控、恢复与素材身份必须通过真实运行路径验证。测试通过、PNG 存在或矩形检查单独都不能证明相似度或触控交互。
 - 保持原生 canvas `450x600` 及现有数据/输入契约；比较实际 CSS canvas 的 x/y/width/height 与三分区、响应式几何相对基线，允许子像素误差，不要强行把 CSS 显示尺寸设为 `450x600`。

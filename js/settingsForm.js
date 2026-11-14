@@ -38,12 +38,13 @@ export class SettingsForm {
     const vol = document.getElementById('set-music-volume');
     const op = document.getElementById('set-bullet-opacity');
     const toggle = document.getElementById('set-shot-toggle');
+    const mobile = document.getElementById('set-mobile-speed-limit');
     const fps = document.getElementById('set-fps-limit');
-    if (!vol || !op || !toggle || !fps) {
+    if (!vol || !op || !toggle || !mobile || !fps) {
       this._els = null;
       return false;
     }
-    this._els = { vol, op, toggle, fps };
+    this._els = { vol, op, toggle, mobile, fps };
     this._bound = true;
 
     const opMinPct = Math.round(PLAYER_BULLET_OPACITY_MIN * 100);
@@ -57,6 +58,7 @@ export class SettingsForm {
     vol.addEventListener('input', () => this.commit());
     op.addEventListener('input', () => this.commit());
     toggle.addEventListener('change', () => this.commit());
+    mobile.addEventListener('change', () => this.commit());
 
     // 仅指针拖到最右可设无限制；键盘加减到不了
     let fpsFromPointer = false;
@@ -121,7 +123,7 @@ export class SettingsForm {
   syncLabels(s) {
     const els = this._els;
     if (!els) return;
-    const { vol, op, toggle, fps } = els;
+    const { vol, op, toggle, mobile, fps } = els;
     const opMinPct = Math.round(PLAYER_BULLET_OPACITY_MIN * 100);
 
     const volPct = Math.round((s.musicVolume ?? 1) * 100);
@@ -129,12 +131,16 @@ export class SettingsForm {
     vol.value = String(volPct);
     op.value = String(Math.max(opMinPct, opPct));
     toggle.checked = !!s.shotToggle;
+    const mobileOn = s.mobileSpeedLimit !== false;
+    mobile.checked = mobileOn;
     const volLab = document.getElementById('set-music-volume-val');
     const opLab = document.getElementById('set-bullet-opacity-val');
     const togLab = document.getElementById('set-shot-toggle-val');
+    const mobileLab = document.getElementById('set-mobile-speed-limit-val');
     if (volLab) volLab.textContent = `${volPct}%`;
     if (opLab) opLab.textContent = `${Math.max(opMinPct, opPct)}%`;
     if (togLab) togLab.textContent = s.shotToggle ? '开启' : '关闭';
+    if (mobileLab) mobileLab.textContent = mobileOn ? '开启' : '关闭';
 
     const limit = normalizeFpsLimit(s.fpsLimit, 0);
     fps.value = String(fpsLimitToSlider(limit));
@@ -147,7 +153,7 @@ export class SettingsForm {
   commit() {
     const els = this._els;
     if (!els) return null;
-    const { vol, op, toggle, fps } = els;
+    const { vol, op, toggle, mobile, fps } = els;
     const opMinPct = Math.round(PLAYER_BULLET_OPACITY_MIN * 100);
 
     let opVal = Number(op.value) / 100;
@@ -161,6 +167,7 @@ export class SettingsForm {
       musicVolume: Number(vol.value) / 100,
       playerBulletOpacity: opVal,
       shotToggle: toggle.checked,
+      mobileSpeedLimit: mobile.checked,
       fpsLimit,
     });
     this.syncLabels(next);

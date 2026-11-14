@@ -152,6 +152,7 @@ export function loadSettings() {
       DEFAULT_SETTINGS.playerBulletOpacity,
     ),
     shotToggle: !!parsed.shotToggle,
+    mobileSpeedLimit: parsed.mobileSpeedLimit !== false,
     fpsLimit: normalizeFpsLimit(parsed.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
   };
 }
@@ -164,6 +165,7 @@ export function saveSettings(settings) {
       DEFAULT_SETTINGS.playerBulletOpacity,
     ),
     shotToggle: !!settings.shotToggle,
+    mobileSpeedLimit: settings.mobileSpeedLimit !== false,
     fpsLimit: normalizeFpsLimit(settings.fpsLimit, DEFAULT_SETTINGS.fpsLimit),
   };
   writeStored(STORAGE_KEYS.settings, JSON.stringify(next));

@@ -5,6 +5,7 @@ import {
   LOGICAL_W, LOGICAL_H, BALANCE, DIFFICULTIES, DIFFICULTY_ORDER,
   getDifficulty, calcLetterBonus, letterStageMul, nextExtendThreshold,
   PLAYER_DEFS, DEFAULT_SETTINGS, PLAYER_BULLET_OPACITY_MIN,
+  TOUCH_DRAG_SCALE,
 } from '../js/config.js';
 import {
   VERSION, VERSION_NAME, VERSION_LABEL, GIT_HASH,
@@ -18,6 +19,11 @@ import { test, assert, assertEqual } from './assert.js';
 test('逻辑分辨率固定 450×600', () => {
   assertEqual(LOGICAL_W, 450);
   assertEqual(LOGICAL_H, 600);
+});
+
+test('移动端相对拖拽缩放硬约束为 0.5，且默认开启同速限速', () => {
+  assertEqual(TOUCH_DRAG_SCALE, 0.5);
+  assertEqual(DEFAULT_SETTINGS.mobileSpeedLimit, true);
 });
 
 test('四个难度齐全且 Normal 倍率为 1', () => {

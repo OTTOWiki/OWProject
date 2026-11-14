@@ -189,6 +189,9 @@ export function createReplayInput() {
     itemTap: false,
     virtualMove: null,
     tap: null,
+    slowTouch: false,
+    /** 每帧由 flags.tl 覆盖；旧录像帧为 false（旧版直接跟随语义） */
+    touchSpeedLimit: false,
     _snap: null,
 
     /** 每帧覆盖为录像快照 */
@@ -198,6 +201,8 @@ export function createReplayInput() {
       this.bombTap = !!this._snap.b;
       this.itemTap = !!this._snap.i;
       this.shotLatched = !!this._snap.l;
+      this.slowTouch = !!this._snap.sl;
+      this.touchSpeedLimit = !!this._snap.tl;
       this.virtualMove = this._snap.v ? { x: this._snap.v[0], y: this._snap.v[1] } : null;
       this.tap = this._snap.t ? { x: this._snap.t[0], y: this._snap.t[1] } : null;
     },
@@ -205,7 +210,10 @@ export function createReplayInput() {
     isDown(code) { return (this._snap.d || []).includes(code); },
     justPressed(code) { return (this._snap.p || []).includes(code); },
     moveAxis() { return moveAxisFromSeq(this._snap.m || []); },
-    slowHeld() { return this.isDown('ShiftLeft') || this.isDown('ShiftRight'); },
+    slowHeld() {
+      return this.slowTouch
+        || this.isDown('ShiftLeft') || this.isDown('ShiftRight');
+    },
     shotHeld() {
       if (this.shotToggleMode) return this.autoShot || this.shotLatched;
       return this.autoShot || this.isDown(this.keys.shot);
