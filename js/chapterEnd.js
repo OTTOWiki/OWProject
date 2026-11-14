@@ -43,18 +43,25 @@ export function evaluateChapterEnd(snap) {
     livingEnemies = false,
   } = snap;
 
+  // Boss / Letter：击破即本章结束（以 dead 为准）。
+  // 必须先于超时判定：碰撞在扣时之前，最后一帧击破 boss 时 letterTimeLeft 可能恰好减到 0，
+  // 若先判超时会把「击破帧」误判为 letterTimeout（丢 Perfect/Letter 奖励）。
+  if (hasBossRef && bossRefDead) {
+    return { success: true, reason: 'bossDefeated' };
+  }
+
   // Letter 限时：超时未击破 → 失败（强制击破收场）
   if (letterTimeMax > 0) {
     if (letterTimeLeft <= 0) {
       return {
         success: false,
         reason: 'letterTimeout',
-        killBoss: !!(hasBossRef && !bossRefDead),
+        killBoss: true,
       };
     }
   } else if (duration && chapterTime >= duration) {
     // 有 bossRef 的限时章：到时未击破 → 失败；纯道中：存活到时即成功
-    if (hasBossRef && !bossRefDead) {
+    if (hasBossRef) {
       return {
         success: false,
         reason: 'durationBossFail',
@@ -62,11 +69,6 @@ export function evaluateChapterEnd(snap) {
       };
     }
     return { success: true, reason: 'durationOk' };
-  }
-
-  // Boss / Letter：击破即本章结束（以 dead 为准）
-  if (hasBossRef && bossRefDead) {
-    return { success: true, reason: 'bossDefeated' };
   }
 
   // 道中：刷怪已耗尽 + 场上无存活敌机

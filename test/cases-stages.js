@@ -327,6 +327,17 @@ test('evaluateChapterEnd：Letter 超时失败 / 击破成功 / 道中耗尽（E
   assertEqual(bossWin?.success, true);
   assertEqual(bossWin?.reason, 'bossDefeated');
 
+  // 同帧边界：boss 已被本帧碰撞击破，letterTimeLeft 恰好减到 0 → 必须按击破成功
+  const bossDeadOnTimeout = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 40,
+    letterTimeLeft: 0,
+    hasBossRef: true,
+    bossRefDead: true,
+  });
+  assertEqual(bossDeadOnTimeout?.success, true, '击破帧不得判 letterTimeout');
+  assertEqual(bossDeadOnTimeout?.reason, 'bossDefeated');
+
   const durFail = evaluateChapterEnd({
     chapterDone: false,
     letterTimeMax: 0,
