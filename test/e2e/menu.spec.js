@@ -163,7 +163,7 @@ test('返回动画未完成时再次返回立即连续回到模式页', async ({
 });
 
 test('窄屏玩家转场带尺寸匹配当前自机说明文字', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 667, height: 375 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await waitForGameReady(page);
@@ -188,7 +188,7 @@ test('窄屏玩家转场带尺寸匹配当前自机说明文字', async ({ page 
   }
 });
 test('Extra 完成自机入场后返回，转场带保持 EX 文案高度', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 667, height: 375 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
   await waitForGameReady(page);

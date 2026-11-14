@@ -92,6 +92,13 @@ export class RankingScreen {
       badge.textContent = '续';
       route.appendChild(badge);
     }
+    if (e.cheat) {
+      const badge = document.createElement('span');
+      badge.className = 'rk-badge cheat';
+      badge.textContent = '作弊';
+      badge.title = '本局关闭了移动端相对移动限速并使用触屏移动';
+      route.appendChild(badge);
+    }
 
     const score = document.createElement('span');
     score.className = 'ranking-score';

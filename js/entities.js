@@ -291,8 +291,27 @@ export class Player {
     const speed = this.slow ? BALANCE.playerSlowSpeed : BALANCE.playerSpeed;
 
     if (input.virtualMove) {
-      this.x = input.virtualMove.x;
-      this.y = input.virtualMove.y;
+      // 触屏相对移动的最终目标（绝对逻辑坐标）。默认按桌面同速上限跟随：
+      // 每帧自机最多走 speed * dt * 60，避免快速滑动瞬间横穿版面。
+      // 关闭限速（设置项）时保留旧的直接置位，并在录像头标记作弊。
+      const tx = Math.max(8, Math.min(LOGICAL_W - 8, input.virtualMove.x));
+      const ty = Math.max(8, Math.min(LOGICAL_H - 8, input.virtualMove.y));
+      if (input.touchSpeedLimit === false) {
+        this.x = tx;
+        this.y = ty;
+      } else {
+        const dx = tx - this.x;
+        const dy = ty - this.y;
+        const dist = Math.hypot(dx, dy);
+        const maxStep = speed * dt * 60;
+        if (dist <= maxStep || dist === 0) {
+          this.x = tx;
+          this.y = ty;
+        } else {
+          this.x += (dx / dist) * maxStep;
+          this.y += (dy / dist) * maxStep;
+        }
+      }
     } else {
       const axis = input.moveAxis();
       this.x += axis.x * speed * dt * 60;

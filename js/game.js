@@ -128,6 +128,7 @@ export class Game {
   applySettings(settings) {
     const s = settings || loadSettings();
     this.playerBulletOpacity = s.playerBulletOpacity ?? 0.3;
+    this.mobileSpeedLimit = s.mobileSpeedLimit !== false;
     const nextCap = Number(s.fpsLimit) > 0 ? Math.round(Number(s.fpsLimit)) : 0;
     if (nextCap !== this.fpsLimit) {
       this.fpsLimit = nextCap;
@@ -186,7 +187,7 @@ export class Game {
     };
     const details = document.getElementById('ui-details');
     if (details) {
-      const compactHud = window.matchMedia('(orientation: portrait), (max-width: 520px)');
+      const compactHud = window.matchMedia('(orientation: portrait)');
       const syncDetails = () => { details.open = !compactHud.matches; };
       compactHud.addEventListener('change', syncDetails);
       syncDetails();
@@ -210,6 +211,9 @@ export class Game {
     this.recording = !this.replaying;   // 普通对局常驻缓冲；回放不录制
     if (mode === 'nomiss') this.recording = false; // Nomiss 全程不录制录像
     this._recordFrames = [];
+    /** 本局是否在关闭移动端限速后实际触屏拖动过（作弊标记） */
+    this._mobileCheat = false;
+    this.realInput.resetMobileCheat();
     /** H8：本局 Letter 记录（回放携带；回放本身不追加） */
     this.letterLog = [];
     this._letterLogEntry = null;
@@ -357,7 +361,11 @@ export class Game {
     this.el.dialogueBox.classList.add('hidden');
 
     bindOverlayClicks(this);
-    this.input.bindCanvas(this.canvas, () => ({ x: this.player.x, y: this.player.y }));
+    this.input.bindCanvas(
+      this.canvas,
+      () => ({ x: this.player.x, y: this.player.y }),
+      this.replaying ? this.canvas : document.getElementById('screen-game'),
+    );
     this.audio.ensure();
     withSeededRng(() => startChapter(this), this._rngNext);
     this.lastT = performance.now();
@@ -461,6 +469,7 @@ export class Game {
   stop() {
     this.running = false;
     this.input.resetShotLatch();
+    this.realInput._releaseTransientInput?.();
     cancelAdvance(this);
     setEndingCinematic(this, false);
     hideOverlay(this);
@@ -622,6 +631,9 @@ export class Game {
       this.input.endFrame();
     }
 
+    // 限速关闭时只要真实触屏拖动过，整局即带作弊标记（回放/排行展示）
+    if (!this.replaying && this.realInput.mobileCheat) this._mobileCheat = true;
+
     // 录制：本逻辑块确实推进了游戏流程（含对话/选线/死亡/取消暂停）
     if (this.recording && !this.replaying && wasPlaying) {
       if (Array.isArray(recSnap)) recSnap[0] = steps;
@@ -679,6 +691,9 @@ export class Game {
     this.paused = true;
     this.state = 'gameover';
     let body = `得分：${es.score ?? this.score}\n难度：${this.diff?.rank} ${this.diff?.name}`;
+    if (this.replay?.cheat) {
+      body += '\n标记：作弊（关闭了移动端相对移动限速）';
+    }
     if (es.stats) {
       body += '\n' + formatRunStats(es.stats).join('\n');
     }
@@ -713,6 +728,7 @@ export class Game {
     if (!this.recording || this.replaying) return { ok: false, reason: 'unavailable' };
     if (!this._recordFrames.length) return { ok: false, reason: 'empty' };
     const ch = this.chapters[this.chapterIndex];
+    const mobileCheat = !!this._mobileCheat || !!this.realInput.mobileCheat;
     const replay = buildReplay({
       header: {
         seed: this._replaySeed,
@@ -726,6 +742,8 @@ export class Game {
         lives: this._startLives,
         singleChapter: !!this.singleChapter,
         unstable: !!this.practiceUnstable,
+        mobileSpeedLimit: this.mobileSpeedLimit !== false,
+        cheat: mobileCheat,
       },
       frames: this._recordFrames,
       endState: {

@@ -131,6 +131,13 @@ function row(e, i, isCurrent) {
   const route = document.createElement('span');
   route.className = 'sr-route';
   route.textContent = ROUTE_LABEL[e.route] || (e.cleared ? '通关' : '—');
+  if (e.cheat) {
+    const badge = document.createElement('span');
+    badge.className = 'rk-badge cheat';
+    badge.textContent = '作弊';
+    badge.title = '本局关闭了移动端相对移动限速并使用触屏移动';
+    route.appendChild(badge);
+  }
   const score = document.createElement('span');
   score.className = 'sr-score';
   score.textContent = String(e.score ?? 0);
