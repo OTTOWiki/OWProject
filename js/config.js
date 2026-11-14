@@ -70,8 +70,6 @@ export const TOUCH_SENSITIVITY = TOUCH_DRAG_SCALE;
 /** 摇杆死区（逻辑 px，已乘 TOUCH_DRAG_SCALE）：单次事件位移低于此值不移动。 */
 export const TOUCH_JOYSTICK_DEADZONE = 2;
 
-/** 轻推区上限（已乘 TOUCH_DRAG_SCALE）：死区以上、此值以下自动低速，推远全速。 */
-export const TOUCH_JOYSTICK_SLOW_RADIUS = 10;
 
 /** 单次触屏位移映射的移动键保持的逻辑块数；不持续刷新就立即松开（手指停即停）。 */
 export const TOUCH_DIRECTION_HOLD_BLOCKS = 1;
@@ -489,7 +487,7 @@ export const MANUAL_CHAPTERS = [
   {
     title: '二、移动端操作',
     body: `· 横屏专用：竖屏会提示旋转设备，不提供竖屏战斗版面。
-· 相对位移摇杆：每次手指相对上一位置的位移 ×0.5 后映射为径向 8 向移动键（右上方 = →+↑）；轻推自动低速、推远全速。手指停下即释放方向键，自机随即停止。
+· 相对位移摇杆：每次手指相对上一位置的位移 ×0.5 后映射为径向 8 向移动键（右上方 = →+↑）。手指停下即释放方向键，自机随即停止；低速只在按住低速键时进入。
 · 移动限速：默认与桌面移动速度同速（设置可关闭）。关闭后触屏摇杆最高速提高，但本局会在录像与排行榜标记「作弊」。
 · 操作条：右侧 HUD 下方的 低速 / Item / Bomb / 暂停 四键；低速按住生效，松开即恢复。`,
   },

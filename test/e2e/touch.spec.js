@@ -321,7 +321,7 @@ test('全屏任意位置（版面外/HUD）拖动都能移动，控件自身不�
 });
 
 
-test('触屏位移按帧读取：轻推自动低速，手指停后方向键释放', async ({ page }) => {
+test('触屏位移按帧读取：轻推只走方向，低速只由低速键触发', async ({ page }) => {
   const frame = await makeInputFixture(page);
   await touch(frame, 'touchstart', [{ id: 31, x: 155, y: 100 }]);
   await touch(frame, 'touchmove', [{ id: 31, x: 160, y: 100 }]);
@@ -332,8 +332,8 @@ test('触屏位移按帧读取：轻推自动低速，手指停后方向键释�
   }));
   expect(light.snapshot.m).toEqual(['ArrowRight']);
   expect(light.axis.x).toBe(1);
-  expect(light.slow).toBe(true);
-  expect(light.snapshot.sl).toBe(true);
+  expect(light.slow).toBe(false);
+  expect(light.snapshot.sl).toBe(false);
 
   await frame.evaluate(() => window.__touchFixture.input.endFrame());
   const stopped = await frame.evaluate(() => ({

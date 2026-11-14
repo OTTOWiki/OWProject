@@ -3,9 +3,9 @@
  */
 import {
   BALANCE, LOGICAL_W, PLAYER_DEFS, TOUCH_DRAG_SCALE, TOUCH_JOYSTICK_DEADZONE,
-  TOUCH_JOYSTICK_SLOW_RADIUS, TOUCH_JOYSTICK_UNLIMITED_MUL, TOUCH_SENSITIVITY,
+  TOUCH_JOYSTICK_UNLIMITED_MUL, TOUCH_SENSITIVITY,
 } from '../js/config.js';
-import { joystickAxisFromDelta, joystickStateFromDelta, moveAxisFromSeq } from '../js/input.js';
+import { joystickAxisFromDelta, moveAxisFromSeq } from '../js/input.js';
 import { Player } from '../js/entities.js';
 import { test, assert, assertEqual } from './assert.js';
 
@@ -50,14 +50,11 @@ test('摇杆死区：单次位移 ×0.5 后超过死区才映射方向', () => {
   assertAxis(40, 40, 1, 1);
 });
 
-test('摇杆按径向扇区映射，轻推自动低速、推远全速', () => {
-  const light = joystickStateFromDelta(10, 0); // ×0.5 = 5
-  assertEqual(light.axis.x, 1);
-  assertEqual(light.axis.y, 0);
-  assertEqual(light.slow, true);
-  const heavy = joystickStateFromDelta(40, 0); // ×0.5 = 20
-  assertEqual(heavy.slow, false);
-  assert(TOUCH_JOYSTICK_SLOW_RADIUS > TOUCH_JOYSTICK_DEADZONE);
+test('摇杆按径向扇区映射，不因位移大小自动低速', () => {
+  const small = joystickAxisFromDelta(10, 0); // ×0.5 = 5，仅方向，不带速度状态
+  assertEqual(small.x, 1);
+  assertEqual(small.y, 0);
+  assert(!('slow' in small));
   // 略偏上仍走东，明显偏上转东北，避免轴向死区卡住斜向。
   assertEqual(joystickAxisFromDelta(40, 10).y, 0);
   assertEqual(joystickAxisFromDelta(40, -30).y, -1);

@@ -1,8 +1,7 @@
 import { loadKeys } from './storage.js';
 import { replayKeyTable, encodeReplayFrame } from './replayCodec.js';
 import {
-  TOUCH_DRAG_SCALE, TOUCH_JOYSTICK_DEADZONE, TOUCH_JOYSTICK_SLOW_RADIUS,
-  TOUCH_DIRECTION_HOLD_BLOCKS,
+  TOUCH_DRAG_SCALE, TOUCH_JOYSTICK_DEADZONE, TOUCH_DIRECTION_HOLD_BLOCKS,
 } from './config.js';
 
 /** 移动键集合（方向键 + WASD） */
@@ -49,29 +48,16 @@ const AXIS_BY_SECTOR = [
 ];
 
 /**
- * 单次触屏位移 → 径向 8 向数字轴 + 是否轻推。
- * 0.5 缩放是硬约束；位移极小时不移动，稍大自动低速，推远全速。
+ * 单次触屏位移 → 径向 8 向数字轴。
+ * 0.5 缩放是硬约束；低于死区不移动，超过死区立即映射；低速只由低速键控制。
  * 方向按角度分扇区，不做轴向死区，斜向与方向切换不会卡在“先单轴后斜向”。
  */
-export function joystickStateFromDelta(rawDx, rawDy) {
+export function joystickAxisFromDelta(rawDx, rawDy) {
   const dx = rawDx * TOUCH_DRAG_SCALE;
   const dy = rawDy * TOUCH_DRAG_SCALE;
-  const magnitude = Math.hypot(dx, dy);
-  if (magnitude < TOUCH_JOYSTICK_DEADZONE) {
-    return { axis: { x: 0, y: 0 }, slow: false, magnitude };
-  }
+  if (Math.hypot(dx, dy) < TOUCH_JOYSTICK_DEADZONE) return { x: 0, y: 0 };
   const sector = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8;
-  const axis = AXIS_BY_SECTOR[sector];
-  return {
-    axis: { x: axis.x, y: axis.y },
-    slow: magnitude < TOUCH_JOYSTICK_SLOW_RADIUS,
-    magnitude,
-  };
-}
-
-/** 仅取数字轴（回放/测试用）。 */
-export function joystickAxisFromDelta(rawDx, rawDy) {
-  return joystickStateFromDelta(rawDx, rawDy).axis;
+  return { ...AXIS_BY_SECTOR[sector] };
 }
 
 /** 数字摇杆轴 → 桌面移动键代码（回放仍走既有 downMask/axis 记录，无新格式）。 */
@@ -112,8 +98,6 @@ export class Input {
     this._touchDragged = false;
     /** 实时触屏摇杆的数字轴（8 向）；null = 未触摸 */
     this.touchAxis = null;
-    /** 轻推自动低速（与触屏低速按钮/键盘 Shift 并列） */
-    this.joystickSlow = false;
     this._touchAxisTTL = 0;
     /** 旧录像兼容：绝对目标；实时触屏不再写入 */
     this.virtualMove = null;
@@ -178,7 +162,6 @@ export class Input {
     this._touchId = null;
     this._touchDragged = false;
     this.touchAxis = null;
-    this.joystickSlow = false;
     this._touchAxisTTL = 0;
     this.virtualMove = null;
     this.bombTap = false;
@@ -261,7 +244,6 @@ export class Input {
       this._touchId = null;
       this._touchDragged = false;
       this.touchAxis = null;
-      this.joystickSlow = false;
       this._touchAxisTTL = 0;
       this.virtualMove = null;
     };
@@ -282,7 +264,6 @@ export class Input {
       this._touchStart = p;
       this._touchLast = p;
       this.touchAxis = { x: 0, y: 0 };
-      this.joystickSlow = false;
       this._touchAxisTTL = 0;
       this.virtualMove = null;
     };
@@ -302,12 +283,11 @@ export class Input {
         this._touchDragged = true;
       }
       // 相对位移：只看这一帧手指相对上一位置的增量，不积攒绝对目标。
-      // 映射为径向 8 向移动键；轻推自动低速，推远全速。手指停下后
+      // 映射为径向 8 向移动键；低速只由低速键控制。手指停下后
       // endFrame 会在下一个逻辑块释放方向键，自机随停。
-      const state = joystickStateFromDelta(stepDx, stepDy);
-      const hasDirection = state.axis.x !== 0 || state.axis.y !== 0;
-      this.touchAxis = hasDirection ? state.axis : { x: 0, y: 0 };
-      this.joystickSlow = hasDirection && state.slow;
+      const axis = joystickAxisFromDelta(stepDx, stepDy);
+      const hasDirection = axis.x !== 0 || axis.y !== 0;
+      this.touchAxis = hasDirection ? axis : { x: 0, y: 0 };
       this._touchAxisTTL = hasDirection ? TOUCH_DIRECTION_HOLD_BLOCKS : 0;
       this.virtualMove = null;
       if (!this.touchSpeedLimit && hasDirection) this.mobileCheat = true;
@@ -454,7 +434,6 @@ export class Input {
       this._touchAxisTTL -= 1;
       if (this._touchAxisTTL <= 0) {
         this.touchAxis = { x: 0, y: 0 };
-        this.joystickSlow = false;
       }
     }
   }
@@ -475,7 +454,7 @@ export class Input {
       i: !!this.itemTap,
       l: !!this.shotLatched,
       /** 触屏低速键按住（键盘 Shift 已在 d 中，回放两条路径都读） */
-      sl: !!(this.slowTouch || this.joystickSlow),
+      sl: !!this.slowTouch,
       /** 本帧移动端相对移动是否限速（逐帧记录以支持中途改设置仍可精确回放） */
       tl: this.touchSpeedLimit !== false,
     };
@@ -522,7 +501,7 @@ export class Input {
     return this.justPressed(this.keys.item) || this.itemTap;
   }
   slowHeld() {
-    return this.slowTouch || this.joystickSlow
+    return this.slowTouch
       || this.isDown('ShiftLeft') || this.isDown('ShiftRight');
   }
 
