@@ -156,40 +156,52 @@ test('全屏触屏拖动、低速键与关闭限速后的作弊标记', async ({
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchMove', touchPoints: [{ x: tx + 48, y: ty + 28, id: 1 }],
     });
-    await page.waitForTimeout(250);
-    const drag = await call(`function() {
+    await page.waitForTimeout(140);
+    const nudgeA = await call(`function() {
       return { x: this.player.x, y: this.player.y, active: this.realInput.touchActive,
-        vm: this.realInput.virtualMove, axis: this.realInput.moveAxis(), cheat: this._mobileCheat };
+        vm: this.realInput.virtualMove, cheat: this._mobileCheat };
     }`);
-    expect(drag.active).toBe(true);
-    expect(drag.vm).toBeNull();
-    expect(drag.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
-    expect(drag.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
-    expect(Math.hypot(drag.x - before.x, drag.y - before.y)).toBeGreaterThan(1);
-    expect(drag.cheat).toBe(false);
+    await page.waitForTimeout(140);
+    const nudgeB = await call(`function() {
+      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis(),
+        active: this.realInput.touchActive };
+    }`);
+    expect(nudgeA.active).toBe(true);
+    expect(nudgeA.vm).toBeNull();
+    expect(nudgeA.cheat).toBe(false);
+    expect(Math.hypot(nudgeA.x - before.x, nudgeA.y - before.y)).toBeGreaterThan(1);
+    // 一次位移只对应一个逻辑块；手指没继续动，方向键已经释放。
+    expect(nudgeB.axis).toEqual({ x: 0, y: 0 });
+    expect(Math.hypot(nudgeB.x - nudgeA.x, nudgeB.y - nudgeA.y)).toBeLessThan(0.5);
 
-    // 摇杆按住时持续移动；松手后立即停止（不是一次性绝对目标）。
-    await page.waitForTimeout(220);
-    const dragHold = await call(`function() {
+    // 连续位移（模拟手指持续移动）才连续移动；停止发 move 后立即停。
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove', touchPoints: [{ x: tx + 48 + i * 12, y: ty + 28 + i * 8, id: 1 }],
+      });
+      await page.waitForTimeout(20);
+    }
+    const moving = await call(`function() {
       return { x: this.player.x, y: this.player.y };
     }`);
-    expect(Math.hypot(dragHold.x - drag.x, dragHold.y - drag.y)).toBeGreaterThan(1);
+    expect(Math.hypot(moving.x - nudgeB.x, moving.y - nudgeB.y)).toBeGreaterThan(1);
+    await page.waitForTimeout(140);
+    const movingStoppedA = await call(`function() {
+      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis() };
+    }`);
+    await page.waitForTimeout(140);
+    const movingStoppedB = await call(`function() {
+      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis() };
+    }`);
+    expect(movingStoppedA.axis).toEqual({ x: 0, y: 0 });
+    expect(movingStoppedB.axis).toEqual({ x: 0, y: 0 });
+    expect(Math.hypot(movingStoppedB.x - movingStoppedA.x, movingStoppedB.y - movingStoppedA.y)).toBeLessThan(0.5);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await page.waitForTimeout(120);
-    const dragSettled = await call(`function() {
-      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis(),
-        active: this.realInput.touchActive };
+    const released = await call(`function() {
+      return { active: this.realInput.touchActive, axis: this.realInput.moveAxis() };
     }`);
-    await page.waitForTimeout(220);
-    const dragReleased = await call(`function() {
-      return { x: this.player.x, y: this.player.y, axis: this.realInput.moveAxis(),
-        active: this.realInput.touchActive };
-    }`);
-    expect(dragSettled.active).toBe(false);
-    expect(dragSettled.axis).toEqual({ x: 0, y: 0 });
-    expect(dragReleased.active).toBe(false);
-    expect(dragReleased.axis).toEqual({ x: 0, y: 0 });
-    expect(Math.hypot(dragReleased.x - dragSettled.x, dragReleased.y - dragSettled.y)).toBeLessThan(0.5);
+    expect(released.active).toBe(false);
+    expect(released.axis).toEqual({ x: 0, y: 0 });
 
     await page.locator('#btn-slow').dispatchEvent('pointerdown', {
       pointerId: 9, pointerType: 'touch', button: 0,

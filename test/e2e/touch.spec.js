@@ -175,6 +175,13 @@ test('主触点独占手势，摇杆方向映射保持稳定', async ({ page }) 
   expect(far.snapshot.v).toBeNull();
   expect(far.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
   expect(far.axis.y).toBeCloseTo(-Math.SQRT1_2, 6);
+  await frame.evaluate(() => window.__touchFixture.input.endFrame());
+  const afterBlock = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+  }));
+  expect(afterBlock.snapshot.m).toEqual([]);
+  expect(afterBlock.axis).toEqual({ x: 0, y: 0 });
   await touch(frame, 'touchend', [], [{ id: 1, x: 600, y: -100 }]);
   const released = await frame.evaluate(() => ({
     snapshot: window.__touchFixture.input.snapshot(),
@@ -311,6 +318,39 @@ test('全屏任意位置（版面外/HUD）拖动都能移动，控件自身不�
   expect(control.axis.x).toBeCloseTo(Math.SQRT1_2, 6);
   expect(control.axis.y).toBeCloseTo(Math.SQRT1_2, 6);
   await touch(frame, 'touchend', [], [{ id: 21, x: 60, y: 40 }]);
+});
+
+
+test('触屏位移按帧读取：轻推自动低速，手指停后方向键释放', async ({ page }) => {
+  const frame = await makeInputFixture(page);
+  await touch(frame, 'touchstart', [{ id: 31, x: 155, y: 100 }]);
+  await touch(frame, 'touchmove', [{ id: 31, x: 160, y: 100 }]);
+  const light = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+    slow: window.__touchFixture.input.slowHeld(),
+  }));
+  expect(light.snapshot.m).toEqual(['ArrowRight']);
+  expect(light.axis.x).toBe(1);
+  expect(light.slow).toBe(true);
+  expect(light.snapshot.sl).toBe(true);
+
+  await frame.evaluate(() => window.__touchFixture.input.endFrame());
+  const stopped = await frame.evaluate(() => ({
+    snapshot: window.__touchFixture.input.snapshot(),
+    axis: window.__touchFixture.input.moveAxis(),
+    slow: window.__touchFixture.input.slowHeld(),
+  }));
+  expect(stopped.snapshot.m).toEqual([]);
+  expect(stopped.axis).toEqual({ x: 0, y: 0 });
+  expect(stopped.slow).toBe(false);
+
+  await touch(frame, 'touchend', [], [{ id: 31, x: 160, y: 100 }]);
+  await touch(frame, 'touchstart', [{ id: 32, x: 155, y: 100 }]);
+  await touch(frame, 'touchmove', [{ id: 32, x: 156, y: 100 }]);
+  const underDeadzone = await frame.evaluate(() => window.__touchFixture.input.snapshot());
+  expect(underDeadzone.m).toEqual([]);
+  await touch(frame, 'touchend', [], [{ id: 32, x: 156, y: 100 }]);
 });
 
 test('触屏低速键按住/释放，且限速关闭时拖动写入作弊标记', async ({ page }) => {
