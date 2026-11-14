@@ -1,8 +1,6 @@
 import { loadKeys } from './storage.js';
 import { replayKeyTable, encodeReplayFrame } from './replayCodec.js';
-import {
-  TOUCH_DRAG_SCALE, TOUCH_JOYSTICK_DEADZONE, TOUCH_DIRECTION_HOLD_BLOCKS,
-} from './config.js';
+import { LOGICAL_W, LOGICAL_H, TOUCH_DRAG_SCALE } from './config.js';
 
 /** 移动键集合（方向键 + WASD） */
 const MOVE_LEFT = new Set(['ArrowLeft', 'KeyA']);
@@ -36,41 +34,6 @@ export function moveAxisFromSeq(moveSeq) {
   return { x, y };
 }
 
-const AXIS_BY_SECTOR = [
-  { x: 1, y: 0 },   // E
-  { x: 1, y: 1 },   // SE
-  { x: 0, y: 1 },   // S
-  { x: -1, y: 1 },  // SW
-  { x: -1, y: 0 },  // W
-  { x: -1, y: -1 }, // NW
-  { x: 0, y: -1 },  // N
-  { x: 1, y: -1 },  // NE
-];
-
-/**
- * 单次触屏位移 → 径向 8 向数字轴。
- * 0.5 缩放是硬约束；低于死区不移动，超过死区立即映射；低速只由低速键控制。
- * 方向按角度分扇区，不做轴向死区，斜向与方向切换不会卡在“先单轴后斜向”。
- */
-export function joystickAxisFromDelta(rawDx, rawDy) {
-  const dx = rawDx * TOUCH_DRAG_SCALE;
-  const dy = rawDy * TOUCH_DRAG_SCALE;
-  if (Math.hypot(dx, dy) < TOUCH_JOYSTICK_DEADZONE) return { x: 0, y: 0 };
-  const sector = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8;
-  return { ...AXIS_BY_SECTOR[sector] };
-}
-
-/** 数字摇杆轴 → 桌面移动键代码（回放仍走既有 downMask/axis 记录，无新格式）。 */
-function touchAxisToMoveCodes(axis) {
-  const codes = [];
-  if (!axis) return codes;
-  if (axis.x < 0) codes.push('ArrowLeft');
-  else if (axis.x > 0) codes.push('ArrowRight');
-  if (axis.y < 0) codes.push('ArrowUp');
-  else if (axis.y > 0) codes.push('ArrowDown');
-  return codes;
-}
-
 export class Input {
   constructor() {
     this.keys = loadKeys();
@@ -94,13 +57,10 @@ export class Input {
     this.shotLatched = false;
     this._touchStart = null;
     this._touchLast = null;
+    this._playerStart = null;
     this._touchId = null;
     this._touchDragged = false;
-    /** 实时触屏摇杆的数字轴（8 向）；null = 未触摸 */
-    this.touchAxis = null;
-    this._touchAxisTTL = 0;
-    /** 旧录像兼容：绝对目标；实时触屏不再写入 */
-    this.virtualMove = null;
+    this.virtualMove = null; // {x,y} absolute target from relative drag
     this.bombTap = false;
     this.itemTap = false;
     /** 版面轻触一次（逻辑坐标），仅当帧有效 */
@@ -159,10 +119,9 @@ export class Input {
     this.shotLatched = false;
     this._touchStart = null;
     this._touchLast = null;
+    this._playerStart = null;
     this._touchId = null;
     this._touchDragged = false;
-    this.touchAxis = null;
-    this._touchAxisTTL = 0;
     this.virtualMove = null;
     this.bombTap = false;
     this.itemTap = false;
@@ -241,10 +200,9 @@ export class Input {
       this.autoShot = false;
       this._touchStart = null;
       this._touchLast = null;
+      this._playerStart = null;
       this._touchId = null;
       this._touchDragged = false;
-      this.touchAxis = null;
-      this._touchAxisTTL = 0;
       this.virtualMove = null;
     };
 
@@ -257,40 +215,37 @@ export class Input {
       const touch = e.changedTouches?.[0] || e.touches?.[0];
       if (!touch) return;
       const p = logical(touch);
+      const pl = this.getPlayerPos?.() || { x: LOGICAL_W / 2, y: LOGICAL_H * 0.82 };
       this._touchId = touch.identifier;
       this._touchDragged = false;
       this.touchActive = true;
       this.autoShot = true;
       this._touchStart = p;
       this._touchLast = p;
-      this.touchAxis = { x: 0, y: 0 };
-      this._touchAxisTTL = 0;
-      this.virtualMove = null;
+      this._playerStart = { x: pl.x, y: pl.y };
+      this.virtualMove = { x: pl.x, y: pl.y };
     };
 
     this._onTouchMove = (e) => {
-      if (this._touchId == null || !this._touchStart) return;
+      if (this._touchId == null || !this._touchStart || !this._playerStart) return;
       e.preventDefault();
       const touch = findTouch(e.touches, this._touchId)
         || findTouch(e.changedTouches, this._touchId);
       if (!touch) return;
       const cur = logical(touch);
-      const prev = this._touchLast || this._touchStart;
-      const stepDx = cur.x - prev.x;
-      const stepDy = cur.y - prev.y;
       this._touchLast = cur;
-      if (Math.hypot(cur.x - this._touchStart.x, cur.y - this._touchStart.y) >= 22) {
-        this._touchDragged = true;
-      }
-      // 相对位移：只看这一帧手指相对上一位置的增量，不积攒绝对目标。
-      // 映射为径向 8 向移动键；低速只由低速键控制。手指停下后
-      // endFrame 会在下一个逻辑块释放方向键，自机随停。
-      const axis = joystickAxisFromDelta(stepDx, stepDy);
-      const hasDirection = axis.x !== 0 || axis.y !== 0;
-      this.touchAxis = hasDirection ? axis : { x: 0, y: 0 };
-      this._touchAxisTTL = hasDirection ? TOUCH_DIRECTION_HOLD_BLOCKS : 0;
-      this.virtualMove = null;
-      if (!this.touchSpeedLimit && hasDirection) this.mobileCheat = true;
+      const rawDx = cur.x - this._touchStart.x;
+      const rawDy = cur.y - this._touchStart.y;
+      if (Math.hypot(rawDx, rawDy) >= 22) this._touchDragged = true;
+      // 硬约束：自机位移 = 手指位移 × TOUCH_DRAG_SCALE(0.5)。最终 virtualMove 仍是
+      // 绝对逻辑坐标，录像记录/回放的是该目标；实际跟随速度由 Player 的限速处理。
+      if (!this.touchSpeedLimit && Math.hypot(rawDx, rawDy) > 0.5) this.mobileCheat = true;
+      const dx = rawDx * TOUCH_DRAG_SCALE;
+      const dy = rawDy * TOUCH_DRAG_SCALE;
+      this.virtualMove = {
+        x: Math.max(0, Math.min(LOGICAL_W, this._playerStart.x + dx)),
+        y: Math.max(0, Math.min(LOGICAL_H, this._playerStart.y + dy)),
+      };
     };
 
     this._onTouchEnd = (e) => {
@@ -430,12 +385,6 @@ export class Input {
     this.bombTap = false;
     this.itemTap = false;
     this.tap = null;
-    if (this._touchAxisTTL > 0) {
-      this._touchAxisTTL -= 1;
-      if (this._touchAxisTTL <= 0) {
-        this.touchAxis = { x: 0, y: 0 };
-      }
-    }
   }
 
   /**
@@ -446,7 +395,7 @@ export class Input {
     return {
       d: [...this.down],
       p: [...this.pressed],
-      m: this._effectiveMoveCodes(),
+      m: [...this._moveSeq],
       t: this.tap ? [this.tap.x, this.tap.y] : null,
       v: this.virtualMove ? [this.virtualMove.x, this.virtualMove.y] : null,
       a: !!this.autoShot,
@@ -506,18 +455,10 @@ export class Input {
   }
 
   /**
-   * 本帧有效移动键：触屏摇杆优先于键盘；摇杆居中时返回空集（停止移动）。
-   * 回放沿用既有 m/axis 记录，无需新增帧字段。
-   */
-  _effectiveMoveCodes() {
-    if (this.touchActive && this.touchAxis) return touchAxisToMoveCodes(this.touchAxis);
-    return [...this._moveSeq];
-  }
-
-  /**
-   * 移动轴：触屏摇杆按 8 向数字键处理；键盘同轴后按者优先，对角归一化。
+   * 移动轴：同轴对向键以后按下的为准（先左后右 → 向右；松右后仍按左 → 向左）。
+   * 上下轴同理。
    */
   moveAxis() {
-    return moveAxisFromSeq(this._effectiveMoveCodes());
+    return moveAxisFromSeq(this._moveSeq);
   }
 }
