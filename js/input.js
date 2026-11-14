@@ -415,9 +415,8 @@ export class Input {
    */
   recordSnapshot() {
     const snap = this.snapshot();
-    const frame = encodeReplayFrame(snap, replayKeyTable(this.keys), this.moveAxis());
-    frame[0] = 1;
-    return frame;
+    // 第 0 位是 steps 占位（encode 先写 1，调用方在知道本块步数后写回）
+    return encodeReplayFrame(snap, replayKeyTable(this.keys), this.moveAxis());
   }
 
   isDown(code) { return this.down.has(code); }

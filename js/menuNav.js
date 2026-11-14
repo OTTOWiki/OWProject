@@ -265,13 +265,11 @@ export function handleFormListKey(e, {
       ae.blur();
       return true;
     }
-    // 数字框：方向键交给浏览器（光标/步进）；A/D 仍走菜单调值
-    if (editingNumber && (e.code === 'ArrowLeft' || e.code === 'ArrowRight'
-      || e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+    // 数字框：←→ 交给浏览器步进；↑↓ 已在上方按菜单导航处理；A/D 仍走菜单调值
+    if (editingNumber && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
       return false;
     }
-    if (editingSelect && (isNavLeft(e) || isNavRight(e)
-      || e.code === 'ArrowUp' || e.code === 'ArrowDown')) {
+    if (editingSelect && (isNavLeft(e) || isNavRight(e))) {
       return false;
     }
     if (isNavLeft(e) || isNavRight(e)) {

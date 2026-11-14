@@ -50,11 +50,7 @@ export function loadImage(src) {
 }
 
 export function preloadArtAssets() {
-  const list = [
-    ...new Set(Object.values(PORTRAIT_PATHS)),
-    'assets/ui/title_banner.avif',
-  ];
-  return Promise.all(list.map((src) => new Promise((resolve) => {
+  return Promise.all(getAssetPaths().map((src) => new Promise((resolve) => {
     const img = loadImage(src);
     if (img.complete && img.naturalWidth) resolve(img);
     else {

@@ -211,7 +211,6 @@ export class PlayfieldBackground {
 
     // Mode-7 地面
     const texReady = tex.complete && tex.naturalWidth > 0;
-    const tw = texReady ? tex.naturalWidth : 64;
     const thTex = texReady ? tex.naturalHeight : 64;
 
     for (let y = Math.floor(horizonY); y < H; y += 2) {
@@ -225,13 +224,8 @@ export class PlayfieldBackground {
 
       if (texReady) {
         ctx.globalAlpha = alpha * (0.35 + perspective * 0.55);
-        try {
-          const sy = Math.floor(sampleY) % thTex;
-          ctx.drawImage(tex, 0, sy, tw, 2, x0 - roadW * 0.05, y, roadW * 1.1, sliceH + 1);
-        } catch {
-          ctx.fillStyle = th.sky[1];
-          ctx.fillRect(x0, y, roadW, 2);
-        }
+        const sy = Math.floor(sampleY) % thTex;
+        ctx.drawImage(tex, 0, sy, tex.naturalWidth, 2, x0 - roadW * 0.05, y, roadW * 1.1, sliceH + 1);
       } else {
         ctx.fillStyle = th.sky[1];
         ctx.globalAlpha = alpha * (0.3 + perspective * 0.4);

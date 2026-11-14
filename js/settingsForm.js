@@ -12,7 +12,7 @@ import {
 } from './storage.js';
 
 function fpsLabel(limit) {
-  const n = normalizeFpsLimit(limit, 0);
+  const n = normalizeFpsLimit(limit);
   if (n <= 0) return '无限制';
   return `${n} FPS`;
 }
@@ -126,8 +126,8 @@ export class SettingsForm {
     const { vol, op, toggle, mobile, fps } = els;
     const opMinPct = Math.round(PLAYER_BULLET_OPACITY_MIN * 100);
 
-    const volPct = Math.round((s.musicVolume ?? 1) * 100);
-    const opPct = Math.round((s.playerBulletOpacity ?? 0.3) * 100);
+    const volPct = Math.round(s.musicVolume * 100);
+    const opPct = Math.round(s.playerBulletOpacity * 100);
     vol.value = String(volPct);
     op.value = String(Math.max(opMinPct, opPct));
     toggle.checked = !!s.shotToggle;
@@ -142,7 +142,7 @@ export class SettingsForm {
     if (togLab) togLab.textContent = s.shotToggle ? '开启' : '关闭';
     if (mobileLab) mobileLab.textContent = mobileOn ? '开启' : '关闭';
 
-    const limit = normalizeFpsLimit(s.fpsLimit, 0);
+    const limit = normalizeFpsLimit(s.fpsLimit);
     fps.value = String(fpsLimitToSlider(limit));
     if (limit > 0) this._fpsLastLimited = limit;
     const lab = document.getElementById('set-fps-limit-val');

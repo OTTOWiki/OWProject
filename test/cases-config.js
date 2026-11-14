@@ -156,7 +156,7 @@ test('Extra 难度仅 extra', () => {
   assert(isExtraRestrictedMode('extra'));
   assert(!isExtraRestrictedMode('stage'));
   assert(!isExtraRestrictedMode('story'));
-  const ids = extraDifficultyIds(DIFFICULTY_ORDER);
+  const ids = extraDifficultyIds();
   assertEqual(ids.length, 1);
   assert(ids.includes('extra'));
 });

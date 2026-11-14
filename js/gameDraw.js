@@ -303,12 +303,7 @@ export function drawGameFrame(game) {
   ctx.clearRect(0, 0, W, H);
   ctx.restore();
 
-  if (game.playBg) {
-    game.playBg.draw(ctx);
-  } else {
-    ctx.fillStyle = '#0c1018';
-    ctx.fillRect(0, 0, W, H);
-  }
+  game.playBg.draw(ctx);
 
   // 震屏：整场绘制统一平移（纯视觉；帧末 restore 配对）
   const shakeActive = game._shakeT > 0;
@@ -345,25 +340,22 @@ export function drawGameFrame(game) {
 
   for (const b of game.enemyBullets) drawBullet(ctx, b, 1, game.player);
 
-  const pAlpha = game.playerBulletOpacity ?? 0.3;
+  const pAlpha = game.playerBulletOpacity;
   for (const b of game.playerBullets) drawBullet(ctx, b, pAlpha);
 
   // 冲击波：扩张淡出圆环（alpha = life/maxLife）
-  if (game._shockwaves) {
-    for (const sw of game._shockwaves) {
-      if (sw.dead) continue;
-      const a = Math.max(0, Math.min(1, sw.life / Math.max(1e-4, sw.maxLife)));
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = sw.color;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(sw.x, sw.y, Math.max(0, sw.r), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
+  for (const sw of game._shockwaves) {
+    if (sw.dead) continue;
+    const a = Math.max(0, Math.min(1, sw.life / Math.max(1e-4, sw.maxLife)));
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = sw.color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, Math.max(0, sw.r), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
-
   if (game.fog && game.player) {
     const g = ctx.createRadialGradient(
       game.player.x, game.player.y, 60,

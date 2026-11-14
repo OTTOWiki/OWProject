@@ -118,7 +118,7 @@ function tendencyText(value) {
 
 function updateModeMarkers(el, game, cache) {
   if (!el.mode) return;
-  const mode = String(game.mode || 'story');
+  const mode = String(game.mode);
   const key = `${game.replaying ? 'replay' : ''}|${mode}`;
   if (cache.mode === key) return;
   cache.mode = key;
@@ -211,7 +211,7 @@ export function updateGameHud(game) {
     el.edit?.classList.toggle('full', full);
   }
 
-  setText(el.playerName, game.player?.def?.name || '—', 'playerName', cache);
+  setText(el.playerName, p.def.name, 'playerName', cache);
   setText(el.unstable, game.unstableFx ? game.unstableFx.label : '关', 'unstable', cache);
   setText(el.tendency, tendencyText(game.totalTendency), 'tendency', cache);
   const comboActive = game.combo > 1;
@@ -371,7 +371,7 @@ export function drawChapterBanner(ctx, s, W, H) {
   if (s.perfect) {
     ctx.fillStyle = '#fbbf24';
     ctx.font = 'bold 13px sans-serif';
-    const mul = s.settleMul > 1 ? s.settleMul : 1.05;
+    const mul = s.settleMul > 1 ? s.settleMul : BALANCE.chapterPerfectMul;
     ctx.fillText(`PERFECT ×${Number(mul).toFixed(2)}`, cx, nextY);
     nextY += 18;
   }

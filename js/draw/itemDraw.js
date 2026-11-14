@@ -44,7 +44,7 @@ export function drawItem(ctx, it) {
 
 /** 浅色虚线收点线（仅线，无文字） */
 export function drawCollectLine(ctx, w) {
-  const y = BALANCE.itemCollectLine ?? 168;
+  const y = BALANCE.itemCollectLine;
   ctx.save();
   ctx.setLineDash([5, 5]);
   ctx.strokeStyle = 'rgba(210, 230, 255, 0.42)';
