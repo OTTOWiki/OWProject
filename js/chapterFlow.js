@@ -9,7 +9,7 @@ import {
 import { stageIntroFor } from './stages/index.js';
 import { chapterStageLabel } from './chapterLabel.js';
 import { getEndingDialogue } from './dialogue.js';
-import { saveHiscore, unlockStage, unlockRoute, saveNomissProgress, recordLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
+import { saveHiscore, unlockStage, unlockRoute, saveNomissProgress, recordLetterTry, rollbackLetterTry, recordLetterCapture, loadLetterRate, letterRateText, savePracticeBest } from './storage.js';
 import { loadRanking, rankFor, loadName } from './ranking.js';
 import { openScoreRanking } from './scoreRanking.js';
 import { formatRunStats, formatRunStatsShort } from './runStats.js';
@@ -87,6 +87,7 @@ export function startChapter(game) {
   game.chapterMiss = false;
   game.chapterBomb = false;
   game.chapterDone = false;
+  game._chapterScriptError = null;
   game.chapterClearTimer = 0;
   game.chapterTendency = 0;
   game.stageTransit = null;
@@ -180,6 +181,7 @@ export function startChapter(game) {
       ch.build(game);
     } catch (err) {
       console.error('[chapter build]', ch?.id, ch?.name, err);
+      game._chapterScriptError = err;
       game.waveFn = null;
     }
     if (game.waveFn) {
@@ -189,6 +191,7 @@ export function startChapter(game) {
           raw.call(game, dt / game.spawnMul);
         } catch (err) {
           console.error('[waveFn]', ch?.id, err);
+          game._chapterScriptError = err;
           game.waveFn = null;
         }
       };
@@ -314,7 +317,9 @@ export function finishChapter(game, success) {
   game.chapterDone = true;
   const ch = game.chapters[game.chapterIndex];
   const clean = !game.chapterMiss && !game.chapterBomb;
-  const perfect = success && clean;
+  // 脚本异常章：即使调用方传了 success，也不得发 Perfect/Letter 奖励（防止 bug 被当成通关）
+  const scriptError = !!game._chapterScriptError;
+  const perfect = success && clean && !scriptError;
   if (perfect) game.stats.nmnb++;
 
   const baseChapter = game.chapterScore;
@@ -360,6 +365,13 @@ export function finishChapter(game, success) {
   if (perfect && unstableComp >= (BALANCE.resource.unstableCompBombMin ?? 1.15)) {
     game.player.bombs = Math.min(BALANCE.maxBombs, game.player.bombs + 1);
     game.audio.sfx('item');
+  }
+
+  // 脚本异常章作废：撤回进章时记录的 Letter 尝试次数与录像 Letter 记录
+  if (scriptError && game.letterTimeMax > 0 && !game.replaying) {
+    rollbackLetterTry(ch.id);
+    const entry = game._letterLogEntry;
+    if (entry && entry.chapterId === ch.id && entry.attempts > 0) entry.attempts -= 1;
   }
 
   if (letterBonus > 0) {

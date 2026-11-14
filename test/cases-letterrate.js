@@ -4,7 +4,7 @@
  */
 import { STORAGE_KEYS } from '../js/config.js';
 import {
-  loadLetterRate, recordLetterTry, recordLetterCapture, letterRateText,
+  loadLetterRate, recordLetterTry, recordLetterCapture, rollbackLetterTry, letterRateText,
 } from '../js/storage.js';
 import { test, assert, assertEqual } from './assert.js';
 
@@ -34,6 +34,31 @@ test('letterRateText：无记录 / 收率文案', () => {
   assertEqual(letterRateText(5, 3), '成功 3 / 尝试 5 = 60%');
   assertEqual(letterRateText(2, 1), '成功 1 / 尝试 2 = 50%');
   assertEqual(letterRateText(3, 1), '成功 1 / 尝试 3 = 33%');
+});
+
+test('rollbackLetterTry：脚本异常章作废时撤回一次尝试', () => {
+  withStorage({}, () => {
+    recordLetterTry(5);
+    recordLetterTry(5);
+    assertEqual(loadLetterRate()['5'].tries, 2);
+    assertEqual(rollbackLetterTry(5), true);
+    assertEqual(loadLetterRate()['5'].tries, 1, '撤回一次仍保留另一次');
+    assertEqual(rollbackLetterTry(5), true);
+    assertEqual(loadLetterRate()['5'], undefined, '尝试清零且无收取时删除记录');
+    assertEqual(rollbackLetterTry(5), false, '无记录时不写入');
+  });
+});
+
+test('rollbackLetterTry：有成功收取时不清零 captures', () => {
+  withStorage({}, () => {
+    recordLetterTry(7);
+    recordLetterCapture(7);
+    rollbackLetterTry(7);
+    const rec = loadLetterRate()['7'];
+    assert(rec, 'captures>0 时保留记录');
+    assertEqual(rec.captures, 1);
+    assertEqual(rec.tries, 1, 'tries 不低于 captures');
+  });
 });
 
 test('loadLetterRate：缺失 / 坏 JSON 返回 {}', () => {

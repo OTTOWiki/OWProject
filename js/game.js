@@ -336,6 +336,7 @@ export class Game {
     this.nextUnstableFx = null;
     this.stageTransit = null; // 关卡（面）间过渡页
     this._pendingChapterBegin = null;
+    this._chapterScriptError = null;
     cancelAdvance(this);
     this.lastStageKey = null;
 

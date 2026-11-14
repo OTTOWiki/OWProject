@@ -14,7 +14,8 @@ import {
 } from '../js/stages/_shared.js';
 import { MID_PATTERNS, buildExMid } from '../js/stages/ex_mid.js';
 import { asStageContext } from '../js/stages/stageContext.js';
-import { evaluateChapterEnd } from '../js/chapterEnd.js';
+import { evaluateChapterEnd, chapterEndSnapFromGame } from '../js/chapterEnd.js';
+import { startChapter } from '../js/chapterFlow.js';
 import { test, assert, assertEqual } from './assert.js';
 import { ARCHETYPES, spawnArch } from '../js/stages/archetypes.js';
 import { createMockGame } from './mockGame.js';
@@ -338,6 +339,29 @@ test('evaluateChapterEnd：Letter 超时失败 / 击破成功 / 道中耗尽（E
   assertEqual(bossDeadOnTimeout?.success, true, '击破帧不得判 letterTimeout');
   assertEqual(bossDeadOnTimeout?.reason, 'bossDefeated');
 
+  // 脚本异常章：奖励作废，且不得按 wavesClear 假成功
+  const scriptErr = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 0,
+    chapterTime: 0.5,
+    hasBossRef: false,
+    kind: 'mid',
+    wavesExhausted: true,
+    livingEnemies: false,
+    scriptError: true,
+  });
+  assertEqual(scriptErr?.success, false, 'scriptError 不得判成功');
+  assertEqual(scriptErr?.reason, 'scriptError');
+  const scriptErrBoss = evaluateChapterEnd({
+    chapterDone: false,
+    letterTimeMax: 40,
+    letterTimeLeft: 10,
+    hasBossRef: true,
+    bossRefDead: true,
+    scriptError: true,
+  });
+  assertEqual(scriptErrBoss?.reason, 'scriptError', '异常章即使 boss 已死也作废奖励');
+
   const durFail = evaluateChapterEnd({
     chapterDone: false,
     letterTimeMax: 0,
@@ -397,6 +421,71 @@ test('evaluateChapterEnd：Letter 超时失败 / 击破成功 / 道中耗尽（E
   assertEqual(midBetweenWaves, null);
 });
 
+
+/** 供「章节脚本异常」用例使用的最小 startChapter 环境（无 DOM / Audio） */
+function makeStartChapterGame(ch) {
+  const mkChild = () => ({
+    className: '', textContent: '',
+    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    remove() {}, setAttribute() {}, style: { setProperty() {} },
+  });
+  const makeEl = () => {
+    const kids = Array.from({ length: 8 }, mkChild);
+    return {
+      textContent: '', className: '', hidden: false, title: '',
+      style: { setProperty() {}, removeProperty() {} },
+      classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+      children: kids, lastElementChild: kids[kids.length - 1] || null,
+      appendChild() {}, removeChild() {}, setAttribute() {}, getAttribute() { return null; },
+      querySelector() { return makeEl(); }, querySelectorAll() { return []; },
+      addEventListener() {}, removeEventListener() {}, focus() {}, blur() {},
+      offsetParent: null, dataset: {}, inert: false,
+    };
+  };
+  const g = createMockGame();
+  Object.assign(g, {
+    chapters: [ch], chapterIndex: 0, replaying: false, mode: 'story', dialogues: {},
+    lastStageKey: '1', furthestChapterId: 0, chapterBanner: null,
+    _queuedStartTitle: null, _pendingChapterBegin: null, stageTransit: null,
+    practiceUnstable: true, letterLog: [], _nomissBgmPos: null,
+    totalTendency: 0, chapterTendency: 0, _chapterScriptError: null,
+    spawnMul: 1, fireIntervalMul: 1, _lastBgMode: null,
+    audio: { playTrack() {}, sfx() {}, stopMusic() {}, seekMusic() {}, currentId: null, musicPosition() { return 0; } },
+    playBg: { setMode() {} }, background: null,
+  });
+  g.el = new Proxy({}, { get(obj, prop) { if (!(prop in obj)) obj[prop] = makeEl(); return obj[prop]; } });
+  g._letterProgressInStage = () => ({ idx: 0, total: 0, remain: 0 });
+  return g;
+}
+
+test('章节脚本异常：build 抛错不按 wavesClear 假成功，改为失败推进且不作废其它章节', () => {
+  const ch = {
+    id: 1, stage: 1, stageKey: '1', kind: 'mid', name: '脚本异常章',
+    music: null, bg: null,
+    build() { throw new Error('模拟章节 build 编程错误'); },
+  };
+  const g = makeStartChapterGame(ch);
+  const errSpy = console.error;
+  console.error = () => {};
+  try {
+    startChapter(g);
+  } finally {
+    console.error = errSpy;
+  }
+  assert(g._chapterScriptError, 'build 抛错应记录 _chapterScriptError');
+  assertEqual(g.wavesExhausted, true);
+  const snap = chapterEndSnapFromGame(g, ch);
+  assertEqual(snap.scriptError, true);
+  const end = evaluateChapterEnd(snap);
+  assertEqual(end?.success, false, '异常章不得按 wavesClear 成功');
+  assertEqual(end?.reason, 'scriptError');
+
+  // 下一章重置标记（不把异常带到正常章节）
+  g.chapters = [ch, { id: 2, stage: 1, stageKey: '1', kind: 'mid', name: '正常章', music: null, bg: null, build() {} }];
+  g.chapterIndex = 1;
+  startChapter(g);
+  assertEqual(g._chapterScriptError, null, '新章应重置脚本异常标记');
+});
 
 test('installWaveScript：多轨独立计时，同帧按轨顺序执行', () => {
   const log = [];

@@ -15,12 +15,13 @@
  * @property {string} [kind]         mid | midboss | boss
  * @property {boolean} wavesExhausted
  * @property {boolean} livingEnemies  场上是否有未 dead 敌机
+ * @property {boolean} [scriptError]  本章脚本（build/waveFn/敌机 script）抛过错
  */
 
 /**
  * @typedef {object} ChapterEndResult
  * @property {boolean} success
- * @property {string} reason  letterTimeout | durationBossFail | durationOk | bossDefeated | wavesClear
+ * @property {string} reason  scriptError | letterTimeout | durationBossFail | durationOk | bossDefeated | wavesClear
  * @property {boolean} [killBoss]  是否需先将 bossRef 标 dead（超时/到时未击破）
  */
 
@@ -41,7 +42,14 @@ export function evaluateChapterEnd(snap) {
     kind,
     wavesExhausted = false,
     livingEnemies = false,
+    scriptError = false,
   } = snap;
+
+  // 章节脚本异常（build/waveFn/敌机 script 抛错）：奖励作废并按失败推进，绝不按 wavesClear 假成功。
+  // 放在击破/超时判定之前：异常章的 Perfect、Letter 奖励与收率都不可信。
+  if (scriptError) {
+    return { success: false, reason: 'scriptError' };
+  }
 
   // Boss / Letter：击破即本章结束（以 dead 为准）。
   // 必须先于超时判定：碰撞在扣时之前，最后一帧击破 boss 时 letterTimeLeft 可能恰好减到 0，
@@ -107,5 +115,6 @@ export function chapterEndSnapFromGame(game, ch, opts = {}) {
     kind: ch?.kind,
     wavesExhausted: !!game.wavesExhausted,
     livingEnemies: living,
+    scriptError: !!game._chapterScriptError,
   };
 }
