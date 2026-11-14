@@ -48,6 +48,144 @@ export function updateBossEnemyMarker(game) {
 
 
 
+/**
+ * Combo 版面锚点避让（纯函数）：左上→左下→右下→右上 区域中心，
+ * 优先避开右上角的 Letter 卡；返回第一个与自机距离 ≥ dist 的锚点。
+ */
+export function pickComboAnchor(px, py, W, H, dist) {
+  const anchors = [
+    { x: W * 0.25, y: H * 0.25 },
+    { x: W * 0.25, y: H * 0.75 },
+    { x: W * 0.75, y: H * 0.75 },
+    { x: W * 0.75, y: H * 0.25 },
+  ];
+  for (const a of anchors) {
+    const dx = a.x - px;
+    const dy = a.y - py;
+    if (dx * dx + dy * dy >= dist * dist) return a;
+  }
+  return anchors[0];
+}
+
+/**
+ * Combo 版面内显示：连击数/倍率 + 剩余窗口秒数与进度条。
+ * 纯视觉，只读取 game._drawFrameT 以外的状态；HUD 右栏仍保留主读数。
+ */
+export function drawComboCounter(game, ctx) {
+  if (!(game.combo > 1)) return;
+  const display = BALANCE.combo.display;
+  const a = pickComboAnchor(
+    game.player?.x ?? 0, game.player?.y ?? 0,
+    LOGICAL_W, LOGICAL_H, display.evadeDist,
+  );
+  const remain = Math.max(0, Number(game.comboTimer) || 0);
+  const windowSec = Math.max(0.001, Number(BALANCE.combo.window) || 3);
+  const ratio = Math.max(0, Math.min(1, remain / windowSec));
+  const text = `COMBO ${game.combo} ×${(1 + game.combo * BALANCE.combo.perPercent).toFixed(2)}`;
+  const timerText = `${remain.toFixed(1)}s`;
+
+  ctx.save();
+  ctx.globalAlpha = display.alpha;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 20px "Songti SC","SimSun",serif';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillStyle = '#fbbf24';
+  ctx.strokeText(text, a.x, a.y);
+  ctx.fillText(text, a.x, a.y);
+
+  ctx.font = 'bold 12px ui-monospace, Consolas, monospace';
+  ctx.lineWidth = 3;
+  ctx.fillStyle = '#fde68a';
+  ctx.strokeText(timerText, a.x, a.y + 19);
+  ctx.fillText(timerText, a.x, a.y + 19);
+
+  const barW = 96;
+  const barH = 3;
+  const barX = a.x - barW / 2;
+  const barY = a.y + 29;
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = '#fef3c7';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.globalAlpha = 0.95;
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillRect(barX, barY, barW * ratio, barH);
+  ctx.restore();
+}
+
+/** 板底倾向条：前三面对局中显示 A/B 倾向与本章漂移。 */
+export function drawTendencyGauge(game, ctx) {
+  const H = LOGICAL_H;
+  const W = LOGICAL_W;
+  const max = Math.max(1, BALANCE.tendencyMaxPerChapter);
+  const barW = 300;
+  const barH = 7;
+  const barX = (W - barW) / 2;
+  const barY = H - 32;
+  const centerX = W / 2;
+  const val = Number.isFinite(game.chapterTendency) ? game.chapterTendency : 0;
+  const clamped = Math.max(-max, Math.min(max, val));
+  const pointerX = centerX + (clamped / max) * (barW / 2);
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+
+  const bgGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+  bgGrad.addColorStop(0, 'rgba(56,189,248,0.62)');
+  bgGrad.addColorStop(0.5, 'rgba(148,163,184,0.32)');
+  bgGrad.addColorStop(1, 'rgba(251,146,60,0.62)');
+  ctx.fillStyle = bgGrad;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(barX, barY, barW, barH, 4);
+  else ctx.rect(barX, barY, barW, barH);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX, barY - 2);
+  ctx.lineTo(centerX, barY + barH + 2);
+  ctx.stroke();
+
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(255,255,255,0.48)';
+  for (const pct of [-10, -5, 5, 10]) {
+    const tx = centerX + (pct / max) * (barW / 2);
+    ctx.fillText(`${pct}%`, tx, barY - 7);
+  }
+
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillStyle = '#38bdf8';
+  ctx.textAlign = 'right';
+  ctx.fillText('A', barX - 8, barY + barH / 2 + 4);
+  ctx.fillStyle = '#fb923c';
+  ctx.textAlign = 'left';
+  ctx.fillText('B', barX + barW + 8, barY + barH / 2 + 4);
+
+  const pd = 5;
+  ctx.fillStyle = val < 0 ? '#38bdf8' : val > 0 ? '#fb923c' : '#e2e8f0';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pointerX, barY + barH + 3);
+  ctx.lineTo(pointerX + pd, barY + barH + 3 + pd);
+  ctx.lineTo(pointerX, barY + barH + 3 + pd * 2);
+  ctx.lineTo(pointerX - pd, barY + barH + 3 + pd);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${val.toFixed(1)}%`, centerX, barY - 7);
+  ctx.restore();
+}
+
 export function drawGameChapterBanner(game, ctx, W, H) {
   drawChapterBanner(ctx, game.chapterBanner, W, H);
 }
@@ -242,7 +380,16 @@ export function drawGameFrame(game) {
     ctx.fillRect(0, 0, W, H);
   }
 
-
+  // Combo/倾向是版面内战斗信息：只在进行中的对局绘制，不进入暂停/结算/转场。
+  if (game.combo > 1 && !game.chapterDone && game.state === 'playing') {
+    drawComboCounter(game, ctx);
+  }
+  if (game.state === 'playing' && !game.chapterDone) {
+    const ch = game.chapters[game.chapterIndex];
+    if (ch && typeof ch.stage === 'number' && ch.stage <= 3) {
+      drawTendencyGauge(game, ctx);
+    }
+  }
 
   updateBossEnemyMarker(game);
 

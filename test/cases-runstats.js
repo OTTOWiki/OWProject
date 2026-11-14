@@ -5,7 +5,8 @@ import { BALANCE, STORAGE_KEYS } from '../js/config.js';
 import { formatRunTime, formatRunStats } from '../js/runStats.js';
 import { addScore } from '../js/gameCombat.js';
 import { loadPracticeBest, savePracticeBest } from '../js/storage.js';
-import { stepScoreRoll } from '../js/hud.js';
+import { formatComboText, stepScoreRoll } from '../js/hud.js';
+import { pickComboAnchor } from '../js/gameDraw.js';
 import { test, assert, assertEqual } from './assert.js';
 
 // Node/bun 无 localStorage：注入最小内存实现，测写读路径；浏览器用原生
@@ -139,4 +140,24 @@ test('stepScoreRoll：加速式滚动、夹钳不过冲、非对局直对齐', (
   r = stepScoreRoll(500, 10, 100, true);
   assertEqual(r.shown, 100, '目标变小（重开/续关）直接回落');
   assertEqual(r.speed, 0);
+});
+
+test('pickComboAnchor：右上→左上→左下→右下避让，全近回退右上', () => {
+  const check = (px, py, dist, ex, ey) => {
+    const a = pickComboAnchor(px, py, 100, 100, dist);
+    assertEqual(a.x, ex);
+    assertEqual(a.y, ey);
+  };
+  check(0, 0, 1, 25, 25);
+  check(25, 25, 40, 25, 75);
+  check(50, 50, 1000, 25, 25);
+});
+
+test('formatComboText：连击、倍率与剩余窗口秒数', () => {
+  assertEqual(formatComboText(0, 3, 0.01), '—');
+  assertEqual(formatComboText(1, 3, 0.01), '—');
+  assertEqual(formatComboText(2, 2.4, 0.01), '2 ×1.02 · 2.4s');
+  assertEqual(formatComboText(10, -1, 0.01), '10 ×1.10 · 0.0s');
+  assertEqual(BALANCE.combo.display.alpha, 0.88);
+  assert(BALANCE.combo.display.evadeDist > 0);
 });

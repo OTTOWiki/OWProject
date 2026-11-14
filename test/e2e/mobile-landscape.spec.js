@@ -239,3 +239,13 @@ test('排行榜与录像列表展示「作弊」标签', async ({ page }) => {
   await expect(page.locator('#screen-replay')).toHaveClass(/active/);
   await expect(page.locator('#replay-list .replay-tag.cheat')).toHaveText('作弊');
 });
+
+
+test('移动端视口初始/最大缩放固定为 0.5', async ({ page }) => {
+  await page.goto('/');
+  const content = await page.locator('meta[name="viewport"]').getAttribute('content');
+  expect(content).toContain('width=device-width');
+  expect(content).toContain('initial-scale=0.5');
+  expect(content).toContain('maximum-scale=0.5');
+  expect(content).toContain('user-scalable=no');
+});

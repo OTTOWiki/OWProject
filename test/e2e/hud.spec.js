@@ -163,3 +163,29 @@ test('HUD details 在桌面与短横屏都保持展开，不再依赖窄屏折�
   await expect(details).toHaveJSProperty('open', true);
   await expect(page.locator('#ui-hiscore')).toBeVisible();
 });
+
+test('Letter 卡在版面内右上角，Combo/倾向读数保留在版面内', async ({ page }) => {
+  await page.locator('#main-menu-nav [data-action="practice"]').click();
+  await page.locator('#screen-practice [data-action="practice-start"]').click();
+  await page.locator('#screen-player-select .player-card').first().click();
+  await expect(page.locator('#screen-game')).toHaveClass(/active/);
+
+  await page.evaluate(() => {
+    const banner = document.getElementById('letter-banner');
+    banner.classList.remove('hidden');
+    document.getElementById('letter-name').textContent = '零散的草稿';
+    document.getElementById('letter-remain').textContent = 'LETTER 7/12 · 剩余 2';
+    document.getElementById('letter-timer').textContent = 'TIME 18.4';
+  });
+  await expect(page.locator('.letter-track')).toHaveCount(0);
+  const inPlayfield = await page.locator('#letter-banner').evaluate((el) => !!el.closest('.playfield-wrap'));
+  expect(inPlayfield).toBe(true);
+
+  const field = await page.locator('.playfield-wrap').boundingBox();
+  const letter = await page.locator('#letter-banner').boundingBox();
+  expect(letter.x).toBeGreaterThanOrEqual(field.x);
+  expect(letter.y).toBeGreaterThanOrEqual(field.y);
+  expect(letter.x + letter.width).toBeLessThanOrEqual(field.x + field.width + 1);
+  expect(letter.y + letter.height).toBeLessThanOrEqual(field.y + field.height + 1);
+  await expect(page.locator('#letter-banner')).toBeVisible();
+});

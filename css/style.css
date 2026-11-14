@@ -1802,7 +1802,6 @@ input, select, textarea {
 }
 
 .panel-center {
-  --letter-height: 68px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1812,33 +1811,12 @@ input, select, textarea {
   container-type: size;
   padding-bottom: 18px;
 }
-.letter-track {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100cqw;
-  height: var(--letter-height);
-  flex: 0 0 var(--letter-height);
-  overflow: visible;
-  z-index: 3;
-}
-.letter-track::before {
-  content: "";
-  position: absolute;
-  left: 2%;
-  right: 2%;
-  bottom: 6px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(231, 208, 152, 0.62) 18%, rgba(231, 208, 152, 0.22) 82%, transparent);
-  transform: rotate(-0.8deg);
-}
 .playfield-wrap {
   position: relative;
   display: grid;
   place-items: stretch;
-  width: min(100cqw, calc((100cqh - var(--letter-height) - 18px) * 0.75));
-  height: min(calc(100cqw * 4 / 3), calc(100cqh - var(--letter-height) - 18px));
+  width: min(100cqw, calc((100cqh - 18px) * 0.75));
+  height: min(calc(100cqw * 4 / 3), calc(100cqh - 18px));
   flex: 0 0 auto;
   aspect-ratio: 3 / 4;
   min-width: 0;
@@ -1938,7 +1916,7 @@ input, select, textarea {
   margin: 0 auto;
   background: #071014;
 }
-#screen-game.ending-cinematic .letter-track,
+#screen-game.ending-cinematic .letter-banner,
 #screen-game.ending-cinematic .touch-controls,
 #screen-game.ending-cinematic .stage-label,
 #screen-game.ending-cinematic .boss-enemy-marker { display: none !important; }
@@ -2249,23 +2227,31 @@ input, select, textarea {
   to { opacity: 1; }
 }
 
-/* Letter reserved rail: outside the playfield, never an avoidance overlay. */
+/* Letter card: inside the playfield, top-right, never blocks input. */
 .letter-banner {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 8;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "name timer" "progress bonus" "rate rate";
+  grid-template-areas: "progress progress" "name timer" "rate bonus";
   gap: 2px 8px;
-  width: 100%;
-  padding: 4px 2px 8px;
+  width: min(70%, 340px);
+  padding: 6px 8px;
   color: #f6eddd;
   font-family: var(--font);
   font-size: 12px;
   line-height: 1.25;
+  text-align: right;
   pointer-events: none;
+  background: linear-gradient(90deg, rgba(6, 10, 14, 0), rgba(6, 10, 14, 0.6));
+  border-right: 2px solid rgba(231, 208, 152, 0.62);
+  text-shadow: 1px 1px 0 #0c0a0f, 0 1px 3px rgba(0, 0, 0, 0.7);
 }
-.letter-name { grid-area: name; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
-.letter-remain { grid-area: progress; color: #9bd8e9; }
-.letter-rate { grid-area: rate; font-size: 11px; color: #ded0da; }
+.letter-name { grid-area: name; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.letter-remain { grid-area: progress; font-size: 10px; color: #9bd8e9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.letter-rate { grid-area: rate; font-size: 10px; color: #ded0da; text-align: left; }
 .letter-bonus { grid-area: bonus; color: #f0b6d6; text-align: right; }
 .letter-timer { grid-area: timer; font-size: 16px; font-weight: 700; text-align: right; color: #f0b6d6; }
 .letter-remain, .letter-bonus, .letter-timer { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -2411,18 +2397,16 @@ input, select, textarea {
   .panel-left { display: none; }
   .panel-right-wrap { grid-column: 2; gap: 6px; }
   .panel-center {
-    --letter-height: 48px;
     justify-content: center;
     padding-bottom: 0;
   }
-  .letter-track { height: var(--letter-height); flex: 0 0 var(--letter-height); }
-  .letter-banner { padding: 1px 0 4px; gap: 0 6px; font-size: 10px; }
+  .letter-banner { top: 7px; right: 7px; width: min(72%, 230px); padding: 4px 6px; gap: 1px 6px; font-size: 10px; }
   .letter-name { font-size: 12px; }
   .letter-timer { font-size: 13px; }
   .letter-remain, .letter-bonus, .letter-rate { font-size: 10px; }
   .playfield-wrap {
-    width: min(100cqw, calc((100cqh - var(--letter-height)) * 0.75));
-    height: min(calc(100cqw * 4 / 3), calc(100cqh - var(--letter-height)));
+    width: min(100cqw, calc(100cqh * 0.75));
+    height: min(calc(100cqw * 4 / 3), 100cqh);
     aspect-ratio: 3 / 4;
   }
   #playfield { touch-action: none; }
@@ -2484,8 +2468,6 @@ input, select, textarea {
 }
 @media (orientation: landscape) and (max-height: 360px) {
   .game-layout { padding-block: 4px; }
-  .panel-center { --letter-height: 46px; }
-  .letter-banner { padding-bottom: 2px; }
   .touch-btn { min-height: 44px; }
   .details-body .stat-row { font-size: 8px; }
   .details-body .stat-row strong { font-size: 9px; }
