@@ -1,7 +1,7 @@
 /**
  * 版本约定
  * - VERSION：纯自然数构建号（pre-commit 每次提交自动 +1，勿手改）
- * - VERSION_NAME：展示用 x.y.z（如 0.4.1）
+ * - VERSION_NAME：展示用语义版本段（如 0.5.0）
  * - GIT_HASH：来自 js/git-hash.js（仓库为空；CF 部署构建时注入短哈希）
  * - VERSION_LABEL：有合法 hash → `v{NAME}.{hash}`，否则 `v{NAME}`
  *
@@ -9,9 +9,9 @@
  */
 import { DEPLOY_GIT_HASH } from './git-hash.js';
 
-export const VERSION = 259;
+export const VERSION = 260;
 
-/** 展示用语义版本段（无 v 前缀），如 0.4.1 */
+/** 展示用语义版本段（无 v 前缀），以本文件常量值为准 */
 export const VERSION_NAME = '0.5.0';
 
 /** 规范化：仅保留可展示的短哈希 */
@@ -40,7 +40,7 @@ export function formatVersionLabel(name = VERSION_NAME, hash = GIT_HASH) {
   return h ? `v${n}.${h}` : `v${n}`;
 }
 
-/** 界面版本名，如 v0.4.1 或 v0.4.1.a1b2c3d */
+/** 界面版本名，如 v{NAME} 或 v{NAME}.{短哈希} */
 export const VERSION_LABEL = formatVersionLabel(VERSION_NAME, GIT_HASH);
 
 /** 将版本名写入页面上所有 [data-app-version] 节点 */

@@ -20,7 +20,7 @@ TH20 为此付出的 23,760 条指令里，**36% 是栈压/弹、11.2% 是 rank 
 
 | 指标 | 数值 |
 |---|---|
-| `js/stages/` | **36 文件 / 6,977 行**（最大 `ex_mid_32_61.js` 933、`ex_mid_0_31.js` 881） |
+| `js/stages/` | **37 文件 / 7,329 行**（最大 `ex_mid_32_61.js` 712、`ex_mid_0_31.js` 552；2026-11-14 B2 迁移后实测） |
 | 章节构建函数 | **104 个**，函数体合计 92,288 字符（中位 851） |
 | `kind` 分布 | `mid` 61 / `midboss` 10 / `boss` 2 |
 | 工厂调用（`(` 计数） | `midChapter` 79、`letterChapter` 70、`installMidWave` **121**、`installWave` 5、`setBoss` 6 |
@@ -196,7 +196,7 @@ export function chapter_a4_mid_1(g) {
 - `test/cases-stages.js:202-226` 已有用极简假 `g` 直接驱动 `installMidWave` 的用例；
 - `js/chapterFlow.js:164` `ch.build(game)` 之后由 `:169-186` 包装 `waveFn`（并把 `dt` 除以 `spawnMul`）。
 
-**做法**：新增 `test/cases-stages-golden.js`
+**做法**：新增 `test/cases-golden.js`（落地文件；配套 `test/chapterHash.js` + `test/goldenChapterHashes.js`）
 1. 逐章 `buildChapterList()` → 对每个有 `build` 的章，用 `createMockGame()` 建 `g`；
 2. `withSeededRng` 注入**固定 seed** 的 `createRng`；
 3. 跑 N 帧（建议 600 帧 = 10 秒），每帧对
@@ -228,7 +228,7 @@ export function chapter_a4_mid_1(g) {
 | **B1** | 建**黄金哈希基线**，全部章节 before 快照 | 后续每一批都要比它 |
 | **B2** | `ex_mid_0_31.js` / `ex_mid_32_61.js`：62 个 pattern、1,814 行、62 处调用 | **最均匀、收益最大、最易批量验证** |
 
-> 状态（2026-11-08）：B0/B1 已完成；B2 进行中，EX 0–31 已迁移 53 个 mob/elite 原型；剩余 9 个为纯弹幕墙/激光/回场移动，无 mob 重复代码，保留 raw script到 `archetypes.js`，其余 49 个 pattern 待迁移。黄金哈希已覆盖 spawn 帧号、敌机 script 开火与 600 帧最终状态。
+> 状态（2026-11-14）：B0/B1/B2 已完成。EX 62 个 pattern 中 53 个已迁 `spawnArch`（0–31：29、32–61：24），其余 9 个为纯弹幕墙/激光/回场移动，按设计保留 raw script 到 `archetypes.js`；B3–B5 未开始。黄金哈希已覆盖 spawn 帧号、敌机 script 开火与 600 帧最终状态。
 | **B3** | `a4..b6/mid.js`（约 60 处），此时原型表已稳定 | 中等体量，逐文件提交 |
 | **B4** | `s1/s2/s3`（`s1_alice.js` 的 `installWave` 试点） | 接通 `stageContext` |
 | **B5** | 文档同步：`AGENTS.md` 的「新章节」配方、`docs/refactor-queue.md` | 文档与代码一致 |

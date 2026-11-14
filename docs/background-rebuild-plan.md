@@ -93,15 +93,17 @@
 
 ## 2. 本作现状盘点（全部经我复核）
 
-### 2.1 版面层 `js/playfieldBg.js`（671 行）
+> 本节为 P0/P1 实施前（2026-10-05）快照，供理解重作动机；**当前实现以 `js/playfieldBg.js` / `js/backgrounds/atoms2d.js` / `js/backgrounds/scenes.js` 为准**，P0/P1 已完成（PR #58 / #66）。
 
-- 类 `PlayfieldBackground` `:42`；离屏 450×600 `_buf`（`:53-56`）；`update(dt)` `:121-133` **每 1/28 秒**才置 `_dirty`（离屏重绘 ≈28Hz）。
-- `_propsFor(mode)` `:80-119`：`hash()`（`:21-24`，**确定性**）按 `mode.length*97 + 首字符*13` 生成固定 30 个道具（14 pillar + 10 float + 6 symbol），按 mode 缓存。
-- `_drawMode` `:155-288`：天空渐变、28 星点、剪影、地平光带、Mode-7 地面、路缘虚段、道具、远近雾、边雾、扫描/故障层、扫描线。
+### 2.1 版面层 `js/playfieldBg.js`（P1 原子迁移后 489 行）
+
+- 类 `PlayfieldBackground`；离屏 450×600 `_buf`；`update(dt)` **每 1/28 秒**才置 `_dirty`（离屏重绘 ≈28Hz）。
+- `_propsFor(mode)`：`hash()`（**确定性**）按 `mode.length*97 + 首字符*13` 生成固定 30 个道具（14 pillar + 10 float + 6 symbol），按 mode 缓存。
+- `_drawMode`：天空渐变、28 星点、剪影、地平光带、Mode-7 地面、路缘虚段、道具、远近雾、边雾、扫描/故障层、扫描线。
 - **已数据驱动**：主题色（`MODE_THEME` 21 行）、贴图路径（`PLAYFIELD_BG_TEX`）、道具散布（确定性 hash）。
-- **手写分支**：`_drawSilhouette` `:290-396` 的 **12 个 `sil`**、`_drawPillar` `:501-580` 的 **12 个 `kind` 分支**（外加一条 default 兜底）。
+- **手写分支**：`_drawSilhouette` 的 **12 个 `sil`**、`_drawPillar` 的 **12 个 `kind` 分支**（外加一条 default 兜底）。
 
-### 2.2 【已核·真实缺陷】`s1_mid` 的主题值在绘制代码里没有对应分支
+### 2.2 【历史记录｜已由 P1 守卫覆盖】`s1_mid` 的主题值在绘制代码里没有对应分支
 
 我用集合比对核出来的：
 
@@ -116,19 +118,19 @@
 
 对比 `sil`：主题表 12 个值、代码 12 个分支，**完全一致，无死分支**。所以问题只出在 `kind`。
 
-**成因判断**：`playfieldBgThemes.js` 是 E06c 抽出来的（`playfieldBg.js:5` 注释与 `docs/refactor-queue.md:571`），而 `'code'` 这个 `kind` 很可能是被抽离时**遗留的旧值**（或原本依赖一个已不存在的分支）。
-**这正是本次重作方案最有力的论据**：主题表与绘制分支之间**没有一致性校验**，所以一个主题值可以静默地失去它的视觉实现，而且**没有任何测试会失败**。→ 无论是否做完整重作，都应先加"每个 `MODE_THEME.kind`/`.sil` 必须有对应原子"的断言。
+**成因判断**：`playfieldBgThemes.js` 是 E06c 抽出来的，而 `'code'` 这个 `kind` 很可能是被抽离时**遗留的旧值**（或原本依赖一个已不存在的分支）。
+**现状（2026-11-14）**：P1 已补 `test/cases-bg-schema.js` 守卫——`code`/`split` 显式登记为通用柱（`PILLAR_GENERIC`），每个 `MODE_THEME.kind/sil` 必须有绘制归属，主题值不再可能静默失配。`s1_mid` 的通用柱观感差异留待 P6 视觉变更处理。
 
 ### 2.3 左侧 Three 面板
 
 - `js/backgrounds/StageBackground.js`：`_rebuild` `:79-85` 走 `STAGE_BG_BUILDERS[mode]`，并**包在 `withRealRandom` 里**（`:84`，避免消费录像种子流）；`update()` `:208-299` 逐对象解释 **15 个 `userData` 标志**。
-- `js/backgrounds/scenes.js`（795 行）：**13 个手写 builder**（27–101 行/个），**42 处 `Math.random`**（我已复核为 42）。
+- `js/backgrounds/scenes.js`（795 行）：**13 个手写 builder**，装饰随机已全部走 `bg.__rand`（P0 后 `Math.random` 为 0 处、`__rand` 42 处）。
 - `js/backgrounds/builders.js`：`STAGE_BG_BUILDERS`，21 mode → 13 builder（`ex_mid→buildA5(false)`、`ex_boss→buildA6(true)`）。
-- **最大障碍**：42 处 `Math.random` ⇒ 左侧面板**每次重建布局都不同，当前无法做像素级回归**。所以"零观感变化"重构的第一步必须是**先冻结随机种子**。
+- **P0 已完成**（PR #58）：装饰随机统一走 `StageBackground({ rand })` 注入源，同一 seed 可确定性重建；像素级回归仍待 P2 场景数据化后再建立。
 
 ### 2.4 登记与素材
 
-- `js/bgModes.js`：`BG_MODE_BY_STAGE`（12 个 stageKey）+ `PLAYFIELD_BG_TEX`（**21 mode → 19 文件**）+ 四个查询函数。
+- `js/bgModes.js`：`BG_MODE_BY_STAGE`（11 个 stageKey）+ `PLAYFIELD_BG_TEX`（**21 mode → 19 文件**）+ 四个查询函数。
 - 换面入口只有两处：`js/chapterFlow.js:140`（Three）与 `:142`（版面），**两层共用同一个 mode 字符串**——这是数据化的天然接缝。
 - **素材缺口（已核）**：`assets/bg/tex_*.avif` 共 **19 个文件但只有 8 个唯一 md5**（重复组：`a4_boss == a4_mid == s1_boss`；`b4_boss == b4_mid == s3_boss == s3_mid`；`a6_boss == patrol`；`b6_boss == b6_mid == s2_boss == s2_mid`；`b5_boss == b5_mid == s1_mid`）。
   而 `assets/NOTICE.md` 只对 `battle-print.avif`（`:25`）、`ui/pause-vine.avif`（`:26`）、`difficulty-cathedral.avif`（`:27`）、`ui/scene-wipe-mask.avif` 有逐条记录；**19 个 `tex_*.avif` 只有 `:21-24` 的整段"AI 生成"概括，没有逐文件来源**。
@@ -259,7 +261,7 @@ js/bg/apply3d.js    // Scene3D → StageBackground 的解释器
 
 - **单测（node，不 import Three）**：
   - `test/cases-bg-schema.js`：21 mode 全部通过 `validateScene`；**每个 `Scene2D` 引用的 atom 都必须存在于 `ATOMS2D`**（**这条正是 §2.2 那个 `'code'` 缺陷的通用守卫**）；`ease ∈ 0..31`；`t` 非递减；`loop.to` 合法且指向更早的 t；`tex` 必须命中 `PLAYFIELD_BG_TEX`。
-    → 并且**立刻补一条**：`MODE_THEME` 每个 `kind`/`sil` 都必须有对应绘制分支。**这条不需要等重作，现在就能加，且会立刻暴露 `'code'`。**
+    → 已落地：`MODE_THEME` 每个 `kind`/`sil` 必须有绘制归属（`PILLAR_EXPLICIT`/`PILLAR_GENERIC`/`SILHOUETTES`），见 `test/cases-bg-schema.js`。
   - `test/cases-bg-easing.js`：32 条缓动的性质。
   - `test/cases-three.js`：保留现有 `mode=null` 契约（`:40-72`）；新增"每 mode 有 Scene3D"与"解释器的 helper 调用序列与 P0 记录一致"（用 `:48-57` 已有的最小 THREE 假实现做录制式断言）。
 - **e2e**：新增 `test/e2e/bg.spec.js`：`owDebug.softJump(id)` 逐面 → 等 2 个 rAF → 截版面与左栏 → 与基线比较；`UPDATE_BG_BASELINE=1` 重建基线；补 390×844 视口。
@@ -306,5 +308,5 @@ js/bg/apply3d.js    // Scene3D → StageBackground 的解释器
 
 ## 6. 立即可以做的两件小事（不依赖重作）
 
-1. **加"主题值必须有绘制分支"的断言**（§3.5 第一条）。它会立刻暴露 §2.2 的 `kind: 'code'` 缺陷——这是当前**唯一有玩家可见后果**的发现（1 面道中是最常被看到的场景）。修法二选一：给 `_drawPillar` 补 `'code'` 分支，或把 `s1_mid.kind` 改成已有的 `kind` 值。**这属于观感修正，需你确认走哪条**。
+1. **"主题值必须有绘制分支"的断言**（§3.5 第一条）已落地并覆盖 §2.2 的 `'code'`（显式通用柱）。剩余观感差异（1 面道中通用柱）属于 P6 视觉变更，需你确认是否走新原子方案。
 2. **补 `tex_*.avif` 的逐文件来源记录**（§3.6）。纯文档，无运行时风险。

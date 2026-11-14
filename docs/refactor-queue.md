@@ -314,7 +314,7 @@ T12（拆 game，可分步提交）
 [已完成] T01…T11 · T12a–d · T13 · T14 · T15 · T16 · T17 · T18
   → Phase D 收尾完成
 
-[进行中] Phase E（2026-07-20 拍板顺序，见下「默认执行方案」）
+[已完成] Phase E（2026-07-20 拍板顺序，见下「默认执行方案」）
   E02手测 → E03a → E03b → E03c → E03d1 → E03d2
     → E07 → E01 → E05 → E04 → E06*（可选）
 ```
@@ -511,7 +511,7 @@ E04 与关卡解耦无关，可在 E03 疲劳时穿插，但默认仍排在 E05 
 
 | | |
 |--|--|
-| **状态** | 等手测（本地 commit，未 push） |
+| **状态** | 完成（`1fced35` 已 push，见进度日志 2026-07-20） |
 | **改动清单** | 新增 `js/stages/stageContext.js`；`s1_alice.js` 全章 `asStageContext` + `installWave`/`setBoss`；单测窄 API 转发 |
 | **目标** | 关卡不再直接把完整 `Game` 当沙箱；经窄 API 出怪/出弹/挂波次/设 Boss |
 | **严格度** | 中等：包装现有能力，**不**做插件加载器 / 弹幕 DSL |
@@ -773,7 +773,7 @@ Phase E 含可选 backlog 已全部收尾。
 | | |
 |--|--|
 | **状态** | 完成 |
-| **范围** | `@playwright/test` devDependency + `playwright.config.mjs`；`test/e2e/{helpers,smoke,game,replay,settings,ranking-nomiss}.spec.js`；`test:run-tests.mjs` 限制 bun 只跑 `test/run-bun.test.mjs`（bun 默认会扫到 e2e spec）；`.gitignore` 加 node_modules/playwright-report/test-results |
+| **范围** | `@playwright/test` devDependency + `playwright.config.mjs`；`test/e2e/{helpers,smoke,game,replay,settings,ranking-nomiss}.spec.js`；`test/run-tests.mjs` 限制 bun 只跑 `test/run-bun.test.mjs`（bun 默认会扫到 e2e spec）；`.gitignore` 加 node_modules/playwright-report/test-results |
 | **不做** | 不改任何产品代码；不动运行行为 |
 | **验收（自动）** | `npm test` 119/119；`npm run test:e2e` 7/7（本地 3000 serve 复用） |
 | **验收（CI）** | Test job 增加 `npm ci` + `npx playwright install --with-deps chromium` + `npm run test:e2e` |
