@@ -139,7 +139,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 兼容 re-export：`stages/a4_menbailiang.js` 等 → 对应 `a4/`… 子目录，新增内容改子目录。
 
-**授权**：代码 GPL-3.0-or-later（见 `LICENSE`）。BGM 为东方 Project **原作游戏音乐**（版权归上海爱丽丝幻乐团）、立绘/背景为 AI 生成的同人素材，均**不随代码 GPL 授权**，来源与合规提示见 `assets/NOTICE.md`；本作遵循官方《東方Projectの二次創作ガイドライン》（2024-05-31 更新）。
+**授权**：代码 GPL-3.0-or-later（见 `LICENSE`）。BGM 为东方 Project **原作游戏音乐**（版权归上海爱丽丝幻乐团）、立绘/背景为 AI 生成及公有领域／CC0 博物馆开放素材加工的同人素材，均**不随代码 GPL 授权**，来源与合规提示见 `assets/NOTICE.md`；本作遵循官方《東方Projectの二次創作ガイドライン》（2024-05-31 更新）。
 
 ---
 
@@ -205,8 +205,8 @@ docs/                  # 内部改造队列等（非运行时）
 **`Game.state`**：`playing` | `dialogue` | `routeSelect` | `stageTransit` | `gameover`  
 暂停：`paused` 标志（不是 state）。结局演出用 `endingCinematic` 标志，state 进入 `gameover`。
 
-**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。开屏为满幅暗色幻想底 + 中央黑带 + 右下真实进度角；落花只在右下加载角的局部盒内跟随真实进度调速，恢复态暂停，减少动态效果时静态呈现；可恢复失败改为黑带下的暗色状态面板，窄屏按钮保持 44px 命中区。游戏首帧启动失败会停止已初始化的游戏并恢复真实来源页。新主菜单人物为明确占位。
-标题为逐字DOM排版：五字大小／上下错位，「棍維」与「何意味」异色，完整可访问名称与日文字形优先不变；魔幻背景候选暂未进入运行时资源列表。
+**主菜单**：`ui.js` 编排 `menu`/`exit` 等 UI 屏幕，不属于 `Game.state`。首次及返回菜单重播可跳过的分层入场，跳过输入只结束演出；保留最后入口。`prefers-reduced-motion` 直接呈现。`main.js` 等初始化完成才移除加载层；资源失败提供重新加载或可用的继续路径，核心程序失败仅重新加载。开屏为满幅暗色幻想底 + 中央黑带 + 右下真实进度角；落花只在右下加载角的局部盒内跟随真实进度调速，恢复态暂停，减少动态效果时静态呈现；可恢复失败改为黑带下的暗色状态面板，窄屏按钮保持 44px 命中区。游戏首帧启动失败会停止已初始化的游戏并恢复真实来源页。新主菜单人物为明确占位（纸面剪影 + 「立绘占位」朱签）。
+标题为逐字DOM排版：五字大小／上下错位，「棍維」与「何意味」异色，完整可访问名称与日文字形优先不变。主菜单底材为 `assets/bg/menu-washi.avif`（尾形光琳《Chrysanthemums by a Stream》CC0 博物馆素材处理，来源与加工见 `assets/NOTICE.md`）；十项导航统一左对齐，仅以分组发丝线与留白分层，选中项为朱红文字 + 金笔锋下划线 + 菱形朱印，不再逐组缩进。
 
 **`Game.mode`**：`story` | `practice` | `stage` | `extra` | `nomiss`
 （Stage Select 进 EX / 主菜单 Extra Start → `extra`；策略见 `startMode.js`。
@@ -333,7 +333,9 @@ docs/                  # 内部改造队列等（非运行时）
 | 调难度/手感 | `config.js` |
 | 改某一章弹幕 | `js/stages/*` + `patterns.js` |
 | 改碰撞/Bomb/擦弹 | `collision.js` / `gameCombat.js` |
-| 改菜单 | `ui.js` + `index.html` + `menuRepeat.js` |
+| 改菜单 | `ui.js` + `index.html` + `menuRepeat.js` + `css/style.css` |
+| 改主菜单/设置/倾向条底材 | `css/style.css` + `assets/bg/*` / `assets/ui/tendency-plate.avif` + `js/gameDraw.js` + `assets/NOTICE.md` |
+| 改次级界面（练习/回放/Manual/History/Ranking/Stage/Settings）布局与手感 | `css/style.css`（「次级界面」段）+ `index.html`（结构类名）+ `js/ui.js`（焦点） |
 | 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
 | 改 BGM | `audio.js` |
 | 改共享舞台 3D | `backgrounds/*` + `bgModes.js` |
@@ -367,10 +369,12 @@ docs/                  # 内部改造队列等（非运行时）
 - 暂停入场：遮罩模糊240ms、菜单位移淡入280ms；默认选中不抖动，仅切换选项时触发140ms小幅多方向抖动，最大平移2.2px。确认按钮中文“是／否”在上，英文“Yes Yes Yes／No No No”作为下方小字。减少动态效果时即时呈现。
 - 解除暂停通过 Esc、继续按钮共用280ms退场：菜单淡出位移、遮罩恢复清晰后恢复游戏；减少动态效果时立即恢复。用户已认可暂停菜单并授权按PR流程提交合并。
 - 结算主区直接读取实际得分、难度与章节；练习完成的 Perfect 标记从章结束结果传入，不解析显示正文。完整结算正文默认显示，无折叠控件；窄屏统计区保留68px阅读高度并可滚动，面板滚动保证操作可达。
-- 难度选择采用斜向序列，`_highlightDiff` 更新各项相对焦点偏移，移动、渐隐及黑带旋转统一使用300ms `cubic-bezier(0.22, 1, 0.36, 1)`；选中项居中，减少动态效果时立即定位。独立底材为 `assets/bg/difficulty-cathedral.avif`，自机页复用同一底材；主菜单未整合。各屏导航快捷键常驻提示已移除，Manual/README操作说明与录像保存状态反馈保留。
+- 难度选择采用斜向序列，`_highlightDiff` 更新各项相对焦点偏移，移动、渐隐及黑带旋转统一使用300ms `cubic-bezier(0.22, 1, 0.36, 1)`；选中项居中，减少动态效果时立即定位。独立底材为 `assets/bg/difficulty-cathedral.avif`，自机页复用同一底材；主菜单用独立纸墨底材 `assets/bg/menu-washi.avif`，设置页用暗色底材 `assets/bg/settings-ink.avif`，三者互不复用。各屏导航快捷键常驻提示已移除，Manual/README操作说明与录像保存状态反馈保留。
 - 难度焦点黑带是独立装饰层，中心不随选项平移，仅按Easy/Normal/Hard/Lunatic的−12°/−4°/+4°/+12°旋转；文字使用JS计算的带单位偏移沿斜线移动。导航集合只含真实难度；键盘返回仍走 X/Esc，触屏在左上角提供独立返回键（不计入难度导航集合）。
 - EX 单项的黑带高度跟随实际文案换行高度，并上下各留12px；ResizeObserver忽略隐藏页的零高度，返回目标页active后同步测量再捕获转场终态，避免过渡带变细后回弹。常规四档维持既定黑带尺寸与旋转角度。
 - 选择页转场采用独立三层：`#app` 下固定背景z0、唯一过渡黑带z1、两页透明内容z2；模式列表也明确为内容层，避免返回时被旧页背景遮挡。黑带外框只插值中心与宽高，内层独立rotate，目标角度在初始化时关闭CSS transition后测量。改变方向后采样当前computed几何并移向另一端点；generation防止旧动画取消时提前收尾。前进先360ms闪三次，闪烁期间可取消，减少动态效果时直接切换。自机使用两色SVG；模式支持上下／左右切换，Nomiss位于难度前。
 - 选择转场允许连续导航：前进途中继续确认当前目标页选项，返回途中继续返回上一层；方向键作用于正在抵达的页面。反方向输入沿用已有重定向，按住重复事件不跨页。每次衔接采样当前内容与黑带的computed状态作为下一段首帧，旧页面内容随页面退出清理，不克隆为屏幕固定文字副本，不排队等待完成。确认闪烁期间再次确认结束闪烁并进入移动阶段；自机确认与game场景转场只触发一次。自机黑带仍跟随真实文字盒及ResizeObserver尺寸。
 - 连续导航的瞬时首帧与页面静态端点分别保存：snapshot 只替换本次播放首帧，不覆盖 segment 的真实 start/end；反向时回到真实页面几何，避免难度黑带停在历史中间位置后跳回。
+- 次级界面（练习 / 回放 / Manual / History / Ranking / Stage Select / Settings）统一为东方原作式无面板布局：满幅暗色底材、内容贴背景左下，不再使用居中的 `.th-panel` 盒子；文字/控件为白—灰—黑单色（白为默认，灰为次级信息，黑用于勾选/选中/悬浮的反白反馈）。设置页按「标签在左、控件在右」的双列行排列；列表（回放/History/Ranking）只用发丝线分行；Stage Select 为无卡片细线网格（底材复用 `difficulty-cathedral.avif`，其余复用 `settings-ink.avif`，仅改切图焦点）。交互统一 `--plain-ease` 阻尼缓动（行/按钮位移与反白过渡、界面入场轻微上浮），`prefers-reduced-motion` 直接呈现；触屏横屏（0.5 视口）整体放大一档字号与控件。样式集中在 `css/style.css` 末尾「次级界面」段，不改数据与输入契约。
+- 主菜单 / 设置 / 倾向条底材：`assets/bg/menu-washi.avif`（尾形光琳《Chrysanthemums by a Stream》，Cleveland CC0）、`assets/bg/settings-ink.avif`（《God of Thunder (Raijin)》，Cleveland CC0）、`assets/ui/tendency-plate.avif`（尾形光琳《Rough Waves》，Met Public Domain）均由公有领域/CC0 博物馆开放素材裁切、混色与压暗后导出 AVIF，来源与加工见 `assets/NOTICE.md`；不含东方原作提取素材。背景 CSS 加载失败时回退纸色/深紫纯色，倾向条图片未就绪时回退纯色圆角板，均不阻塞游戏；底衬由 `js/gameDraw.js` 绘制，独立于冻结的旧版面主题表。
 - 场景转场使用固定的实际目标背景及其计算后的覆盖层；四个面片复用原创 `assets/ui/scene-wipe-mask.avif` 合成 Alpha，素材为周期起伏前沿与实心下部的渐变纹理，不包含专用过渡背景。通过本机 TH20 原始 `screenswitch.anm` 与纹理解包核对采样：128×128 sprite 读取 64×64 tile 的 `(0,1)..(128,129)`，横向重复两次，前63/128高度扫描纹理、后65/128高度延展真实底行；首次转场将 U wrap／V clamp 烘焙并缓存为单张128×128 Alpha sprite，统一周期端点透明度，避免SVG平铺与底边拼接细线。面片恢复原脚本 3×12 比例，无额外尖头裁剪或宽度补偿；每片30帧，0/5/10/15帧错峰，以`t²`插值，各阶段750ms。原资源只保留在 Git 忽略的 `.local-evidence/th20-original/`，产品图使用独立参数绘制而非复制原像素。图片在 UI 初始化时预载，转场不等待；未载入时同轨迹矩形后备保证可用。主页返回以`T-t`反向采样；选择页往返无hold／祈祷提示，只有进入game保留1500ms停留。`Game.start(opts,{deferLoop:true})`准备首帧后冻结计时，揭示完成才启动循环；减少动态效果直接切换。素材来源见`assets/NOTICE.md`。

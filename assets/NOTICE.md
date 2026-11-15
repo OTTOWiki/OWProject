@@ -18,7 +18,7 @@
 
 ## 立绘 / 背景 / 其余图像
 
-- 来源：**AI 生成**。
+- 来源：**AI 生成**、以及 **公有领域 / CC0 博物馆开放素材**（逐项见下；后者为原创作品的自由授权复制，不是东方原作素材）。
 - 性质：东方 Project **同人创作素材**。
 - 官方二次创作指南未对 AI 生成素材作特别禁止；仍须遵守一般条件：标明是东方 Project 二次创作、不损害原作形象、不冒充官方内容、不侵犯他人权利、不做指南禁止的其他行为。
 - 立绘 / 背景不随代码 GPL 授权；如需复用请自行确认合规性。
@@ -30,6 +30,9 @@
 - `ui/petals-scroll.avif`：落花纹理。由 [FreeGameSprites — Cherry Blossom Petals](https://freegamesprites.com/en/assets/cherry-blossom-petals)（页面标注 CC0 1.0 / [Creative Commons Zero](https://creativecommons.org/publicdomain/zero/1.0/)）的 256×256 透明水彩素材裁出三片独立花瓣，重排为 512×1024 无缝纵铺纹理；源图与处理脚本不进入运行时，不是从东方原作提取的素材。
 - `ui/player-placeholder.svg`：按用户要求以代码绘制的临时空白人形轮廓，不使用原作角色图像；此SVG随代码以GPL-3.0-or-later授权，选择页用CSS分别着淡青／淡紫。
 
+- `bg/menu-washi.avif`：主菜单满幅纸墨底材。以 **《Chrysanthemums by a Stream》**（尾形光琳／乾山传，约 1715–30，克利夫兰艺术博物馆 1958.206.2，**CC0**，https://clevelandart.org/art/1958.206.2 ）为源，裁切取景后做暖金／和纸色阶映射、左侧和纸淡化与局部虚化（保证奶油色描边菜单文字可读）、纤维颗粒与暗角，导出 1600×1000 AVIF；不是从东方原作提取的素材。
+- `bg/settings-ink.avif`：设置页暗色底材。以 **《God of Thunder (Raijin)》**（俵屋宗达工作室，17 世纪中，克利夫兰艺术博物馆 2004.86，**CC0**，https://clevelandart.org/art/2004.86 ）为源，做金→靛紫色彩矩阵、中心压暗、暗角与颗粒，导出 1600×1000 AVIF；与 `bg/difficulty-cathedral.avif` 同属暗色幻想底材族，不是从东方原作提取的素材。
+- `ui/tendency-plate.avif`：版面内 A/B 倾向条的暗漆板底衬。以 **《Rough Waves》**（尾形光琳，约 1704–9，大都会艺术博物馆 44918，**Public Domain**，https://www.metmuseum.org/art/collection/search/44918 ）浪纹裁片为源，做深青绿双色调、叠加暗漆底与上下金线、四边羽化 alpha，导出 728×92 AVIF；源图与处理脚本不进入运行时（仅存于本地忽略目录），不是从东方原作提取的素材。
 - `ui/scene-wipe-mask.avif`：本项目原创程序绘制的 256×256 周期基础 alpha 遮罩，不复制或逐点描摹原作纹理；白色 RGB 与上缘渐变 alpha 仅用于控制场景过渡透明度，图像下部为 alpha 255 实心区，左右边界在周期接缝处连续。该素材不是可见过渡背景，过渡期间实际可见图像始终来自下一场景背景。AVIF 使用 `Color` 与 `Alpha` 两路；透明外部为 alpha 0，渐变边缘保留 0–255 中间 alpha。
 
 ## 通用二次创作条件（本项目遵守）

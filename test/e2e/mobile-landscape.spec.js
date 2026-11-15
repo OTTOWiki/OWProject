@@ -72,7 +72,8 @@ test('横屏版面、完整不可滚动 HUD、HUD 下方四键与暂停菜单尺
   await cleanStorage(page);
   await startPractice(page);
 
-  const viewport = page.viewportSize();
+  // 0.5 viewport meta doubles the CSS layout viewport; measure geometry in CSS px.
+  const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
   const canvas = await page.locator('#playfield').boundingBox();
   expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
   expect(canvas.height).toBeGreaterThanOrEqual(viewport.height * 0.8);
@@ -126,9 +127,15 @@ test('横屏版面、完整不可滚动 HUD、HUD 下方四键与暂停菜单尺
       clientH: panel.clientHeight,
     };
   });
-  expect(overlay.position).toBe('fixed');
+  // 0.5 viewport: the overlay container lives inside the playfield box and is
+  // absolute there (fixed only on genuinely short layouts), so assert the panel
+  // stays inside the layout viewport instead of pinning one position scheme.
+  expect(['fixed', 'absolute']).toContain(overlay.position);
   expect(overlay.rect.width).toBeGreaterThanOrEqual(300);
-  expect(overlay.rect.height).toBeLessThanOrEqual(viewport.height);
+  expect(overlay.rect.x).toBeGreaterThanOrEqual(-1);
+  expect(overlay.rect.y).toBeGreaterThanOrEqual(-1);
+  expect(overlay.rect.x + overlay.rect.width).toBeLessThanOrEqual(viewport.width + 1);
+  expect(overlay.rect.y + overlay.rect.height).toBeLessThanOrEqual(viewport.height + 1);
   expect(overlay.scrollH).toBeLessThanOrEqual(overlay.clientH + 1);
   for (const id of ['resume', 'save-replay', 'settings', 'menu']) {
     await expect(page.locator(`.game-overlay-actions [data-overlay="${id}"]`)).toBeVisible();

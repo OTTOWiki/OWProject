@@ -91,5 +91,6 @@ export function getAssetPaths() {
   return [
     ...new Set(Object.values(PORTRAIT_PATHS)),
     'assets/ui/title_banner.avif',
+    'assets/ui/tendency-plate.avif',
   ];
 }
