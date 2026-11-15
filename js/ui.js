@@ -32,6 +32,12 @@ import { SettingsForm } from './settingsForm.js';
 import { RankingScreen } from './rankingScreen.js';
 import { ReplayScreen } from './replayScreen.js';
 
+function isCoarsePointer() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(pointer: coarse)').matches;
+}
+
 
 const UI_ACTION_HANDLERS = {
   start(ui) {
@@ -373,10 +379,15 @@ export class UI {
     [...list.querySelectorAll('.mode-btn')].forEach((btn, index) => {
       btn.addEventListener('click', () => {
         if ((this._selectionTransition && !this._selectionDispatch) || this._playerConfirmTransition) return;
-        const dir = index === this.modeIndex ? 0 : index > this.modeIndex ? 1 : -1;
+        const wasSelected = index === this.modeIndex;
+        const dir = wasSelected ? 0 : index > this.modeIndex ? 1 : -1;
         this.modeIndex = index;
         this.modeBandAngle += dir * 180;
         this._highlightMode();
+        if (isCoarsePointer() && !wasSelected) {
+          this._sfx('select');
+          return;
+        }
         this._sfx('ok');
         this._selectMode(btn.dataset.mode);
       });
@@ -445,10 +456,15 @@ export class UI {
       `;
       btn.addEventListener('click', () => {
         if (this._selectionTransition && !this._selectionDispatch) return;
-        this._sfx('ok');
+        const wasSelected = this.diffIndex === i;
         this.pendingDifficulty = id;
         this.diffIndex = i;
         this._highlightDiff();
+        if (isCoarsePointer() && !wasSelected) {
+          this._sfx('select');
+          return;
+        }
+        this._sfx('ok');
         this._playerBackTarget = 'difficulty';
         this.show('player');
       });

@@ -3142,6 +3142,53 @@ input, select, textarea {
   #screen-game .hud-details .stat-row { padding-block: 1px; }
 }
 
+/* Touch selection: visible back affordance + two-step select/confirm hint. */
+.touch-back,
+.touch-select-hint { display: none; }
+
+@media (pointer: coarse) {
+  .touch-back {
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    z-index: 30;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 148px;
+    min-height: 88px;
+    padding: 0 24px;
+    color: #fff1dd;
+    background: rgba(24, 16, 28, 0.78);
+    border: 1px solid rgba(231, 208, 152, 0.62);
+    font: 700 22px/1 var(--font);
+    letter-spacing: 0.08em;
+    text-shadow: 1px 1px 0 #160f19;
+    touch-action: manipulation;
+  }
+  .touch-back:active { filter: brightness(1.2); transform: scale(0.97); }
+  #screen-mode-select .mode-btn,
+  #screen-difficulty .diff-btn,
+  #screen-player-select .player-card .player-portrait { touch-action: manipulation; }
+  #screen-mode-select .mode-btn:active,
+  #screen-difficulty .diff-btn:active { filter: brightness(1.18); }
+  #screen-player-select .player-card .player-portrait:active { filter: brightness(1.15); }
+
+  .touch-select-hint {
+    position: absolute;
+    top: max(20px, env(safe-area-inset-top, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    z-index: 30;
+    display: block;
+    margin: 0;
+    color: rgba(255, 241, 221, 0.72);
+    font: 600 clamp(18px, 1.8vw, 28px)/1.2 var(--font);
+    letter-spacing: 0.08em;
+    text-shadow: 1px 1px 0 #160f19;
+    pointer-events: none;
+  }
+}
+
 /* Selection screens share one stationary cathedral backdrop and overlay. */
 #screen-difficulty,
 #screen-player-select {
