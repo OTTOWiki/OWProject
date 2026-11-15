@@ -127,8 +127,12 @@ test('横屏版面、完整不可滚动 HUD、HUD 下方四键与暂停菜单尺
       clientH: panel.clientHeight,
     };
   });
-  expect(overlay.position).toBe('fixed');
-  expect(overlay.rect.width).toBeGreaterThanOrEqual(300);
+  // 0.5 viewport: the overlay container is absolute inside the full-screen game
+  // screen (and switches to fixed on genuinely short layouts); assert it covers
+  // the layout viewport instead of pinning an obsolete position scheme.
+  expect(['fixed', 'absolute']).toContain(overlay.position);
+  expect(overlay.rect.x).toBeLessThanOrEqual(1);
+  expect(overlay.rect.width).toBeGreaterThanOrEqual(viewport.width - 1);
   expect(overlay.rect.height).toBeLessThanOrEqual(viewport.height);
   expect(overlay.scrollH).toBeLessThanOrEqual(overlay.clientH + 1);
   for (const id of ['resume', 'save-replay', 'settings', 'menu']) {
