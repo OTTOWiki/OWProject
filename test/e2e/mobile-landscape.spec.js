@@ -72,7 +72,8 @@ test('横屏版面、完整不可滚动 HUD、HUD 下方四键与暂停菜单尺
   await cleanStorage(page);
   await startPractice(page);
 
-  const viewport = page.viewportSize();
+  // 0.5 viewport meta doubles the CSS layout viewport; measure geometry in CSS px.
+  const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
   const canvas = await page.locator('#playfield').boundingBox();
   expect(canvas.width / canvas.height).toBeCloseTo(0.75, 2);
   expect(canvas.height).toBeGreaterThanOrEqual(viewport.height * 0.8);
