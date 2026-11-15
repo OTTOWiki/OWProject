@@ -6,8 +6,18 @@ import { BALANCE, LOGICAL_W, LOGICAL_H } from './config.js';
 import {
   drawBullet, drawPlayer, drawEnemy, drawItem, drawCollectLine, setDrawFrameTime,
 } from './draw/index.js';
+import { loadImage } from './assets.js';
 
 import { drawChapterBanner } from './hud.js';
+
+/** 倾向条底衬（漆板质感，AVIF；未载入时用纯色圆角板兜底） */
+const TENDENCY_PLATE_SRC = 'assets/ui/tendency-plate.avif';
+let tendencyPlate = null;
+
+function getTendencyPlate() {
+  if (!tendencyPlate) tendencyPlate = loadImage(TENDENCY_PLATE_SRC);
+  return tendencyPlate;
+}
 
 /** 版面左上角：描画帧率（rAF/设置上限；与固定 60 逻辑步进无关） */
 export function drawFps(game, ctx) {
@@ -129,6 +139,26 @@ export function drawTendencyGauge(game, ctx) {
   const pointerX = centerX + (clamped / max) * (barW / 2);
 
   ctx.save();
+
+  // 底衬：暗漆板 + 金线；图片未就绪时退回纯色板，保证首帧可用。
+  const plateW = barW + 64;
+  const plateH = 46;
+  const plateX = centerX - plateW / 2;
+  const plateY = barY + barH / 2 - plateH / 2 + 2;
+  const plate = getTendencyPlate();
+  if (plate && plate.complete && plate.naturalWidth) {
+    ctx.drawImage(plate, plateX, plateY, plateW, plateH);
+  } else {
+    ctx.fillStyle = 'rgba(8, 11, 16, 0.58)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(plateX, plateY, plateW, plateH, 6);
+    else ctx.rect(plateX, plateY, plateW, plateH);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(196, 152, 64, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
   ctx.globalAlpha = 0.9;
 
   const bgGrad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
