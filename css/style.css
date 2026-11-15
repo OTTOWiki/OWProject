@@ -3769,3 +3769,775 @@ input, select, textarea {
 @media (prefers-reduced-motion: reduce) {
   .rotate-device::after { animation: none; }
 }
+
+/* =====================================================================
+   次级界面（练习 / 回放 / Manual / History / Ranking / Stage Select / Settings）
+   东方原作式布局：无面板盒，组件贴着背景左下排版；
+   白 = 默认，灰 = 次级信息，黑 = 选中 / 勾选 / 悬浮（白底黑字反白反馈）。
+   交互统一用 damped easing（--plain-ease），不改变任何数据与输入契约。
+   ===================================================================== */
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) {
+  --plain-white: #f2f2f2;
+  --plain-gray: #a3a3a3;
+  --plain-dim: #6f6f6f;
+  --plain-ink: #0b0b0b;
+  --plain-line: rgba(255, 255, 255, 0.2);
+  --plain-bar: #e8e8e8;
+  --plain-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --plain-w: 880px;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding:
+    env(safe-area-inset-top)
+    max(clamp(22px, 4.5vw, 64px), env(safe-area-inset-right))
+    max(clamp(20px, 4.6vh, 52px), env(safe-area-inset-bottom))
+    max(clamp(22px, 4.5vw, 64px), env(safe-area-inset-left));
+  overflow: hidden;
+  color: var(--plain-white);
+  background-color: #0a0910;
+  background-image:
+    linear-gradient(76deg, rgba(4, 4, 8, 0.92) 0%, rgba(4, 4, 8, 0.66) 30%, rgba(4, 4, 8, 0.14) 62%, transparent 84%),
+    linear-gradient(0deg, rgba(4, 4, 8, 0.9) 0%, rgba(4, 4, 8, 0.4) 26%, transparent 56%),
+    var(--plain-bg, url('../assets/bg/settings-ink.avif'));
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 100% 100%, cover;
+  background-position: center, center, var(--plain-bg-pos, 62% 22%);
+}
+:is(#screen-practice, #screen-replay, #screen-manual, #screen-history,
+    #screen-ranking, #screen-stage-select) .menu-bg,
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .th-panel-frame::before,
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .th-panel-frame::after {
+  display: none;
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-bg { display: none; }
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .th-panel {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: var(--plain-w);
+  height: auto;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  text-align: left;
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .th-panel-frame {
+  display: block;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  text-align: left;
+  overflow: visible;
+}
+#screen-settings { --plain-w: 900px; --plain-bg-pos: 60% 20%; }
+#screen-practice { --plain-w: 820px; --plain-bg-pos: 28% 38%; }
+#screen-manual { --plain-w: 660px; --plain-bg-pos: 20% 18%; }
+#screen-replay { --plain-w: 780px; --plain-bg-pos: 80% 62%; }
+#screen-history { --plain-w: 780px; --plain-bg-pos: 66% 24%; }
+#screen-ranking { --plain-w: 780px; --plain-bg-pos: 34% 64%; }
+#screen-stage-select {
+  --plain-w: 940px;
+  --plain-bg: url('../assets/bg/difficulty-cathedral.avif');
+  --plain-bg-pos: 50% 46%;
+}
+
+/* —— 标题：白字 + 灰色菱形；无框 —— */
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .panel-title {
+  margin: 0 0 clamp(10px, 1.8vh, 18px);
+  color: var(--plain-white);
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.15;
+  text-align: left;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.75);
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .panel-title::before {
+  content: "◆";
+  display: inline-block;
+  margin-right: 12px;
+  color: var(--plain-gray);
+  font-size: 0.38em;
+  vertical-align: 0.55em;
+  letter-spacing: 0;
+}
+
+/* —— 白/灰/黑基础字色 —— */
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) :is(
+    .settings-label, .settings-value, .replay-meta, .replay-score, .replay-letters,
+    .replay-date, .history-time, .history-msg, .history-commit, .ranking-rank,
+    .ranking-name, .ranking-player, .ranking-route, .replay-status, .history-status,
+    .manual-body, .practice-hint, .settings-note, .key-row, .key-row kbd,
+    .stage-btn, .stage-btn small, .pc-item, .ptab, .ranking-diff-btn, .settings-section-title,
+    .replay-empty, .history-empty, .replay-tag, .rk-badge, .history-env, .history-branch,
+    .history-current-tag, .history-current-tag) {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) :is(
+    .replay-status, .history-status) {
+  margin: 0 0 10px;
+  color: var(--plain-gray);
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) :is(.replay-status, .history-status).error {
+  color: var(--plain-white);
+  opacity: 0.86;
+}
+
+/* —— 行：白字默认；选中/悬浮反白为黑字（阻尼位移） —— */
+:is(#screen-settings, #screen-practice) :is(.settings-row, .key-row),
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-item, .history-item, .ranking-row),
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn,
+:is(#screen-stage-select) .stage-btn,
+:is(#screen-settings, #screen-practice) :is(.pc-item),
+:is(#screen-settings, #screen-practice, #screen-ranking) :is(.ptab, .ranking-diff-btn) {
+  transition:
+    color 0.18s var(--plain-ease),
+    background-color 0.22s var(--plain-ease),
+    border-color 0.22s var(--plain-ease),
+    transform 0.26s var(--plain-ease),
+    box-shadow 0.22s var(--plain-ease);
+}
+
+/* Settings / Practice 表单 */
+#screen-settings .settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 30px;
+  width: 100%;
+  margin: 0 0 8px;
+  text-align: left;
+}
+#screen-settings .settings-note { grid-column: 1 / -1; }
+#screen-settings .settings-section-title {
+  margin: 16px 0 6px;
+  color: var(--plain-gray);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: left;
+}
+#screen-settings .key-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px 30px;
+  margin: 0 0 2px;
+}
+#screen-settings .settings-row,
+#screen-practice .settings-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 5px 10px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--plain-line);
+  border-radius: 0;
+  color: var(--plain-white);
+  font-family: var(--serif);
+  cursor: pointer;
+  text-align: left;
+}
+#screen-settings .settings-row .settings-label,
+#screen-practice .settings-row .settings-label {
+  flex: 1 1 auto;
+  color: var(--plain-white);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+#screen-settings .settings-row .settings-control,
+#screen-practice .settings-row .settings-control {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+#screen-settings .settings-row .settings-value,
+#screen-practice .settings-value {
+  min-width: 58px;
+  color: var(--plain-white);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: right;
+}
+#screen-settings .settings-row:hover,
+#screen-settings .settings-row.selected,
+#screen-practice .settings-row:hover,
+#screen-practice .settings-row.selected {
+  background: var(--plain-bar);
+  border-bottom-color: transparent;
+  transform: translateX(4px);
+}
+#screen-settings .settings-row:hover .settings-label,
+#screen-settings .settings-row.selected .settings-label,
+#screen-settings .settings-row:hover .settings-value,
+#screen-settings .settings-row.selected .settings-value,
+#screen-practice .settings-row:hover .settings-label,
+#screen-practice .settings-row.selected .settings-label,
+#screen-practice .settings-row:hover .settings-value,
+#screen-practice .settings-row.selected .settings-value {
+  color: var(--plain-ink);
+  text-shadow: none;
+}
+
+/* range / checkbox / number：白默认 → 选中行转黑 */
+#screen-settings input[type="range"],
+#screen-practice input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 150px;
+  height: 2px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+#screen-settings input[type="range"]::-webkit-slider-thumb,
+#screen-practice input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--plain-white);
+  border: 1px solid var(--plain-ink);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+#screen-settings .settings-row:hover input[type="range"],
+#screen-settings .settings-row.selected input[type="range"],
+#screen-practice .settings-row:hover input[type="range"],
+#screen-practice .settings-row.selected input[type="range"] {
+  background: rgba(0, 0, 0, 0.5);
+}
+#screen-settings .settings-row:hover input[type="range"]::-webkit-slider-thumb,
+#screen-settings .settings-row.selected input[type="range"]::-webkit-slider-thumb,
+#screen-practice .settings-row:hover input[type="range"]::-webkit-slider-thumb,
+#screen-practice .settings-row.selected input[type="range"]::-webkit-slider-thumb {
+  background: var(--plain-ink);
+  border-color: var(--plain-white);
+}
+#screen-settings input[type="checkbox"],
+#screen-practice input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.18s var(--plain-ease), border-color 0.18s var(--plain-ease);
+}
+#screen-settings input[type="checkbox"]:checked,
+#screen-practice input[type="checkbox"]:checked {
+  background: var(--plain-bar);
+  border-color: var(--plain-ink);
+}
+#screen-settings input[type="checkbox"]:checked::after,
+#screen-practice input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--plain-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+}
+#screen-settings .settings-row:hover input[type="checkbox"]:checked,
+#screen-settings .settings-row.selected input[type="checkbox"]:checked,
+#screen-practice .settings-row:hover input[type="checkbox"]:checked,
+#screen-practice .settings-row.selected input[type="checkbox"]:checked {
+  background: var(--plain-ink);
+  border-color: var(--plain-ink);
+}
+#screen-settings .settings-row:hover input[type="checkbox"]:checked::after,
+#screen-settings .settings-row.selected input[type="checkbox"]:checked::after,
+#screen-practice .settings-row:hover input[type="checkbox"]:checked::after,
+#screen-practice .settings-row.selected input[type="checkbox"]:checked::after {
+  border-color: var(--plain-white);
+}
+#screen-settings .settings-note,
+#screen-practice .practice-hint {
+  margin: 4px 0 0;
+  max-width: 640px;
+  color: var(--plain-dim);
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1.55;
+}
+#screen-settings .key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: auto;
+  min-height: 26px;
+  padding: 2px 2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--plain-line);
+  border-radius: 0;
+  color: var(--plain-gray);
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+#screen-settings .key-row:hover,
+#screen-settings .key-row.selected {
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.9);
+  color: var(--plain-white);
+  box-shadow: none;
+  transform: translateX(3px);
+}
+#screen-settings .key-row.listening { border-bottom-color: #fff; color: var(--plain-white); }
+#screen-settings .key-row kbd {
+  min-width: 22px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 0;
+  color: var(--plain-white);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* —— 按钮：纯文字；悬浮/选中加白色左移下划线 —— */
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn {
+  display: inline-block;
+  width: auto;
+  min-height: 0;
+  margin: 16px 22px 0 0;
+  padding: 2px 1px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--plain-white);
+  font-family: var(--serif);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-align: left;
+  transform: none;
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn:hover,
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn:focus-visible,
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn.selected {
+  color: var(--plain-white);
+  background: transparent;
+  border-color: transparent;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  transform: translateX(3px);
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn::before,
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .menu-btn::after {
+  display: none;
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select) .row-btns {
+  justify-content: flex-start;
+  gap: 0;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+/* —— 练习：标签/选项行 —— */
+#screen-practice .practice-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  margin: 0 0 4px;
+}
+#screen-practice .settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; }
+#screen-practice .settings-row .settings-label { white-space: normal; }
+#screen-practice .settings-control { flex: 1 1 auto; justify-content: flex-start; }
+#screen-practice .ptab,
+:is(#screen-settings, #screen-practice, #screen-ranking) .ranking-diff-btn,
+#screen-practice .pc-item,
+#screen-replay .replay-del {
+  min-height: 0;
+  padding: 3px 7px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  color: var(--plain-gray);
+  font-family: var(--font);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: none;
+}
+#screen-practice .ptab:hover,
+#screen-practice .pc-item:hover,
+#screen-ranking .ranking-diff-btn:hover {
+  color: var(--plain-white);
+  border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+#screen-practice .ptab.selected,
+#screen-practice .pc-item.selected,
+#screen-ranking .ranking-diff-btn.selected {
+  background: var(--plain-bar);
+  border-bottom-color: transparent;
+  color: var(--plain-ink);
+}
+#screen-practice .settings-row:hover .ptab,
+#screen-practice .settings-row.selected .ptab,
+#screen-practice .settings-row:hover .pc-item,
+#screen-practice .settings-row.selected .pc-item { color: #5f5f5f; }
+#screen-practice .settings-row:hover .ptab.selected,
+#screen-practice .settings-row.selected .ptab.selected,
+#screen-practice .settings-row:hover .pc-item.selected,
+#screen-practice .settings-row.selected .pc-item.selected {
+  background: var(--plain-ink);
+  color: var(--plain-white);
+}
+#screen-practice .practice-chapter-list {
+  width: 100%;
+  max-height: min(24vh, 190px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 0;
+}
+#screen-practice .pc-best { color: var(--plain-dim); font-size: 10px; }
+#screen-practice .practice-form input[type="number"] {
+  width: 82px;
+  padding: 2px 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+  color: var(--plain-white);
+  font-family: var(--mono);
+  font-size: 15px;
+}
+#screen-practice .settings-row:hover input[type="number"],
+#screen-practice .settings-row.selected input[type="number"] {
+  border-bottom-color: var(--plain-ink);
+  color: var(--plain-ink);
+}
+
+/* —— Replay / History / Ranking 列表 —— */
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-list, .history-list, .ranking-list) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-height: min(46vh, 400px);
+  margin: 0 0 4px;
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+  text-align: left;
+  scrollbar-width: thin;
+}
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-empty,
+:is(#screen-replay, #screen-history, #screen-ranking) .history-empty {
+  color: var(--plain-dim);
+  font-size: 12px;
+}
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-item,
+:is(#screen-replay, #screen-history, #screen-ranking) .history-item,
+:is(#screen-replay, #screen-history, #screen-ranking) .ranking-row {
+  width: 100%;
+  padding: 8px 6px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--plain-line);
+  border-radius: 0;
+  color: var(--plain-white);
+  font-family: var(--font);
+  font-size: 13px;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+}
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-item:hover,
+:is(#screen-replay, #screen-history, #screen-ranking) .history-item:hover,
+:is(#screen-replay, #screen-history, #screen-ranking) .history-item.selected,
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-row.selected .replay-item,
+:is(#screen-replay, #screen-history, #screen-ranking) .ranking-row.selected,
+:is(#screen-replay, #screen-history, #screen-ranking) .ranking-row:hover {
+  background: var(--plain-bar);
+  border-bottom-color: transparent;
+  color: var(--plain-ink);
+  transform: translateX(4px);
+}
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-item, .history-item, .ranking-row):hover :is(span, code),
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.history-item.selected, .replay-row.selected .replay-item, .ranking-row.selected, .ranking-row:hover) :is(span, code) {
+  color: var(--plain-ink);
+  text-shadow: none;
+}
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-meta, .history-msg) { color: var(--plain-white); }
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-letters, .replay-date, .history-commit, .history-env, .history-branch, .ranking-player, .ranking-route) {
+  color: var(--plain-gray);
+}
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-score, .history-time, .ranking-rank) {
+  color: var(--plain-white);
+  font-family: var(--mono);
+}
+:is(#screen-replay, #screen-history, #screen-ranking) .history-item.is-current { border-bottom-color: rgba(255, 255, 255, 0.55); }
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.history-env, .history-branch, .history-current-tag) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 11px;
+  color: var(--plain-gray);
+}
+:is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-tag, .rk-badge) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--plain-white);
+}
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-del {
+  min-width: 0;
+  padding: 3px 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--plain-line);
+  border-radius: 0;
+  color: var(--plain-gray);
+  font-size: 12px;
+  cursor: pointer;
+}
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-del:hover { color: var(--plain-white); border-bottom-color: #fff; }
+:is(#screen-replay, #screen-history, #screen-ranking) .replay-del.confirming { color: #f3c8c8; border-bottom-color: #f3c8c8; }
+#screen-replay .replay-row { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--plain-line); }
+#screen-replay .replay-row .replay-item { border-bottom: 0; }
+#screen-replay .replay-row.selected { background: var(--plain-bar); transform: translateX(4px); }
+#screen-replay .replay-row.selected .replay-item { background: transparent; transform: none; }
+#screen-replay .replay-row.selected :is(span, code) { color: var(--plain-ink); text-shadow: none; }
+#screen-replay .replay-row .replay-del { border-bottom: 0; }
+#screen-ranking .ranking-diffs { display: flex; flex-wrap: wrap; gap: 2px 18px; margin: 0 0 8px; }
+:is(#screen-settings, #screen-practice, #screen-ranking) .settings-row:hover .ranking-diff-btn,
+:is(#screen-settings, #screen-practice, #screen-ranking) .settings-row.selected .ranking-diff-btn { color: var(--plain-gray); }
+
+/* —— Stage Select：无卡片，细线网格 —— */
+#screen-stage-select .stage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 22px;
+  width: 100%;
+  margin: 0 0 8px;
+  text-align: left;
+}
+#screen-stage-select .stage-btn {
+  padding: 8px 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--plain-line);
+  border-radius: 0;
+  color: var(--plain-white);
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+#screen-stage-select .stage-btn small {
+  display: block;
+  margin-top: 2px;
+  color: var(--plain-gray);
+  font-family: var(--font);
+  font-size: 10px;
+  line-height: 1.35;
+}
+#screen-stage-select .stage-btn.selected,
+#screen-stage-select .stage-btn:hover {
+  background: var(--plain-bar);
+  border-bottom-color: transparent;
+  color: var(--plain-ink);
+  transform: translateX(4px);
+  outline: none;
+  box-shadow: none;
+}
+#screen-stage-select .stage-btn.selected small,
+#screen-stage-select .stage-btn:hover small { color: #4a4a4a; text-shadow: none; }
+#screen-stage-select .stage-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+
+/* —— Manual：正文直接铺在背景上 —— */
+#screen-manual .manual-body {
+  max-height: min(60vh, 540px);
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  color: #d6d6d6;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.75;
+  scrollbar-width: thin;
+}
+#screen-manual .manual-body.kb-focus { border: 0; box-shadow: none; }
+#screen-manual .manual-chapter { border-bottom-color: var(--plain-line); }
+#screen-manual .manual-body h3 {
+  margin: 0 0 6px;
+  color: var(--plain-white);
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+}
+#screen-manual .manual-body p { color: #cfcfcf; }
+
+/* —— 入场：轻微上浮 + 淡入（阻尼）；reduced-motion 直接呈现 —— */
+@keyframes plainRiseIn {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; transform: none; }
+}
+:is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+    #screen-history, #screen-ranking, #screen-stage-select).active .th-panel {
+  animation: plainRiseIn 0.44s var(--plain-ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) *,
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) *::before,
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* —— 窄屏 / 矮屏：单列、缩小留白，必要时滚动 —— */
+@media (max-width: 980px) {
+  #screen-settings .settings-form { grid-template-columns: minmax(0, 1fr); }
+  #screen-settings { --plain-w: 620px; }
+  #screen-practice { --plain-w: 680px; }
+  #screen-stage-select .stage-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-height: 700px) {
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) {
+    padding-bottom: clamp(14px, 3vh, 28px);
+  }
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) .panel-title {
+    margin-bottom: 8px;
+    font-size: clamp(20px, 2.2vw, 26px);
+  }
+  #screen-settings .settings-row,
+  #screen-practice .settings-row { min-height: 30px; padding: 3px 8px; }
+  #screen-manual .manual-body { max-height: min(48vh, 380px); }
+  :is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-list, .history-list, .ranking-list) {
+    max-height: min(40vh, 300px);
+  }
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) .menu-btn { margin-top: 10px; }
+}
+@media (orientation: landscape) and (pointer: coarse) {
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) {
+    padding-left: max(clamp(28px, 5vw, 72px), env(safe-area-inset-left));
+    padding-bottom: max(clamp(20px, 5vh, 44px), env(safe-area-inset-bottom));
+  }
+  #screen-settings input[type="checkbox"],
+  #screen-practice input[type="checkbox"] { width: 20px; height: 20px; }
+  #screen-settings input[type="checkbox"]:checked::after,
+  #screen-practice input[type="checkbox"]:checked::after { left: 5px; top: 1px; width: 6px; height: 11px; }
+  :is(#screen-settings, #screen-practice) input[type="range"] { width: 200px; }
+}
+
+/* 触屏横屏（0.5 视口）：次级界面整体放大一档，保证 0.5 缩放后仍可读可点。 */
+@media (orientation: landscape) and (pointer: coarse) {
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) .panel-title {
+    font-size: clamp(30px, 2.7vw, 40px);
+    letter-spacing: 0.12em;
+  }
+  #screen-settings .settings-row,
+  #screen-practice .settings-row { min-height: 44px; padding: 6px 12px; }
+  #screen-settings .settings-row .settings-label,
+  #screen-practice .settings-row .settings-label { font-size: 19px; }
+  #screen-settings .settings-row .settings-value,
+  #screen-practice .settings-value { min-width: 64px; font-size: 15px; }
+  #screen-settings input[type="range"],
+  #screen-practice input[type="range"] { width: 230px; height: 3px; }
+  #screen-settings input[type="range"]::-webkit-slider-thumb,
+  #screen-practice input[type="range"]::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -8px; }
+  #screen-settings input[type="checkbox"],
+  #screen-practice input[type="checkbox"] { width: 22px; height: 22px; }
+  #screen-settings input[type="checkbox"]:checked::after,
+  #screen-practice input[type="checkbox"]:checked::after { left: 6px; top: 2px; width: 6px; height: 12px; }
+  #screen-settings .settings-section-title { font-size: 13px; margin-top: 14px; }
+  #screen-settings .settings-note,
+  #screen-practice .practice-hint { font-size: 12.5px; max-width: 760px; }
+  #screen-settings .key-row { font-size: 14px; min-height: 34px; }
+  #screen-settings .key-row kbd { font-size: 13px; min-width: 26px; }
+  #screen-practice .ptab,
+  #screen-practice .pc-item,
+  #screen-ranking .ranking-diff-btn { font-size: 16px; padding: 5px 9px; }
+  #screen-practice .practice-chapter-list { max-height: min(26vh, 230px); }
+  #screen-practice .practice-form input[type="number"] { font-size: 18px; width: 96px; }
+  :is(#screen-replay, #screen-history, #screen-ranking) :is(.replay-item, .history-item, .ranking-row) {
+    font-size: 16px;
+    padding: 10px 8px;
+  }
+  :is(#screen-replay, #screen-history, #screen-ranking) .replay-score,
+  :is(#screen-replay, #screen-history, #screen-ranking) .history-time,
+  :is(#screen-replay, #screen-history, #screen-ranking) .ranking-rank { font-size: 15px; }
+  :is(#screen-replay, #screen-history, #screen-ranking) .replay-del { font-size: 14px; padding: 5px 10px; }
+  #screen-stage-select .stage-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 26px; }
+  #screen-stage-select .stage-btn { font-size: 20px; padding: 10px 6px; }
+  #screen-stage-select .stage-btn small { font-size: 12px; }
+  #screen-manual .manual-body { font-size: 16px; line-height: 1.7; max-height: min(52vh, 470px); }
+  #screen-manual .manual-body h3 { font-size: 18px; }
+  :is(#screen-settings, #screen-practice, #screen-manual, #screen-replay,
+      #screen-history, #screen-ranking, #screen-stage-select) .menu-btn {
+    font-size: 19px;
+    margin-top: 14px;
+  }
+}

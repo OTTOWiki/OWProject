@@ -335,6 +335,7 @@ docs/                  # 内部改造队列等（非运行时）
 | 改碰撞/Bomb/擦弹 | `collision.js` / `gameCombat.js` |
 | 改菜单 | `ui.js` + `index.html` + `menuRepeat.js` + `css/style.css` |
 | 改主菜单/设置/倾向条底材 | `css/style.css` + `assets/bg/*` / `assets/ui/tendency-plate.avif` + `js/gameDraw.js` + `assets/NOTICE.md` |
+| 改次级界面（练习/回放/Manual/History/Ranking/Stage/Settings）布局与手感 | `css/style.css`（「次级界面」段）+ `index.html`（结构类名）+ `js/ui.js`（焦点） |
 | 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
 | 改 BGM | `audio.js` |
 | 改共享舞台 3D | `backgrounds/*` + `bgModes.js` |
@@ -374,5 +375,6 @@ docs/                  # 内部改造队列等（非运行时）
 - 选择页转场采用独立三层：`#app` 下固定背景z0、唯一过渡黑带z1、两页透明内容z2；模式列表也明确为内容层，避免返回时被旧页背景遮挡。黑带外框只插值中心与宽高，内层独立rotate，目标角度在初始化时关闭CSS transition后测量。改变方向后采样当前computed几何并移向另一端点；generation防止旧动画取消时提前收尾。前进先360ms闪三次，闪烁期间可取消，减少动态效果时直接切换。自机使用两色SVG；模式支持上下／左右切换，Nomiss位于难度前。
 - 选择转场允许连续导航：前进途中继续确认当前目标页选项，返回途中继续返回上一层；方向键作用于正在抵达的页面。反方向输入沿用已有重定向，按住重复事件不跨页。每次衔接采样当前内容与黑带的computed状态作为下一段首帧，旧页面内容随页面退出清理，不克隆为屏幕固定文字副本，不排队等待完成。确认闪烁期间再次确认结束闪烁并进入移动阶段；自机确认与game场景转场只触发一次。自机黑带仍跟随真实文字盒及ResizeObserver尺寸。
 - 连续导航的瞬时首帧与页面静态端点分别保存：snapshot 只替换本次播放首帧，不覆盖 segment 的真实 start/end；反向时回到真实页面几何，避免难度黑带停在历史中间位置后跳回。
+- 次级界面（练习 / 回放 / Manual / History / Ranking / Stage Select / Settings）统一为东方原作式无面板布局：满幅暗色底材、内容贴背景左下，不再使用居中的 `.th-panel` 盒子；文字/控件为白—灰—黑单色（白为默认，灰为次级信息，黑用于勾选/选中/悬浮的反白反馈）。设置页按「标签在左、控件在右」的双列行排列；列表（回放/History/Ranking）只用发丝线分行；Stage Select 为无卡片细线网格（底材复用 `difficulty-cathedral.avif`，其余复用 `settings-ink.avif`，仅改切图焦点）。交互统一 `--plain-ease` 阻尼缓动（行/按钮位移与反白过渡、界面入场轻微上浮），`prefers-reduced-motion` 直接呈现；触屏横屏（0.5 视口）整体放大一档字号与控件。样式集中在 `css/style.css` 末尾「次级界面」段，不改数据与输入契约。
 - 主菜单 / 设置 / 倾向条底材：`assets/bg/menu-washi.avif`（尾形光琳《Chrysanthemums by a Stream》，Cleveland CC0）、`assets/bg/settings-ink.avif`（《God of Thunder (Raijin)》，Cleveland CC0）、`assets/ui/tendency-plate.avif`（尾形光琳《Rough Waves》，Met Public Domain）均由公有领域/CC0 博物馆开放素材裁切、混色与压暗后导出 AVIF，来源与加工见 `assets/NOTICE.md`；不含东方原作提取素材。背景 CSS 加载失败时回退纸色/深紫纯色，倾向条图片未就绪时回退纯色圆角板，均不阻塞游戏；底衬由 `js/gameDraw.js` 绘制，独立于冻结的旧版面主题表。
 - 场景转场使用固定的实际目标背景及其计算后的覆盖层；四个面片复用原创 `assets/ui/scene-wipe-mask.avif` 合成 Alpha，素材为周期起伏前沿与实心下部的渐变纹理，不包含专用过渡背景。通过本机 TH20 原始 `screenswitch.anm` 与纹理解包核对采样：128×128 sprite 读取 64×64 tile 的 `(0,1)..(128,129)`，横向重复两次，前63/128高度扫描纹理、后65/128高度延展真实底行；首次转场将 U wrap／V clamp 烘焙并缓存为单张128×128 Alpha sprite，统一周期端点透明度，避免SVG平铺与底边拼接细线。面片恢复原脚本 3×12 比例，无额外尖头裁剪或宽度补偿；每片30帧，0/5/10/15帧错峰，以`t²`插值，各阶段750ms。原资源只保留在 Git 忽略的 `.local-evidence/th20-original/`，产品图使用独立参数绘制而非复制原像素。图片在 UI 初始化时预载，转场不等待；未载入时同轨迹矩形后备保证可用。主页返回以`T-t`反向采样；选择页往返无hold／祈祷提示，只有进入game保留1500ms停留。`Game.start(opts,{deferLoop:true})`准备首帧后冻结计时，揭示完成才启动循环；减少动态效果直接切换。素材来源见`assets/NOTICE.md`。
