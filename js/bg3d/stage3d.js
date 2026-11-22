@@ -228,11 +228,17 @@ export class PlayfieldStage3D {
       }
     }
 
-    this.canvas.addEventListener('webglcontextlost', (e) => {
+    this.onContextLost = null;
+    this._onLost = (e) => {
       e.preventDefault();
       this._contextLost = true;
-    }, false);
-    this.canvas.addEventListener('webglcontextrestored', () => {
+      try {
+        this.onContextLost?.();
+      } catch (err) {
+        console.warn('[bg3d] onContextLost callback failed:', err);
+      }
+    };
+    this._onRestored = () => {
       this._contextLost = false;
       this.sceneReady = false;
       try {
@@ -240,7 +246,9 @@ export class PlayfieldStage3D {
       } catch (err) {
         this._warn(err);
       }
-    }, false);
+    };
+    this.canvas.addEventListener('webglcontextlost', this._onLost, false);
+    this.canvas.addEventListener('webglcontextrestored', this._onRestored, false);
   }
 
   _warn(err) {
@@ -450,11 +458,18 @@ export class PlayfieldStage3D {
     if (!this._postOk || !this.sceneReady) return false;
     try {
       const THREE = this.THREE;
+      // 过渡快照用半分辨率：切面时只多一次轻量 composite pass，降低转场首帧卡顿；
+      // present pass 会按 UV 采样并做轻微缩放，观感无差别。
       if (!this._prevOutRT) {
-        this._prevOutRT = new THREE.WebGLRenderTarget(this._renderW, this._renderH, {
-          type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
-          depthBuffer: false, stencilBuffer: false,
-        });
+        this._prevSnapshotScale = 0.5;
+        this._prevOutRT = new THREE.WebGLRenderTarget(
+          Math.max(1, Math.floor(this._renderW * this._prevSnapshotScale)),
+          Math.max(1, Math.floor(this._renderH * this._prevSnapshotScale)),
+          {
+            type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+            depthBuffer: false, stencilBuffer: false,
+          },
+        );
       }
       this._renderPostTo(this._prevOutRT);
       return true;
@@ -490,7 +505,7 @@ export class PlayfieldStage3D {
     m.t += dt;
     const uRaw = m.t / m.dur;
     const out = m.director.sample({
-      u: uRaw,
+      u: Math.min(1, uRaw),
       t: m.t,
       boss: m.boss,
       stage: this.stage,
@@ -588,12 +603,9 @@ export class PlayfieldStage3D {
         c.geometry?.dispose?.();
         if (c.material) {
           const mats = Array.isArray(c.material) ? c.material : [c.material];
-          for (const m of mats) {
-            m.map?.dispose?.();
-            m.normalMap?.dispose?.();
-            m.roughnessMap?.dispose?.();
-            m.dispose?.();
-          }
+          // 只 dispose 材质本身；map/normalMap/roughnessMap 是 kit 全局共享缓存，
+          // 由 kit.clearKitTextureCache() 统一管理，章节切换不得释放（否则下一章黑纹理/重传抖动）。
+          for (const m of mats) m.dispose?.();
         }
       });
     }
@@ -602,6 +614,8 @@ export class PlayfieldStage3D {
     this.pointSets.length = 0;
     this.specials = { water: [], mist: [], beam: [], cloth: [] };
     this.scene.fog = null;
+    this.scene.background = null;
+    this.scene.environment = null;
     this.sceneReady = false;
   }
 
@@ -727,6 +741,18 @@ export class PlayfieldStage3D {
     this._outRT?.dispose?.();
     this._prevOutRT?.dispose?.();
     this._presentMat?.dispose?.();
+    try {
+      this.canvas?.removeEventListener?.('webglcontextlost', this._onLost, false);
+      this.canvas?.removeEventListener?.('webglcontextrestored', this._onRestored, false);
+    } catch (err) {
+      /* ignore */
+    }
+    this.onContextLost = null;
+    try {
+      K.disposeEnvironment?.(this.renderer);
+    } catch (err) {
+      /* ignore */
+    }
     this.renderer?.dispose?.();
     this.is3D = false;
   }

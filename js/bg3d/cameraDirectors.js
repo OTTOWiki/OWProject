@@ -530,7 +530,14 @@ const DEFAULT_DIRECTOR = {
  */
 export function makeCameraDirector(mode, stage) {
   const d = DIRECTORS[mode] || (stage ? DIRECTORS[stage] : null) || DEFAULT_DIRECTOR;
-  return d;
+  // 导演契约：u 超过 1 后必须保持抵达状态（用 t 做持续轻摆），在模块边界统一 clamp，
+  // 避免各导演各自漏 clamp 造成相机无限前飞。
+  return {
+    dur: d.dur,
+    sample(args = {}) {
+      return d.sample({ ...args, u: clamp01(args.u ?? 0) });
+    },
+  };
 }
 
 /** 供测试/调试：全部已登记导演的 mode 列表 */

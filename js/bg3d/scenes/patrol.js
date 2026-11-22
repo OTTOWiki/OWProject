@@ -111,13 +111,16 @@ export function mid(ctx) {
   for (let i = 0; i < 6; i++) {
     const side = i % 2 ? 1 : -1;
     const post = K.cylinder(0.06, 0.08, 2.6, 0x2a2420, { kind: 'metal', seg: 6, castShadow: false });
-    post.position.set(side * (5 + i * 1.6), 0.4, -9 - i * 4.5);
+    post.position.set(side * (5 + i * 1.6), 0.4, -18 - i * 4.2);
     post.rotation.z = side * 0.16;
     ctx.add(post);
-    const tape = K.box(5.2, 0.18, 0.04, i % 2 ? 0xffd166 : 0x1a1414, { kind: 'fabric', emissive: i % 2 ? 0x4a3800 : 0x000000, castShadow: false });
-    tape.position.set(side * (2.6 + i * 1.6), 1.4 + i * 0.12, -9 - i * 4.5);
-    tape.rotation.z = side * 0.2;
-    ctx.add(tape);
+    // 只保留黄黑警示带中较窄的黄色带（黑色带在近景会像贯穿画面的黑线，观感像调试线）
+    if (i % 2 === 0) {
+      const tape = K.box(3.8, 0.12, 0.04, 0xffd166, { kind: 'fabric', emissive: 0x4a3800, castShadow: false });
+      tape.position.set(side * (2.6 + i * 1.6), 1.4 + i * 0.12, -18 - i * 4.2);
+      tape.rotation.z = side * 0.2;
+      ctx.add(tape);
+    }
   }
   // 巨眼巡天
   ctx.add(K.skyEye({ x: 0, y: 14, z: -80, r: 6.5, color: 0xe8d0d0, iris: 0xff4a5a, pupil: 0x0a0204 }));

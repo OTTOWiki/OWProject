@@ -296,10 +296,7 @@ export function plateTexture(mode) {
   if (!path) return null;
   if (plateTexCache.has(path)) return plateTexCache.get(path);
   const img = plateImage(path);
-  if (!img) {
-    plateTexCache.set(path, null);
-    return null;
-  }
+  if (!img) return null; // 不缓存 null：预热/弱网恢复后再次 setMode 仍可取得纹理
   const tex = texFromImage(img);
   plateTexCache.set(path, tex);
   return tex;
@@ -310,7 +307,8 @@ export function matTexture(name, color = null) {
   const key = color ? `${name}|${color}` : name;
   if (matTexCache.has(key)) return matTexCache.get(key);
   const img = color ? getTintedMaterial(name, color, 0.85) : getMaterialImage(name);
-  const tex = img ? texFromImage(img) : null;
+  if (!img) return null; // 不缓存 null，允许素材晚到后重建
+  const tex = texFromImage(img);
   matTexCache.set(key, tex);
   return tex;
 }
@@ -338,6 +336,26 @@ export function clearKitTextureCache() {
     set.roughnessMap?.dispose?.();
   }
   MATERIAL_TEXTURE_CACHE.clear();
+}
+
+/** 释放某 renderer 的 PMREM 生成器与全局 IBL 环境缓存（Stage3D dispose 时调用） */
+export function disposeEnvironment(renderer) {
+  try {
+    const pm = pmremGeneratorCache.get(renderer);
+    pm?.dispose?.();
+    pmremGeneratorCache.delete(renderer);
+  } catch (err) {
+    /* ignore */
+  }
+  for (const rec of ENV_CACHE.values()) {
+    try {
+      rec.envMap?.dispose?.();
+      rec.background?.dispose?.();
+    } catch (err) {
+      /* ignore */
+    }
+  }
+  ENV_CACHE.clear();
 }
 
 // ===========================================================================

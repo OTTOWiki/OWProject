@@ -39,34 +39,57 @@ export function preloadPlayfieldBg() {
 export class PlayfieldBackground extends BackgroundRenderer {}
 
 /**
- * 自适应版面背景：首次使用时才构造 3D 舞台（避免启动期双 WebGL 上下文/隐藏画布问题），
- * 3D 构造或场景构建失败时自动销毁 3D 并回退 Canvas 2D 绘卷。
- * 对外保持 setMode/update/draw 契约。
+ * 自适应版面背景：首次使用时才构造 3D 舞台（避免启动期双 WebGL 上下文/隐藏画布问题）。
+ * 3D 构造/场景构建/运行期 draw/update 异常/WebGL context lost 时自动销毁 3D 并回退 Canvas 2D 绘卷。
+ * 对外保持 setMode/update/draw 契约；`factories` 仅供测试注入。
  */
-class AdaptivePlayfieldBackground {
-  constructor(canvas2d, canvas3d) {
+export class AdaptivePlayfieldBackground {
+  constructor(canvas2d, canvas3d, factories = {}) {
     this.canvas2d = canvas2d;
     this.canvas3d = canvas3d;
     this.impl = null;
     this.is3D = false;
-    this._pendingMode = null;
-    this._pendingTransition = false;
+    this._mode = null;
+    this._drawFails = 0;
+    this._updateFails = 0;
     this._force2d = typeof location !== 'undefined' && /[?&]bg2d=1/.test(location.search);
+    this._factories = factories || {};
     // 自测钩子（只读；不影响运行）：便于外部读取 3D/2D 状态与渲染统计
     if (typeof window !== 'undefined') window.__playfieldBg = this;
   }
 
+  _hide3dCanvas() {
+    if (!this.canvas3d) return;
+    this.canvas3d.hidden = true;
+    try { this.canvas3d.style.display = 'none'; } catch (err) { /* fake canvas */ }
+  }
+
+  _make3d() {
+    return this._factories.create3D
+      ? this._factories.create3D(this.canvas3d)
+      : new PlayfieldStage3D(this.canvas3d);
+  }
+
+  _make2d() {
+    return this._factories.create2D ? this._factories.create2D() : new PlayfieldBackground();
+  }
+
   _ensure(mode) {
     if (this.impl) return;
-    if (!this._force2d && this.canvas3d && getThree()) {
+    const can3D = !this._force2d && this.canvas3d && (this._factories.create3D || getThree());
+    if (can3D) {
       try {
-        const bg = new PlayfieldStage3D(this.canvas3d);
+        const bg = this._make3d();
+        // WebGL context lost 时立即切 2D，避免背景永久黑屏（Android 退后台/内存压力会触发）
+        bg.onContextLost = () => this._fallback2d('webglcontextlost');
         bg.setMode(mode || 's1_mid', { transition: false });
-        if (bg.sceneReady) {
+        if (bg.sceneReady !== false) {
           this.impl = bg;
           this.is3D = true;
-          this.canvas3d.hidden = false;
-          this.canvas3d.style.display = 'block';
+          if (this.canvas3d) {
+            this.canvas3d.hidden = false;
+            this.canvas3d.style.display = 'block';
+          }
           return;
         }
         console.warn('[playfield3d] scene not ready at init, fallback 2D');
@@ -75,47 +98,97 @@ class AdaptivePlayfieldBackground {
         console.warn('[playfield3d] init failed, fallback 2D:', err);
       }
     }
-    if (this.canvas3d) {
-      this.canvas3d.hidden = true;
-      this.canvas3d.style.display = 'none';
-    }
-    this.impl = new PlayfieldBackground();
+    this._hide3dCanvas();
+    this.impl = this._make2d();
     this.is3D = false;
   }
 
   setMode(mode, opts = {}) {
-    this._pendingMode = mode;
-    this._pendingTransition = opts.transition !== false;
+    this._mode = mode;
     this._ensure(mode);
     try {
       this.impl.setMode(mode, opts);
     } catch (err) {
       console.warn('[playfield3d] setMode failed, fallback 2D:', err);
-      this._fallback2d();
-      this.impl.setMode(mode, opts);
+      this._fallback2d('setMode threw');
+      try {
+        this.impl.setMode(mode, opts);
+      } catch (err2) {
+        console.warn('[playfield3d] 2D setMode also failed:', err2);
+      }
     }
     // 3D 场景构建失败（未 throw 但未 ready）也回退
     if (this.is3D && this.impl.sceneReady === false) {
       console.warn('[playfield3d] scene failed after setMode, fallback 2D');
-      this._fallback2d();
-      this.impl.setMode(mode, opts);
+      this._fallback2d('scene not ready');
+      try {
+        this.impl.setMode(mode, opts);
+      } catch (err) {
+        console.warn('[playfield3d] 2D setMode failed:', err);
+      }
     }
   }
 
-  _fallback2d() {
-    try { this.impl?.dispose?.(); } catch (err) { /* ignore */ }
-    if (this.canvas3d) {
-      this.canvas3d.hidden = true;
-      this.canvas3d.style.display = 'none';
-    }
-    const bg = new PlayfieldBackground();
-    this.impl = bg;
+  _fallback2d(reason = 'unknown') {
+    if (!this.is3D) return;
+    console.warn('[playfield3d] fallback to 2D:', reason);
+    const old = this.impl;
+    this.impl = null;
     this.is3D = false;
+    this._drawFails = 0;
+    this._updateFails = 0;
+    if (old) {
+      old.onContextLost = null;
+      try { old.dispose?.(); } catch (err) { /* ignore */ }
+    }
+    this._hide3dCanvas();
+    this.impl = this._make2d();
+    if (this._mode) {
+      try { this.impl.setMode(this._mode, { transition: false }); } catch (err) {
+        console.warn('[playfield3d] 2D recover setMode failed:', err);
+      }
+    }
   }
 
-  update(dt) { this.impl?.update?.(dt); }
-  draw(ctx) { this.impl?.draw?.(ctx); }
-  dispose() { try { this.impl?.dispose?.(); } catch (err) { /* ignore */ } }
+  update(dt) {
+    if (!this.impl) return;
+    try {
+      this.impl.update?.(dt);
+      this._updateFails = 0;
+    } catch (err) {
+      if (!this.is3D) return;
+      this._updateFails += 1;
+      console.warn('[playfield3d] update failed:', err);
+      if (this._updateFails >= 2) this._fallback2d('update threw');
+    }
+  }
+
+  draw(ctx) {
+    if (!this.impl) return;
+    try {
+      this.impl.draw?.(ctx);
+      this._drawFails = 0;
+    } catch (err) {
+      if (!this.is3D) {
+        console.warn('[playfield] 2D draw failed:', err);
+        return;
+      }
+      this._drawFails += 1;
+      console.warn('[playfield3d] draw failed:', err);
+      if (this._drawFails >= 2) {
+        this._fallback2d('draw threw');
+        try { this.impl.draw?.(ctx); } catch (err2) { console.warn('[playfield] 2D draw failed:', err2); }
+      }
+    }
+  }
+
+  dispose() {
+    if (this.impl) {
+      this.impl.onContextLost = null;
+      try { this.impl.dispose?.(); } catch (err) { /* ignore */ }
+    }
+    this.impl = null;
+  }
 }
 
 /**

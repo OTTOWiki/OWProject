@@ -125,3 +125,50 @@ test('每关独立镜头导演：21 mode 全覆盖、实现互不相同、stage3
   assertEqual(JSON.stringify(s1), JSON.stringify(s2));
   assertEqual(typeof s1.z, 'number');
 });
+
+test('镜头导演 u>1 必须保持抵达状态（不得无限前飞）', async () => {
+  const mod = await import('../js/bg3d/cameraDirectors.js');
+  for (const mode of mod.cameraDirectorModes()) {
+    const d = mod.makeCameraDirector(mode);
+    const at1 = d.sample({ u: 1, t: 0, boss: /_boss$/.test(mode), stage: mode.split('_')[0] });
+    const at6 = d.sample({ u: 6, t: 0, boss: /_boss$/.test(mode), stage: mode.split('_')[0] });
+    for (const key of ['z', 'x', 'y', 'lookX', 'lookY', 'fov', 'roll', 'gain']) {
+      assert(Number.isFinite(at6[key]), `${mode} ${key} 非有限数: ${at6[key]}`);
+    }
+    assert(Math.abs(at6.z - at1.z) < 1e-6, `${mode} u>1 后相机仍在推进: z ${at1.z} -> ${at6.z}`);
+  }
+});
+
+test('自适应工厂：WebGL context lost / draw 连续异常必须回退 2D（注入假实现）', async () => {
+  const { AdaptivePlayfieldBackground } = await import('../js/playfieldBg.js');
+  const makeFake3d = () => ({
+    is3D: true, sceneReady: true, onContextLost: null,
+    setMode() {}, update() {}, draw() { throw new Error('boom'); }, dispose() {},
+  });
+  const makeFake2d = () => ({
+    is3D: false, mode: null, disposed: false,
+    setMode(m) { this.mode = m; }, update() {}, draw() {}, dispose() { this.disposed = true; },
+  });
+  // 1) context lost → 立即回退 2D，并保留当前 mode
+  let fake3d = makeFake3d();
+  let fake2d = makeFake2d();
+  const bg = new AdaptivePlayfieldBackground({}, { style: {} }, {
+    create3D: () => fake3d, create2D: () => fake2d,
+  });
+  bg.setMode('s2_boss');
+  assert(bg.is3D === true, '应初始为 3D');
+  fake3d.onContextLost();
+  assert(bg.is3D === false, 'context lost 后应回退 2D');
+  assert(bg.impl === fake2d && fake2d.mode === 's2_boss', '回退 2D 后应保留当前 mode');
+  // 2) 3D draw 连续抛错 → 回退 2D
+  fake3d = makeFake3d();
+  fake2d = makeFake2d();
+  const bg2 = new AdaptivePlayfieldBackground({}, { style: {} }, {
+    create3D: () => fake3d, create2D: () => fake2d,
+  });
+  bg2.setMode('s1_mid');
+  bg2.draw({});
+  assert(bg2.is3D === true, '单次 draw 失败不应立刻回退');
+  bg2.draw({});
+  assert(bg2.is3D === false, '连续 draw 失败应回退 2D');
+});

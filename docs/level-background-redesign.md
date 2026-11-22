@@ -89,7 +89,7 @@ js/game.js / chapterFlow.js / index.html / css/style.css   # 接线与样式
 1. `setMode(mode,{transition})`：解析场景；`prevMode` 保留用于转场；
 2. 静态缓存：`(W+48)×(H+48)` 离屏 canvas；按序绘制 plate（cover + drift 余量）与 `animate:false` 层；plate onload 或材质就绪后重建；
 3. 每帧：按 drift 偏移 blit 静态缓存 → `animate:true` 层（远→近）→ 粒子 → fx（雾/暗角/扫描线/故障/光柱/上下压暗）；
-4. 转场（0→1，约 0.55s）：`prev` 淡出 + `cur` 缩放淡入 + 暖白闪，保持旧观感；
+4. 转场（0→1，约 1.15s（`TRANSITION_DUR`））：`prev` 淡出 + `cur` 缩放淡入 + 暖白闪，保持旧观感；
 5. 兜底：plate/材质失败 → 纯 `palette.sky` 渐变 + 静态层（原子不依赖图片）；渲染异常 try/catch 一次后降级为空背景并 `console.warn`，不阻塞主循环；
 6. 性能预算：静态合成每次切 mode 一次；每帧 ≤ 60 次 2D 绘制调用 + 粒子（默认 ≤ 90 个），在 450×600 下目标 < 2.5ms/帧；旧 28Hz 脏标记可保留（仅重绘离屏缓存时）。
 
@@ -164,7 +164,7 @@ assets/bg/mat/plum.avif             # 1024×512 RGBA 灰度透明：梅枝剪影
 
 ## 6. 验证与证据
 
-- 自动：`npm test`（新增 `test/cases-bg-scenes.js`：每 mode schema 合法、atom 存在、材质路径登记、fake ctx 绘制不抛错、确定性；改写 `test/cases-bg-schema.js`）；
+- 自动：`npm test`（`test/cases-bg3d.js`：21 mode builder/镜头导演/过渡/层叠/确定性守卫；`test/cases-bg-schema.js`：2D 兜底 schema/atom/材质路径；`test/cases-bg-rng.js`、`cases-bg-easing.js`）；
 - 实拍（WebViewProbe）：每面 mid/boss 版面 450×600 + 全屏 1365×900（含外围）；抽查 844×390 横屏；捕捉转场中帧；
 - 对比：改动前 baseline 截图（旧系统 21 mode 已有 `.local-evidence/bg-p1/before/`；本轮再拍真实游戏画面 baseline）；并排报告记入 `.local-evidence/level-bg/report.md`；
 - 可读性：中心亮度/方差实测、亮弹幕对比度抽检；HUD 文字与题字遮挡检查；
@@ -187,6 +187,8 @@ assets/bg/mat/plum.avif             # 1024×512 RGBA 灰度透明：梅枝剪影
 
 ## 8. 方向修正（2026-11-22）：3D 深入场景 + Billboard + 真 3D + 超现实
 
+> **历史记录**：本节为第一次 3D 方向修正时的实现快照。当前实现已由 §9（超写实超现实）、§9.2b（每关镜头导演）取代：PBR 材质（非 Lambert）、40fps 渲染上限、相机由 `js/bg3d/cameraDirectors.js` 的每关导演驱动（非固定机位）。
+
 > 用户明确修正：**版面场景应为不断深入的 3D 场景，配合 Billboard 技术与真 3D 物体混合的景物，并利用超现实主义手法。**
 > 因此第 2–7 节的 Canvas 2D 绘卷系统降级为 **WebGL 不可用时的兜底**；主实现改为本节。
 
@@ -202,15 +204,15 @@ js/playfieldBg.js  # createPlayfieldBackground()：3D 优先，失败回退 2D �
 index.html / css   # #playfield-bg3d WebGL canvas 位于 #playfield 之下；2D 版面 canvas 保持透明
 ```
 
-- 相机固定于原点；景物沿 +Z 循环逼近（z > -10 回卷）→ **不断深入**；指数雾 + 相机漂浮制造空气透视。
+- 相机固定于原点；景物沿 +Z 循环逼近（z > -10 回卷）→ **不断深入**；指数雾 + 相机漂浮制造空气透视。（§9.2b 起相机改由每关镜头导演驱动）
 - **Billboard**：`ctx.plateTexture()` / `ctx.plateCrop(sx,sy,sw,sh)` 把公有领域绘卷裁成多幅悬浮画幅；
   `ctx.textSprite()` 生成文字的 Billboard；`kit.sprite()` 始终面向相机。
 - **真 3D 物体**：`kit.torii/pagoda/obelisk/spokedWheel/ferrisWheel/lantern/hexLattice/eye/bottle/gate/ground`，
-  混合进同一纵深；材质用 Lambert + emissive 保证暗色舞台中的可读性。
+  混合进同一纵深；材质用 Lambert + emissive 保证暗色舞台中的可读性。（§9 起改为 PBR + IBL + 实时阴影）
 - **超现实**：倒置鸟居/宝塔、漂浮巨月与齿轮月轮、悬空巨轮、门内双色光、漂浮画幅拼贴、数据门等。
 - **回退**：Three/WebGL 失败或场景构建异常 → 自动使用 Canvas 2D 绘卷（第 2–7 节系统）；
   左侧 `#bg3d` Three 印象场景在版面 3D 启用时不再渲染（opacity 0.025 且被覆盖，省 GPU）。
-- 性能：WebGL 450×600、pixelRatio 1、最高 45fps 渲染（背景慢速运动）；2D 弹幕层不变。
+- 性能：WebGL 450×600、pixelRatio 1、最高 45fps 渲染（背景慢速运动）；2D 弹幕层不变。（§9 起调整为 40fps + HDR 后处理）
 
 ### 8.2 builder 契约（scene 模块）
 
@@ -277,6 +279,7 @@ PBR 场景（程序化 albedo/normal/roughness + 程序化 IBL 环境 + 实时�
 
 - **结构**：`js/bg3d/cameraDirectors.js` 为 21 个 mode 各写一套导演（`sample({u,t,...}) → {x,y,z,lookX,lookY,fov,roll,gain}`）。
   章节内时间驱动、确定性、不进玩法随机流；`stage3d` 只负责应用结果与场景过渡。
+  `makeCameraDirector` 在模块边界统一把 `u` clamp 到 0..1（抵达后保持，轻摆只用 `t`），防止长时间章节里相机无限前飞。
 - **每关镜头语言各不相同**（不是一套模板换参数）：
   - s1 草稿：慢出发→回廊加速→巨月前收住抬头；boss 起手后退半步再冲刺急停。
   - s2 审核：机位偏高、被「扫描」式步进推进，视线在悬浮巨眼间缓慢巡检；boss 快速左右扫视 + 两次审查急停。

@@ -65,7 +65,7 @@ function addBuildings(ctx, boss) {
     const count = boss ? 6 : 5;
     for (let i = 0; i < count; i++) {
       const s = i * 31 + (side > 0 ? 501 : 0);
-      const z = -16 - i * 13;
+      const z = -22 - i * 13; // 后退：镜头推进到 -15 时仍留 safe margin，避免近景黑面板挡镜
       const h = 8.5 + K.hash01(s + 3) * 6.5;
       const bw = 5.2 + K.hash01(s + 5) * 1.6;
       const g = new ctx.THREE.Group();

@@ -109,7 +109,11 @@ export function applyStageBackdrop(mode, { boss = false } = {}) {
       target.style.backgroundImage = `url("${path}")`;
       target.classList.add('has-bg');
     } else if (!rec.failed) {
-      rec.waiters.push(() => { target.style.backgroundImage = `url("${path}")`; target.classList.add('has-bg'); });
+      rec.waiters.push(() => {
+        if (token !== switchToken) return;
+        target.style.backgroundImage = `url("${path}")`;
+        target.classList.add('has-bg');
+      });
     } else {
       target.classList.remove('has-bg');
     }
