@@ -1,544 +1,381 @@
 /**
- * B线第4面「赌人时尚 · 独轮创车冲击」3D 舞台。
+ * B线第4面「赌人时尚 · 独轮创车冲击」——超写实 · 超现实 3D 舞台。
  *
- * 方向（docs/level-background-redesign.md §8）：持续深入的 3D 场景 + Billboard 绘卷 + 真 3D + 超现实。
- * 剧情锚点：独轮碾过螺旋的街巷；狂妄的哲思与「创」字诀如潮水漫过脚踝。
- * mid：血色街巷向雾中收束，巨轮自右前方碾压而来，荆棘从血土里暴长，
- *      「创」字幡与骨白赌骰悬浮半空（超现实：骰子逆重力漂浮、轮辐悬空自转）。
- * boss：巨轮加速交错、第二只倒转巨轮升起、荆棘暴长、血色光柱与纸钱风暴。
- * 构图：中心 60% 只留低对比的纵深街道，亮光全部摆在边缘/近景物。
+ * PBR 锈蚀棘轮 + 湿沥青/血水镜面 + 体积血红光 + 荆棘钢筋。
+ * 超现实：巨轮悬空滚动/倒转、轮群沿隧道壁爬升、纸钱龙卷。
+ * boss：双轮对转 + 血光柱 + 刺阵 + 纸钱风暴。
+ * 构图：中心 60% 留低对比的血水纵深，亮光/巨轮在两侧与近景边缘。
  */
-import { addFogBillboards, addEdgeFlora } from './_atmo.js';
-
-const FONT = 'bold 40px "Noto Serif CJK SC", "Microsoft YaHei", serif';
 const TAU = Math.PI * 2;
 
-/** 单字 Billboard：字占满 512x256 画布，sprite 用 2:1 宽高保持字形方正 */
-function charSprite(ctx, text, { x = 0, y = 0, z = -20, h = 3, fill = '#ffd9c8', opacity = 0.95 } = {}) {
+function mixHex(a, b, t) {
+  const ar = (a >> 16) & 255; const ag = (a >> 8) & 255; const ab = a & 255;
+  const br = (b >> 16) & 255; const bg = (b >> 8) & 255; const bb = b & 255;
+  return (Math.round(ar + (br - ar) * t) << 16)
+    | (Math.round(ag + (bg - ag) * t) << 8)
+    | Math.round(ab + (bb - ab) * t);
+}
+
+/** 发光条：黑漫反射 + 高 emissive（交给 bloom） */
+function glow(ctx, color, w, h, d, intensity = 2.2) {
+  return ctx.K.box(w, h, d, 0x000000, { emissive: color, emissiveIntensity: intensity, kind: 'metal', roughness: 0.4 });
+}
+
+/** 单字霓虹 */
+function char(ctx, text, { x = 0, y = 0, z = -20, h = 2.6, fill = '#ffd0c0', opacity = 0.95 } = {}) {
   return ctx.textSprite(text, {
-    x, y, z, w: h * 2, h, fill, bg: 'rgba(0,0,0,0)',
-    font: 'bold 170px "Noto Serif CJK SC", "Microsoft YaHei", serif', opacity,
+    x, y, z, w: h * 2, h, fill, bg: 'rgba(0,0,0,0)', opacity,
+    font: 'bold 170px "Noto Serif CJK SC", "Microsoft YaHei", serif',
   });
 }
 
-/* ------------------------------------------------------------------ *
- * 背景：深处绘卷 + 血月
- * ------------------------------------------------------------------ */
-
-function addPaintedSky(ctx, boss) {
+/** 湿血水镜面 */
+function addBloodFloor(ctx, boss) {
   const K = ctx.K;
-  const art = ctx.plateTexture();
-  if (!art) return;
-  const full = ctx.plateCrop(0, 0, 1, 1);
-  if (full) {
-    ctx.add(K.panel(full, {
-      x: 0, y: 4, z: -150, w: 220, h: 280,
-      color: boss ? 0xb04048 : 0x8a3038, opacity: boss ? 0.7 : 0.58,
-    }));
-  }
-  // 超现实：同轴绘卷被裁成几幅挂在两侧深处，错落成「画中画」
-  const crops = [
-    [0.02, 0.04, 0.5, 0.52],
-    [0.46, 0.1, 0.52, 0.52],
-    [0.08, 0.5, 0.52, 0.46],
-    [0.5, 0.5, 0.5, 0.46],
-  ];
-  for (let i = 0; i < crops.length; i++) {
-    const tex = ctx.plateCrop(...crops[i]);
-    if (!tex) continue;
-    const side = i % 2 ? 1 : -1;
-    ctx.add(K.panel(tex, {
-      x: side * (22 + (i > 1 ? 8 : 0)),
-      y: 9 + (i % 2 ? 4 : -1) + i * 2,
-      z: -92 - i * 16,
-      w: 34 + i * 4, h: 44 + i * 5,
-      color: 0xa85050,
-      opacity: 0.34,
-      rotationY: side * -0.6,
-    }));
-  }
-}
-
-function addBloodMoon(ctx, boss) {
-  const K = ctx.K;
-  const moon = K.sphere(boss ? 10 : 8.4, boss ? 0xc03a44 : 0x9a2c36, { emissiveMix: 0.7 });
-  moon.position.set(26, boss ? 26 : 23, -138);
-  ctx.add(moon);
-  const halo = K.ring(boss ? 11 : 9.2, boss ? 12.6 : 10.6, 0xc0263a, { opacity: 0.32 });
-  halo.position.copy(moon.position);
-  ctx.add(halo);
-  ctx.animate(halo, { pulse: { amp: 0.05, speed: 0.7, phase: 0.5 }, spinZ: 0.05 });
-  const halo2 = K.ring(boss ? 13.6 : 12, boss ? 14.2 : 12.6, 0x6a1018, { opacity: 0.2 });
-  halo2.position.copy(moon.position);
-  ctx.add(halo2);
-  ctx.animate(halo2, { spinZ: -0.035 });
-}
-
-/* ------------------------------------------------------------------ *
- * 空间：血色街巷 / 街灯 / 断楼
- * ------------------------------------------------------------------ */
-
-/** 发光长条（路面标线/湿反光） */
-function glowStrip(ctx, color, w, h, d, opacity) {
-  const K = ctx.K;
-  const m = K.box(w, h, d, color, {
-    transparent: true, opacity, blending: ctx.THREE.AdditiveBlending, depthWrite: false,
+  const water = K.waterFloor({
+    y: -6.2, size: [280, 360],
+    color: boss ? 0x1c0407 : 0x120306,
+    normalScale: 1.35, roughness: boss ? 0.08 : 0.11,
   });
-  return m;
-}
-
-function addStreet(ctx, boss) {
-  const K = ctx.K;
-  // 血土地面（和纸材质染色；缺失时纯色）
-  const floorTex = ctx.matTexture('washi', boss ? '#5a1c24' : '#4a161e');
-  ctx.add(K.ground({
-    y: -10, color: 0x8a6a6a, texture: floorTex || null, opacity: 0.95,
-  }));
-  // 街心：向深处收束的两道血光路缘
+  ctx.add(water);
+  // 血水镜面上漂着的血带（薄发光线，低亮度，不压中心）
   for (const side of [-1, 1]) {
-    const edge = glowStrip(ctx, side < 0 ? 0x8a1822 : 0x7a121e, 0.34, 0.06, 108, 0.5);
-    edge.position.set(side * 4.4, -9.82, -58);
-    edge.rotation.y = side * 0.058;
-    ctx.add(edge);
-    const edge2 = glowStrip(ctx, 0xff6b35, 0.1, 0.04, 108, 0.24);
-    edge2.position.set(side * 4.4, -9.78, -58);
-    edge2.rotation.y = side * 0.058;
-    ctx.add(edge2);
-  }
-  // 横向石阶/路缝：由近及远变密，形成深入节奏
-  const rows = [12, 18, 25, 33, 42, 53, 66, 82, 100];
-  for (let i = 0; i < rows.length; i++) {
-    const z = -rows[i];
-    const strip = K.box(21 + i * 4, 0.05, 0.5, 0x2a080c, { transparent: true, opacity: 0.5 });
-    strip.position.set(0, -9.8, z);
-    ctx.add(strip);
-    const line = glowStrip(ctx, 0x5a0e16, 21 + i * 4, 0.04, 0.12, 0.3);
-    line.position.set(0, -9.77, z + 0.1);
-    ctx.add(line);
-  }
-  // 两侧残灯/断柱：近景只露在边缘
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < (boss ? 5 : 4); i++) {
-      const z = -17 - i * 13;
-      const h = 7 + K.hash01(side * 17 + i * 29) * 5;
-      const post = K.cylinder(0.12, 0.24, h, 0x24060a, { seg: 6 });
-      post.position.set(side * (7.4 + i * 0.9), -10 + h / 2, z);
-      post.rotation.z = side * (0.06 + K.hash01(i * 13) * 0.14);
-      ctx.add(post);
-      const arm = K.box(1.4, 0.12, 0.12, 0x24060a);
-      arm.position.set(side * (6.7 + i * 0.9), -10 + h, z);
-      arm.rotation.z = side * 0.22;
-      ctx.add(arm);
-      const lamp = K.sphere(0.3, i % 2 ? 0xffb07a : 0xff6b35, { emissiveMix: 1.1 });
-      lamp.position.set(side * (6.1 + i * 0.9), -10 + h - 0.4, z);
-      ctx.add(lamp);
-      const halo = K.ring(0.42, 0.72, i % 2 ? 0xffb07a : 0xff6b35, { opacity: 0.26 });
-      halo.position.copy(lamp.position);
-      ctx.add(halo);
+    for (let i = 0; i < 3; i++) {
+      const strip = glow(ctx, side < 0 ? 0x8a1420 : 0x6a0e18, 0.10, 0.02, 60 - i * 12, 0.9);
+      strip.position.set(side * (6.4 + i * 1.6), -6.12, -34 - i * 12);
+      strip.rotation.y = side * -0.05;
+      ctx.add(strip);
     }
   }
-  // 街边断楼：远景两侧的低矮血色楼群（真 3D 盒子 + 亮窗）
-  ctx.field((i) => {
-    const g = new ctx.THREE.Group();
-    const hh = 3.2 + K.hash01(i * 19 + 3) * 5;
-    const bw = 2.2 + K.hash01(i * 23 + 5) * 2.4;
-    const body = K.box(bw, hh, 1.6, 0x2a0810, { emissiveMix: 0.5 });
-    body.position.y = hh / 2;
-    g.add(body);
-    const roof = K.box(bw * 1.15, 0.16, 1.9, 0x1a0508);
-    roof.position.y = hh;
-    g.add(roof);
-    const wins = 2 + ((K.hash01(i * 29 + 7) * 3) | 0);
-    for (let k = 0; k < wins; k++) {
-      const win = K.box(0.3, 0.4, 0.06, k % 2 ? 0xff8a5a : 0x6a1018, { emissiveMix: 1 });
-      win.position.set(
-        (K.hash01(i * 31 + k * 7) - 0.5) * bw * 0.7,
-        hh * (0.25 + K.hash01(i * 37 + k * 11) * 0.55),
-        0.84,
-      );
-      g.add(win);
-    }
-    return g;
-  }, {
-    count: boss ? 10 : 7, zNear: -34, zFar: -128, xRange: 66, yRange: 0,
-    y: -10, xAbsMin: 13, speedMul: 0.55, jitter: 0.15,
-  });
-  // 路面血迹/碎石（低矮，避开中心亮部）
-  for (let i = 0; i < 18; i++) {
-    const rock = K.box(
-      0.2 + K.hash01(i * 7) * 0.7, 0.1 + K.hash01(i * 11) * 0.28, 0.2 + K.hash01(i * 13) * 0.8,
-      i % 6 === 0 ? 0x9a8a76 : 0x2a080c, { transparent: true, opacity: 0.6 },
-    );
-    rock.position.set(
-      (K.hash01(i * 17) - 0.5) * 17,
-      -9.72,
-      -15 - K.hash01(i * 19) * 70,
-    );
-    rock.rotation.y = K.hash01(i * 23) * TAU;
-    ctx.add(rock);
-  }
-}
-
-/** 中央断裂的轮架牌坊：巨轮曾经的门，柱子与横梁半悬（超现实） */
-function addWheelGate(ctx, boss) {
-  const K = ctx.K;
-  const g = new ctx.THREE.Group();
+  // 两侧沥青断岸 + 锈蚀路缘
   for (const side of [-1, 1]) {
-    const leg = K.box(0.7, 11, 0.7, 0x24060a, { emissiveMix: 0.3 });
-    leg.position.set(side * 5.6, 5.5, 0);
-    leg.rotation.z = side * -0.06;
-    g.add(leg);
-    const brace = K.box(2.4, 0.28, 0.3, 0x1a0408);
-    brace.position.set(side * 4.4, 9.2, 0);
-    brace.rotation.z = side * 0.55;
-    g.add(brace);
-    const lamp = K.sphere(0.26, 0xff6b35, { emissiveMix: 1.1 });
-    lamp.position.set(side * 5.2, 10.6, 0.4);
-    g.add(lamp);
+    const bank = K.box(8, 1.2, 240, 0x14070a, { kind: 'asphalt', roughness: 0.95 });
+    bank.position.set(side * 12.6, -6.4, -80);
+    ctx.add(bank);
+    const curb = K.box(0.5, 0.5, 240, 0x2a1014, { kind: 'rust', roughness: 0.7 });
+    curb.position.set(side * 8.5, -5.95, -80);
+    ctx.add(curb);
+    const rim = glow(ctx, boss ? 0xff3a4a : 0xc0263a, 0.12, 0.05, 220, boss ? 1.5 : 1.0);
+    rim.position.set(side * 8.5, -5.68, -80);
+    ctx.add(rim);
   }
-  // 断梁：左侧尚连、右侧下垂
-  const beam = K.box(11.8, 0.6, 0.6, 0x2a080c, { emissiveMix: 0.35 });
-  beam.position.set(-0.4, 11.1, 0);
-  beam.rotation.z = boss ? -0.16 : -0.07;
-  g.add(beam);
-  const beam2 = K.box(4.6, 0.5, 0.5, 0x24060a);
-  beam2.position.set(4.9, 9.6, 0);
-  beam2.rotation.z = -0.5;
-  g.add(beam2);
-  // 悬吊的轮心残骸
-  const hang = K.cylinder(0.03, 0.03, 2.6, 0x1a0408);
-  hang.position.set(-0.4, 9.6, 0);
-  g.add(hang);
-  const hub = K.torus(0.9, 0.16, 0x8a1420, { emissiveMix: 0.8 });
-  hub.position.set(-0.4, 8.1, 0);
-  g.add(hub);
-  ctx.animate(hub, { spinZ: 0.3 });
-  g.position.set(0, -10, boss ? -40 : -46);
-  ctx.add(g);
 }
 
-/* ------------------------------------------------------------------ *
- * 真 3D 主体：巨轮 / 赌骰 / 荆棘 / 「创」幡
- * ------------------------------------------------------------------ */
-
-function makeWheel(ctx, { big = false, boss = false } = {}) {
+/** 隧道壁：断裂混凝土 + 外露钢筋（两侧，让出中心） */
+function addTunnelWalls(ctx, boss) {
   const K = ctx.K;
-  const g = new ctx.THREE.Group();
-  const r = big ? 6.6 : 4.4;
-  // 轮辋（双圈 + 齿）
-  const rim = K.torus(r, big ? 0.5 : 0.34, boss ? 0xa02030 : 0x7a1420, { emissiveMix: 0.8 });
-  g.add(rim);
-  const rim2 = K.torus(r * 0.78, big ? 0.16 : 0.11, 0xff6b35, { emissiveMix: 1 });
-  g.add(rim2);
-  // 轮辐
-  for (let i = 0; i < 8; i++) {
-    const spoke = K.box(big ? 0.3 : 0.2, r * 1.72, big ? 0.3 : 0.2, 0x5a0c14, { emissiveMix: 0.5 });
-    spoke.rotation.z = (i / 8) * TAU;
-    g.add(spoke);
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < (boss ? 6 : 5); i++) {
+      const s = i * 23 + (side > 0 ? 101 : 0);
+      const h = 8 + K.hash01(s + 3) * 8;
+      const z = -20 - i * 17;
+      const g = new ctx.THREE.Group();
+      // 断墙板（倾斜、错缝）
+      for (let k = 0; k < 3; k++) {
+        const bw = 2.6 + K.hash01(s + 7 + k) * 2.8;
+        const bh = h * (0.32 + K.hash01(s + 11 + k) * 0.4);
+        const slab = K.box(bw, bh, 1.4, 0x1c0a0e, { kind: 'stone', roughness: 0.92 });
+        slab.position.set((K.hash01(s + 13 + k) - 0.5) * 2.6, h * (0.2 + k * 0.3), (K.hash01(s + 17 + k) - 0.5) * 1.4);
+        slab.rotation.z = (K.hash01(s + 19 + k) - 0.5) * 0.22;
+        slab.rotation.y = (K.hash01(s + 23 + k) - 0.5) * 0.3;
+        g.add(slab);
+      }
+      // 钢筋：从断墙里探出的曲线（tube）
+      for (let k = 0; k < 3; k++) {
+        const pts = [];
+        const bx = (K.hash01(s + 29 + k) - 0.5) * 2.2;
+        const by = h * (0.35 + k * 0.18);
+        for (let n = 0; n <= 4; n++) {
+          pts.push([
+            bx + side * n * 0.55,
+            by + Math.sin(n * 1.7 + k) * 0.7 + n * 0.12,
+            (K.hash01(s + 31 + k) - 0.5) * 0.6 + n * 0.22,
+          ]);
+        }
+        g.add(K.tube(pts, 0.055, 0x3a1a18, { kind: 'rust', radial: 5, seg: 16 }));
+      }
+      // 壁面血光条
+      const lamp = glow(ctx, boss ? 0xff2f45 : 0xa02030, 0.14, h * 0.5, 0.14, boss ? 1.8 : 1.1);
+      lamp.position.set(side * -1.6, h * 0.55, 0.8);
+      g.add(lamp);
+      g.position.set(side * 11.5, -6.2, z);
+      g.rotation.y = side * -0.22;
+      ctx.add(g);
+    }
   }
-  // 棘齿
-  const spikes = big ? 14 : 9;
-  for (let i = 0; i < spikes; i++) {
-    const a = (i / spikes) * TAU;
-    const sp = K.cone(big ? 0.42 : 0.3, big ? 1.6 : 1.1, 0x24060a, { seg: 4, emissiveMix: 0.3 });
-    sp.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
-    sp.rotation.z = a - Math.PI / 2;
-    g.add(sp);
-  }
-  // 轮心赤光
-  const core = K.sphere(big ? 1 : 0.66, boss ? 0xff3a4a : 0xc0263a, { emissiveMix: 1.2 });
-  core.position.z = 0.4;
-  g.add(core);
-  const halo = K.ring(big ? 1.5 : 1, big ? 1.9 : 1.3, 0xff6b35, { opacity: 0.32 });
-  halo.position.z = 0.5;
-  g.add(halo);
-  ctx.animate(halo, { pulse: { amp: 0.12, speed: big ? 1.4 : 0.9 } });
-  // 轮缘火星
-  for (let k = 0; k < 5; k++) {
-    const a = (k / 5) * TAU + 0.3;
-    const ember = K.sphere(0.13, 0xff6b35, { emissiveMix: 1.2 });
-    ember.position.set(Math.cos(a) * r * 0.94, Math.sin(a) * r * 0.94, 0.2);
-    g.add(ember);
-  }
-  return g;
 }
 
+/** 巨轮（hero）+ 沿壁爬升的轮群 */
 function addWheels(ctx, boss) {
   const K = ctx.K;
-  // 主角巨轮：右前方压过来（超现实：悬空、倒转）
-  const hero = makeWheel(ctx, { big: true, boss });
-  hero.position.set(12.6, boss ? 8 : 6.4, boss ? -21 : -25);
-  hero.rotation.set(0.12, -0.34, boss ? 0.22 : 0.14);
+  // 主角巨轮：右侧悬空、慢速滚动（不落地 = 超现实）
+  const hero = K.spokedWheel({
+    x: 13.2, y: boss ? 8.2 : 6.6, z: boss ? -24 : -28,
+    r: 8.6, tube: 0.82, color: 0x6a1c24, spikes: 18, glow: boss ? 0xff2f45 : 0xd02838,
+  });
+  hero.rotation.set(0.16, -0.52, 0.06);
   ctx.add(hero);
-  ctx.animate(hero, { spinZ: boss ? -1.2 : -0.55, bob: { amp: 0.12, speed: 0.5 } });
-  // 第二只巨轮：boss 时从左侧升起、反向转
+  ctx.animate(hero, { spinZ: boss ? -1.35 : -0.55, spinY: 0.05 });
+  // 轮下血水里的暗影（暗示悬浮）
+  const shadow = K.ring(3.2, 8.2, 0x5a0a12, { opacity: 0.16 });
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.set(12, -6.05, -26);
+  ctx.add(shadow);
+
   if (boss) {
-    const hero2 = makeWheel(ctx, { big: true, boss });
-    hero2.position.set(-12.8, 9.6, -25);
-    hero2.rotation.set(-0.16, 0.4, -0.18);
+    // 第二只巨轮：左侧倒转（对转）
+    const hero2 = K.spokedWheel({
+      x: -13.2, y: 9.4, z: -26,
+      r: 8.6, tube: 0.82, color: 0x8a2028, spikes: 18, glow: 0xff5a2f,
+    });
+    hero2.rotation.set(-0.2, 0.62, Math.PI + 0.12);
     ctx.add(hero2);
-    ctx.animate(hero2, { spinZ: 1.35, bob: { amp: 0.16, speed: 0.6, phase: 1.4 } });
+    ctx.animate(hero2, { spinZ: 1.35, spinY: -0.05 });
+  } else {
+    // mid：左上方远处悬浮轮（小一号）
+    const far = K.spokedWheel({ x: -11.5, y: 11.5, z: -52, r: 4.6, tube: 0.4, color: 0x4a1018, spikes: 11, glow: 0x8a1826 });
+    far.rotation.set(0.3, 0.5, Math.PI);
+    ctx.add(far);
+    ctx.animate(far, { spinZ: 0.8 });
   }
-  // 轮群逆流（不断深入的主体运动）：深处小轮逐渐放大并滑向两侧
-  ctx.field((i) => {
-    const w = makeWheel(ctx, { big: i % 4 === 1, boss });
-    w.rotation.set(
-      (K.hash01(i * 31 + 5) - 0.5) * 0.4,
-      (K.hash01(i * 37 + 9) - 0.5) * 0.8,
-      (K.hash01(i * 41 + 3) - 0.5) * 0.4,
-    );
-    ctx.animate(w, { spinZ: (K.hash01(i * 43 + 7) > 0.5 ? 1 : -1) * (0.6 + K.hash01(i * 47) * 0.9) });
-    return w;
-  }, {
-    count: boss ? 5 : 4, zNear: -24, zFar: -112,
-    xRange: 42, yRange: 13, xAbsMin: 7, speedMul: boss ? 1.5 : 1.15, jitter: 0.2,
+
+  // 轮群沿隧道壁爬升：贴在两侧壁上，朝向街心，自转
+  const climb = boss ? 6 : 5;
+  for (let i = 0; i < climb; i++) {
+    const side = i % 2 ? 1 : -1;
+    const z = -20 - i * 15;
+    const y = 0.5 + i * 2.1;
+    const w = K.spokedWheel({
+      x: side * (10.6 + (i % 3) * 0.6), y, z,
+      r: 2.4 + K.hash01(i * 17 + 3) * 1.1,
+      tube: 0.18, color: 0x4a121a, spikes: 9,
+      glow: i % 2 ? 0xff5a2f : 0xc0263a,
+    });
+    w.rotation.y = side * (Math.PI / 2 - 0.18);
+    w.rotation.z = side * 0.1;
+    ctx.add(w);
+    ctx.animate(w, { spinZ: (i % 2 ? 1 : -1) * (0.7 + i * 0.08) });
+  }
+}
+
+/** 超现实：纸钱龙卷（旋涡状纸片群） */
+function addPaperTornado(ctx, boss) {
+  const K = ctx.K;
+  const g = new ctx.THREE.Group();
+  const n = boss ? 26 : 18;
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    const a = t * TAU * 2.4;
+    const r = 1.4 + t * 5.2;
+    const note = K.box(0.7, 0.9, 0.03, 0xd8c4a8, { kind: 'paper', roughness: 0.9, emissive: 0x6a4a28, emissiveIntensity: 0.5 });
+    note.position.set(Math.cos(a) * r, t * 13 - 5, Math.sin(a) * r * 0.7);
+    note.rotation.set(K.hash01(i * 7) * TAU, a, (K.hash01(i * 11) - 0.5) * 1.2);
+    g.add(note);
+  }
+  g.position.set(11.5, -2, -44);
+  ctx.add(g);
+  ctx.updater((dt, t) => {
+    g.rotation.y += dt * (boss ? 1.9 : 1.2);
+    g.position.y = -2 + Math.sin(t * 0.4) * 0.7;
   });
 }
 
-/** 骨白赌骰：逆重力漂浮 + 缓慢自转（赌人时尚的荒诞符号） */
-function addDice(ctx, boss) {
-  const K = ctx.K;
-  const build = (size) => {
-    const g = new ctx.THREE.Group();
-    g.add(K.box(size, size, size, 0xc8b8a0, { emissiveMix: 0.32 }));
-    const pip = size * 0.1;
-    const f = size / 2 + pip * 0.25;
-    const faces = [
-      { axis: 'z', sign: 1, pts: [[0, 0]] },
-      { axis: 'z', sign: -1, pts: [[-0.24, -0.24], [0.24, 0.24]] },
-      { axis: 'x', sign: 1, pts: [[-0.26, 0.26], [0, 0], [0.26, -0.26]] },
-    ];
-    for (const face of faces) {
-      for (const [a, b] of face.pts) {
-        const dot = K.sphere(pip * 1.5, 0xb02030, { emissiveMix: 0.9 });
-        if (face.axis === 'z') dot.position.set(a * size, b * size, face.sign * f);
-        else dot.position.set(face.sign * f, b * size, a * size);
-        g.add(dot);
-      }
-    }
-    const edge = K.box(size * 1.01, size * 0.05, size * 1.01, 0x7a5a48, { transparent: true, opacity: 0.35 });
-    edge.position.y = size * 0.42;
-    g.add(edge);
-    return g;
-  };
-  const defs = boss
-    ? [
-      { x: -8.6, y: 13.4, z: -30, s: 2.4, spin: [0.22, 0.3, 0.1] },
-      { x: 8.2, y: 11.6, z: -22, s: 1.5, spin: [-0.3, 0.24, 0.18] },
-      { x: 7.4, y: 16.2, z: -52, s: 3.0, spin: [0.16, -0.2, 0.08] },
-      { x: -7.8, y: 5.2, z: -44, s: 1.4, spin: [0.34, 0.3, -0.22] },
-    ]
-    : [
-      { x: -9.2, y: 12.6, z: -34, s: 2.2, spin: [0.2, 0.32, 0.12] },
-      { x: 8.4, y: 14.4, z: -46, s: 1.7, spin: [-0.28, 0.22, 0.2] },
-      { x: 7.6, y: 6.2, z: -24, s: 1.3, spin: [0.24, -0.26, 0.16] },
-    ];
-  for (let i = 0; i < defs.length; i++) {
-    const d = defs[i];
-    const die = build(d.s);
-    die.position.set(d.x, d.y, d.z);
-    die.rotation.set(K.hash01(i * 7) * TAU, K.hash01(i * 11) * TAU, K.hash01(i * 13) * TAU);
-    ctx.add(die);
-    ctx.animate(die, {
-      spinX: d.spin[0], spinY: d.spin[1], spinZ: d.spin[2],
-      bob: { amp: 0.2, speed: 0.36, phase: i * 1.3 },
-    });
-  }
-}
-
-/** 荆棘：左右近景暴长，boss 更高更密并向街心探出 */
+/** 荆棘：血土里暴长的 tube 曲线 + 尖刺 */
 function addThorns(ctx, boss) {
   const K = ctx.K;
   for (const side of [-1, 1]) {
     const g = new ctx.THREE.Group();
-    const nodes = boss ? 6 : 4;
-    for (let i = 0; i < nodes; i++) {
-      const s = i * 31 + (side > 0 ? 271 : 0);
-      const hh = 3.6 + K.hash01(s + 3) * (boss ? 6.4 : 4.2);
-      const lean = 0.55 + K.hash01(s + 7) * (boss ? 1.1 : 0.8);
-      const z0 = -K.hash01(s + 13) * 3;
-      const vine = K.cylinder(0.07, 0.22, hh, 0x2a080c, { seg: 5, emissiveMix: 0.3 });
-      vine.position.set(K.hash01(s + 11) * 1.6 * side, hh / 2 - 0.4, z0);
-      vine.rotation.z = side * -lean;
-      g.add(vine);
-      for (let k = 0; k < 3; k++) {
-        const spike = K.cone(0.1 + K.hash01(s + 17 + k) * 0.12, 0.9 + K.hash01(s + 19 + k) * 0.9, 0x3a0a12, { seg: 4 });
+    const nodes = boss ? 3 : 2;
+    for (let v = 0; v < nodes; v++) {
+      const s = v * 37 + (side > 0 ? 211 : 0);
+      const pts = [];
+      const len = 6 + K.hash01(s + 3) * 5;
+      for (let n = 0; n <= 7; n++) {
+        const u = n / 7;
+        pts.push([
+          side * u * len * (0.35 + K.hash01(s + 5) * 0.4) + Math.sin(u * 5.2 + v) * 0.5,
+          0.35 + u * len * (0.6 + K.hash01(s + 7) * 0.5),
+          v * 1.4 + Math.sin(u * 4 + v * 2) * 0.7,
+        ]);
+      }
+      g.add(K.tube(pts, 0.09 + K.hash01(s + 11) * 0.09, 0x24080c, { kind: 'wood', radial: 6, seg: 26 }));
+      for (let k = 1; k < 7; k++) {
+        const u = k / 7;
+        const spike = K.cone(0.07 + K.hash01(s + 13 + k) * 0.09, 0.5 + K.hash01(s + 17 + k) * 0.8, 0x1a060a, { seg: 4, kind: 'rust' });
         spike.position.set(
-          side * (0.2 + lean * hh * 0.52 * (k / 3)),
-          hh * (0.3 + k * 0.24) - 0.4,
-          z0 + 0.1,
+          side * u * len * 0.5 + Math.sin(u * 5.2 + v) * 0.4,
+          0.4 + u * len * 0.8,
+          v * 1.4 + 0.2,
         );
-        spike.rotation.z = side * -(1.05 + k * 0.16);
+        spike.rotation.z = side * -(0.7 + u * 0.5);
         g.add(spike);
       }
-      const tip = K.sphere(0.1, 0xc0263a, { emissiveMix: 1 });
-      tip.position.set(side * lean * hh * 0.6, hh * 0.92, z0);
+      // 刺尖微光
+      const tip = K.sphere(0.09, 0xc0263a, { emissive: 0xc0263a, emissiveIntensity: 1.6, seg: 8, seg2: 6 });
+      tip.position.set(side * len * 0.45, 0.4 + len * 0.85, v * 1.4);
       g.add(tip);
     }
-    g.position.set(side * 5.6, -9.8, -14);
-    g.scale.setScalar(boss ? 1.3 : 0.95);
-    g.rotation.y = side * -0.2;
+    g.position.set(side * 7.2, -6.1, -10);
+    g.rotation.y = side * -0.3;
     ctx.add(g);
   }
-  // boss：血土裂隙里刺出的尖刺阵
-  if (boss) {
-    for (let i = 0; i < 12; i++) {
-      const hgt = 2.4 + K.hash01(i * 17) * 3.4;
-      const sp = K.cone(0.2 + K.hash01(i * 13) * 0.26, hgt, 0x2a080c, { seg: 4, emissiveMix: 0.3 });
-      const side = i % 2 ? 1 : -1;
-      sp.position.set(side * (4 + K.hash01(i * 19) * 5), -10 + hgt / 2, -16 - K.hash01(i * 23) * 46);
-      sp.rotation.z = side * 0.28;
-      ctx.add(sp);
-      const tip = K.sphere(0.1, 0x9a1826, { emissiveMix: 1 });
-      tip.position.copy(sp.position);
-      tip.position.y += hgt * 0.48;
-      ctx.add(tip);
-    }
-  }
 }
 
-/** 「创」字幡（Billboard 字形 + 3D 布面）+ 雾顶巨字 */
-function addBanners(ctx, boss) {
+/** 远景：雾中巨轮剪影 + 血月 */
+function addBackdrop(ctx, boss) {
   const K = ctx.K;
-  const defs = boss
-    ? [
-      { x: 8.4, y: 9.4, z: -24, w: 3.8, h: 5.4 },
-      { x: -8.6, y: 6.6, z: -36, w: 3.4, h: 4.8 },
-      { x: 6.8, y: 15.2, z: -58, w: 3.2, h: 4.4 },
-      { x: -6.4, y: 11.8, z: -70, w: 3, h: 4 },
-    ]
-    : [
-      { x: 8.6, y: 8.8, z: -27, w: 3.6, h: 5.2 },
-      { x: -8.8, y: 5.4, z: -42, w: 3.2, h: 4.6 },
-    ];
-  for (let i = 0; i < defs.length; i++) {
-    const d = defs[i];
-    const cloth = K.box(d.w * 0.92, d.h * 0.92, 0.08, 0x4a0810, { emissiveMix: 0.5 });
-    cloth.position.set(d.x, d.y, d.z);
-    cloth.rotation.y = (i % 2 ? -1 : 1) * 0.14;
-    ctx.add(cloth);
-    const sp = charSprite(ctx, '创', {
-      x: d.x, y: d.y, z: d.z + 0.14, h: d.h * 1.35,
-      fill: i === 0 ? '#ffd9c8' : '#ffb199', opacity: 0.96,
+  const rim = K.torus(boss ? 24 : 20, boss ? 1.3 : 1.0, 0x3a0a12, {
+    kind: 'rust', radial: 5, tubular: 64, emissive: 0x5a0c14, emissiveIntensity: 0.7,
+  });
+  rim.position.set(-19, boss ? 19 : 17, boss ? -118 : -128);
+  rim.rotation.z = 0.22;
+  ctx.add(rim);
+  ctx.animate(rim, { spinZ: boss ? 0.06 : 0.035 });
+  const rim2 = K.torus(boss ? 15 : 12, 0.6, 0x22060a, { kind: 'metal', radial: 5, tubular: 48 });
+  rim2.position.copy(rim.position);
+  ctx.add(rim2);
+  ctx.animate(rim2, { spinZ: -0.05 });
+  // 血月（边缘）
+  ctx.add(K.moon({
+    x: 12, y: 13.5, z: -106, r: boss ? 7.6 : 6.4,
+    color: 0xd8b0b0, halo: 0xff3040, haloOpacity: boss ? 0.26 : 0.18,
+  }));
+}
+
+/** 体积血红光 + 血光柱 */
+function addBloodLight(ctx, boss) {
+  const K = ctx.K;
+  const beams = boss ? 4 : 2;
+  for (let i = 0; i < beams; i++) {
+    const side = i % 2 ? 1 : -1;
+    const b = K.volumetricBeam({
+      x: side * (11 + (i > 1 ? 3 : 0)), y: 11, z: -34 - i * 16,
+      length: 34, radius: 2.6,
+      color: boss ? 0xff2438 : 0xc0263a,
+      opacity: boss ? 0.07 : 0.04,
+      tilt: side * 0.2, spin: 0.3 + i * 0.1,
     });
-    if (sp) {
-      ctx.add(sp);
-      ctx.animate(sp, { pulse: { amp: 0.04, speed: 0.7, phase: i * 1.7 } });
+    ctx.add(b);
+  }
+  if (boss) {
+    // 血光柱：从血水里升起的垂直光柱（近景边缘）
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 2; i++) {
+        const pillar = new ctx.THREE.Mesh(
+          new ctx.THREE.CylinderGeometry(0.5 + i * 0.4, 1.1 + i * 0.5, 30, 16, 1, true),
+          new ctx.THREE.MeshBasicMaterial({
+            color: i ? 0xff5a2f : 0xff2438, transparent: true, opacity: 0.05 - i * 0.015,
+            blending: ctx.THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false,
+          }),
+        );
+        pillar.position.set(side * (10.2 + i * 2.2), 6, -36 - i * 9);
+        ctx.add(pillar);
+      }
     }
-    const pole = K.cylinder(0.05, 0.08, d.h * 1.4, 0x24060a, { seg: 5 });
-    pole.position.set(d.x + (i % 2 ? -1 : 1) * d.w * 0.58, d.y - d.h * 0.12, d.z);
-    ctx.add(pole);
-  }
-  // 超现实：雾顶的巨大「创」字（低亮度，只在边缘）
-  const big = charSprite(ctx, '创', {
-    x: boss ? 0 : -1, y: boss ? 21 : 19, z: -86, h: boss ? 18 : 15,
-    fill: 'rgba(255,96,72,0.5)', opacity: boss ? 0.3 : 0.22,
-  });
-  if (big) {
-    ctx.add(big);
-    ctx.animate(big, { spinZ: 0.04, pulse: { amp: 0.05, speed: 0.4 } });
   }
 }
 
-/* ------------------------------------------------------------------ *
- * 空气：火星 / 纸钱 / 光柱
- * ------------------------------------------------------------------ */
-
-function addParticles(ctx, boss) {
-  const K = ctx.K;
-  // 轮缘火星逆流
-  ctx.points({
-    count: boss ? 48 : 34, color: 0xff7a3a, size: 0.17, type: 'spark',
-    xRange: 38, yRange: 28, zNear: -2, zFar: -60, speed: boss ? 4.4 : 3.2, seed: 21,
-  });
-  // 纸钱/骨屑
-  ctx.points({
-    count: boss ? 44 : 30, color: 0xd9c8b0, size: 0.24, type: 'paper',
-    xRange: 38, yRange: 26, zNear: -3, zFar: -68, speed: 2.2, seed: 23,
-  });
-  // 深层血雾颗粒（填充走廊，不压中心亮部）
-  ctx.points({
-    count: boss ? 28 : 20, color: 0x7a1420, size: 0.62, type: 'spark',
-    xRange: 44, yRange: 30, zNear: -26, zFar: -110, speed: 1.1, seed: 27,
-  });
-}
-
-function addBloodPillars(ctx, boss) {
+/** 刺阵（boss）：血水裂隙里刺出的锈刺 */
+function addSpikeField(ctx, boss) {
   if (!boss) return;
   const K = ctx.K;
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 2; i++) {
-      const beam = K.box(1.2 + i * 0.8, 34, 0.2, 0x6a0e1a, {
-        transparent: true, opacity: 0.16 - i * 0.04, blending: ctx.THREE.AdditiveBlending, depthWrite: false,
-      });
-      beam.position.set(side * (10.6 + i * 2), 6, -38 - i * 10);
-      beam.rotation.z = side * -0.12;
-      ctx.add(beam);
-    }
+  for (let i = 0; i < 14; i++) {
+    const side = i % 2 ? 1 : -1;
+    const h = 2.2 + K.hash01(i * 17) * 3.8;
+    const sp = K.cone(0.22 + K.hash01(i * 13) * 0.3, h, 0x1a060a, { seg: 5, kind: 'rust' });
+    sp.position.set(side * (7.5 + K.hash01(i * 19) * 5.5), -6.1 + h / 2, -14 - K.hash01(i * 23) * 60);
+    sp.rotation.z = side * (0.18 + K.hash01(i * 29) * 0.3);
+    ctx.add(sp);
+    const tip = K.sphere(0.1, 0xff3040, { emissive: 0xff3040, emissiveIntensity: 2, seg: 6, seg2: 4 });
+    tip.position.copy(sp.position);
+    tip.position.y += h * 0.46;
+    ctx.add(tip);
   }
 }
 
-/** 超现实：雾中的巨型棘轮月轮（远景剪影地标） */
-function addGiantWheel(ctx, boss) {
+/** 边缘文字 + 雾幕 */
+function addAtoms(ctx, boss) {
   const K = ctx.K;
-  const g = new ctx.THREE.Group();
-  const r = boss ? 21 : 17;
-  const color = boss ? 0x8a1824 : 0x5a0e18;
-  g.add(K.torus(r, boss ? 1.1 : 0.9, color, { radial: 5, tubular: 48, emissiveMix: 0.7 }));
-  g.add(K.torus(r * 0.62, boss ? 0.5 : 0.4, boss ? 0xa02030 : 0x4a0a12, { radial: 5, tubular: 40, emissiveMix: 0.6 }));
-  for (let i = 0; i < 10; i++) {
-    const spoke = K.box(boss ? 0.9 : 0.7, r * 1.7, 0.5, color, { emissiveMix: 0.5 });
-    spoke.rotation.z = (i / 10) * TAU;
-    g.add(spoke);
+  const textColor = boss ? '#ffd0c8' : '#ffb199';
+  const defs = boss
+    ? [{ t: '赌', x: -9.5, y: 12.5, z: -24 }, { t: '创', x: 9.8, y: 14.4, z: -40 }]
+    : [{ t: '创', x: 9.6, y: 12.6, z: -30 }];
+  for (let i = 0; i < defs.length; i++) {
+    const d = defs[i];
+    const sp = char(ctx, d.t, { x: d.x, y: d.y, z: d.z, h: boss ? 3.6 : 3.0, fill: textColor, opacity: 0.9 });
+    if (sp) {
+      ctx.add(sp);
+      ctx.animate(sp, { bob: { amp: 0.05, speed: 0.5, phase: i }, pulse: { amp: 0.05, speed: 0.8, phase: i } });
+    }
+    const halo = K.ring(1.7, 2.5, boss ? 0xff3040 : 0xc0263a, { opacity: 0.18 });
+    halo.position.set(d.x, d.y, d.z - 0.3);
+    ctx.add(halo);
   }
-  for (let i = 0; i < 20; i++) {
-    const a = (i / 20) * TAU;
-    const sp = K.cone(boss ? 1.4 : 1.1, boss ? 4.2 : 3.4, color, { seg: 4, emissiveMix: 0.6 });
-    sp.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
-    sp.rotation.z = a - Math.PI / 2;
-    g.add(sp);
-  }
-  const core = K.ring(r * 0.12, r * 0.2, 0xff6b35, { opacity: 0.3 });
-  g.add(core);
-  ctx.animate(core, { pulse: { amp: 0.08, speed: 0.5 } });
-  g.position.set(-22, boss ? 22 : 20, boss ? -122 : -132);
-  g.rotation.z = 0.25;
-  ctx.add(g);
-  ctx.animate(g, { spinZ: boss ? 0.05 : 0.03 });
+  // 雾幕（shader 噪声，代替旧雾片，避免三角形伪影）
+  ctx.add(K.mistSheet({
+    x: 0, y: -2, z: -30, w: 90, h: 26,
+    color: mixHex(ctx.palette.fog, ctx.palette.ink, 0.4),
+    opacity: boss ? 0.22 : 0.16, seed: 2, speed: 0.025,
+  }));
+  ctx.add(K.mistSheet({
+    x: -8, y: 2, z: -64, w: 110, h: 30,
+    color: mixHex(ctx.palette.fog, ctx.palette.glow, 0.2),
+    opacity: boss ? 0.2 : 0.14, seed: 5, speed: 0.018,
+  }));
 }
 
-/* ------------------------------------------------------------------ *
- * Builder
- * ------------------------------------------------------------------ */
+function addParticles(ctx, boss) {
+  ctx.points({
+    count: boss ? 48 : 34, color: 0xff6a35, size: 0.18, type: 'spark',
+    xRange: 38, yRange: 26, zNear: -2, zFar: -66, speed: boss ? 4.2 : 3.0, seed: 21,
+  });
+  ctx.points({
+    count: boss ? 34 : 26, color: 0xd8c0a8, size: 0.22, type: 'paper',
+    xRange: 38, yRange: 26, zNear: -3, zFar: -72, speed: 2.0, seed: 23,
+  });
+  ctx.points({
+    count: boss ? 26 : 18, color: 0x8a1420, size: 0.6, type: 'spark',
+    xRange: 46, yRange: 30, zNear: -28, zFar: -112, speed: 0.9, seed: 27,
+  });
+}
 
 function build(ctx, boss) {
-  const { palette } = ctx;
+  const { palette, K } = ctx;
   ctx.atmosphere({
-    fogColor: boss ? 0x22060a : 0x1c0509,
-    fogDensity: boss ? 0.018 : 0.017,
-    ambient: 0x9a8a90,
-    ambientIntensity: boss ? 1.5 : 1.35,
-    dirColor: boss ? 0xff5a60 : 0xffa070,
-    dirIntensity: boss ? 1.25 : 1.05,
+    bg: palette.skyBot,
+    fogColor: mixHex(palette.fog, palette.ink, 0.62),
+    fogDensity: boss ? 0.019 : 0.017,
+    ambient: palette.ambient,
+    ambientIntensity: 0.42,
+    hemiSky: mixHex(palette.glow, palette.fog, 0.35),
+    hemiGround: palette.ink,
+    hemiIntensity: 0.55,
+    dirColor: boss ? 0xff5a5a : 0xffa080,
+    dirIntensity: boss ? 2.3 : 1.9,
+    shadow: true,
+    shadowSize: 1024,
   });
-  addPaintedSky(ctx, boss);
-  addBloodMoon(ctx, boss);
-  addGiantWheel(ctx, boss);
-  addStreet(ctx, boss);
-  addWheelGate(ctx, boss);
-  addWheels(ctx, boss);
+  addBloodFloor(ctx, boss);
+  addBackdrop(ctx, boss);
+  addTunnelWalls(ctx, boss);
   addThorns(ctx, boss);
-  addBanners(ctx, boss);
-  addDice(ctx, boss);
-  addBloodPillars(ctx, boss);
+  addWheels(ctx, boss);
+  addPaperTornado(ctx, boss);
+  addSpikeField(ctx, boss);
+  addBloodLight(ctx, boss);
+  addAtoms(ctx, boss);
   addParticles(ctx, boss);
-  addFogBillboards(ctx, {
-    color: boss ? '#8a2a34' : '#6a2028', alpha: boss ? 0.26 : 0.2, count: 5,
-    y: boss ? 1 : 0, xSpread: 44, zNear: -24, zFar: -140, w: 110, h: 30,
-  });
-  addEdgeFlora(ctx, { grassColor: '#20060a', plumColor: '#2a0810', alpha: boss ? 0.75 : 0.6, y: -6.5 });
-  ctx.setSpeed(boss ? 16 : 10);
-  ctx.setSway(boss ? 0.85 : 0.55, boss ? 0.45 : 0.3);
+  // 顶部悬挂的「独轮创车」铁牌
+  const sign = K.box(9, 3.2, 0.25, 0x1a070b, { kind: 'rust', roughness: 0.8 });
+  sign.position.set(boss ? 0 : -6.5, boss ? 16.5 : 15.5, -46);
+  ctx.add(sign);
+  for (let i = 0; i < 4; i++) {
+    const bar = glow(ctx, i % 2 ? 0xff6a35 : 0xc0263a, 0.18, 2.4, 0.12, 1.6);
+    bar.position.set(sign.position.x + (i - 1.5) * 2.1, sign.position.y, sign.position.z + 0.2);
+    ctx.add(bar);
+  }
+  ctx.setSpeed(boss ? 15 : 10);
+  ctx.setSway(boss ? 0.8 : 0.55, boss ? 0.42 : 0.3);
 }
 
 export function mid(ctx) {

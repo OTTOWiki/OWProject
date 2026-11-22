@@ -260,7 +260,7 @@ docs/                  # 内部改造队列等（非运行时）
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
 - 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
 - `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo 同时有版面内连击/剩余窗口与 HUD 主读数；前三面底部绘制 A/B 倾向条。难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
-- **关卡版面背景 = 3D 深入舞台**（用户 2026-11-22 方向）：`#playfield-bg3d` WebGL canvas 位于 2D 版面 canvas 之下；相机固定、景物循环逼近，混合云/雾/浪/草木/绘卷裁片 Billboard 与鸟居/宝塔/方尖碑/棘轮/摩天轮等真 3D 物体，超现实构图（倒置鸟居、浮空巨月/巨轮、悬浮画幅拼贴、数据门）。实现 `js/bg3d/`，场景数据 `js/bg3d/scenes/<stage>.js`；Three/WebGL 失败自动回退 2D 绘卷（`js/bg/`）。设计/分面 brief 见 `docs/level-background-redesign.md`。
+- **关卡版面背景 = 超写实 3D 深入舞台**（用户 2026-11-22 方向，第二次修正为「超写实超现实」）：PBR 程序化材质 + 程序化 IBL + 实时阴影 + 体积光/雾墙/镜面水 + HDR 泛光与 ACES 色调后处理；`#playfield-bg3d` WebGL canvas 位于 2D 版面 canvas 之下；相机固定、景物循环逼近，混合云/雾/浪/草木/绘卷裁片 Billboard 与鸟居/宝塔/方尖碑/棘轮/摩天轮等真 3D 物体，超现实构图（倒置鸟居、浮空巨月/巨轮、悬浮画幅拼贴、数据门）。实现 `js/bg3d/`，场景数据 `js/bg3d/scenes/<stage>.js`；Three/WebGL 失败自动回退 2D 绘卷（`js/bg/`）。设计/分面 brief 见 `docs/level-background-redesign.md`。
 - 外围舞台底材：每面一张 `assets/bg/backdrop/<stage>.avif`（公有领域/CC0 藏品处理），由 `js/bg/backdrops.js` 淡入切换；加载失败保持 `battle-print.avif` 兜底。
 - `StageBackground(canvas, { rand })` 仍是左侧 Three 印象场景（低透明度，版面 3D 启用时不渲染），装饰随机全走 `bg.__rand`，不消费玩法种子流。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）

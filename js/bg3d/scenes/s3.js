@@ -1,93 +1,114 @@
 /**
- * 第 3 面「分歧的十字路口」3D 舞台。
- * 空间本身一分为二：左侧铬蓝、右侧琥珀；两侧鸟居/踏石/旗幡在雾中分道，中央防火墙石门悬置。
- * 超现实：中央石门悬浮张开、两色气流在门内对撞。
+ * 第 3 面「分歧的十字路口」——超写实 · 超现实 3D 舞台。
+ *
+ * 悬于虚空的双色神殿：左侧铬蓝、右侧琥珀，两列鸟居与浮空石道分道而行；
+ * 中央巨型防火墙石门半开，门内体积光与双色气流对撞。
+ * 剧情：数据在此分叉——一侧铬光冰冷，一侧暖色混沌；打破主防火墙，方能择路而行。
  */
-import { addBaseAtmosphere } from './_atmo.js';
 
-function makeBuild(boss) {
-  return function build(ctx) {
-    const { palette, K } = ctx;
-    ctx.atmosphere({
-      bg: palette.skyBot,
-      fogColor: palette.fog,
-      fogDensity: boss ? 0.02 : 0.023,
-      ambient: palette.ambient,
-      ambientIntensity: 1.0,
-      dirColor: 0xffffff,
-      dirIntensity: 0.5,
-    });
-      const art = ctx.plateTexture();
-  if (art) {
-    const crops = [[0, 0, 1, 1], [0.08, 0.1, 0.5, 0.5], [0.4, 0.16, 0.55, 0.5], [0.2, 0.45, 0.5, 0.5]];
-    for (let i = 0; i < crops.length; i++) {
-      const tex = ctx.plateCrop(...crops[i]);
-      if (!tex) continue;
-      ctx.add(K.panel(tex, {
-        x: (i % 2 ? 1 : -1) * (8 + i * 5), y: 7 + i * 3, z: -105 + i * 10,
-        w: i === 0 ? 120 : 44 + i * 8, h: i === 0 ? 160 : 50 + i * 10,
-        opacity: i === 0 ? 0.8 : 0.5, color: 0xffffff, rotationY: (i - 1.5) * 0.1,
-      }));
-    }
-  }
-    ctx.add(K.ground({ y: -10, color: 0x0a0a10, texture: K.matTexture('ink', '#0a0a10') }));
-    // 两侧分色地面（超现实：路面色块悬浮）
-    for (const [side, color] of [[-1, 0x9fc0ff], [1, 0xffb060]]) {
-      const strip = K.box(16, 0.06, 120, color, { transparent: true, opacity: boss ? 0.1 : 0.06 });
-      strip.position.set(side * 11, -9.6, -60);
-      ctx.add(strip);
-    }
-    // 两侧分色鸟居：左冷右暖
-    for (let i = 0; i < (boss ? 10 : 8); i++) {
-      const side = i % 2 ? 1 : -1;
-      const t = K.torii({
-        scale: 0.8 + K.hash01(i * 13) * 0.35,
-        color: side < 0 ? 0x587890 : 0x9a5020,
-        dark: palette.ink,
-      });
-      t.position.set(side * (7 + K.hash01(i * 17) * 7), 0, -16 - i * 13);
-      if (i % 3 === 2) t.rotation.z = Math.PI;
-      ctx.add(t);
-      ctx.animate(t, { bob: { amp: 0.08, speed: 0.4, phase: i } });
-    }
-    // 中央石门（超现实：张开 + 悬浮）
-    const gate = K.gate({ w: 10, h: 15, color: 0x0c0a0e, accent: boss ? 0xffcf8a : 0x9ab0c8 });
-    gate.position.set(0, boss ? 1 : -1, boss ? -40 : -52);
-    ctx.add(gate);
-    ctx.animate(gate, { bob: { amp: 0.18, speed: 0.35 } });
-    // 门内双色光片
-    for (const [side, color] of [[-1, 0x9fc0ff], [1, 0xffb060]]) {
-      const ray = K.panel(null, {
-        x: side * 2.0, y: 7, z: -44, w: 4, h: 22, color, opacity: boss ? 0.18 : 0.1,
-      });
-      ctx.add(ray);
-      ctx.animate(ray, { pulse: { amp: 0.08, speed: 1.4, phase: side } });
-    }
-    // 分叉踏石
-    ctx.field((i) => K.box(1.6, 0.25, 1.2, 0x3a3a42, { transparent: true, opacity: 0.5 }),
-      { count: 18, zNear: -14, zFar: -90, xRange: 20, yRange: 1, speedMul: 1.2 });
-    // A/B 幢幡
-    for (const [side, text, color] of [[-1, 'A', '#9fc0ff'], [1, 'B', '#ffb060']]) {
-      const sp = ctx.textSprite(text, {
-        x: side * 8, y: 12, z: -26, w: 3, h: 4,
-        fill: color, bg: 'rgba(6,8,14,0.35)', opacity: 0.85,
-      });
-      ctx.add(sp);
-    }
-    // 左侧雪 / 右侧火花，粒子位置混合表现两色
-    ctx.points({
-      count: boss ? 60 : 40, color: 0xbfd8ff, size: 0.15, type: 'snow',
-      xRange: 30, yRange: 20, zNear: -2, zFar: -60, speed: 1.2, seed: 4,
-    });
-    ctx.points({
-      count: boss ? 60 : 40, color: 0xffa860, size: 0.18, type: 'spark',
-      xRange: 30, yRange: 20, zNear: -2, zFar: -60, speed: 2.4, seed: 6,
-    });
-    addBaseAtmosphere(ctx, {fogColor: '#8a90a8', cloudColor: '#b8b8c8', floorColor: '#a8a8b8', fogAlpha: 0.18, cloudAlpha: 0.12, floorAlpha: 0.1, floraAlpha: 0.45});
-    ctx.setSpeed(boss ? 15 : 11);
-    ctx.setSway(0.7, 0.3);
-  };
+function mixHex(a, b, t) {
+  const ar = (a >> 16) & 255; const ag = (a >> 8) & 255; const ab = a & 255;
+  const br = (b >> 16) & 255; const bg = (b >> 8) & 255; const bb = b & 255;
+  return (Math.round(ar + (br - ar) * t) << 16)
+    | (Math.round(ag + (bg - ag) * t) << 8)
+    | Math.round(ab + (bb - ab) * t);
 }
 
-export const mid = makeBuild(false);
-export const boss = makeBuild(true);
+function buildScene(ctx, boss) {
+  const { palette, K } = ctx;
+  const fogColor = mixHex(palette.fog, palette.ink, 0.5);
+  ctx.atmosphere({
+    bg: palette.skyBot,
+    fogColor,
+    fogDensity: boss ? 0.019 : 0.016,
+    ambient: palette.ambient,
+    ambientIntensity: 0.5,
+    hemiSky: mixHex(palette.glow, palette.fog, 0.4),
+    hemiGround: palette.ink,
+    hemiIntensity: 0.5,
+    dirColor: 0xffffff,
+    dirIntensity: 1.9,
+    shadow: true,
+    shadowSize: 1024,
+  });
+
+  // 虚空中的双色镜面水（石板路悬于其上）
+  ctx.add(K.waterFloor({ y: -9, size: [420, 420], color: 0x04040a, normalScale: 0.22, roughness: 0.12 }));
+
+  // 中央巨门（防火墙石门）
+  const gate = K.gate({
+    x: 0, y: -6, z: boss ? -46 : -58,
+    w: boss ? 15 : 13, h: boss ? 26 : 22,
+    color: 0x141218, accent: boss ? 0xffcf8a : 0x9ab0c8,
+  });
+  ctx.add(gate);
+  ctx.add(K.volumetricBeam({ x: 0, y: 12, z: boss ? -48 : -60, length: 44, radius: 5.2, color: 0xffe0b0, opacity: boss ? 0.1 : 0.06, tilt: 0, spin: 0.1 }));
+
+  // 两侧分色鸟居列（左冷右暖）
+  for (let i = 0; i < (boss ? 12 : 9); i++) {
+    const side = i % 2 ? 1 : -1;
+    const t = K.torii({
+      x: side * (9 + K.hash01(i * 13) * 7),
+      y: 0,
+      z: -18 - i * 14,
+      scale: 1.1 - i * 0.035,
+      color: side < 0 ? 0x4a6a8a : 0x8a5028,
+      dark: palette.ink,
+    });
+    if (i % 5 === 3) t.rotation.z = Math.PI;
+    ctx.add(t);
+    ctx.animate(t, { bob: { amp: 0.1, speed: 0.25, phase: i } });
+  }
+
+  // 浮空石道（分叉）
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      const slab = K.box(5.5, 0.35, 8, 0x1a1c22, { kind: 'stone', castShadow: false });
+      slab.position.set(side * (7 + i * 4.2), -6.2 + i * 0.35, -14 - i * 16);
+      slab.rotation.y = side * 0.14 * i;
+      slab.rotation.z = side * 0.03;
+      ctx.add(slab);
+    }
+  }
+
+  // 巨型 A/B 封印（超现实：悬浮的封印）
+  ctx.add(K.giantSeal({ x: -15, y: 8, z: -32, size: 6, color: 0x2a3a4a, text: 'A', glow: 0x9fc0ff }));
+  const sealB = K.giantSeal({ x: 15, y: 9, z: -38, size: 6, color: 0x4a2a18, text: 'B', glow: 0xffb060 });
+  ctx.add(sealB);
+  ctx.animate(sealB, { bob: { amp: 0.35, speed: 0.28 } });
+
+  // 悬浮岩块 + 镜片
+  ctx.add(K.floatingRocks({ x: -20, y: 3, z: -36, count: 4, spread: 8, color: 0x1a1c20, seed: 4 }));
+  ctx.add(K.floatingRocks({ x: 0, y: 16, z: -60, count: 5, spread: 12, color: 0x14161a, seed: 12 }));
+  ctx.add(K.floatingRocks({ x: 21, y: 5, z: -60, count: 4, spread: 7, color: 0x201a16, seed: 9 }));
+  if (boss) {
+    ctx.add(K.shardField({ x: 0, y: 8, z: -40, count: 14, spread: 16, color: 0xcfe0ff, seed: 3 }));
+  }
+
+  // 双色体积光
+  ctx.add(K.volumetricBeam({ x: -18, y: 10, z: -54, length: 46, radius: 4, color: 0x8fc0ff, opacity: boss ? 0.08 : 0.05, tilt: -0.22, spin: 0.2 }));
+  ctx.add(K.volumetricBeam({ x: 19, y: 9, z: -58, length: 44, radius: 3.6, color: 0xffb060, opacity: boss ? 0.08 : 0.05, tilt: 0.22, spin: -0.2 }));
+
+  // 左侧雪 / 右侧火星，冷雾
+  ctx.points({ count: boss ? 90 : 60, color: 0xbfd8ff, size: 0.12, type: 'snow', xRange: 50, yRange: 26, zNear: -16, zFar: -100, speed: 1.2, seed: 4 });
+  ctx.points({ count: boss ? 90 : 60, color: 0xffa860, size: 0.14, type: 'spark', xRange: 50, yRange: 26, zNear: -16, zFar: -100, speed: 2.4, seed: 6 });
+  ctx.add(K.mistSheet({ x: -20, y: -1.5, z: -34, w: 130, h: 34, color: mixHex(palette.fog, palette.ink, 0.3), opacity: boss ? 0.18 : 0.13, seed: 3, speed: 0.02 }));
+  ctx.add(K.mistSheet({ x: 22, y: -0.5, z: -50, w: 150, h: 40, color: mixHex(palette.fog, palette.ink, 0.25), opacity: boss ? 0.15 : 0.11, seed: 7, speed: 0.016 }));
+  ctx.add(K.mistSheet({ x: 0, y: 0, z: -78, w: 200, h: 54, color: mixHex(palette.fog, palette.ink, 0.35), opacity: 0.2, seed: 7, speed: 0.015 }));
+
+  // 超现实：倒悬的第三座门（远处，倒影世界）
+  const invGate = K.box(9, 16, 1.2, 0x0e0c12, { kind: 'stone', castShadow: false });
+  invGate.position.set(0, 22, -85);
+  invGate.rotation.z = Math.PI;
+  ctx.add(invGate);
+
+  if (boss) {
+    ctx.add(K.volumetricBeam({ x: 0, y: 6, z: -40, length: 34, radius: 7, color: 0xfff0c0, opacity: 0.07, tilt: 0, spin: 0.4 }));
+  }
+
+  ctx.setSpeed(boss ? 13 : 9);
+  ctx.setSway(0.4, 0.22);
+}
+
+export function mid(ctx) { buildScene(ctx, false); }
+export function boss(ctx) { buildScene(ctx, true); }

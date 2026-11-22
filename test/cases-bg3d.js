@@ -48,3 +48,32 @@ test('3D 场景源码：确定性（无 Math.random / Date.now）', () => {
 test('3D stage3d：模块可在 node 导入（THREE 懒加载）', () => {
   assertEqual(typeof paletteForMode, 'function');
 });
+
+test('3D 超写实升级：场景源码不得裸用 THREE（必须 ctx.THREE），且不使用旧 Lambert API', () => {
+  const files = ['s1', 's2', 's3', 'patrol', 'a4', 'a5', 'a6', 'b4', 'b5', 'b6', 'ex'];
+  for (const f of files) {
+    const src = readFileSync(new URL(`../js/bg3d/scenes/${f}.js`, import.meta.url), 'utf8');
+    // 允许 `const THREE = ctx.THREE` 的局部别名；否则必须使用 ctx.THREE
+    const hasAlias = /const\s+THREE\s*=\s*ctx\.THREE/.test(src);
+    if (!hasAlias) {
+      const bare = /(^|[^.\w])THREE\s*\./m.test(src);
+      assert(!bare, `${f}.js: 必须使用 ctx.THREE，而不是裸 THREE`);
+    }
+    assert(!/new\s+ctx\.THREE\.MeshLambertMaterial/.test(src), `${f}.js: 使用 PBR 材质，不要 Lambert`);
+  }
+});
+
+test('3D 超写实舞台：后处理管线与 PBR 环境 API 存在', async () => {
+  const stage = await import('../js/bg3d/stage3d.js');
+  assertEqual(typeof stage.PlayfieldStage3D, 'function');
+  const kit = await import('../js/bg3d/kit.js');
+  for (const name of [
+    'pbr', 'glass', 'emissive', 'environment', 'materialTextureSet',
+    'waterFloor', 'volumetricBeam', 'mistSheet', 'moon', 'skyEye',
+    'floatingRocks', 'coinField', 'shardField', 'curtain', 'artPanel', 'giantSeal',
+    'hangingLights', 'hexLattice', 'points', 'updatePoints',
+  ]) {
+    assertEqual(typeof kit[name], 'function', `kit.${name}`);
+  }
+  assert(kit.MATERIAL_KINDS === undefined || true);
+});

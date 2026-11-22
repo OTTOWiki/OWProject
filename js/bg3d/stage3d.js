@@ -1,14 +1,12 @@
 /**
- * 版面 3D 舞台渲染器（Three.js）。
+ * 版面 3D 舞台渲染器 v2 —— 超写实 · 超现实主义。
  *
- * 方向（2026-11-22 用户修正）：场景为持续深入的 3D 空间，混合 Billboard 绘卷（Sprite/贴图面）
- * 与真 3D 几何景物，并使用超现实构图（倒置鸟居、浮空巨月、悬空巨轮、数据门等）。
+ * 渲染链：PBR 场景（IBL 环境 + 阴影）→ HDR 半浮点 RT → 亮部提取 → 两级高斯泛光 →
+ *         合成（ACES 色调映射 + 分级 + 色散 + 暗角 + 胶片颗粒）→ sRGB 输出。
+ * 场景设计：持续深入的 3D 空间 + Billboard 绘卷 + 真 3D 物体 + 超现实构图。
+ * 失败兜底：Three/WebGL/后处理任一失败 → 直出渲染；整体构造失败由工厂回退 2D 绘卷。
  *
- * 设计：
- * - 渲染到 #playfield-bg3d（450×600 WebGL canvas），2D 版面 canvas 叠在其上且保持透明；
- * - 相机固定、景物沿 +Z 循环逼近（无限深入），fog + 远景绘卷板负责空气透视；
- * - 场景由 `js/bg3d/scenes/<stage>.js` 的 builder 构建，共享原子来自 `kit.js`；
- * - 素材缺失/WebGL 失败时由调用方回退到 Canvas 2D 绘卷系统（js/bg/renderer.js）。
+ * 设计说明：docs/level-background-redesign.md §8。
  */
 import { getThree } from '../backgrounds/threeLoader.js';
 import { resolveBgMode } from '../bgModes.js';
@@ -19,15 +17,7 @@ import * as K from './kit.js';
 
 const W = 450;
 const H = 600;
-
-function mixHex(a, b, t) {
-  const ar = (a >> 16) & 255; const ag = (a >> 8) & 255; const ab = a & 255;
-  const br = (b >> 16) & 255; const bg = (b >> 8) & 255; const bb = b & 255;
-  const r = Math.round(ar + (br - ar) * t);
-  const g = Math.round(ag + (bg - ag) * t);
-  const bl = Math.round(ab + (bb - ab) * t);
-  return (r << 16) | (g << 8) | bl;
-}
+const BLOOM_DIV = 4;
 
 function cssToHex(color) {
   if (typeof color === 'number') return color;
@@ -37,6 +27,15 @@ function cssToHex(color) {
     return parseInt(hex.slice(1), 16);
   }
   return 0x000000;
+}
+
+function mixHex(a, b, t) {
+  const ar = (a >> 16) & 255; const ag = (a >> 8) & 255; const ab = a & 255;
+  const br = (b >> 16) & 255; const bg = (b >> 8) & 255; const bb = b & 255;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return (r << 16) | (g << 8) | bl;
 }
 
 /** 按 mode 取该面调色板（boss 覆盖） */
@@ -58,6 +57,70 @@ export function paletteForMode(mode) {
   };
 }
 
+const VERT_QUAD = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+
+const FRAG_BRIGHT = `
+  uniform sampler2D tScene; uniform float uThreshold;
+  varying vec2 vUv;
+  void main(){
+    vec3 c = texture2D(tScene, vUv).rgb;
+    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    float k = max(l - uThreshold, 0.0) / max(l, 0.0001);
+    gl_FragColor = vec4(c * k, 1.0);
+  }`;
+
+const FRAG_BLUR = `
+  uniform sampler2D tImage; uniform vec2 uDirection; varying vec2 vUv;
+  void main(){
+    vec2 o = uDirection;
+    vec3 c = texture2D(tImage, vUv).rgb * 0.227027;
+    c += texture2D(tImage, vUv + o * 1.384615).rgb * 0.316216;
+    c += texture2D(tImage, vUv - o * 1.384615).rgb * 0.316216;
+    c += texture2D(tImage, vUv + o * 3.230769).rgb * 0.070270;
+    c += texture2D(tImage, vUv - o * 3.230769).rgb * 0.070270;
+    gl_FragColor = vec4(c, 1.0);
+  }`;
+
+const FRAG_COMPOSITE = `
+  uniform sampler2D tScene; uniform sampler2D tBloom;
+  uniform vec2 uResolution; uniform float uTime;
+  uniform float uBloom; uniform float uExposure; uniform float uVignette;
+  uniform float uGrain; uniform float uCA; uniform float uGrade;
+  uniform vec3 uShadow; uniform vec3 uHigh; uniform vec3 uTint;
+  varying vec2 vUv;
+
+  vec3 aces(vec3 x){
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+  }
+  float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  vec3 linearToSRGB(vec3 c){
+    return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+  }
+  void main(){
+    vec2 uv = vUv;
+    vec2 dir = uv - 0.5;
+    // 色散（镜头质感）
+    vec3 scene;
+    scene.r = texture2D(tScene, uv + dir * uCA).r;
+    scene.g = texture2D(tScene, uv).g;
+    scene.b = texture2D(tScene, uv - dir * uCA).b;
+    vec3 bloom = texture2D(tBloom, uv).rgb;
+    vec3 color = scene + bloom * uBloom;
+    color *= uExposure;
+    color = aces(color);
+    // 分级：阴影/高光双色映射 + 轻微整体染色
+    float l = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    color = mix(color * uShadow, color * uHigh, smoothstep(0.0, 0.75, l));
+    color = mix(color, color * uTint, uGrade);
+    // 暗角
+    float vig = smoothstep(0.85, 0.15, length(dir) * 1.25);
+    color *= mix(1.0, vig, uVignette);
+    // 胶片颗粒
+    float g = hash(uv * uResolution + fract(uTime) * 97.0) - 0.5;
+    color += g * uGrain;
+    gl_FragColor = vec4(linearToSRGB(max(color, 0.0)), 1.0);
+  }`;
+
 export class PlayfieldStage3D {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -68,13 +131,17 @@ export class PlayfieldStage3D {
     this.canvas = canvas;
     this.renderer = new THREE.WebGLRenderer({
       canvas, antialias: false, alpha: false, powerPreference: 'high-performance',
+      preserveDrawingBuffer: true,
     });
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(W, H, false);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.NoToneMapping;
     if (THREE.SRGBColorSpace) this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(62, W / H, 0.1, 280);
-    this.camera.position.set(0, 0, 0);
+    this.camera = new THREE.PerspectiveCamera(54, W / H, 0.05, 240);
+    this.camera.position.set(0, 1.4, 0);
     this.root = new THREE.Group();
     this.scene.add(this.root);
     this.mode = null;
@@ -83,17 +150,28 @@ export class PlayfieldStage3D {
     this.is3D = true;
     this.t = 0;
     this.speed = 10;
-    this.swayX = 0.5;
-    this.swayY = 0.3;
+    this.swayX = 0.4;
+    this.swayY = 0.25;
+    this.palette = paletteForMode('s1_mid');
     this.animated = [];
     this.fields = [];
     this.pointSets = [];
     this.lights = [];
     this.ownedTextures = [];
+    this.specials = { water: [], mist: [], beam: [], cloth: [] };
     this._lastRender = 0;
-    this._renderEvery = 1000 / 45;
+    this._renderEvery = 1000 / 40;
     this._warned = false;
     this._contextLost = false;
+
+    this._postOk = false;
+    try {
+      this._initPost();
+      this._postOk = true;
+    } catch (err) {
+      console.warn('[bg3d] post-processing unavailable, direct render:', err);
+    }
+
     this.canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
       this._contextLost = true;
@@ -112,14 +190,65 @@ export class PlayfieldStage3D {
   _warn(err) {
     if (this._warned) return;
     this._warned = true;
-    console.warn('[bg3d] scene failed:', err);
+    console.warn('[bg3d] scene failed:', err && err.stack ? err.stack : err);
+  }
+
+  _initPost() {
+    const THREE = this.THREE;
+    const half = this.renderer.capabilities.isWebGL2 ? THREE.HalfFloatType : THREE.UnsignedByteType;
+    this._rt = new THREE.WebGLRenderTarget(W, H, {
+      type: half, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      depthBuffer: true, stencilBuffer: false, samples: 0,
+    });
+    const bw = Math.max(1, Math.ceil(W / BLOOM_DIV));
+    const bh = Math.max(1, Math.ceil(H / BLOOM_DIV));
+    const base = { type: half, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false };
+    this._brightRT = new THREE.WebGLRenderTarget(bw, bh, base);
+    this._blurA = new THREE.WebGLRenderTarget(bw, bh, base);
+    this._blurB = new THREE.WebGLRenderTarget(bw, bh, base);
+
+    this._quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const makePass = (fragmentShader, uniforms, scene) => {
+      const mat = new THREE.ShaderMaterial({ vertexShader: VERT_QUAD, fragmentShader, uniforms, depthTest: false, depthWrite: false });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+      scene.add(mesh);
+      return mat;
+    };
+    this._brightScene = new THREE.Scene();
+    this._brightMat = makePass(FRAG_BRIGHT, {
+      tScene: { value: this._rt.texture },
+      uThreshold: { value: 0.82 },
+    }, this._brightScene);
+
+    this._blurScene = new THREE.Scene();
+    this._blurMat = makePass(FRAG_BLUR, {
+      tImage: { value: this._brightRT.texture },
+      uDirection: { value: new THREE.Vector2(1 / bw, 0) },
+    }, this._blurScene);
+
+    this._compositeScene = new THREE.Scene();
+    this._compositeMat = makePass(FRAG_COMPOSITE, {
+      tScene: { value: this._rt.texture },
+      tBloom: { value: this._blurB.texture },
+      uResolution: { value: new THREE.Vector2(W, H) },
+      uTime: { value: 0 },
+      uBloom: { value: 0.62 },
+      uExposure: { value: 1.04 },
+      uVignette: { value: 0.46 },
+      uGrain: { value: 0.011 },
+      uCA: { value: 0.001 },
+      uGrade: { value: 0.35 },
+      uShadow: { value: new THREE.Vector3(1, 1, 1) },
+      uHigh: { value: new THREE.Vector3(1, 1, 1) },
+      uTint: { value: new THREE.Vector3(1, 1, 1) },
+    }, this._compositeScene);
   }
 
   _makeCtx() {
     const self = this;
     const THREE = this.THREE;
     const stage = sceneFor(this.mode)?.stage || 's1';
-    const palette = paletteForMode(this.mode);
+    const palette = this.palette;
     const ctx = {
       THREE,
       mode: this.mode,
@@ -129,19 +258,23 @@ export class PlayfieldStage3D {
       root: this.root,
       camera: this.camera,
       K,
-      /** 加对象到 root，返回对象 */
+      renderer: this.renderer,
       add(obj) {
-        if (obj) self.root.add(obj);
+        if (!obj) return obj;
+        self.root.add(obj);
+        const ud = obj.userData || {};
+        if (ud.water) self.specials.water.push(obj);
+        if (ud.mist) self.specials.mist.push(obj);
+        if (ud.beam) self.specials.beam.push(obj);
+        if (ud.cloth) self.specials.cloth.push(obj);
         return obj;
       },
-      /** 注册通用动画（spinZ/spinY/bob/pulse/orbit/float） */
       animate(obj, spec) {
         if (obj && spec) self.animated.push({ o: obj, spec });
         return obj;
       },
-      /** 循环逼近的景物：factory(i, z) 返回 Object3D，沿 +Z 到 6 后回卷 */
       field(factory, {
-        count = 4, zNear = -12, zFar = -110, xRange = 10, yRange = 4,
+        count = 4, zNear = -14, zFar = -120, xRange = 10, yRange = 4,
         y = null, speedMul = 1, jitter = 0.4, xAbsMin = 0,
       } = {}) {
         const range = zNear - zFar;
@@ -159,47 +292,40 @@ export class PlayfieldStage3D {
           obj.position.y = y === null ? (K.hash01(i * 71 + 3) - 0.5) * yRange : y;
           obj.position.z = z;
           self.root.add(obj);
-          items.push({ o: obj, baseX: obj.position.x, baseY: obj.position.y });
+          items.push({ o: obj });
         }
         const f = { items, range, speedMul };
         self.fields.push(f);
         return f;
       },
-      /** 粒子组 */
       points(opts) {
         const ps = K.points(opts);
         self.root.add(ps.points);
         self.pointSets.push(ps);
         return ps;
       },
-      /** 背景色/雾/灯 */
       atmosphere(opts = {}) {
-        const merged = { ...opts, bg: opts.fogColor ?? opts.bg };
-        const lights = K.atmosphere(self.scene, merged);
-        self.lights.push(lights.amb, lights.dir);
+        const lights = K.atmosphere(self.scene, opts);
+        self.lights.push(lights.amb, lights.dir, lights.hemi, lights.rim);
         return lights;
       },
-      setSpeed(v) {
-        self.speed = v;
+      environment() {
+        return K.environment(self.renderer, self.mode, self.palette);
       },
-      setSway(x, y) {
-        self.swayX = x;
-        self.swayY = y;
+      /** 注册逐帧更新（水面/布幔/光束等特殊动画由 ctx.add 自动注册，也可手动追加） */
+      updater(fn) {
+        if (typeof fn === 'function') self.animated.push({ custom: fn });
       },
-      plateTexture() {
-        return K.plateTexture(self.mode);
-      },
-      matTexture(name, color) {
-        return K.matTexture(name, color);
-      },
-      /** 绘卷贴图裁片（sx/sy/sw/sh 归一化 0..1）；纹理由场景持有并在 clear 释放 */
+      setSpeed(v) { self.speed = v; },
+      setSway(x, y) { self.swayX = x; self.swayY = y; },
+      plateTexture() { return K.plateTexture(self.mode); },
+      matTexture(name, color) { return K.matTexture(name, color); },
       plateCrop(sx, sy, sw, sh) {
         const raw = K.plateTexture(self.mode);
         const tex = raw ? K.cropTexture(raw, sx, sy, sw, sh) : null;
         if (tex) self.ownedTextures.push(tex);
         return tex;
       },
-      /** 文本 sprite（返回 sprite；纹理归场景持有并在 clear 时释放） */
       textSprite(lines, opts = {}) {
         const { sprite, texture } = K.textSprite(lines, opts);
         self.ownedTextures.push(texture);
@@ -209,22 +335,35 @@ export class PlayfieldStage3D {
     return ctx;
   }
 
-  /**
-   * 切换场景。
-   * @param {string} mode
-   * @param {{transition?: boolean}} [opts]
-   */
   setMode(mode, { transition = true } = {}) {
     const next = resolveBgMode(mode);
     if (this.sceneReady && next === this.mode) return;
     this._clear();
     this.mode = next;
     this.stage = sceneFor(next)?.stage || 's1';
+    this.palette = paletteForMode(next);
+    const THREE = this.THREE;
     try {
       const builder = SCENES3D[next];
       if (typeof builder !== 'function') throw new Error(`missing 3D scene: ${next}`);
       builder(this._makeCtx());
+      // IBL 环境 + 可见天空（PMREM 失败则回退纯色）
+      try {
+        const env = K.environment(this.renderer, next, this.palette);
+        this.scene.environment = env.envMap;
+        this.scene.background = env.background;
+      } catch (err) {
+        console.warn('[bg3d] environment failed:', err);
+      }
       this.sceneReady = true;
+      if (this._compositeMat) {
+        const accent = new THREE.Color(this.palette.accent);
+        const glow = new THREE.Color(this.palette.glow);
+        const ink = new THREE.Color(this.palette.ink);
+        this._compositeMat.uniforms.uShadow.value.set(0.92 + ink.r * 0.2, 0.94 + ink.g * 0.2, 1.0);
+        this._compositeMat.uniforms.uHigh.value.set(1.0, 0.98 + glow.g * 0.03, 0.94 + glow.b * 0.05);
+        this._compositeMat.uniforms.uTint.value.set(0.9 + accent.r * 0.12, 0.92 + accent.g * 0.1, 0.95 + accent.b * 0.1);
+      }
       if (transition) this.flash(0.5);
     } catch (err) {
       this._warn(err);
@@ -232,13 +371,11 @@ export class PlayfieldStage3D {
     }
   }
 
-  /** 画面闪白（切场景时由 CSS 动画呈现更省 GPU；这里仅保留接口） */
   flash(strength = 0.4) {
     const el = this.canvas;
     if (!el || typeof el.classList === 'undefined') return;
     el.style.setProperty('--bg3d-flash', String(strength));
     el.classList.remove('bg3d-flash');
-    // 强制重启动画
     void el.offsetWidth;
     el.classList.add('bg3d-flash');
   }
@@ -261,6 +398,8 @@ export class PlayfieldStage3D {
           const mats = Array.isArray(c.material) ? c.material : [c.material];
           for (const m of mats) {
             m.map?.dispose?.();
+            m.normalMap?.dispose?.();
+            m.roughnessMap?.dispose?.();
             m.dispose?.();
           }
         }
@@ -269,17 +408,51 @@ export class PlayfieldStage3D {
     this.animated.length = 0;
     this.fields.length = 0;
     this.pointSets.length = 0;
+    this.specials = { water: [], mist: [], beam: [], cloth: [] };
     this.scene.fog = null;
     this.sceneReady = false;
   }
 
-  /** @param {number} dt 秒 */
+  _updateSpecials(dt, t) {
+    for (const m of this.specials.water) {
+      const mat = m.material;
+      if (mat?.normalMap) {
+        mat.normalMap.offset.x += dt * (m.userData.water?.speed || 0.01);
+        mat.normalMap.offset.y += dt * (m.userData.water?.speed || 0.01) * 0.7;
+      }
+    }
+    for (const m of this.specials.mist) {
+      if (m.material?.uniforms?.uTime) m.material.uniforms.uTime.value += dt * (m.userData.mist?.speed || 0.02) * 30;
+    }
+    for (const m of this.specials.beam) {
+      if (m.material?.uniforms?.uTime) m.material.uniforms.uTime.value = t;
+      const spec = m.userData.beam;
+      if (spec?.spin) m.rotation.z = Math.sin(t * spec.spin + (spec.phase || 0)) * 0.5;
+    }
+    for (const m of this.specials.cloth) {
+      const cloth = m.userData.cloth;
+      const geo = m.geometry;
+      if (!cloth || !geo) continue;
+      const base = cloth.base;
+      const pos = geo.attributes.position.array;
+      for (let i = 0; i < pos.length; i += 3) {
+        const x = base[i];
+        const y = base[i + 1];
+        pos[i + 2] = Math.sin(y * 0.9 + t * 1.2 + cloth.phase) * cloth.amp * (0.4 + (y + 5) * 0.08)
+          + Math.sin(x * 1.7 + t * 0.6) * cloth.amp * 0.4;
+      }
+      geo.attributes.position.needsUpdate = true;
+      geo.computeVertexNormals?.();
+    }
+  }
+
   update(dt) {
     this.t += dt;
     if (!this.sceneReady) return;
     const t = this.t;
-    // 通用动画
-    for (const { o, spec } of this.animated) {
+    for (const item of this.animated) {
+      if (item.custom) { item.custom(dt, t); continue; }
+      const { o, spec } = item;
       if (spec.spinZ) o.rotation.z += spec.spinZ * dt;
       if (spec.spinY) o.rotation.y += spec.spinY * dt;
       if (spec.spinX) o.rotation.x += spec.spinX * dt;
@@ -296,34 +469,89 @@ export class PlayfieldStage3D {
         if (orb.yAmp) o.position.y = Math.sin(a * 1.3) * orb.yAmp;
       }
     }
-    // 循环逼近
     for (const f of this.fields) {
       for (const it of f.items) {
         it.o.position.z += this.speed * dt * f.speedMul;
-        if (it.o.position.z > -10) {
-          it.o.position.z -= f.range;
-        }
+        if (it.o.position.z > -10) it.o.position.z -= f.range;
       }
     }
-    // 粒子
     for (const ps of this.pointSets) K.updatePoints(ps, dt, t);
-    // 相机轻微漂浮（超现实的不稳定感）
-    this.camera.position.x = Math.sin(t * 0.21) * this.swayX;
-    this.camera.position.y = Math.sin(t * 0.166 + 1.1) * this.swayY;
-    this.camera.lookAt(0, 0, -12);
+    this._updateSpecials(dt, t);
+    // 电影感手持漂浮（极轻微）
+    this.camera.position.x = Math.sin(t * 0.19) * this.swayX;
+    this.camera.position.y = 1.4 + Math.sin(t * 0.147 + 1.1) * this.swayY;
+    this.camera.lookAt(0, 1.3, -14);
+    this.camera.rotation.z = Math.sin(t * 0.11) * 0.004;
+    if (this._postOk && this._compositeMat) this._compositeMat.uniforms.uTime.value = t;
   }
 
-  /** 渲染到自己的 WebGL canvas（兼容 2D 的 draw(ctx) 调用；ctx 参数忽略） */
   draw() {
     if (!this.sceneReady || this._contextLost) return;
     const now = (typeof performance !== 'undefined' ? performance.now() : 0);
     if (now - this._lastRender < this._renderEvery) return;
     this._lastRender = now;
-    this.renderer.render(this.scene, this.camera);
+    const r = this.renderer;
+    if (!this._postOk) {
+      r.render(this.scene, this.camera);
+      return;
+    }
+    try {
+      // 1) 场景 → HDR RT
+      r.setRenderTarget(this._rt);
+      r.clear();
+      r.render(this.scene, this.camera);
+      // 2) 亮部提取
+      this._brightMat.uniforms.tScene.value = this._rt.texture;
+      r.setRenderTarget(this._brightRT);
+      r.clear();
+      r.render(this._brightScene, this._quadCamera);
+      // 3) 两级高斯模糊（横/纵 ping-pong）
+      const bw = this._blurA.width;
+      const bh = this._blurA.height;
+      this._blurMat.uniforms.tImage.value = this._brightRT.texture;
+      this._blurMat.uniforms.uDirection.value.set(1 / bw, 0);
+      r.setRenderTarget(this._blurA);
+      r.clear();
+      r.render(this._blurScene, this._quadCamera);
+      this._blurMat.uniforms.tImage.value = this._blurA.texture;
+      this._blurMat.uniforms.uDirection.value.set(0, 1 / bh);
+      r.setRenderTarget(this._blurB);
+      r.clear();
+      r.render(this._blurScene, this._quadCamera);
+      // 第二次（更宽）
+      this._blurMat.uniforms.tImage.value = this._blurB.texture;
+      this._blurMat.uniforms.uDirection.value.set(2.2 / bw, 0);
+      r.setRenderTarget(this._blurA);
+      r.clear();
+      r.render(this._blurScene, this._quadCamera);
+      this._blurMat.uniforms.tImage.value = this._blurA.texture;
+      this._blurMat.uniforms.uDirection.value.set(0, 2.2 / bh);
+      r.setRenderTarget(this._blurB);
+      r.clear();
+      r.render(this._blurScene, this._quadCamera);
+      // 4) 合成 → 屏幕
+      this._compositeMat.uniforms.tScene.value = this._rt.texture;
+      this._compositeMat.uniforms.tBloom.value = this._blurB.texture;
+      r.setRenderTarget(null);
+      r.clear();
+      r.render(this._compositeScene, this._quadCamera);
+    } catch (err) {
+      this._postOk = false;
+      console.warn('[bg3d] post render failed, fallback direct:', err);
+      r.setRenderTarget(null);
+      r.render(this.scene, this.camera);
+    }
   }
 
   dispose() {
     this._clear();
+    this._rt?.dispose?.();
+    this._brightRT?.dispose?.();
+    this._blurA?.dispose?.();
+    this._blurB?.dispose?.();
+    this._brightMat?.dispose?.();
+    this._blurMat?.dispose?.();
+    this._compositeMat?.dispose?.();
     this.renderer?.dispose?.();
     this.is3D = false;
   }

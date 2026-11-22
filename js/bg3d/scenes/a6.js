@@ -1,591 +1,561 @@
 /**
- * A线第6面「一美个 · 哈机密乐园崩坏」3D 舞台。
+ * A线第6面「一美个 · 哈机密乐园崩坏」——超写实 · 超现实 3D 舞台。
  *
- * 方向（2026-11-22 用户修正）：持续深入的 3D 场景 + Billboard 绘卷 + 真 3D 物体 + 超现实。
- * mid：糖粉/薄荷/铁锈的废墟游乐园——破损摩天轮在右侧缓转，旋转木马顶棚在左侧亮灯，
- *      糖果拱门横跨远处，剥落海报 Billboard 飘在两侧；超现实：漂浮气球与巨型糖果招牌。
- * boss：摩天轮倾倒加速、糖衣剥落露出黑铁、气球爆裂、灯光故障、锈屑与糖纸风暴。
+ * 画面：糖粉与薄荷色浸透的荒废乐园之夜。PBR 锈蚀摩天轮斜倚在湿滑的镜面广场上，
+ * 旋转木马还在无休止地转，巨型糖果拱门横跨镜头；剥落的海报露出黑铁，
+ * 气球群、糖纸与糖粒在月光里慢慢落下。
+ * 超现实：摩天轮倒置且倾斜旋转、融化的糖果拉出长长的糖丝、糖衣剥落处露出锈铁。
+ * boss：崩坏加剧——第二座倒悬摩天轮升上夜空，灯光故障明灭，气球在镜面上爆裂成糖玻璃。
+ *
+ * 构图：中心 60% 只保留湿滑广场的暗反射；车轮、木马、拱门与亮灯全部压在两侧/上缘。
  */
-const PINK = 0xf2a6c0;
-const PINK_HOT = 0xffb8d0;
+import { addFogBillboards } from './_atmo.js';
+
+const SUGAR = 0xf2a6c0;
+const SUGAR_HOT = 0xffc8dc;
 const MINT = 0x9fe0c8;
+const MINT_HOT = 0xd0ffe8;
 const RUST = 0x8a4a3a;
-const IRON = 0x2a1a1e;
-const CREAM = 0xe8cf9a;
-const GOLD = 0xffd890;
-const INK = 0x0c0508;
+const RUST_DEEP = 0x421f16;
+const AMBER = 0xe8cf9a;
+const CREAM = 0xf6e8c8;
+const INK_DEEP = 0x0c0508;
+const FLOOR_Y = -6.2;
 
-/** 加色光锥 */
-function glowCone(ctx, {
-  x = 0, y = 0, z = -30, color = PINK_HOT, opacity = 0.08,
-  radius = 2.4, height = 26, rotX = 0, rotZ = 0, seg = 10,
-} = {}) {
-  const THREE = ctx.THREE;
-  const mat = new THREE.MeshBasicMaterial({
-    color, transparent: true, opacity, depthWrite: false,
-    blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true,
+function mixHex(a, b, t) {
+  const ar = (a >> 16) & 255; const ag = (a >> 8) & 255; const ab = a & 255;
+  const br = (b >> 16) & 255; const bg = (b >> 8) & 255; const bb = b & 255;
+  return (Math.round(ar + (br - ar) * t) << 16)
+    | (Math.round(ag + (bg - ag) * t) << 8)
+    | Math.round(ab + (bb - ab) * t);
+}
+
+/* ------------------------------------------------------------------ *
+ * 小工具
+ * ------------------------------------------------------------------ */
+
+function glowBall(ctx, { x = 0, y = 0, z = -20, r = 0.3, color = SUGAR_HOT, intensity = 2.4, opacity = 1 } = {}) {
+  const mat = ctx.K.emissive(color, intensity);
+  if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
+  const m = new ctx.THREE.Mesh(new ctx.THREE.SphereGeometry(r, 12, 8), mat);
+  m.position.set(x, y, z);
+  m.userData.baseEmissive = intensity;
+  ctx.add(m);
+  return m;
+}
+
+function floorGlow(ctx, { x = 0, z = -20, color = SUGAR, w = 6, d = 20, opacity = 0.05, y = FLOOR_Y + 0.06 } = {}) {
+  const m = new ctx.THREE.Mesh(
+    new ctx.THREE.PlaneGeometry(w, d),
+    ctx.K.basic(color, {
+      transparent: true, opacity, depthWrite: false,
+      blending: ctx.THREE.AdditiveBlending, side: ctx.THREE.DoubleSide, fog: true,
+    }),
+  );
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, y, z);
+  ctx.add(m);
+  return m;
+}
+
+/** 融化的糖果（超现实：拉长的糖果滴 + 拉丝） */
+function meltedCandy(ctx, { x = 0, z = -20, color = SUGAR, scale = 1, slim = false } = {}) {
+  const K = ctx.K;
+  const g = new ctx.THREE.Group();
+  // 糖滴主体（拉长的车削形体）
+  const profile = slim
+    ? [[0.02, 0], [0.5, 0.4], [0.62, 1.4], [0.4, 2.6], [0.18, 3.6], [0.05, 4.4]]
+    : [[0.02, 0], [1.1, 0.3], [1.45, 0.9], [1.16, 2.1], [0.72, 3.2], [0.36, 4.1], [0.1, 4.6]];
+  const body = K.lathe(profile, color, {
+    kind: 'ceramic', roughness: 0.22, metalness: 0.04, envMapIntensity: 1.35, seg: 22,
   });
-  const mesh = new THREE.Mesh(new THREE.ConeGeometry(radius, height, seg, 1, true), mat);
-  mesh.position.set(x, y, z);
-  mesh.rotation.x = rotX;
-  mesh.rotation.z = rotZ;
-  ctx.add(mesh);
-  return mesh;
-}
-
-/** 小灯泡（会呼吸闪烁） */
-function bulb(ctx, x, y, z, color = PINK_HOT, r = 0.24, speed = 1.4, phase = 0) {
-  const { K } = ctx;
-  const b = K.sphere(r, color, { transparent: true, opacity: 0.95 });
-  b.position.set(x, y, z);
-  ctx.add(b);
-  ctx.animate(b, { pulse: { amp: 0.32, speed, phase } });
-  return b;
-}
-
-/** 远景：巨幅绘卷墙 + 漂浮画幅（Billboard 拼贴）+ 糖霜巨月 */
-function addBackdrop(ctx, boss) {
-  const { K } = ctx;
-  const art = ctx.plateTexture();
-  if (art) {
-    const back = K.panel(art, {
-      x: 0, y: 2, z: -150, w: 260, h: 340, opacity: boss ? 0.6 : 0.52,
-      color: boss ? 0xa87884 : 0x9a8090,
-    });
-    ctx.add(back);
-    const crops = boss
-      ? [[0.02, 0.05, 0.5, 0.4], [0.48, 0.1, 0.48, 0.44], [0.08, 0.5, 0.5, 0.42], [0.56, 0.54, 0.4, 0.4],
-        [0.3, 0.26, 0.34, 0.3], [0.66, 0.28, 0.3, 0.36]]
-      : [[0.04, 0.06, 0.44, 0.4], [0.5, 0.1, 0.44, 0.42], [0.1, 0.52, 0.46, 0.4], [0.6, 0.5, 0.36, 0.4]];
-    for (let i = 0; i < crops.length; i++) {
-      const tex = ctx.plateCrop(...crops[i]);
-      if (!tex) continue;
-      const side = i % 2 ? 1 : -1;
-      const p = K.panel(tex, {
-        x: side * (15 + K.hash01(i * 31) * 11),
-        y: 6 + K.hash01(i * 37) * 16,
-        z: -72 - i * 10,
-        w: 22 + K.hash01(i * 41) * 14,
-        h: 26 + K.hash01(i * 43) * 16,
-        opacity: boss ? 0.3 : 0.22,
-        color: i % 2 ? 0xffc8d8 : 0xa8f0d8,
-        rotationY: side * (0.18 + K.hash01(i * 47) * 0.2),
-      });
-      p.rotation.z = (K.hash01(i * 53) - 0.5) * 0.5;
-      ctx.add(p);
-    }
-  }
-  // 糖粉夜云
-  const cloud = K.matTexture('cloud', '#a87a8a');
-  if (cloud) {
-    for (let i = 0; i < 2; i++) {
-      ctx.add(K.panel(cloud, {
-        x: i ? 22 : -22, y: 21 + i * 4, z: -96 - i * 12, w: 150, h: 28,
-        opacity: 0.11, color: boss ? 0xffb8d0 : 0xd0a0b0,
-      }));
-    }
-  }
-  // 糖霜巨月（左上边缘）
-  const moon = K.sphere(boss ? 7.2 : 6.6, boss ? 0xffe0e8 : 0xf4e4d8, { transparent: true, opacity: 0.92 });
-  moon.position.set(-16, boss ? 21 : 20.5, -62);
-  ctx.add(moon);
-  const halo = K.ring(boss ? 8 : 7.4, boss ? 8.5 : 7.8, boss ? PINK_HOT : CREAM, { opacity: 0.26 });
-  halo.position.set(-16, boss ? 21 : 20.5, -62);
-  ctx.add(halo);
-  ctx.animate(halo, { pulse: { amp: 0.05, speed: 0.5 } });
-}
-
-/** 地面：暗色地台 + 糖果小径 + 掉落糖块与锈屑 */
-function addParkGround(ctx, boss) {
-  const { K } = ctx;
-  ctx.add(K.ground({
-    y: -10, color: 0x0a060a,
-    texture: K.matTexture('ink', boss ? '#241016' : '#1a0e14'),
-  }));
-  // 糖果小径（低透明光带，向远处收）
-  for (let i = 0; i < 3; i++) {
-    const strip = K.box(14 - i * 3, 0.05, 150, boss ? 0x8a5a6a : 0x6a5060, { transparent: true, opacity: 0.1 - i * 0.02 });
-    strip.position.set(0, -9.9 + i * 0.02, -76);
-    ctx.add(strip);
-  }
-  // 散落糖块 / 锈屑
-  ctx.field((i) => {
-    const weird = i % 3 === 0;
-    const m = weird
-      ? K.sphere(0.4 + K.hash01(i * 13) * 0.45, boss && i % 2 ? RUST : (i % 2 ? PINK : MINT), { transparent: true, opacity: 0.62 })
-      : K.box(0.8, 0.35, 0.55, boss && i % 2 ? 0x5a2a22 : (i % 2 ? PINK : MINT), { transparent: true, opacity: 0.52 });
-    m.scale.y = 0.5;
-    m.rotation.y = K.hash01(i * 17) * 3;
-    return m;
-  }, { count: 26, zNear: -10, zFar: -80, xRange: 34, xAbsMin: 6.5, y: -9.7, speedMul: 0.95 });
-  // 断裂的糖果地砖（近处地面斜铺和纸色面片）
-  const paperTex = K.matTexture('washi', '#c8a8a8');
-  for (let i = 0; i < 4; i++) {
-    const x = (i % 2 ? 1 : -1) * (4.6 + K.hash01(i * 17) * 2.4);
-    const z = -14 - i * 5;
-    const slab = K.panel(paperTex, {
-      x, y: -9.84, z, w: 5 + K.hash01(i * 19) * 3, h: 6 + K.hash01(i * 21) * 4,
-      opacity: boss ? 0.3 : 0.34, color: boss ? 0xb89090 : 0xd8b8c0,
-    });
-    slab.rotation.x = -Math.PI / 2;
-    slab.rotation.z = (K.hash01(i * 23) - 0.5) * 1.4;
-    ctx.add(slab);
-  }
-  // 近处底角的断栏与瓦砾
-  for (const side of [-1, 1]) {
-    const post = K.box(0.16, 3.4, 0.16, boss ? 0x3a2018 : 0x2a1a1e);
-    post.position.set(side * 5.4, -8.2, -15);
-    post.rotation.z = side * 0.28;
-    ctx.add(post);
-    const rail = K.box(3.2, 0.14, 0.14, boss ? 0x4a2a1e : 0x3a2428);
-    rail.position.set(side * 4.2, -7.2, -16);
-    rail.rotation.z = side * 0.18;
-    ctx.add(rail);
-  }
-}
-
-/** 破损摩天轮：真 3D 轮 + 舱 + 轮缘灯；boss 倾倒加速 */
-function addFerrisWheel(ctx, boss) {
-  const { K } = ctx;
-  const cx = boss ? 14 : 13;
-  const cy = boss ? 9.6 : 8.6;
-  const cz = boss ? -38 : -44;
-  const r = boss ? 7.6 : 7;
-  const wheel = K.ferrisWheel({
-    x: cx, y: cy, z: cz, r,
-    color: boss ? 0x4a2418 : 0x3e281e,
-    accent: boss ? PINK_HOT : PINK, cabins: 10,
+  g.add(body);
+  // 糖浆摊开的底座
+  const puddle = K.cylinder(2.5, 2.9, 0.18, color, {
+    kind: 'ceramic', roughness: 0.18, metalness: 0.02, seg: 20, castShadow: false,
   });
-  wheel.rotation.z = boss ? Math.PI * 0.9 : -0.06;
-  ctx.add(wheel);
-  ctx.animate(wheel, { spinZ: boss ? 0.36 : 0.09 });
-  // 亮色外圈（让轮子从夜色里读出来）
-  const rim = K.torus(r, 0.2, boss ? PINK_HOT : 0xd88aa8, { radial: 5, tubular: 40, transparent: true, opacity: 0.55 });
-  wheel.add(rim);
-  const rimGlow = K.ring(r - 0.35, r + 0.35, boss ? PINK_HOT : 0xe8a8c0, { opacity: boss ? 0.4 : 0.3 });
-  wheel.add(rimGlow);
-  for (let i = 0; i < 8; i++) {
-    const spoke = K.box(0.14, r * 2, 0.14, boss ? 0xd890a8 : 0xc890a8, { transparent: true, opacity: 0.35 });
-    spoke.rotation.z = (i / 8) * Math.PI * 2;
-    wheel.add(spoke);
+  puddle.position.y = 0.09;
+  g.add(puddle);
+  // 拉丝（细长糖丝，斜挂在边缘）
+  const strand = K.cylinder(0.05, 0.02, (slim ? 3.2 : 2.4) * scale, color, {
+    kind: 'ceramic', roughness: 0.2, seg: 6, castShadow: false,
+  });
+  strand.position.set(0.9 * scale, 1.5 * scale, 0.2);
+  strand.rotation.z = 0.5;
+  g.add(strand);
+  g.scale.setScalar(scale);
+  g.position.set(x, FLOOR_Y + 0.05, z);
+  ctx.add(g);
+  return g;
+}
+
+/** 气球（高光糖果膜 + 细绳） */
+function balloon(ctx, { x = 0, y = 8, z = -30, scale = 1, color = SUGAR } = {}) {
+  const K = ctx.K;
+  const g = new ctx.THREE.Group();
+  const b = K.sphere(0.62 * scale, color, {
+    kind: 'ceramic', roughness: 0.12, metalness: 0.02, envMapIntensity: 1.5, seg: 18, seg2: 12, castShadow: false,
+  });
+  b.scale.set(1, 1.16, 1);
+  const knot = K.cone(0.1 * scale, 0.24 * scale, color, { kind: 'ceramic', seg: 6, castShadow: false });
+  knot.position.y = -0.78 * scale;
+  knot.rotation.x = Math.PI;
+  const cord = K.cylinder(0.008, 0.008, 1.8 * scale, 0x3a2a30, { kind: 'fabric', seg: 4, castShadow: false });
+  cord.position.y = -1.9 * scale;
+  g.add(b, knot, cord);
+  g.position.set(x, y, z);
+  return g;
+}
+
+/** 气球群（漂浮 + 轻摆） */
+function balloonCluster(ctx, { x = 0, y = 8, z = -30, count = 6, seed = 1, scale = 1 } = {}) {
+  const K = ctx.K;
+  const g = new ctx.THREE.Group();
+  for (let i = 0; i < count; i++) {
+    const color = i % 3 === 0 ? SUGAR : (i % 3 === 1 ? MINT : (i % 3 === 2 ? AMBER : CREAM));
+    const b = balloon(ctx, {
+      x: (K.hash01(seed + i * 7) - 0.5) * 3.4 * scale,
+      y: (K.hash01(seed + i * 11) - 0.2) * 2.6 * scale,
+      z: (K.hash01(seed + i * 13) - 0.5) * 1.6 * scale,
+      scale: (0.75 + K.hash01(seed + i * 17) * 0.45) * scale,
+      color,
+    });
+    g.add(b);
   }
-  // 轮缘灯
+  g.position.set(x, y, z);
+  ctx.add(g);
+  ctx.animate(g, { bob: { amp: 0.014, speed: 0.3 + K.hash01(seed * 5) * 0.15, phase: seed } });
+  return g;
+}
+
+/** 旋转木马（糖果顶棚 + 灯环 + 木马座） */
+function carousel(ctx, { x = 14, z = -40, scale = 1, tilt = 0 } = {}) {
+  const K = ctx.K;
+  const g = new ctx.THREE.Group();
+  // 台座
+  const base = K.cylinder(4.8 * scale, 5.2 * scale, 0.6 * scale, 0x5a3028, { kind: 'wood', seg: 28 });
+  base.position.y = 0.3 * scale;
+  g.add(base);
+  // 围栏（低矮的糖果边）
+  const rail = K.torus(4.7 * scale, 0.12 * scale, SUGAR, { kind: 'ceramic', roughness: 0.25, seg: 8, tubular: 36 });
+  rail.rotation.x = Math.PI / 2;
+  rail.position.y = 1.1 * scale;
+  g.add(rail);
+  // 中心柱
+  const pole = K.cylinder(0.3 * scale, 0.36 * scale, 6.2 * scale, AMBER, { kind: 'wood', seg: 12 });
+  pole.position.y = 3.4 * scale;
+  g.add(pole);
+  // 糖果顶棚（粉 + 薄荷双层）
+  const canopy = K.cone(5.4 * scale, 2.4 * scale, SUGAR, {
+    kind: 'fabric', roughness: 0.55, seg: 24, castShadow: true,
+  });
+  canopy.position.y = 7.0 * scale;
+  g.add(canopy);
+  const rim = K.torus(5.3 * scale, 0.24 * scale, MINT, { kind: 'ceramic', roughness: 0.3, seg: 8, tubular: 40 });
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 5.9 * scale;
+  g.add(rim);
+  const tip = K.sphere(0.55 * scale, AMBER, { kind: 'gold', roughness: 0.3, castShadow: false });
+  tip.position.y = 8.6 * scale;
+  g.add(tip);
+  // 支柱
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const p = K.cylinder(0.09 * scale, 0.12 * scale, 4.6 * scale, 0x8a6a4a, { kind: 'wood', seg: 6, castShadow: false });
+    p.position.set(Math.cos(a) * 4.1 * scale, 2.9 * scale, Math.sin(a) * 4.1 * scale);
+    g.add(p);
+    // 木马座（简化几何：鞍座 + 竖杆）
+    const saddle = K.box(1.05 * scale, 0.42 * scale, 0.52 * scale, i % 2 ? SUGAR : AMBER, {
+      kind: 'ceramic', roughness: 0.3, castShadow: false,
+    });
+    saddle.position.set(Math.cos(a) * 3.3 * scale, 2.15 * scale, Math.sin(a) * 3.3 * scale);
+    saddle.rotation.y = -a;
+    const rod = K.cylinder(0.03 * scale, 0.03 * scale, 3.6 * scale, AMBER, { kind: 'metal', seg: 4, castShadow: false });
+    rod.position.set(Math.cos(a) * 3.3 * scale, 3.6 * scale, Math.sin(a) * 3.3 * scale);
+    g.add(saddle, rod);
+  }
+  // 灯环（薄荷/糖粉交替；boss 由脉冲 updater 统一切换）
+  const bulbs = [];
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
-    const lamp = K.sphere(0.22, i % 3 === 0 ? GOLD : (i % 2 ? PINK_HOT : MINT), { transparent: true, opacity: 0.95 });
-    lamp.position.set(Math.cos(a) * (r + 0.4), Math.sin(a) * (r + 0.4), 0.4);
-    wheel.add(lamp);
-    if (!(boss && i % 4 === 0)) {
-      ctx.animate(lamp, { pulse: { amp: 0.35, speed: 1.1 + (i % 5) * 0.4, phase: i } });
-    }
+    const b = glowBall(ctx, {
+      x: 0, y: 0, z: 0, r: 0.13 * scale,
+      color: i % 2 ? MINT_HOT : SUGAR_HOT, intensity: 2.2,
+    });
+    ctx.root.remove(b);
+    b.position.set(Math.cos(a) * 5.2 * scale, 5.65 * scale, Math.sin(a) * 5.2 * scale);
+    g.add(b);
+    bulbs.push(b);
   }
-  // 支架（不随轮转）
-  for (const side of [-1, 1]) {
-    const leg = K.box(0.42, cy + 10, 0.42, boss ? 0x3e1e14 : 0x32201a);
-    leg.position.set(cx + side * (r * 0.52), (cy - 10) / 2, cz);
-    leg.rotation.z = side * 0.36;
+  g.position.set(x, FLOOR_Y, z);
+  g.rotation.z = tilt;
+  ctx.add(g);
+  ctx.animate(g, { spinY: 0.16 });
+  return { group: g, bulbs };
+}
+
+/** 剥落的海报（锈框 + 绘卷裁片；部分倒置/斜挂 = 崩坏） */
+function peelingPoster(ctx, { x = 0, y = 0, z = -30, w = 5, h = 7, crop = null, tilt = 0, upside = false, opacity = 0.75 } = {}) {
+  const K = ctx.K;
+  const g = new ctx.THREE.Group();
+  const board = K.box(w * 1.1, h * 1.08, 0.12, 0x6a3a2c, { kind: 'rust', roughness: 0.8, castShadow: false });
+  board.position.z = -0.14;
+  g.add(board);
+  const tex = crop ? ctx.plateCrop(...crop) : null;
+  if (tex) {
+    const p = K.artPanel(tex, {
+      x: 0, y: 0, z: 0.02, w, h,
+      rotationZ: tilt * 0.4, opacity: Math.min(1, opacity + 0.1), tint: 0xffd8e4,
+    });
+    g.add(p);
+  }
+  g.position.set(x, y, z);
+  g.rotation.z = tilt;
+  if (upside) g.rotation.z += Math.PI;
+  ctx.add(g);
+  return g;
+}
+
+/** 摩天轮支架（锈蚀 A 字架） */
+function wheelLegs(ctx, { x = -14, y = 9, z = -52, r = 10, side = 1 } = {}) {
+  const K = ctx.K;
+  for (const s of [-1, 1]) {
+    const leg = K.cylinder(0.22, 0.34, 17, 0x4a2a22, { kind: 'rust', seg: 8 });
+    leg.position.set(x + s * 3.2, FLOOR_Y + 8.5, z + side * 1.6);
+    leg.rotation.z = s * 0.2;
     ctx.add(leg);
   }
-  const hub = K.cylinder(0.9, 0.9, 1.6, 0x1a0c10);
-  hub.rotation.x = Math.PI / 2;
-  hub.position.set(cx, cy, cz);
-  ctx.add(hub);
-  // boss：崩落的吊舱（砸在轮下）
-  if (boss) {
-    const fallen = K.box(2.4, 2, 2.4, PINK, { transparent: true, opacity: 0.82 });
-    fallen.position.set(cx + 2.4, -7.4, cz + 6);
-    fallen.rotation.z = 0.6;
-    ctx.add(fallen);
-    const debris = K.box(1, 0.4, 0.8, IRON, { transparent: true, opacity: 0.8 });
-    debris.position.set(cx + 3.6, -8.4, cz + 4.4);
-    debris.rotation.y = 0.5;
-    ctx.add(debris);
-  }
+  const axle = K.cylinder(0.5, 0.5, 6, 0x2a1a14, { kind: 'rust', seg: 12 });
+  axle.rotation.x = Math.PI / 2;
+  axle.position.set(x, y, z);
+  ctx.add(axle);
 }
 
-/** 旋转木马：平台 + 糖果条纹顶棚 + 木马 + 檐灯（慢速旋转；boss 灯光故障/倾斜） */
-function addCarousel(ctx, boss) {
-  const { K } = ctx;
-  const car = new ctx.THREE.Group();
-  car.position.set(boss ? -13 : -12.4, 2.2, boss ? -33 : -34);
-  if (boss) car.rotation.z = 0.13;
-  // 底台
-  const base = K.cylinder(6.4, 6.8, 0.9, boss ? 0x3a1e26 : 0x4a2a34, { seg: 18 });
-  base.position.y = -3.2;
-  car.add(base);
-  const floor = K.cylinder(6, 6, 0.2, boss ? 0x6a3038 : PINK, { seg: 18, transparent: true, opacity: 0.72 });
-  floor.position.y = -2.65;
-  car.add(floor);
-  // 中柱
-  const pole = K.cylinder(0.24, 0.24, 9.6, CREAM, { seg: 8 });
-  pole.position.y = 1.6;
-  car.add(pole);
-  // 顶棚（糖果条纹锥：粉锥 + 薄荷辐条）
-  const canopy = K.cone(6.6, 3.4, boss ? 0x9a4a5a : PINK, { seg: 18 });
-  canopy.position.y = 5.6;
-  car.add(canopy);
-  for (let i = 0; i < 14; i++) {
-    const a = (i / 14) * Math.PI * 2;
-    const stripe = K.box(0.3, 0.2, 3.6, MINT, { transparent: true, opacity: 0.6 });
-    stripe.position.set(Math.cos(a) * 3.4, 5.0, Math.sin(a) * 3.4);
-    stripe.rotation.y = -a;
-    stripe.rotation.x = 0.86;
-    car.add(stripe);
-  }
-  // 顶冠
-  const crown = K.sphere(0.65, boss ? GOLD : CREAM, { transparent: true, opacity: 0.88 });
-  crown.position.y = 7.7;
-  car.add(crown);
-  // 檐口薄荷环
-  const valance = K.torus(6.35, 0.16, MINT, { radial: 4, tubular: 36, transparent: true, opacity: 0.62 });
-  valance.rotation.x = Math.PI / 2;
-  valance.position.y = 3.95;
-  car.add(valance);
-  // 木马剪影
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2 + 0.4;
-    const rr = 4.7;
-    const horse = new ctx.THREE.Group();
-    const broken = boss && i === 2;
-    const body = K.box(1.7, 1, 0.6, broken ? IRON : (i % 2 ? MINT : PINK_HOT), { transparent: true, opacity: 0.82 });
-    body.position.y = 1;
-    const head = K.box(0.55, 0.8, 0.5, broken ? IRON : PINK);
-    head.position.set(0.95, 1.5, 0);
-    const rode = K.cylinder(0.06, 0.06, 5, CREAM, { seg: 6 });
-    rode.position.y = 2.4;
-    horse.add(body, head, rode);
-    horse.position.set(Math.cos(a) * rr, -2.2, Math.sin(a) * rr);
-    horse.rotation.y = -a;
-    if (broken) { horse.rotation.z = 0.7; horse.position.y = -2.8; }
-    car.add(horse);
-    ctx.animate(horse, { bob: { amp: 0.09, speed: 1.1 + i * 0.3, phase: i } });
-  }
-  // 檐下灯泡（boss 故障：部分不亮）
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    if (boss && i % 5 === 0) continue;
-    const b = K.sphere(0.21, i % 3 === 0 ? GOLD : (i % 2 ? PINK_HOT : MINT), { transparent: true, opacity: 0.95 });
-    b.position.set(Math.cos(a) * 6.42, 3.72, Math.sin(a) * 6.42);
-    car.add(b);
-    if (boss && i % 3 === 1) continue;
-    ctx.animate(b, { pulse: { amp: 0.2 + (i % 4) * 0.08, speed: 1.2 + (i % 6) * 0.35, phase: i } });
-  }
-  ctx.add(car);
-  ctx.animate(car, { spinY: boss ? -0.12 : 0.16, bob: { amp: 0.1, speed: 0.35 } });
-}
-
-/** 糖果拱门：远处入口的拐杖糖柱 + 薄荷横梁 + 「哈机密乐园」招牌；boss 糖衣剥落露黑铁 */
-function addCandyArch(ctx, boss) {
-  const { K } = ctx;
-  const gz = -76;
-  const legX = 14;
-  const legH = 27;
-  const topY = -10 + legH; // 17
-  // 门后糖霜光环（让远处拱门从雾里读出来）
-  const halo = K.ring(16, 17.4, boss ? PINK_HOT : MINT, { opacity: 0.22 });
-  halo.position.set(0, topY + 2, gz - 2);
-  ctx.add(halo);
-  ctx.animate(halo, { pulse: { amp: 0.05, speed: 0.5 } });
-  for (const side of [-1, 1]) {
-    const broken = boss && side > 0;
-    const col = K.cylinder(0.8, 1, legH, broken ? 0x6a3030 : 0xc07a8a, { seg: 10 });
-    col.position.set(side * legX, -10 + legH / 2, gz);
-    if (broken) col.rotation.z = -0.08;
-    ctx.add(col);
-    for (let i = 0; i < 7; i++) {
-      const ring = K.torus(0.98, 0.16, broken ? 0x5a6a5a : MINT, { radial: 4, tubular: 16 });
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(side * legX + (broken ? -0.5 - i * 0.12 : 0), -8.6 + i * 4.2, gz);
-      ctx.add(ring);
-    }
-    if (broken) {
-      const peel = K.box(2.2, 4, 0.3, IRON);
-      peel.position.set(side * (legX - side * 0.8), 2.4, gz + 0.8);
-      ctx.add(peel);
-    }
-    const ball = K.sphere(1.5, side < 0 ? MINT : PINK_HOT, { transparent: true, opacity: 0.9 });
-    ball.position.set(side * legX + (broken ? -1.4 : 0), topY + 0.6, gz);
-    ctx.add(ball);
-  }
-  const beam = K.box(legX * 2 + 2.4, 2.2, 1.6, boss ? 0x7a5a4a : MINT);
-  beam.position.set(0, topY + 0.4, gz);
-  if (boss) beam.rotation.z = -0.04;
-  ctx.add(beam);
-  const beam2 = K.box(legX * 2 + 1, 0.6, 1.7, CREAM, { transparent: true, opacity: 0.7 });
-  beam2.position.set(0, topY + 1.7, gz);
-  ctx.add(beam2);
-  const sign = ctx.textSprite('哈机密乐园', {
-    x: 0, y: topY + 4.4, z: gz + 1.3, w: 16, h: 3.4,
-    fill: '#3a1420', bg: 'rgba(240,226,200,0.9)',
-    font: 'bold 88px "Noto Serif CJK SC", "Microsoft YaHei", serif', opacity: 1,
+/** 糖果拱门（巨型半圆 + 糖灯 + 融化糖滴） */
+function candyArch(ctx, { z = -34, boss = false } = {}) {
+  const K = ctx.K;
+  const R = 13.5;
+  const cy = FLOOR_Y + 0.25;
+  const ring = K.torus(R, 0.34, 0x9a5468, {
+    kind: 'ceramic', roughness: 0.24, metalness: 0.05, envMapIntensity: 1.3,
+    radial: 12, tubular: 64, castShadow: true,
   });
-  ctx.add(sign);
-  if (boss) {
-    const crack = K.box(0.8, 3.4, 0.3, IRON);
-    crack.position.set(3.2, topY + 3.2, gz + 1.4);
-    crack.rotation.z = 0.3;
-    ctx.add(crack);
+  ring.position.set(0, cy, z);
+  ctx.add(ring);
+  const ring2 = K.torus(R - 0.9, 0.14, 0x4e8a74, { kind: 'ceramic', roughness: 0.32, radial: 8, tubular: 56 });
+  ring2.position.set(0, cy, z - 0.2);
+  ctx.add(ring2);
+  const ring3 = K.torus(R + 0.55, 0.1, 0x9a8870, { kind: 'ceramic', roughness: 0.35, radial: 6, tubular: 56 });
+  ring3.position.set(0, cy, z + 0.15);
+  ctx.add(ring3);
+  // 拱沿糖灯（只铺上半弧，避开中心下方）
+  const ptsA = [];
+  const ptsB = [];
+  for (let i = 0; i <= 13; i++) {
+    const a = (i / 13) * Math.PI;
+    const px = Math.cos(a) * (R - 0.45);
+    const py = cy + Math.sin(a) * (R - 0.45);
+    (i % 2 ? ptsA : ptsB).push([px, py, z + 0.4]);
   }
-  for (let i = 0; i < 5; i++) {
-    const x = -12 + i * 6;
-    const ball = K.sphere(0.7, i % 2 ? PINK : MINT, { transparent: true, opacity: 0.85 });
-    ball.position.set(x, topY - 0.9, gz + 0.9);
-    ctx.add(ball);
-    ctx.animate(ball, { bob: { amp: 0.12, speed: 0.7 + i * 0.2, phase: i } });
-  }
-}
-
-/** 剥落海报：和纸 Billboard + 撕角 + 残字；倾斜悬浮（超现实） */
-function addPeelingPosters(ctx, boss) {
-  const { K } = ctx;
-  const list = boss
-    ? [[-11, 12, -26, 6, 8, -0.3, '一美个'], [11.5, 13, -29, 5.4, 7.2, 0.24, '哈机密'],
-      [-13.5, 4, -33, 4.8, 6.4, 0.2, '乐园'], [13.8, 5, -23, 4.4, 5.8, -0.26, '崩坏']]
-    : [[-11, 11.5, -28, 5.8, 7.6, -0.14, '一美个'], [11.5, 12, -31, 5.2, 7, 0.16, '哈机密']];
-  for (let i = 0; i < list.length; i++) {
-    const [x, y, z, w, h, rot, text] = list[i];
-    const tex = K.matTexture('washi', i % 2 ? '#c8a8b8' : '#b8c8b8');
-    const poster = K.panel(tex, {
-      x, y, z, w, h, opacity: boss ? 0.7 : 0.64,
-      color: boss ? 0xd8a8b0 : 0xe8d0c0,
-    });
-    poster.rotation.z = rot;
-    ctx.add(poster);
-    // 撕角（露出暗底）
-    const torn = K.box(w * 0.34, h * 0.3, 0.05, IRON, { transparent: true, opacity: 0.88 });
-    torn.position.set(x + w * 0.32, y + h * 0.32, z + 0.12);
-    torn.rotation.z = rot + 0.6;
-    ctx.add(torn);
-    // 残字
-    const glyph = ctx.textSprite(text, {
-      x, y: y + (i % 2 ? 0 : 3), z: z + 0.2, w: w * 0.84, h: h * 0.5,
-      fill: i % 2 ? '#5a2430' : '#3a4038', bg: 'rgba(0,0,0,0)',
-      font: 'bold 120px "Noto Serif CJK SC", "Microsoft YaHei", serif', opacity: 0.62,
-    });
-    glyph.material.rotation = rot;
-    ctx.add(glyph);
-    ctx.animate(poster, { bob: { amp: 0.15, speed: 0.4 + i * 0.12, phase: i } });
-    ctx.animate(glyph, { bob: { amp: 0.15, speed: 0.4 + i * 0.12, phase: i } });
-  }
-}
-
-/** 气球束：糖粉/薄荷/金三色气球 + 细绳（超现实漂浮） */
-function addBalloons(ctx, boss) {
-  const { K } = ctx;
-  const clusters = boss
-    ? [[-9, 17, -30, 5], [9.5, 18, -26, 4], [-6.5, 20, -42, 3]]
-    : [[-9.2, 16, -32, 4], [9.4, 17, -28, 3]];
-  for (let ci = 0; ci < clusters.length; ci++) {
-    const [cx, cy, cz, n] = clusters[ci];
-    const g = new ctx.THREE.Group();
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + ci;
-      const r = 1.15;
-      const bx = Math.cos(a) * r;
-      const by = Math.sin(a) * 0.8 + i * 0.32;
-      const col = [PINK, MINT, GOLD][i % 3];
-      const ball = K.sphere(0.85 + K.hash01(i * 7 + ci) * 0.35, boss && i === 0 ? IRON : col, { transparent: true, opacity: 0.86 });
-      ball.scale.set(1, 1.2, 1);
-      ball.position.set(bx, by, (K.hash01(i * 11 + ci) - 0.5) * 0.8);
-      g.add(ball);
-      const cord = K.cylinder(0.02, 0.02, 3.2, 0x4a3a3e);
-      cord.position.set(bx, by - 2.5, 0);
-      g.add(cord);
-      if (!(boss && i === 0)) ctx.animate(ball, { bob: { amp: 0.08, speed: 0.6 + i * 0.2, phase: i + ci } });
-    }
-    g.position.set(cx, cy, cz);
-    ctx.add(g);
-    ctx.animate(g, { bob: { amp: 0.18, speed: 0.3 + ci * 0.09, phase: ci * 1.5 } });
-    if (boss && ci === 1) {
-      const burst = K.ring(1.5, 1.68, PINK_HOT, { opacity: 0.42 });
-      burst.position.set(cx, cy, cz);
-      ctx.add(burst);
-      ctx.animate(burst, { pulse: { amp: 0.3, speed: 2.2 } });
-    }
-  }
-}
-
-/** 灯光故障：串灯横跨拱门与两侧，boss 明灭不均 */
-function addLightStrings(ctx, boss) {
-  const { K } = ctx;
-  const spans = boss
-    ? [[-12.4, 8, -34, 13, 9, -40], [-9, 5, -49, 9, 5, -49]]
-    : [[-12, 8.5, -35, 13, 9, -42], [-9, 4.8, -49, 9, 4.8, -49]];
-  for (let s = 0; s < spans.length; s++) {
-    const [x0, y0, z0, x1, y1, z1] = spans[s];
-    const n = boss ? 13 : 16;
-    for (let i = 0; i < n; i++) {
-      const t = i / (n - 1);
-      const x = x0 + (x1 - x0) * t;
-      const y = y0 + (y1 - y0) * t - Math.sin(t * Math.PI) * 1.5;
-      const z = z0 + (z1 - z0) * t;
-      if (boss && i % 4 === 0) continue;
-      const col = i % 3 === 0 ? GOLD : (i % 2 ? PINK_HOT : MINT);
-      const b = K.sphere(0.18, col, { transparent: true, opacity: 0.9 });
-      b.position.set(x, y, z);
-      ctx.add(b);
-      if (!(boss && i % 5 === 2)) {
-        ctx.animate(b, { pulse: { amp: boss ? 0.42 : 0.26, speed: 1.1 + (i % 7) * 0.33, phase: i } });
-      }
-    }
-  }
-}
-
-/** 超现实：巨型糖果招牌（糖衣圆盘 + 露出的黑铁缺口） */
-function addCandyBillboard(ctx, boss) {
-  const { K } = ctx;
-  const g = new ctx.THREE.Group();
-  const disc = K.cylinder(4.4, 4.4, 0.9, boss ? 0x9a4a5a : PINK, { seg: 18 });
-  disc.rotation.x = Math.PI / 2;
-  g.add(disc);
-  const ring = K.torus(4.4, 0.4, MINT, { radial: 5, tubular: 30 });
-  g.add(ring);
-  for (let i = 0; i < 3; i++) {
-    const swirl = K.torus(1.3 + i * 1.05, 0.1, CREAM, { radial: 4, tubular: 24, transparent: true, opacity: 0.5 });
-    swirl.position.z = 0.5;
-    g.add(swirl);
-  }
-  if (boss) {
-    for (let i = 0; i < 3; i++) {
-      const bite = K.sphere(1.1 + i * 0.3, IRON);
-      bite.scale.set(1, 1, 0.3);
-      bite.position.set(-1.5 + i * 1.2, 1.1 - i * 0.9, 0.62);
-      g.add(bite);
-    }
-  }
-  g.position.set(-13, boss ? 12.4 : 12.8, -31);
-  g.rotation.z = 0.18;
-  ctx.add(g);
-  ctx.animate(g, { spinZ: boss ? 0.08 : 0.05, bob: { amp: 0.2, speed: 0.4 } });
-  const tag = ctx.textSprite(boss ? '崩坏' : '哈机密', {
-    x: boss ? -13.6 : -14.4, y: boss ? 16.4 : 17, z: -31, w: 4.4, h: 2.2,
-    fill: '#3a1420', bg: 'rgba(238,226,200,0.9)',
-    font: 'bold 130px "Noto Serif CJK SC", serif', opacity: 0.85,
-  });
-  tag.material.rotation = -0.14;
-  ctx.add(tag);
-  ctx.animate(tag, { bob: { amp: 0.15, speed: 0.5 } });
-  // 剥落的糖衣碎片（附近悬浮）
+  ctx.add(K.lightString(ptsA, { color: 0xffb8d0, size: 0.11 }));
+  ctx.add(K.lightString(ptsB, { color: 0xb8f0d8, size: 0.11 }));
+  // 融化糖滴自拱顶下垂（超现实：糖在往下流）
   for (let i = 0; i < 4; i++) {
-    const shard = K.box(0.6 + i * 0.2, 0.3, 0.06, boss ? 0xd88aa0 : PINK_HOT, { transparent: true, opacity: 0.7 });
-    shard.position.set(-13 + (i - 1.5) * 1.4, (boss ? 12.4 : 12.8) - 4.4 - K.hash01(i * 13) * 1.6, -30.6);
-    shard.rotation.z = K.hash01(i * 17) * 2;
-    ctx.add(shard);
-    ctx.animate(shard, { bob: { amp: 0.12, speed: 0.6 + i * 0.2, phase: i } });
+    const a = 1.05 + i * 0.28;
+    const px = Math.cos(a) * (R - 0.2);
+    const py = cy + Math.sin(a) * (R - 0.2);
+    const drip = meltedCandy(ctx, {
+      x: px, z: z + 0.5, color: i % 2 ? MINT : SUGAR, scale: 0.34, slim: true,
+    });
+    drip.position.y = py;
+    drip.rotation.x = Math.PI;
   }
-}
-
-/** 远景剪影：远处锈蚀的过山车轨道与塔架（中心远处，暗） */
-function addFarSilhouette(ctx, boss) {
-  const { K } = ctx;
-  const color = boss ? 0x2a1218 : 0x201016;
-  const coil = K.torus(13, 0.28, color, { radial: 4, tubular: 40 });
-  coil.position.set(0, 4, -96);
-  coil.rotation.x = 0.4;
-  ctx.add(coil);
-  const coil2 = K.torus(8, 0.24, color, { radial: 4, tubular: 32 });
-  coil2.position.set(-6, 8, -118);
-  coil2.rotation.x = 0.6;
-  ctx.add(coil2);
-  for (let i = 0; i < 5; i++) {
-    const x = -26 + i * 13;
-    const tower = K.box(0.5, 12 + K.hash01(i * 7) * 8, 0.5, color);
-    tower.position.set(x, -4, -104 - (i % 2) * 10);
-    ctx.add(tower);
+  if (boss) {
+    ring.rotation.z = 0.05;
+    ring2.rotation.z = 0.05;
+    ring3.rotation.z = 0.05;
   }
-  // 前景掠过：断裂栏杆（近处贴边、压出纵深）
-  ctx.field((i) => {
-    const side = i % 2 ? 1 : -1;
-    const g = new ctx.THREE.Group();
-    const post = K.box(0.22, 7, 0.22, boss ? 0x3a2018 : 0x2a1a1e);
-    post.position.y = 1;
-    const rail = K.box(2.6, 0.16, 0.16, boss ? 0x4a2a1e : 0x3a2428);
-    rail.position.set(side * 1.1, 3.4, 0);
-    rail.rotation.z = side * 0.22;
-    g.add(post, rail);
-    return g;
-  }, { count: 3, zNear: -16, zFar: -34, xRange: 14, xAbsMin: 6.4, y: -1.5, speedMul: 1.05 });
 }
 
 /* ------------------------------------------------------------------ *
  * 场景
  * ------------------------------------------------------------------ */
 
-export function mid(ctx) {
-  const { palette } = ctx;
+function buildScene(ctx, boss) {
+  const { palette, K } = ctx;
+
   ctx.atmosphere({
-    bg: 0x12080e,
-    fogColor: 0x2a141c,
-    fogDensity: 0.012,
+    bg: palette.skyBot,
+    fogColor: mixHex(palette.fog, palette.ink, 0.62),
+    fogDensity: boss ? 0.0155 : 0.0135,
     ambient: palette.ambient,
-    ambientIntensity: 1.08,
-    dirColor: 0xf0c8d0,
-    dirIntensity: 0.82,
+    ambientIntensity: 0.52,
+    hemiSky: mixHex(palette.glow, palette.fog, 0.3),
+    hemiGround: palette.ink,
+    hemiIntensity: 0.5,
+    dirColor: boss ? 0xffd8b0 : palette.glow,
+    dirIntensity: boss ? 2.3 : 2.0,
+    shadow: true,
+    shadowSize: 1024,
   });
-  addBackdrop(ctx, false);
-  addParkGround(ctx, false);
-  addFarSilhouette(ctx, false);
-  addFerrisWheel(ctx, false);
-  addCarousel(ctx, false);
-  addCandyArch(ctx, false);
-  addPeelingPosters(ctx, false);
-  addBalloons(ctx, false);
-  addLightStrings(ctx, false);
-  addCandyBillboard(ctx, false);
+
+  // 湿滑的镜面广场（糖水反光）
+  // 夜空压暗帷幕（乐园要"月夜"而不是粉雾）
+  const nightVeil = K.panel(null, {
+    x: 0, y: 24, z: -122, w: 420, h: 400,
+    color: boss ? 0x120710 : 0x0e0509, opacity: boss ? 0.64 : 0.72, fog: false,
+  });
+  ctx.add(nightVeil);
+  const haloBand = K.panel(null, { x: -20, y: 42, z: -120, w: 220, h: 46, color: 0x8a4a5e, opacity: 0.12, fog: false });
+  ctx.add(haloBand);
+  ctx.updater(() => { if (ctx.scene.environmentIntensity !== 0.68) ctx.scene.environmentIntensity = 0.68; });
+
+  ctx.add(K.waterFloor({
+    y: FLOOR_Y,
+    size: [380, 420],
+    color: boss ? 0x080405 : 0x050303,
+    normalScale: boss ? 0.85 : 0.6,
+    roughness: boss ? 0.1 : 0.13,
+  }));
+  floorGlow(ctx, { x: -10, z: -26, color: SUGAR, w: 8, d: 40, opacity: boss ? 0.06 : 0.04 });
+  floorGlow(ctx, { x: 11, z: -34, color: AMBER, w: 7, d: 40, opacity: boss ? 0.055 : 0.038 });
+  floorGlow(ctx, { x: 0, z: -52, color: MINT, w: 12, d: 40, opacity: 0.022 });
+
+  // 温暖的巨月（左上缘，超现实尺度）
+  const moon = K.moon({
+    x: -27, y: 24, z: -88, r: 8.6,
+    color: 0xffefc8, halo: boss ? 0xffb080 : 0xffcf98, haloOpacity: boss ? 0.4 : 0.32,
+  });
+  moon.traverse((o) => { if (o.material) o.material.fog = false; });
+  ctx.add(moon);
+
+  // 地面散布的糖块/糖纸（贴边，不压中心）
+  const candyTiles = [[-9.5, -14, SUGAR], [8.8, -17, MINT], [-12.5, -22, AMBER], [12.6, -26, SUGAR], [-7.8, -30, MINT]];
+  for (let i = 0; i < candyTiles.length; i++) {
+    const [x, z, color] = candyTiles[i];
+    const tile = K.box(1.6 + K.hash01(i * 13) * 1.6, 0.24, 1.2 + K.hash01(i * 17) * 1.2, color, {
+      kind: 'ceramic', roughness: 0.25, castShadow: false,
+    });
+    tile.position.set(x, FLOOR_Y + 0.1, z);
+    tile.rotation.y = K.hash01(i * 19) * 3;
+    tile.rotation.z = (K.hash01(i * 23) - 0.5) * 0.2;
+    ctx.add(tile);
+  }
+
+  // 摩天轮（左）/ 支架 / 糖衣剥落
+  const wheelX = -12;
+  const wheelZ = -60;
+  const wheel = K.ferrisWheel({
+    x: wheelX, y: 11.5, z: wheelZ, r: 10.2,
+    color: 0x6a3a2e, accent: SUGAR, cabins: 10, glow: boss ? 0xffd0e0 : 0xffe0e8,
+  });
+  wheel.rotation.z = boss ? 0.38 : 0.2;
+  ctx.add(wheel);
+  ctx.animate(wheel, { spinZ: boss ? 0.1 : 0.055 });
+  wheelLegs(ctx, { x: wheelX, y: 11.5, z: wheelZ, r: 10.2, side: 1 });
+  // 糖衣（贴在轮缘的糖片）+ 剥落飞散的糖片
+  for (let i = 0; i < 5; i++) {
+    const a = 0.4 + i * 1.15;
+    const plate = K.box(2.6, 1.1, 0.28, i % 2 ? SUGAR : RUST, {
+      kind: i % 2 ? 'ceramic' : 'rust', roughness: 0.2, metalness: 0.03, castShadow: false,
+    });
+    plate.position.set(Math.cos(a) * 10.2, Math.sin(a) * 10.2, 0.5);
+    plate.rotation.z = a;
+    wheel.add(plate);
+  }
+  for (let i = 0; i < (boss ? 8 : 3); i++) {
+    const shard = K.box(1.6 + (boss ? K.hash01(i * 29) * 1.2 : 0), 0.6, 0.16, i % 3 === 0 ? 0xb06a80 : SUGAR, {
+      kind: i % 3 === 0 ? 'rust' : 'ceramic', roughness: 0.22, castShadow: false,
+    });
+    shard.position.set(
+      wheelX + (K.hash01(i * 31) - 0.3) * 16,
+      12 + K.hash01(i * 37) * 11,
+      wheelZ + 2 + K.hash01(i * 41) * 7,
+    );
+    shard.rotation.set(K.hash01(i * 43) * 3, K.hash01(i * 47) * 3, K.hash01(i * 53) * 3);
+    ctx.add(shard);
+    ctx.animate(shard, { spinX: 0.3 + K.hash01(i * 59) * 0.3, bob: { amp: 0.012, speed: 0.4 + i * 0.1, phase: i } });
+  }
+  // boss：轮缘糖壳大面积剥落，露出黑铁（超现实：糖在掉、铁在露）
+  if (boss) {
+    for (let i = 0; i < 4; i++) {
+      const a = 0.2 + i * 1.5;
+      const rustPatch = K.box(3.4, 1.7, 0.3, RUST_DEEP, {
+        kind: 'rust', roughness: 0.85, metalness: 0.2, castShadow: false,
+      });
+      rustPatch.position.set(Math.cos(a) * 10.3, Math.sin(a) * 10.3, 0.62);
+      rustPatch.rotation.z = a;
+      wheel.add(rustPatch);
+    }
+  }
+  // boss：第二座倒悬摩天轮升上夜空（超现实）
+  if (boss) {
+    const inv = K.ferrisWheel({
+      x: 14.5, y: 26, z: -74, r: 8.2,
+      color: 0x5a3028, accent: SUGAR, cabins: 8, glow: 0xffc0d8,
+    });
+    inv.rotation.z = Math.PI + 0.36;
+    ctx.add(inv);
+    ctx.animate(inv, { spinZ: -0.085 });
+  }
+
+  // 旋转木马（右；boss 倾斜）
+  const car = carousel(ctx, { x: 12.6, z: -39, scale: boss ? 1.05 : 1, tilt: boss ? 0.1 : 0 });
+
+  // 糖果拱门（横跨镜头；只留细环与糖灯）
+  candyArch(ctx, { z: boss ? -52 : -50, boss });
+
+  // 剥落海报（两侧，倒置/斜挂）
+  const posterCrops = [[0.06, 0.08, 0.42, 0.5], [0.52, 0.1, 0.4, 0.5], [0.12, 0.52, 0.44, 0.42], [0.56, 0.54, 0.38, 0.4]];
+  const posters = [[-11.2, 4.5, -27, 4.6, 6.6, 0, 0.14], [10.8, 6.5, -30, 4.2, 6, 1, -0.18],
+    [-12.8, -1.5, -38, 5, 7, 2, 0.3], [12.6, -2.5, -44, 4.4, 6.4, 3, 2.1],
+    [-10.4, 10.5, -46, 4, 5.6, 2, 0.5], [11.8, 11.5, -54, 4.6, 6.4, 1, -0.4]];
+  for (let i = 0; i < (boss ? posters.length : 5); i++) {
+    const [x, y, z, w, h, ci, tilt] = posters[i];
+    peelingPoster(ctx, {
+      x, y: FLOOR_Y + y + 6, z, w, h, crop: posterCrops[ci % posterCrops.length],
+      tilt, upside: i === 3, opacity: i === 3 ? 0.66 : 0.88,
+    });
+  }
+  // 地面上的倒伏海报（镜面拼贴）
+  for (let i = 0; i < 3; i++) {
+    const tex = ctx.plateCrop(posterCrops[i].at(0), 0.55, 0.3, 0.24);
+    if (!tex) continue;
+    const p = K.artPanel(tex, {
+      x: (i % 2 ? 1 : -1) * (7.5 + K.hash01(i * 23) * 2),
+      y: FLOOR_Y + 0.04, z: -16 - i * 6,
+      w: 4.4, h: 5.4, rotationZ: (K.hash01(i * 29) - 0.5) * 1.4,
+      opacity: 0.4, tint: 0xd8a0b0,
+    });
+    p.rotation.x = -Math.PI / 2;
+    ctx.add(p);
+  }
+
+  // 气球群（漂浮在两侧上缘）
+  balloonCluster(ctx, { x: -11.5, y: 11, z: -30, count: 6, seed: 3, scale: boss ? 1.15 : 1 });
+  balloonCluster(ctx, { x: 13, y: 8.5, z: -34, count: 5, seed: 7 });
+  if (boss) {
+    balloonCluster(ctx, { x: 17, y: 16.5, z: -54, count: 7, seed: 11, scale: 1.1 });
+    // 气球爆裂的糖玻璃碎片
+    const burst = K.shardField({ x: 13, y: 9, z: -33, count: 10, spread: 7, color: SUGAR_HOT, seed: 5 });
+    ctx.add(burst);
+    ctx.animate(burst, { spinY: 0.2, spinZ: -0.12, bob: { amp: 0.008, speed: 0.5 } });
+    const burst2 = K.shardField({ x: 17, y: 16, z: -52, count: 8, spread: 6, color: MINT_HOT, seed: 8 });
+    ctx.add(burst2);
+    ctx.animate(burst2, { spinY: -0.18, spinZ: 0.1 });
+  }
+
+  // 融化糖果（贴边地面；boss 更多、糖丝更长）
+  meltedCandy(ctx, { x: -8.6, z: -18, color: SUGAR, scale: boss ? 1.5 : 1.15 });
+  meltedCandy(ctx, { x: 9.4, z: -23, color: MINT, scale: boss ? 1.3 : 1 });
+  meltedCandy(ctx, { x: -7.6, z: -34, color: AMBER, scale: boss ? 1.1 : 0.85 });
+  if (boss) {
+    meltedCandy(ctx, { x: 12.4, z: -15, color: SUGAR, scale: 1.2 });
+    meltedCandy(ctx, { x: -13.2, z: -28, color: MINT, scale: 1.4 });
+  }
+
+  // 灯串（右上与左上，暖色；与糖果粉形成冷暖）
+  ctx.add(K.hangingLights({ x: -10, y: 14, z: -26, count: 4, span: 13, sag: 1.4, color: 0xffb15c, lanternScale: 0.34, seed: 2 }));
+  ctx.add(K.hangingLights({ x: 10, y: 15.5, z: -32, count: 4, span: 13, sag: 1.5, color: AMBER, lanternScale: 0.3, seed: 6 }));
+
+  // 灯光故障：大灯珠（boss 强烈明灭）
+  const fault = [];
+  for (let i = 0; i < 6; i++) {
+    const b = glowBall(ctx, {
+      x: (i % 2 ? 1 : -1) * (7.5 + i * 1.1),
+      y: 12.5 + (i % 3) * 1.8,
+      z: -22 - i * 3,
+      r: 0.2, color: i % 2 ? SUGAR_HOT : MINT_HOT, intensity: 2.4,
+    });
+    fault.push(b);
+  }
+  ctx.updater((dt, t) => {
+    for (let i = 0; i < fault.length; i++) {
+      const b = fault[i];
+      const base = b.userData.baseEmissive || 2.4;
+      if (!boss) {
+        b.material.emissiveIntensity = base * (0.85 + 0.15 * Math.sin(t * 1.6 + i));
+      } else {
+        const gate = Math.abs(Math.sin(t * (3.1 + i * 0.47) + i * 2.1));
+        const drop = gate < 0.24 ? 0.12 : 1;
+        b.material.emissiveIntensity = base * drop * (0.6 + 0.6 * gate);
+      }
+    }
+    // 木马灯环故障
+    for (let i = 0; i < car.bulbs.length; i++) {
+      const b = car.bulbs[i];
+      const base = b.userData.baseEmissive || 2.2;
+      const s = boss
+        ? (Math.sin(t * (4.2 + (i % 5) * 0.6) + i * 1.9) > 0.1 ? 1 : 0.15)
+        : 0.9;
+      b.material.emissiveIntensity = base * s;
+    }
+  });
+
+  // 糖粒 / 糖纸 / 光尘
   ctx.points({
-    count: 55, color: 0xf2a6c0, size: 0.2, type: 'paper',
-    xRange: 32, yRange: 24, zNear: -3, zFar: -78, speed: 1.8, seed: 41,
+    count: boss ? 68 : 56, color: 0xffc8dc, size: 0.15, type: 'spark',
+    xRange: 34, yRange: 24, zNear: -3, zFar: -90, speed: boss ? 3.0 : 2.2, seed: boss ? 81 : 21,
   });
   ctx.points({
-    count: 40, color: 0x9fe0c8, size: 0.18, type: 'petal',
-    xRange: 32, yRange: 24, zNear: -3, zFar: -78, speed: 1.6, seed: 43,
+    count: boss ? 50 : 42, color: CREAM, size: 0.2, type: 'paper',
+    xRange: 32, yRange: 26, zNear: -4, zFar: -86, speed: 1.7, seed: boss ? 83 : 23,
   });
-  ctx.setSpeed(10);
-  ctx.setSway(0.5, 0.3);
+  ctx.points({
+    count: boss ? 44 : 36, color: 0xc8ffe8, size: 0.17, type: 'snow',
+    xRange: 30, yRange: 24, zNear: -4, zFar: -80, speed: 1.5, seed: boss ? 87 : 29,
+  });
+  // 锈屑（暗红細粒，落向地面）
+  ctx.points({
+    count: boss ? 30 : 22, color: 0x9a5a44, size: 0.13, type: 'snow',
+    xRange: 36, yRange: 20, zNear: -6, zFar: -74, speed: 2.4, seed: boss ? 91 : 31,
+  });
+
+  // 雾
+  ctx.add(K.mistSheet({
+    x: 0, y: 1, z: -70, w: 190, h: 48,
+    color: mixHex(palette.fog, palette.ink, 0.56), opacity: boss ? 0.13 : 0.1, seed: 9, speed: 0.02,
+  }));
+  addFogBillboards(ctx, {
+    color: '#9a7080', alpha: boss ? 0.13 : 0.1, count: 5, y: -1.5, zNear: -20, zFar: -128,
+    w: 112, h: 26,
+  });
+
+  // boss：地面崩裂的锈红裂纹 + 海报风暴（上缘）
+  if (boss) {
+    const cracks = [
+      [[-9, FLOOR_Y + 0.03, -14], [-4, FLOOR_Y + 0.03, -22], [2, FLOOR_Y + 0.03, -18], [9, FLOOR_Y + 0.03, -26]],
+      [[-12, FLOOR_Y + 0.03, -32], [-5, FLOOR_Y + 0.03, -38], [3, FLOOR_Y + 0.03, -36], [12, FLOOR_Y + 0.03, -44]],
+    ];
+    for (let i = 0; i < cracks.length; i++) {
+      ctx.add(K.tube(cracks[i], 0.05, 0x8a4a3a, {
+        kind: 'metal', emissive: 0xa04a34, emissiveIntensity: 1.0, roughness: 0.5, seg: 26, radial: 5, castShadow: false,
+      }));
+    }
+    const storm = new ctx.THREE.Group();
+    storm.position.set(0, 21, -62);
+    for (let i = 0; i < 8; i++) {
+      const tex = ctx.plateCrop(...posterCrops[i % posterCrops.length]);
+      if (!tex) continue;
+      const p = K.artPanel(tex, {
+        x: Math.cos((i / 8) * Math.PI * 2) * 11, y: Math.sin((i / 8) * Math.PI * 2) * 4.2,
+        z: Math.sin((i / 8) * Math.PI * 2) * 2.6, w: 3.2, h: 4.2,
+        opacity: 0.5, tint: 0xf0b8c8,
+      });
+      storm.add(p);
+    }
+    ctx.add(storm);
+    ctx.animate(storm, { spinZ: 0.18 });
+  }
+
+  ctx.setSpeed(boss ? 14 : 10.5);
+  ctx.setSway(boss ? 0.48 : 0.34, boss ? 0.23 : 0.18);
+}
+
+export function mid(ctx) {
+  buildScene(ctx, false);
 }
 
 export function boss(ctx) {
-  const { palette } = ctx;
-  ctx.atmosphere({
-    bg: 0x160a10,
-    fogColor: 0x341a24,
-    fogDensity: 0.013,
-    ambient: palette.ambient,
-    ambientIntensity: 1.14,
-    dirColor: 0xffd0d8,
-    dirIntensity: 0.95,
-  });
-  addBackdrop(ctx, true);
-  addParkGround(ctx, true);
-  addFarSilhouette(ctx, true);
-  addFerrisWheel(ctx, true);
-  addCarousel(ctx, true);
-  addCandyArch(ctx, true);
-  addPeelingPosters(ctx, true);
-  addBalloons(ctx, true);
-  addLightStrings(ctx, true);
-  addCandyBillboard(ctx, true);
-  // 崩坏锈光（中央远处，低透明）
-  const rustGlow = glowCone(ctx, { x: 0, y: 8, z: -46, color: 0xff8a6a, opacity: 0.05, radius: 6, height: 40 });
-  ctx.animate(rustGlow, { pulse: { amp: 0.14, speed: 0.7 } });
-  // 灯光故障：边缘一列忽明忽暗的冷白点
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 4; i++) {
-      bulb(ctx, side * (12.6 + i * 0.5), 1 + i * 3.4, -32 - i * 2, i % 2 ? 0xffe0c0 : PINK_HOT, 0.16, 3.4 + i, side * i);
-    }
-  }
-  ctx.points({
-    count: 55, color: 0xffb8d0, size: 0.21, type: 'paper',
-    xRange: 34, yRange: 26, zNear: -3, zFar: -82, speed: 2.4, seed: 42,
-  });
-  ctx.points({
-    count: 45, color: 0x9fe0c8, size: 0.19, type: 'petal',
-    xRange: 34, yRange: 26, zNear: -3, zFar: -82, speed: 2.2, seed: 44,
-  });
-  ctx.points({
-    count: 35, color: 0xffd890, size: 0.18, type: 'spark',
-    xRange: 30, yRange: 22, zNear: -2, zFar: -70, speed: 3, seed: 45,
-  });
-  ctx.setSpeed(13.5);
-  ctx.setSway(0.72, 0.38);
+  buildScene(ctx, true);
 }

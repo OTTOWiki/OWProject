@@ -39,23 +39,89 @@ export function preloadPlayfieldBg() {
 export class PlayfieldBackground extends BackgroundRenderer {}
 
 /**
- * 关卡版面背景工厂：3D 舞台优先，失败/无 WebGL 时回退 Canvas 2D 绘卷。
+ * 自适应版面背景：首次使用时才构造 3D 舞台（避免启动期双 WebGL 上下文/隐藏画布问题），
+ * 3D 构造或场景构建失败时自动销毁 3D 并回退 Canvas 2D 绘卷。
+ * 对外保持 setMode/update/draw 契约。
+ */
+class AdaptivePlayfieldBackground {
+  constructor(canvas2d, canvas3d) {
+    this.canvas2d = canvas2d;
+    this.canvas3d = canvas3d;
+    this.impl = null;
+    this.is3D = false;
+    this._pendingMode = null;
+    this._pendingTransition = false;
+    this._force2d = typeof location !== 'undefined' && /[?&]bg2d=1/.test(location.search);
+  }
+
+  _ensure(mode) {
+    if (this.impl) return;
+    if (!this._force2d && this.canvas3d && getThree()) {
+      try {
+        const bg = new PlayfieldStage3D(this.canvas3d);
+        bg.setMode(mode || 's1_mid', { transition: false });
+        if (bg.sceneReady) {
+          this.impl = bg;
+          this.is3D = true;
+          this.canvas3d.hidden = false;
+          this.canvas3d.style.display = 'block';
+          return;
+        }
+        console.warn('[playfield3d] scene not ready at init, fallback 2D');
+        bg.dispose?.();
+      } catch (err) {
+        console.warn('[playfield3d] init failed, fallback 2D:', err);
+      }
+    }
+    if (this.canvas3d) {
+      this.canvas3d.hidden = true;
+      this.canvas3d.style.display = 'none';
+    }
+    this.impl = new PlayfieldBackground();
+    this.is3D = false;
+  }
+
+  setMode(mode, opts = {}) {
+    this._pendingMode = mode;
+    this._pendingTransition = opts.transition !== false;
+    this._ensure(mode);
+    try {
+      this.impl.setMode(mode, opts);
+    } catch (err) {
+      console.warn('[playfield3d] setMode failed, fallback 2D:', err);
+      this._fallback2d();
+      this.impl.setMode(mode, opts);
+    }
+    // 3D 场景构建失败（未 throw 但未 ready）也回退
+    if (this.is3D && this.impl.sceneReady === false) {
+      console.warn('[playfield3d] scene failed after setMode, fallback 2D');
+      this._fallback2d();
+      this.impl.setMode(mode, opts);
+    }
+  }
+
+  _fallback2d() {
+    try { this.impl?.dispose?.(); } catch (err) { /* ignore */ }
+    if (this.canvas3d) {
+      this.canvas3d.hidden = true;
+      this.canvas3d.style.display = 'none';
+    }
+    const bg = new PlayfieldBackground();
+    this.impl = bg;
+    this.is3D = false;
+  }
+
+  update(dt) { this.impl?.update?.(dt); }
+  draw(ctx) { this.impl?.draw?.(ctx); }
+  dispose() { try { this.impl?.dispose?.(); } catch (err) { /* ignore */ } }
+}
+
+/**
+ * 关卡版面背景工厂：3D 舞台优先（首次 setMode 时构造），失败/无 WebGL 时回退 Canvas 2D 绘卷。
  * 两者共享同一套 setMode/update/draw API（draw 对 3D 忽略 ctx 参数）。
  * @param {HTMLCanvasElement} canvas2d 版面 canvas（2D）
  * @param {HTMLCanvasElement|null} [canvas3d] 版面 3D canvas
  */
 export function createPlayfieldBackground(canvas2d, canvas3d) {
-  const force2d = typeof location !== 'undefined' && /[?&]bg2d=1/.test(location.search);
-  try {
-    if (!force2d && canvas3d && getThree()) {
-      const bg = new PlayfieldStage3D(canvas3d);
-      canvas3d.hidden = false;
-      canvas3d.style.display = 'block';
-      return bg;
-    }
-  } catch (err) {
-    console.warn('[playfield3d] fallback to 2D:', err);
-  }
-  if (canvas3d) { canvas3d.hidden = true; canvas3d.style.display = 'none'; }
-  return new PlayfieldBackground();
+  return new AdaptivePlayfieldBackground(canvas2d, canvas3d);
 }
