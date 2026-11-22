@@ -271,6 +271,19 @@ PBR 场景（程序化 albedo/normal/roughness + 程序化 IBL 环境 + 实时�
 - **超现实部件**：`moon`（陨石坑巨月+大气光晕）、`skyEye`、`volumetricBeam`（体积神光）、`mistSheet`（滚动噪声雾墙）、`waterFloor`（法线反射水面）、`floatingRocks`、`coinField`（实例化金币）、`shardField`（玻璃碎镜）、`curtain`（CPU 摆动布幔）、`lightString`、`artPanel`（悬浮绘卷画幅）、`giantSeal`（发光巨型封印）、`hangingLights`、`hexLattice`（发光电路格栅）。
 - 既有 PD/CC0 绘卷仍作为**真实表面上的绘卷/壁毯/艺术画幅**出现（Billboard/artPanel），不是平面贴图背景。
 
+### 9.2b 运镜与场景过渡（2026-11-22 第三次修正）
+
+用户要求：「希望有镜头推进，但不是全流程都是向前走；场景要有过渡，包括关卡背景和 UI 背景。」
+
+- **相机运镜**（`PlayfieldStage3D._applyCameraMotion`）：每 mode 确定性节拍（boss 14s / 非 boss 19s 周期、相位按 mode 哈希）：
+  - 0–40% **推近**（相机沿 -Z 前进 3.6~5.4 单位，FOV 微张 1.2°）
+  - 40–64% **保持**（仅手持漂浮）
+  - 64–100% **缓退**回机位
+  - 场景物逼近速度同步乘 `_approachGain`（1~1.7），推近时纵深流动更快；**不是全程持续前进**
+  - 转场时额外推镜：相机从机位后方 +7.0 缓入到机位，FOV +3° 收束，形成「穿入下一幕」
+- **3D 场景过渡**（`FRAG_PRESENT` + `_capturePrev` + `_outRT`）：切 mode 前把当前后处理画面抓到 `_prevOutRT`；新场景构建后 1.05s 内旧快照→新画面交叉淡化，叠加推镜（新旧画面反向缩放）、闪白与轻微墨迹扰动；日常帧不增加 pass 开销。`prefers-reduced-motion` / `?bgtrans=0` 时退化为 CSS 闪白。
+- **UI 外围底材过渡**（`js/bg/backdrops.js` + `#stage-bg` / `#stage-bg-next` 双层）：交叉淡入 0.6s，旧层淡出、新层淡入；加载失败保留旧层，不黑底；减少动态效果时立即切换。与 3D 场景过渡相互独立降级。
+
 ### 9.3 分面气质（超现实母题）
 
 | stage | 场景 | 超现实 |

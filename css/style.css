@@ -1731,6 +1731,9 @@ input, select, textarea {
 
 .stage-bg.has-bg { opacity: 1; }
 
+/* 双层交叉淡入：stage-bg-next 在后（DOM 中更靠后，自然叠在前层之上）；#bg3d 画布仍保持在其上 */
+.stage-bg-next { z-index: 0; }
+
 /* Boss / 巡查面：底材略提饱和与对比，与版面场景升级呼应 */
 .stage-bg[data-boss="1"] { filter: saturate(1.12) contrast(1.04); }
 

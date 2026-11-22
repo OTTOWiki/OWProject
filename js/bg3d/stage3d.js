@@ -135,6 +135,37 @@ const FRAG_COMPOSITE = `
     gl_FragColor = vec4(linearToSRGB(max(color, 0.0)), 1.0);
   }`;
 
+
+/** 场景过渡合成：旧场景快照 → 新场景，推镜 + 闪光 + 轻微墨迹扰动 */
+const FRAG_PRESENT = `
+  uniform sampler2D tPrev; uniform sampler2D tCurr;
+  uniform float uMix; uniform float uFlash; uniform vec2 uResolution;
+  varying vec2 vUv;
+  void main(){
+    float m = clamp(uMix, 0.0, 1.0);
+    float e = m * m * (3.0 - 2.0 * m);
+    vec2 uv = vUv;
+    // 推镜：新场景由远及近（轻微放大），旧场景向外散开
+    vec2 uvC = (uv - 0.5) * (1.0 - 0.07 * (1.0 - e)) + 0.5;
+    vec2 uvP = (uv - 0.5) * (1.0 + 0.06 * e) + 0.5;
+    vec3 a = texture2D(tPrev, uvP).rgb;
+    vec3 b = texture2D(tCurr, uvC).rgb;
+    vec3 col = mix(a, b, e);
+    // 闪白（进入新场景瞬间的高光）
+    float flash = uFlash * (1.0 - e) * (1.0 - e);
+    col += flash * vec3(0.92, 0.90, 0.86);
+    // 墨迹带（超现实过渡：中段轻微横向噪声，不遮挡弹幕）
+    float band = smoothstep(0.02, 0.10, m) * smoothstep(0.92, 0.35, m);
+    float n = fract(sin(dot(uv * uResolution, vec2(12.9898, 78.233))) * 43758.5453);
+    col += band * (n - 0.5) * 0.05;
+    gl_FragColor = vec4(max(col, 0.0), 1.0);
+  }`;
+
+function smoothstep(a, b, x) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a || 1e-6)));
+  return t * t * (3 - 2 * t);
+}
+
 export class PlayfieldStage3D {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -180,6 +211,11 @@ export class PlayfieldStage3D {
     this._renderEvery = 1000 / 40;
     this._warned = false;
     this._contextLost = false;
+    this._reduceMotion = typeof matchMedia === 'function'
+      ? matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+    this._transition = null;
+    this._motion = null;
+    this._approachGain = 1;
 
     this._postOk = false;
     if (this.runtime.post) {
@@ -244,6 +280,21 @@ export class PlayfieldStage3D {
       tImage: { value: this._brightRT.texture },
       uDirection: { value: new THREE.Vector2(1 / bw, 0) },
     }, this._blurScene);
+
+    // 过渡/展示用：合成结果先进入 RGBA8 RT，再由 present pass 混合旧快照输出到屏幕
+    this._outRT = new THREE.WebGLRenderTarget(this._renderW, this._renderH, {
+      type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      depthBuffer: false, stencilBuffer: false,
+    });
+    this._prevOutRT = null;
+    this._presentScene = new THREE.Scene();
+    this._presentMat = makePass(FRAG_PRESENT, {
+      tPrev: { value: null },
+      tCurr: { value: this._outRT.texture },
+      uMix: { value: 1 },
+      uFlash: { value: 0 },
+      uResolution: { value: new THREE.Vector2(this._renderW, this._renderH) },
+    }, this._presentScene);
 
     this._compositeScene = new THREE.Scene();
     this._compositeMat = makePass(FRAG_COMPOSITE, {
@@ -354,10 +405,118 @@ export class PlayfieldStage3D {
     return ctx;
   }
 
+  /** 跑完整后处理链，输出到 target（null=屏幕） */
+  _renderPostTo(target) {
+    const r = this.renderer;
+    r.setRenderTarget(this._rt);
+    r.clear();
+    r.render(this.scene, this.camera);
+    this._brightMat.uniforms.tScene.value = this._rt.texture;
+    r.setRenderTarget(this._brightRT);
+    r.clear();
+    r.render(this._brightScene, this._quadCamera);
+    const bw = this._blurA.width;
+    const bh = this._blurA.height;
+    this._blurMat.uniforms.tImage.value = this._brightRT.texture;
+    this._blurMat.uniforms.uDirection.value.set(1 / bw, 0);
+    r.setRenderTarget(this._blurA);
+    r.clear();
+    r.render(this._blurScene, this._quadCamera);
+    this._blurMat.uniforms.tImage.value = this._blurA.texture;
+    this._blurMat.uniforms.uDirection.value.set(0, 1 / bh);
+    r.setRenderTarget(this._blurB);
+    r.clear();
+    r.render(this._blurScene, this._quadCamera);
+    this._blurMat.uniforms.tImage.value = this._blurB.texture;
+    this._blurMat.uniforms.uDirection.value.set(2.2 / bw, 0);
+    r.setRenderTarget(this._blurA);
+    r.clear();
+    r.render(this._blurScene, this._quadCamera);
+    this._blurMat.uniforms.tImage.value = this._blurA.texture;
+    this._blurMat.uniforms.uDirection.value.set(0, 2.2 / bh);
+    r.setRenderTarget(this._blurB);
+    r.clear();
+    r.render(this._blurScene, this._quadCamera);
+    this._compositeMat.uniforms.tScene.value = this._rt.texture;
+    this._compositeMat.uniforms.tBloom.value = this._blurB.texture;
+    r.setRenderTarget(target || null);
+    r.clear();
+    r.render(this._compositeScene, this._quadCamera);
+  }
+
+  /** 捕获当前画面快照（后处理后的 sRGB），用于场景过渡 */
+  _capturePrev() {
+    if (!this._postOk || !this.sceneReady) return false;
+    try {
+      const THREE = this.THREE;
+      if (!this._prevOutRT) {
+        this._prevOutRT = new THREE.WebGLRenderTarget(this._renderW, this._renderH, {
+          type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+          depthBuffer: false, stencilBuffer: false,
+        });
+      }
+      this._renderPostTo(this._prevOutRT);
+      return true;
+    } catch (err) {
+      console.warn('[bg3d] transition capture failed:', err);
+      return false;
+    }
+  }
+
+  /** 相机运镜：全流程不是一直向前——推近 / 保持 / 缓退的循环；转场时额外推镜 */
+  _setupCameraMotion(mode) {
+    let seed = 0;
+    for (let i = 0; i < mode.length; i++) seed = (seed * 31 + mode.charCodeAt(i)) & 0xffff;
+    const boss = /_boss$/.test(mode);
+    this._motion = {
+      t: 0,
+      amp: boss ? 5.4 : 3.6,
+      period: boss ? 14 : 19,
+      phase: ((seed % 997) / 997) * Math.PI * 2,
+      baseFov: 54,
+    };
+    this._approachGain = 1;
+    this.camera.position.set(0, 1.4, 0);
+    this.camera.fov = 54;
+    this.camera.updateProjectionMatrix();
+  }
+
+  _applyCameraMotion(dt) {
+    const m = this._motion;
+    if (!m) return 1;
+    m.t += dt;
+    const p = (((m.t + m.phase) % m.period) + m.period) % m.period / m.period;
+    // 0~40% 推近，40~64% 保持，64~100% 缓退
+    const push = smoothstep(0.03, 0.4, p) * smoothstep(0.96, 0.64, p);
+    const dolly = -m.amp * push;
+    let trans = 0;
+    let transFov = 0;
+    if (this._transition) {
+      const k = Math.min(1, this._transition.t / this._transition.dur);
+      const ease = 1 - Math.pow(1 - k, 3);
+      trans = (1 - ease) * 7.0;
+      transFov = (1 - ease) * 3.0;
+    }
+    const t = this.t;
+    const z = dolly + trans;
+    this.camera.position.x = Math.sin(t * 0.19) * this.swayX;
+    this.camera.position.y = 1.4 + Math.sin(t * 0.147 + 1.1) * this.swayY;
+    this.camera.position.z = z;
+    this.camera.fov = m.baseFov + 1.2 * push + transFov;
+    this.camera.updateProjectionMatrix();
+    this.camera.lookAt(0, 1.3, -14 - z * 0.12);
+    this.camera.rotation.z = Math.sin(t * 0.11) * 0.004;
+    this._approachGain = 1 + 0.7 * push + (trans ? 1.5 * (trans / 7.0) : 0);
+    return this._approachGain;
+  }
+
   setMode(mode, { transition = true } = {}) {
     const next = resolveBgMode(mode);
     if (this.sceneReady && next === this.mode) return;
+    const canTrans = !!(transition && this.sceneReady && this._postOk && !this._reduceMotion && this.runtime.post);
+    const captured = canTrans ? this._capturePrev() : false;
     this._clear();
+    this._transition = null;
     this.mode = next;
     this.stage = sceneFor(next)?.stage || 's1';
     this.palette = paletteForMode(next);
@@ -383,7 +542,15 @@ export class PlayfieldStage3D {
         this._compositeMat.uniforms.uHigh.value.set(1.0, 0.98 + glow.g * 0.03, 0.94 + glow.b * 0.05);
         this._compositeMat.uniforms.uTint.value.set(0.9 + accent.r * 0.12, 0.92 + accent.g * 0.1, 0.95 + accent.b * 0.1);
       }
-      if (transition) this.flash(0.5);
+      this._setupCameraMotion(next);
+      if (captured) {
+        this._transition = { t: 0, dur: 1.05, flash: 0.34 };
+        this._presentMat.uniforms.tPrev.value = this._prevOutRT.texture;
+        this._presentMat.uniforms.uMix.value = 0;
+        this._presentMat.uniforms.uFlash.value = 0.34;
+      } else if (transition) {
+        this.flash(0.5);
+      }
     } catch (err) {
       this._warn(err);
       this.sceneReady = false;
@@ -468,6 +635,10 @@ export class PlayfieldStage3D {
   update(dt) {
     this.t += dt;
     if (!this.sceneReady) return;
+    if (this._transition) {
+      this._transition.t += dt;
+      if (this._transition.t >= this._transition.dur) this._transition = null;
+    }
     const t = this.t;
     for (const item of this.animated) {
       if (item.custom) { item.custom(dt, t); continue; }
@@ -488,19 +659,17 @@ export class PlayfieldStage3D {
         if (orb.yAmp) o.position.y = Math.sin(a * 1.3) * orb.yAmp;
       }
     }
+    const gain = Math.min(1.9, this._approachGain * 1);
     for (const f of this.fields) {
       for (const it of f.items) {
-        it.o.position.z += this.speed * dt * f.speedMul;
+        it.o.position.z += this.speed * dt * f.speedMul * gain;
         if (it.o.position.z > -10) it.o.position.z -= f.range;
       }
     }
-    for (const ps of this.pointSets) K.updatePoints(ps, dt, t);
+    for (const ps of this.pointSets) K.updatePoints(ps, dt * Math.min(1.8, gain), t);
     this._updateSpecials(dt, t);
-    // 电影感手持漂浮（极轻微）
-    this.camera.position.x = Math.sin(t * 0.19) * this.swayX;
-    this.camera.position.y = 1.4 + Math.sin(t * 0.147 + 1.1) * this.swayY;
-    this.camera.lookAt(0, 1.3, -14);
-    this.camera.rotation.z = Math.sin(t * 0.11) * 0.004;
+    // 运镜：推近/保持/缓退 + 转场推镜 + 极轻微手持漂浮
+    this._applyCameraMotion(dt);
     if (this._postOk && this._compositeMat) this._compositeMat.uniforms.uTime.value = t;
   }
 
@@ -511,51 +680,29 @@ export class PlayfieldStage3D {
     this._lastRender = now;
     const r = this.renderer;
     if (!this._postOk) {
+      r.setRenderTarget(null);
       r.render(this.scene, this.camera);
       return;
     }
     try {
-      // 1) 场景 → HDR RT
-      r.setRenderTarget(this._rt);
-      r.clear();
-      r.render(this.scene, this.camera);
-      // 2) 亮部提取
-      this._brightMat.uniforms.tScene.value = this._rt.texture;
-      r.setRenderTarget(this._brightRT);
-      r.clear();
-      r.render(this._brightScene, this._quadCamera);
-      // 3) 两级高斯模糊（横/纵 ping-pong）
-      const bw = this._blurA.width;
-      const bh = this._blurA.height;
-      this._blurMat.uniforms.tImage.value = this._brightRT.texture;
-      this._blurMat.uniforms.uDirection.value.set(1 / bw, 0);
-      r.setRenderTarget(this._blurA);
-      r.clear();
-      r.render(this._blurScene, this._quadCamera);
-      this._blurMat.uniforms.tImage.value = this._blurA.texture;
-      this._blurMat.uniforms.uDirection.value.set(0, 1 / bh);
-      r.setRenderTarget(this._blurB);
-      r.clear();
-      r.render(this._blurScene, this._quadCamera);
-      // 第二次（更宽）
-      this._blurMat.uniforms.tImage.value = this._blurB.texture;
-      this._blurMat.uniforms.uDirection.value.set(2.2 / bw, 0);
-      r.setRenderTarget(this._blurA);
-      r.clear();
-      r.render(this._blurScene, this._quadCamera);
-      this._blurMat.uniforms.tImage.value = this._blurA.texture;
-      this._blurMat.uniforms.uDirection.value.set(0, 2.2 / bh);
-      r.setRenderTarget(this._blurB);
-      r.clear();
-      r.render(this._blurScene, this._quadCamera);
-      // 4) 合成 → 屏幕
-      this._compositeMat.uniforms.tScene.value = this._rt.texture;
-      this._compositeMat.uniforms.tBloom.value = this._blurB.texture;
-      r.setRenderTarget(null);
-      r.clear();
-      r.render(this._compositeScene, this._quadCamera);
+      if (this._transition && this._prevOutRT) {
+        // 场景过渡：新画面渲染到 outRT，再与旧快照混合（推镜 + 闪白），不中断游戏绘制
+        this._renderPostTo(this._outRT);
+        const m = this._presentMat.uniforms;
+        const k = Math.min(1, this._transition.t / this._transition.dur);
+        m.tPrev.value = this._prevOutRT.texture;
+        m.tCurr.value = this._outRT.texture;
+        m.uMix.value = k;
+        m.uFlash.value = this._transition.flash * (1 - k) * (1 - k);
+        r.setRenderTarget(null);
+        r.clear();
+        r.render(this._presentScene, this._quadCamera);
+      } else {
+        this._renderPostTo(null);
+      }
     } catch (err) {
       this._postOk = false;
+      this._transition = null;
       console.warn('[bg3d] post render failed, fallback direct:', err);
       r.setRenderTarget(null);
       r.render(this.scene, this.camera);
@@ -571,6 +718,9 @@ export class PlayfieldStage3D {
     this._brightMat?.dispose?.();
     this._blurMat?.dispose?.();
     this._compositeMat?.dispose?.();
+    this._outRT?.dispose?.();
+    this._prevOutRT?.dispose?.();
+    this._presentMat?.dispose?.();
     this.renderer?.dispose?.();
     this.is3D = false;
   }

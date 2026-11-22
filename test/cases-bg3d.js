@@ -87,3 +87,15 @@ test('3D 舞台层叠：2D 版面 canvas 不得有不透明 CSS 背景（否则�
   assert(bg, '#playfield 应显式声明 background');
   assert(/transparent|none|rgba\(0\s*,\s*0\s*,\s*0\s*,\s*0\)/.test(bg[1].trim()), `#playfield 背景必须透明，当前: ${bg[1].trim()}`);
 });
+
+test('3D 舞台运镜/过渡：相机分段推进与场景交叉淡化、UI 双层底材存在', () => {
+  const stage = readFileSync(new URL('../js/bg3d/stage3d.js', import.meta.url), 'utf8');
+  assert(/FRAG_PRESENT/.test(stage), '缺少场景过渡 present pass');
+  assert(/_capturePrev/.test(stage) && /_prevOutRT/.test(stage), '缺少旧画面快照捕获');
+  assert(/_applyCameraMotion/.test(stage) && /_motion/.test(stage), '缺少相机运镜');
+  assert(/_transition/.test(stage), '缺少转场状态');
+  const backdrops = readFileSync(new URL('../js/bg/backdrops.js', import.meta.url), 'utf8');
+  assert(/stage-bg-next/.test(backdrops), 'UI 底材需双层交叉淡入');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  assert(/\.stage-bg-next\s*\{/.test(css), 'CSS 缺少 .stage-bg-next 层');
+});
