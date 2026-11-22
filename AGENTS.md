@@ -124,7 +124,7 @@ js/
   input.js / audio.js / storage.js / debug.js
   backgrounds.js       # re-export → backgrounds/*
   backgrounds/         # 左侧 Three 印象场景（StageBackground、builders、scenes、textTexture、threeLoader、easing）
-  bg3d/                # 版面 3D 深入舞台：kit（Billboard/3D 部件）、stage3d（WebGL 渲染/循环逼近）、scenes/<stage>
+  bg3d/                # 版面 3D 深入舞台：kit（Billboard/3D 部件）、stage3d（WebGL 渲染/后处理）、cameraDirectors（每关独立镜头导演）、scenes/<stage>
   bg/                  # 版面 2D 绘卷兜底：schema/materials/particles/atoms/renderer/scenes/backdrops
   bgModes.js / playfieldBg.js
   sprites.js / assets.js
@@ -184,7 +184,8 @@ docs/                  # 内部改造队列等（非运行时）
 | `pool.js` | 泛型对象池（bullet/item/particle 共用 `acquire`/`release`/`releaseList`/`purgeDead`） | 实体语义 |
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
-| `bg3d/stage3d.js` | 版面主背景：450×600 WebGL 舞台；**叙事旅程运镜**（每章出发→赶路→抵达→驻留，三面 fork/rush 特殊运镜）、HDR 后处理、场景过渡、雾/粒子；Three/WebGL 失败时由工厂回退 2D | 章节流程 / 弹幕 |
+| `bg3d/stage3d.js` | 版面主背景：450×600 WebGL 舞台；应用**每关独立镜头导演**（`cameraDirectors.js`）、HDR 后处理、场景过渡、雾/粒子；Three/WebGL 失败时由工厂回退 2D | 章节流程 / 弹幕 |
+| `bg3d/cameraDirectors.js` | 21 mode 的独立镜头导演（变速/转向/升降/横移/环绕/停顿/倾斜/步进自由组合），确定性、不进玩法随机流 | 渲染管线 / 场景几何 |
 | `bg3d/kit.js` | 3D 部件与 Billboard：绘卷裁片/材质、鸟居/宝塔/方尖碑/棘轮/摩天轮/灯笼/格栅/眼/宝瓶/门/地面/粒子 | 场景叙事编排 |
 | `bg3d/scenes/*` | 每 stage 的 3D builder（mid/boss，超现实构图）+ 通用氛围 `_atmo.js` | 全局状态机 |
 | `bg/renderer.js` | 2D 绘卷兜底渲染（静态层烘缓存 + 动画层 + 粒子 + fx），`PlayfieldBackground` 复用 | 3D 主路径 / 章流程 |
@@ -260,7 +261,7 @@ docs/                  # 内部改造队列等（非运行时）
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
 - 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
 - `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo 同时有版面内连击/剩余窗口与 HUD 主读数；前三面底部绘制 A/B 倾向条。难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
-- **关卡版面背景 = 超写实 3D 深入舞台**（用户 2026-11-22 方向，第二次修正为「超写实超现实」）：PBR 程序化材质 + 程序化 IBL + 实时阴影 + 体积光/雾墙/镜面水 + HDR 泛光与 ACES 色调后处理；`#playfield-bg3d` WebGL canvas 位于 2D 版面 canvas 之下；相机固定、景物循环逼近，混合云/雾/浪/草木/绘卷裁片 Billboard 与鸟居/宝塔/方尖碑/棘轮/摩天轮等真 3D 物体，超现实构图（倒置鸟居、浮空巨月/巨轮、悬浮画幅拼贴、数据门）。实现 `js/bg3d/`，场景数据 `js/bg3d/scenes/<stage>.js`；Three/WebGL 失败自动回退 2D 绘卷（`js/bg/`）。**`#playfield` 2D canvas 的 CSS 背景必须为 `transparent`**，否则会遮住下方 3D 层；低配/自测可用 `?bgscale=0.5~1`（内部渲染分辨率，CSS 仍铺满）、`?bgshadow=256~1024`、`?no3dleft=1`（跳过左侧不可见 WebGL 层）、`?bg2d=1`（强制 2D 兜底）、`?bgpost=0`（仅诊断，会改变观感），默认不影响美术效果。相机为**叙事旅程运镜**：每章单向推进（出发→赶路→抵达→驻留），三面（s3）mid 左右张望两条路线（fork）、boss 加速冲入门内（rush）；转场有 3D 快照交叉淡化 + UI 底材双层淡入（`#stage-bg` / `#stage-bg-next`），减少动态效果时退化。设计/分面 brief 见 `docs/level-background-redesign.md`。
+- **关卡版面背景 = 超写实 3D 深入舞台**（用户 2026-11-22 方向，第二次修正为「超写实超现实」）：PBR 程序化材质 + 程序化 IBL + 实时阴影 + 体积光/雾墙/镜面水 + HDR 泛光与 ACES 色调后处理；`#playfield-bg3d` WebGL canvas 位于 2D 版面 canvas 之下；相机固定、景物循环逼近，混合云/雾/浪/草木/绘卷裁片 Billboard 与鸟居/宝塔/方尖碑/棘轮/摩天轮等真 3D 物体，超现实构图（倒置鸟居、浮空巨月/巨轮、悬浮画幅拼贴、数据门）。实现 `js/bg3d/`，场景数据 `js/bg3d/scenes/<stage>.js`；Three/WebGL 失败自动回退 2D 绘卷（`js/bg/`）。**`#playfield` 2D canvas 的 CSS 背景必须为 `transparent`**，否则会遮住下方 3D 层；低配/自测可用 `?bgscale=0.5~1`（内部渲染分辨率，CSS 仍铺满）、`?bgshadow=256~1024`、`?no3dleft=1`（跳过左侧不可见 WebGL 层）、`?bg2d=1`（强制 2D 兜底）、`?bgpost=0`（仅诊断，会改变观感），默认不影响美术效果。相机为**每关独立镜头导演**（`js/bg3d/cameraDirectors.js`，21 mode 各一套：变速/转向/升降/横移/环绕/停顿/倾斜/步进自由组合；如 s2 扫描式步进、a4 横向逛市、a6 矿车颠簸、ex 故障甩头，s3 路口左右张望、boss 冲门）；转场有 3D 快照交叉淡化 + UI 底材双层淡入（`#stage-bg` / `#stage-bg-next`），减少动态效果时退化。设计/分面 brief 见 `docs/level-background-redesign.md`。
 - 外围舞台底材：每面一张 `assets/bg/backdrop/<stage>.avif`（公有领域/CC0 藏品处理），由 `js/bg/backdrops.js` 淡入切换；加载失败保持 `battle-print.avif` 兜底。
 - `StageBackground(canvas, { rand })` 仍是左侧 Three 印象场景（低透明度，版面 3D 启用时不渲染），装饰随机全走 `bg.__rand`，不消费玩法种子流。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）

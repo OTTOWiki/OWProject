@@ -100,11 +100,28 @@ test('3D 舞台运镜/过渡：相机分段推进与场景交叉淡化、UI 双�
   assert(/\.stage-bg-next\s*\{/.test(css), 'CSS 缺少 .stage-bg-next 层');
 });
 
-test('叙事运镜：一段章节一段旅程（JOURNEY）+ 三面特殊运镜（fork/rush）', () => {
+test('每关独立镜头导演：21 mode 全覆盖、实现互不相同、stage3d 使用导演系统', async () => {
+  const mod = await import('../js/bg3d/cameraDirectors.js');
+  assertEqual(typeof mod.makeCameraDirector, 'function');
+  const modes = mod.cameraDirectorModes();
+  const expected = [
+    's1_mid', 's1_boss', 's2_mid', 's2_boss', 's3_mid', 's3_boss', 'patrol',
+    'a4_mid', 'a4_boss', 'a5_mid', 'a5_boss', 'a6_mid', 'a6_boss',
+    'b4_mid', 'b4_boss', 'b5_mid', 'b5_boss', 'b6_mid', 'b6_boss', 'ex_mid', 'ex_boss',
+  ];
+  assertEqual(modes.length, expected.length, '导演数量');
+  for (const m of expected) assert(modes.includes(m), `缺少镜头导演: ${m}`);
+  // 每关镜头必须是独立实现，不能 21 关共用同一函数
+  const sources = new Set();
+  for (const m of expected) sources.add(mod.cameraDirectorSource(m));
+  assert(sources.size >= expected.length - 1, `镜头导演实现重复过多: ${sources.size}/${expected.length}`);
   const src = readFileSync(new URL('../js/bg3d/stage3d.js', import.meta.url), 'utf8');
-  assert(/const JOURNEY = \{/.test(src), '缺少逐 stage 的叙事旅程配置');
-  assert(/function journeyProgress/.test(src), '缺少出发→赶路→抵达进度曲线');
-  assert(/special === 'fork'/.test(src), '缺少三面 mid 左右张望运镜');
-  assert(/special === 'rush'/.test(src), '缺少三面 boss 冲门运镜');
-  assert(!/_applyCameraMotionUnused/.test(src), '不应保留废弃运镜实现');
+  assert(/makeCameraDirector/.test(src), 'stage3d 必须使用 per-mode 镜头导演');
+  assert(!/const JOURNEY =/.test(src), '旧的统一 JOURNEY 模板应已移除');
+  // 导演采样必须确定、可重复
+  const d = mod.makeCameraDirector('a4_mid', 'a4');
+  const s1 = d.sample({ u: 0.4, t: 12, boss: false, stage: 'a4' });
+  const s2 = d.sample({ u: 0.4, t: 12, boss: false, stage: 'a4' });
+  assertEqual(JSON.stringify(s1), JSON.stringify(s2));
+  assertEqual(typeof s1.z, 'number');
 });

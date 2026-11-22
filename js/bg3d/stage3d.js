@@ -14,6 +14,7 @@ import { SCENES3D } from './scenes/index.js';
 import { sceneFor } from '../bg/scenes/index.js';
 import { STAGE_PALETTES } from '../bg/scenes/_stub.js';
 import * as K from './kit.js';
+import { makeCameraDirector } from './cameraDirectors.js';
 
 const W = 450;
 const H = 600;
@@ -69,30 +70,6 @@ export function paletteForMode(mode) {
     seal: cssToHex(merged.seal || '#b3342e'),
     ambient: mixHex(cssToHex(merged.ink || '#05070a'), 0x6a7488, 0.55),
   };
-}
-
-/**
- * 叙事运镜配置：「主角正在前往某处」——相机单向推进，按「出发→赶路→抵达→驻留」分段，
- * 不再是来回呼吸式推拉。dist=本段旅程推进距离；dur=抵达耗时；destX/destY=目的地大致方向（用于视线与偏移）；
- * boss 面推进更远更快、抵达后驻留，给 Boss 战稳定构图。
- */
-const JOURNEY = {
-  s1: { dist: 20, dur: 30, destX: 4.5, destY: 9 },
-  s2: { dist: 18, dur: 28, destX: 0, destY: 8 },
-  s3: { dist: 18, dur: 28, destX: 0, destY: 11 },
-  patrol: { dist: 16, dur: 26, destX: 0, destY: 15 },
-  a4: { dist: 18, dur: 28, destX: 0, destY: 8 },
-  a5: { dist: 18, dur: 28, destX: 0, destY: 9 },
-  a6: { dist: 16, dur: 26, destX: -8, destY: 11 },
-  b4: { dist: 20, dur: 30, destX: 0, destY: 8 },
-  b5: { dist: 18, dur: 28, destX: 0, destY: 7 },
-  b6: { dist: 18, dur: 28, destX: 0, destY: 10 },
-  ex: { dist: 22, dur: 32, destX: 0, destY: 10 },
-};
-
-/** 出发→赶路→抵达：速度先慢后快再收住，同时保证 0..1 单调 */
-function journeyProgress(k) {
-  return 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, k)));
 }
 
 const VERT_QUAD = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -488,30 +465,22 @@ export class PlayfieldStage3D {
   }
 
   /**
-   * 叙事运镜：这一章是「一段旅程」——相机从出发位单向推进到目的地并驻留。
-   * 不来回呼吸：推近后不退回，靠切面的场景过渡进入下一段旅程。
+   * 镜头导演：每个 mode 一套独立镜头设计（js/bg3d/cameraDirectors.js）。
+   * 本章的镜头语言由导演决定：变速/转向/升降/横移/环绕/停顿/倾斜/步进均可自由组合。
    */
   _setupCameraMotion(mode) {
-    const stage = this.stage || 's1';
-    const boss = /_boss$/.test(mode);
-    const base = JOURNEY[stage] || JOURNEY.s1;
-    // 三面（分歧的十字路口）特殊运镜：mid = 抵达路口后左右「张望」两条路线；
-    // boss = 选定路线后加速冲入防火墙门的压迫感推进。
-    const special = stage === 's3' ? (boss ? 'rush' : 'fork') : null;
+    const director = makeCameraDirector(mode, this.stage);
     this._motion = {
       t: 0,
-      dist: base.dist * (boss ? 1.18 : 1) * (special === 'fork' ? 0.78 : 1) * (special === 'rush' ? 1.02 : 1),
-      dur: base.dur * (boss ? 0.8 : 1) * (special === 'fork' ? 1.05 : 1) * (special === 'rush' ? 0.72 : 1),
-      destX: base.destX,
-      destY: base.destY,
+      dur: director.dur || 28,
+      director,
+      boss: /_boss$/.test(mode),
       progress: 0,
       speed: 0,
-      boss,
-      special,
     };
     this._approachGain = 1;
     this.camera.position.set(0, 1.4, 0);
-    this.camera.fov = boss ? 58 : 56;
+    this.camera.fov = 56;
     this.camera.updateProjectionMatrix();
   }
 
@@ -519,55 +488,31 @@ export class PlayfieldStage3D {
     const m = this._motion;
     if (!m) return 1;
     m.t += dt;
-    const k = Math.min(1, m.t / m.dur);
-    const prog = journeyProgress(k);
-    m.progress = prog;
-    // 速度剖面：出发慢 → 赶路快 → 抵达收住（抵达后驻留，不再退回）
-    const speed = Math.sin(Math.PI * k);
-    m.speed = speed;
-    // 单向推进的距离（不回头）；抵达后停在目的地前
-    let z = -m.dist * prog;
+    const uRaw = m.t / m.dur;
+    const out = m.director.sample({
+      u: uRaw,
+      t: m.t,
+      boss: m.boss,
+      stage: this.stage,
+      palette: this.palette,
+    });
+    let z = out.z || 0;
     let transZ = 0;
     if (this._transition) {
       const tk = Math.min(1, this._transition.t / this._transition.dur);
       const te = 1 - Math.pow(1 - tk, 3);
-      transZ = (1 - te) * 7.0; // 从机位后方推入，形成「进入这一幕」
+      transZ = (1 - te) * 7.0;
       z += transZ;
     }
-    const t = this.t;
-    let xOff = Math.sin(t * 0.17) * this.swayX + m.destX * 0.14 * prog;
-    let lookX = m.destX * 0.10 * prog;
-    let lookY = 1.3 + (m.destY - 1.3) * 0.16 * prog;
-    let fovBase = m.boss ? 58 : 56;
-    // 三面 mid「抉择路口」：抵达路口后向左、再向右张望两条路，再收回中心凝视石门
-    if (m.special === 'fork') {
-      const u = Math.min(1, Math.max(0, (k - 0.30) / 0.52));
-      const pan = Math.sin(Math.PI * 2 * u);            // 先左后右再回中
-      const settle = Math.min(1, Math.max(0, (k - 0.78) / 0.22));
-      const amp = 1 - settle * 0.65;
-      xOff += pan * 4.4 * amp;
-      lookX += pan * 7.2 * amp;
-      lookY += 0.6 * amp * Math.abs(pan);
-      fovBase = 56 - 1.5 * Math.abs(pan) * amp;
-    }
-    // 三面 boss「冲入门内」：更强推镜 + 轻微加速震动，抵达后收住
-    if (m.special === 'rush') {
-      fovBase = 60 - 5.4 * prog;
-      const shake = Math.sin(t * 23.0) * 0.006 * speed * (1 - prog);
-      this.camera.rotation.z = shake;
-      lookY += 0.9 * prog;
-    } else {
-      this.camera.rotation.z = Math.sin(t * 0.11) * 0.0035 + m.destX * 0.002 * prog;
-    }
-    // 路线感：横向缓缓贴近目的地，高度略降（像在向低处的目标前进）
-    this.camera.position.x = xOff;
-    this.camera.position.y = 1.4
-      + Math.sin(t * 0.147 + 1.1) * this.swayY
-      - 0.28 * prog;
-    this.camera.position.z = z;
-    this.camera.fov = fovBase - 4.2 * prog + (transZ ? (transZ / 7.0) * 3.0 : 0);
-    this.camera.lookAt(lookX, lookY, z - 18);
-    this._approachGain = 0.42 + 1.55 * speed + (transZ ? 1.4 * (transZ / 7.0) : 0);
+    m.progress = Math.min(1, uRaw);
+    m.speed = out.gain || 1;
+    this.camera.position.set(out.x || 0, out.y ?? 1.4, z);
+    this.camera.fov = (out.fov || 56) + (transZ ? (transZ / 7.0) * 3.0 : 0);
+    this.camera.updateProjectionMatrix();
+    const lookZ = z + (out.lookZ ?? -18);
+    this.camera.lookAt(out.lookX || 0, out.lookY ?? 1.3, lookZ);
+    this.camera.rotation.z = out.roll || 0;
+    this._approachGain = (out.gain || 1) + (transZ ? 1.4 * (transZ / 7.0) : 0);
     return this._approachGain;
   }
 
