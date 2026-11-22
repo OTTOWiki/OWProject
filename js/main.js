@@ -434,7 +434,7 @@ async function boot() {
     setLoadStatus('正在准备游戏缓存');
     try {
       const warmResults = await withTimeout(
-        Promise.all([preloadArtAssets(), preloadSprites(), preloadPlayfieldBg()]),
+        Promise.all([preloadArtAssets(), preloadSprites()]),
         10000,
         '资源缓存预热',
       );
@@ -505,9 +505,12 @@ async function boot() {
     try {
       // three 加载失败时 loadThreeModule 抛聚合错误（含各镜像原因），占位 UI 展示
       setLoadStatus('正在准备 Three 场景');
+      // 减压测试：左侧印象场景在版面 3D 启用时本就不渲染，可直接跳过其 WebGL 上下文
+      const skipLeft = typeof location !== 'undefined' && /[?&]no3dleft=1/.test(location.search);
       await threeReady;
       if (threeErr) throw threeErr;
-      background = initBackground();
+      if (!skipLeft) background = initBackground();
+      else background = { setMode() {}, setTendency() {}, update() {} };
     } catch (err) {
       console.warn('Three.js background failed:', err);
       startupIssues.push({ kind: 'three', error: err });
@@ -564,6 +567,10 @@ async function boot() {
     game.applySettings();
     installDebug(game);
     bindScoreRanking(game);
+    // 版面背景素材/首章 3D 舞台放到菜单期预热（不阻塞启动；完成后 warmup 避免首次进关卡顿）
+    preloadPlayfieldBg()
+      .then(() => { try { game.playBg?.warmup?.('s1_mid'); } catch (err) { console.warn('[playfield3d] warmup failed:', err); } })
+      .catch((err) => { console.warn('[playfield3d] preload failed:', err); });
 
     // 印象场景加载失败占位：重试 → 重新加载 three 并替换 game 使用的背景
     const retryBtn = document.getElementById('bg3d-fallback-retry');

@@ -35,6 +35,25 @@
 - `ui/tendency-plate.avif`：版面内 A/B 倾向条的暗漆板底衬。以 **《Rough Waves》**（尾形光琳，约 1704–9，大都会艺术博物馆 44918，**Public Domain**，https://www.metmuseum.org/art/collection/search/44918 ）浪纹裁片为源，做深青绿双色调、叠加暗漆底与上下金线、四边羽化 alpha，导出 728×92 AVIF；源图与处理脚本不进入运行时（仅存于本地忽略目录），不是从东方原作提取的素材。
 - `ui/scene-wipe-mask.avif`：本项目原创程序绘制的 256×256 周期基础 alpha 遮罩，不复制或逐点描摹原作纹理；白色 RGB 与上缘渐变 alpha 仅用于控制场景过渡透明度，图像下部为 alpha 255 实心区，左右边界在周期接缝处连续。该素材不是可见过渡背景，过渡期间实际可见图像始终来自下一场景背景。AVIF 使用 `Color` 与 `Alpha` 两路；透明外部为 alpha 0，渐变边缘保留 0–255 中间 alpha。
 
+
+### 关卡背景素材（P6 绘卷 3D 舞台，2026-11-22）
+
+- `bg/scene/*.avif`（11 张，900×1200）：版面 3D 舞台的 Billboard 绘卷贴图；`bg/backdrop/*.avif`（11 张，1600×1000）：战斗外围舞台底材；`bg/mat/*.avif`（8 张）：3D 场景材质（gold/ink/washi/wave/mist/cloud/grass/plum）。
+- 全部由下列**公有领域 / CC0** 博物馆开放获取藏品经裁切、取景、双色调/主色映射、压暗、暗角与颗粒处理；不是从东方原作提取的游戏素材，也不含 AI 生成图。
+- 处理可复现：`tools/bg-assets/fetch-sources.sh`（API 检索 + 下载 + 许可证核验）与 `tools/bg-assets/build-assets.sh`（ImageMagick/avifenc 全量命令）；源图与许可证证据仅在本地 `.scratch/bg-assets/`，不随仓库分发。
+- 来源清单（`tools/bg-assets/sources.json` 为机器可读权威）：
+  - **Chrysanthemums by a Stream** / Ogata Kōrin (Japanese, 1658–1716), with Kenzan (attr.) / c. 1715–30 or after / Cleveland Museum of Art 1958.206.2 / CC0 1.0 (Cleveland Museum of Art Open Access; API share_license_status = "CC0") / https://clevelandart.org/art/1958.206.2 / 用于 s3、a4、a5
+  - **Moon and Autumn Grasses** / Tawaraya Sōtatsu / mid- to late 17th century / The Metropolitan Museum of Art 1975.268.60, .61 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/48923 / 用于 s1、mat/gold、mat/grass
+  - **Splashed-Ink Landscape** / Bokushō Shūshō / early 16th century / The Metropolitan Museum of Art 2015.300.55 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/53228 / 用于 b6、mat/ink
+  - **White Plum Blossoms and Moon** / Itō Jakuchū / 1755 / The Metropolitan Museum of Art 2015.300.213 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/53408 / 用于 a6、mat/plum
+  - **God of Thunder (Raijin)** / Tawaraya Sōtatsu workshop / mid-17th century / Cleveland Museum of Art 2004.86 / CC0 1.0 (Cleveland Museum of Art Open Access; API share_license_status = "CC0") / https://clevelandart.org/art/2004.86 / 用于 s2、patrol、ex
+  - **Rough Waves** / Ogata Kōrin / ca. 1704–9 / The Metropolitan Museum of Art 26.117 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/44918 / 用于 a5、b4、ex、mat/wave
+  - **Sudden Shower over Shin-Ōhashi Bridge and Atake (Ōhashi Atake no yūdachi), from One Hundred Famous Views of Edo** / Utagawa Hiroshige / 1857 / The Metropolitan Museum of Art JP2522 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/55433 / 用于 b5
+  - **Fireworks at Ryōgoku Bridge, from One Hundred Famous Views of Edo** / Utagawa Hiroshige / 1858 / The Metropolitan Museum of Art JP642 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/37093 / 用于 a6
+  - **The Torii Gate of Gion Shrine** / Unknown (Japanese, early 17th century) / early 17th century / The Metropolitan Museum of Art 60.164 / Public Domain (The Metropolitan Museum of Art Open Access; API isPublicDomain = true) / https://www.metmuseum.org/art/collection/search/45095 / 用于 s1、s3、mat/cloud
+  - **Hell Scroll, Fire-Shaped Hell (火象地獄)** / Takeda Nobuo / Kaneko Kazuzō / Nissha Printing (reproduction publication) / 12th century original; modern reproduction / Wikimedia Commons (PD/CC0 reproduction of a Japanese National Treasure scroll) / CC0 1.0 (Wikimedia Commons extmetadata LicenseShortName = "CC0", License = "cc0") / https://commons.wikimedia.org/wiki/File:Hell_Scroll_%E7%81%AB%E8%B1%A1%E5%9C%B0%E7%8D%84.jpg / 用于 patrol、b4
+- 逐文件映射与处理参数见各 stage 的 `usedIn` 字段；scene 与 backdrop 为同一 master 的竖/横取景，boss 观感差异由运行时调色而非另存素材。
+- 授权合规：以上均为博物馆明确标注的 CC0 / Public Domain（Met Open Access、CMA Open Access、Wikimedia Commons PD 复刻）；素材随仓库分发不等于 GPL 授权，复用时请自行核对原始来源与许可。
 ## 通用二次创作条件（本项目遵守）
 
 - 明确标注本作是 **基于东方 Project 的二次创作 / fan work**。

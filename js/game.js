@@ -33,7 +33,7 @@ import {
 import { saveReplay } from './replayStore.js';
 import { formatRunStats } from './runStats.js';
 import { handleScoreRankingKey, isScoreRankingOpen } from './scoreRanking.js';
-import { PlayfieldBackground } from './playfieldBg.js';
+import { createPlayfieldBackground } from './playfieldBg.js';
 import {
   createHudCache, updateGameHud, updateLetterHud,
 } from './hud.js';
@@ -79,7 +79,7 @@ export class Game {
     this.mode = 'story'; // story | practice | stage | extra | nomiss
     this.raf = 0;
     this.lastT = 0;
-    this.playBg = new PlayfieldBackground();
+    this.playBg = createPlayfieldBackground(this.canvas, document.getElementById('playfield-bg3d'));
     this._lastBgMode = null;
     const initSettings = loadSettings();
     this.playerBulletOpacity = initSettings.playerBulletOpacity;
@@ -524,9 +524,9 @@ export class Game {
         }
       }
       if (shouldDraw) {
-        // Three 背景渲染随描画节流，不随固定 60Hz 逻辑步进（与 drawGameFrame 同频）
+        // 左侧 Three 印象场景在版面 3D 启用时不渲染（opacity 0.025 且被战斗底材覆盖，省 GPU）
         try {
-          this.background?.update();
+          if (!this.playBg?.is3D) this.background?.update();
         } catch (err) {
           console.error('[game bg]', err);
         }

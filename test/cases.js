@@ -26,6 +26,7 @@ import './cases-golden.js';
 import './cases-bg-rng.js';
 import './cases-bg-easing.js';
 import './cases-bg-schema.js';
+import './cases-bg3d.js';
 import './cases-menu-repeat.js';
 import './cases-services.js';
 import './cases-mobile.js';

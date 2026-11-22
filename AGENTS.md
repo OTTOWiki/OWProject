@@ -91,7 +91,7 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
 - E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/mobile-landscape/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|three|nomiss|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|menu-repeat|services|mobile.js` + `mockGame.js`（共 27 个用例模块，以 `test/cases.js` 为准）
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|three|nomiss|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|bg3d|menu-repeat|services|mobile.js` + `mockGame.js`（共 28 个用例模块，以 `test/cases.js` 为准）
 - CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
 - CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。E2E 默认**不在每个 PR 跑**：仅给最终集成 PR 加 `run-e2e` 标签，或 `workflow_dispatch` 手动触发；小改动只等 `Test`
 - **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 由最终 PR 的 `run-e2e` 标签统一跑一次，避免逐 PR 等待 14–16 分钟
@@ -123,8 +123,10 @@ js/
   ranking.js / rankingScreen.js / scoreRanking.js / replay.js / replayCodec.js / replayStore.js / replayScreen.js / rng.js
   input.js / audio.js / storage.js / debug.js
   backgrounds.js       # re-export → backgrounds/*
-  backgrounds/         # StageBackground、builders、scenes、textTexture、threeLoader、atoms2d、easing
-  bgModes.js / playfieldBg.js / playfieldBgThemes.js
+  backgrounds/         # 左侧 Three 印象场景（StageBackground、builders、scenes、textTexture、threeLoader、easing）
+  bg3d/                # 版面 3D 深入舞台：kit（Billboard/3D 部件）、stage3d（WebGL 渲染/后处理）、cameraDirectors（每关独立镜头导演）、scenes/<stage>
+  bg/                  # 版面 2D 绘卷兜底：schema/materials/particles/atoms/renderer/scenes/backdrops
+  bgModes.js / playfieldBg.js
   sprites.js / assets.js
   pool.js              # 泛型对象池（bullet/item/particle 共用）
   bulletPool.js / itemPool.js / particlePool.js
@@ -182,11 +184,15 @@ docs/                  # 内部改造队列等（非运行时）
 | `pool.js` | 泛型对象池（bullet/item/particle 共用 `acquire`/`release`/`releaseList`/`purgeDead`） | 实体语义 |
 | `spawnScale.js` | 敌机/敌弹难度缩放 | 关卡编排 |
 | `ui.js` + `settingsForm.js` | 菜单 / 设置表单 | 碰撞得分 |
-| `backgrounds/atoms2d.js` | 旧版面剪影/侧柱具名 Canvas2D 原子；仍被 `playfieldBg.js` 运行时 import（随旧系统冻结，不再扩展 kind/sil；新系统只可作视觉参考） | 新背景实现 / 场景数据 |
-| `backgrounds/easing.js` | 32 个背景缓动 mode（26 条曲线；0/7/8/17 在 `ease()` 内退化为线性，7/8/17 由 Interpolation 承接；15/16 为常量）+ Interpolation（P3，运行时不 import，仅测试/待接线） | 运行时场景 / 绘制 |
-| `bgModes.js` | stageKey→mode、贴图路径 | 几何绘制 |
-| `backgrounds/*` | 共享舞台 Three 场景 | 版面 Canvas |
-| `playfieldBgThemes.js` | **已废弃待重做**的旧版面主题表；冻结新增 | Three 场景 / 新背景 |
+| `bg3d/stage3d.js` | 版面主背景：450×600 WebGL 舞台；应用**每关独立镜头导演**（`cameraDirectors.js`）、HDR 后处理、场景过渡、雾/粒子；Three/WebGL 失败时由工厂回退 2D | 章节流程 / 弹幕 |
+| `bg3d/cameraDirectors.js` | 21 mode 的独立镜头导演（变速/转向/升降/横移/环绕/停顿/倾斜/步进自由组合），确定性、不进玩法随机流 | 渲染管线 / 场景几何 |
+| `bg3d/kit.js` | 3D 部件与 Billboard：绘卷裁片/材质、鸟居/宝塔/方尖碑/棘轮/摩天轮/灯笼/格栅/眼/宝瓶/门/地面/粒子 | 场景叙事编排 |
+| `bg3d/scenes/*` | 每 stage 的 3D builder（mid/boss，超现实构图）+ 通用氛围 `_atmo.js` | 全局状态机 |
+| `bg/renderer.js` | 2D 绘卷兜底渲染（静态层烘缓存 + 动画层 + 粒子 + fx），`PlayfieldBackground` 复用 | 3D 主路径 / 章流程 |
+| `bg/scenes/*` | 2D 兜底场景数据（与 3D 同 brief；不再投入新美术） | 3D 场景实现 |
+| `bgModes.js` | stageKey→mode 唯一登记；`PLAYFIELD_BG_TEX`（scene plate）/`STAGE_BACKDROP`（外围底材）路径 | 几何绘制 / 文件路径 |
+| `bg/backdrops.js` | 外围 `.stage-bg` 每面底材切换（淡入、失败保持 battle-print 兜底） | 版面 Canvas |
+| `backgrounds/*` | 左侧共享舞台 Three 印象场景（`#bg3d`，低透明度；版面 3D 启用时不渲染） | 版面 Canvas / 新背景 |
 | `rng.js` | 种子 PRNG（mulberry32）+ `withSeededRng` | 业务逻辑 |
 | `ranking.js` | 排行榜纯函数 + localStorage（按难度 top10） | UI / 录像 |
 | `rankingScreen.js` | 排行榜屏（难度切换 + 列表） | 游戏逻辑 |
@@ -255,8 +261,9 @@ docs/                  # 内部改造队列等（非运行时）
 - OGG：`assets/bgm/` + `AUDIO_FILE_MAP` / `trackForStage`（`audio.js`）
 - 共享纸墨／Three 背景，左侧只含标题装饰，中间 Canvas 版面，右侧 HUD 与触控。
 - `hud.js` 消费真实状态并按变化更新：Lives/Bomb 最多 8 个资源格，完整数量及超出部分另显；Edit 为真实 0–100 进度。Combo 同时有版面内连击/剩余窗口与 HUD 主读数；前三面底部绘制 A/B 倾向条。难度与 Replay/Nomiss/Practice/Stage 标识分开。分数显示滚动缓动（`stepScoreRoll`），仅对局中；暂停时对齐真值，数据层始终用 `game.score`。
-- **旧版面背景系统已废弃待重做**（`playfieldBg.js` / `playfieldBgThemes.js` / `atoms2d.js` 冻结，不再新增 mode/视觉；`atoms2d.js` 仍被 `playfieldBg.js` 运行时 import，勿删；见 `docs/background-rebuild-plan.md`）。
-- 背景构建：`StageBackground(canvas, { rand })` 可注入装饰随机源（默认 `Math.random`），scenes 全走 `bg.__rand`，不消费玩法种子流。
+- **关卡版面背景 = 超写实 3D 深入舞台**（用户 2026-11-22 方向，第二次修正为「超写实超现实」）：PBR 程序化材质 + 程序化 IBL + 实时阴影 + 体积光/雾墙/镜面水 + HDR 泛光与 ACES 色调后处理；`#playfield-bg3d` WebGL canvas 位于 2D 版面 canvas 之下；相机固定、景物循环逼近，混合云/雾/浪/草木/绘卷裁片 Billboard 与鸟居/宝塔/方尖碑/棘轮/摩天轮等真 3D 物体，超现实构图（倒置鸟居、浮空巨月/巨轮、悬浮画幅拼贴、数据门）。实现 `js/bg3d/`，场景数据 `js/bg3d/scenes/<stage>.js`；Three/WebGL 失败自动回退 2D 绘卷（`js/bg/`）。**`#playfield` 2D canvas 的 CSS 背景必须为 `transparent`**，否则会遮住下方 3D 层；低配/自测可用 `?bgscale=0.5~1`（内部渲染分辨率，CSS 仍铺满）、`?bgshadow=256~1024`、`?no3dleft=1`（跳过左侧不可见 WebGL 层）、`?bg2d=1`（强制 2D 兜底）、`?bgpost=0`（仅诊断，会改变观感），默认不影响美术效果。相机为**每关独立镜头导演**（`js/bg3d/cameraDirectors.js`，21 mode 各一套：变速/转向/升降/横移/环绕/停顿/倾斜/步进自由组合；如 s2 扫描式步进、a4 横向逛市、a6 矿车颠簸、ex 故障甩头，s3 路口左右张望、boss 冲门）；转场有 3D 快照交叉淡化 + UI 底材双层淡入（`#stage-bg` / `#stage-bg-next`），减少动态效果时退化。设计/分面 brief 见 `docs/level-background-redesign.md`。
+- 外围舞台底材：每面一张 `assets/bg/backdrop/<stage>.avif`（公有领域/CC0 藏品处理），由 `js/bg/backdrops.js` 淡入切换；加载失败保持 `battle-print.avif` 兜底。
+- `StageBackground(canvas, { rand })` 仍是左侧 Three 印象场景（低透明度，版面 3D 启用时不渲染），装饰随机全走 `bg.__rand`，不消费玩法种子流。
 - 立绘：仅 `PORTRAIT_PATHS` 有图才显示；否则隐藏（`PORTRAIT_HIDDEN_OK`）
 - Boss：`DEDICATED_BOSS_BY_KIND`；占位 `PLACEHOLDER_BOSS_SPRITES`（`null`=几何）；未知 kind **禁止**默认爱丽丝脸。环形血条显示值按逻辑帧缓动（掉血即时、回血/换阶段平滑），仅影响绘制。
 
@@ -305,7 +312,7 @@ docs/                  # 内部改造队列等（非运行时）
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
 2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）；通用 aim 怪用 `spawnArch`。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
-4. 新背景 mode：`bgModes.js` → `backgrounds/builders.js`（+ scenes）用于左侧 Three；旧版面 `MODE_THEME` 已冻结，不再新增。
+4. 新背景 mode：`bgModes.js` 登记路径 → `js/bg3d/scenes/<stage>.js` 写 3D builder（可直接复用 `kit.js` 部件与 `_atmo.js` 氛围）；2D 兜底场景在 `js/bg/scenes/`（与 3D 同 brief，一般无需同步新增）。左侧 Three 另走 `backgrounds/builders.js`。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。
 6. UI/剧情中文；标识符英文。
 7. 勿运行时改 playfield 的 `width`/`height`。
@@ -338,8 +345,9 @@ docs/                  # 内部改造队列等（非运行时）
 | 改次级界面（练习/回放/Manual/History/Ranking/Stage/Settings）布局与手感 | `css/style.css`（「次级界面」段）+ `index.html`（结构类名）+ `js/ui.js`（焦点） |
 | 改设置/键位 | `settingsForm.js` / `ui.js` + `storage.js` + `config.js` |
 | 改 BGM | `audio.js` |
-| 改共享舞台 3D | `backgrounds/*` + `bgModes.js` |
-| 改版面主题色（旧系统已冻结，勿扩展） | `playfieldBgThemes.js` + `docs/background-rebuild-plan.md` |
+| 改共享舞台 3D（左侧印象场景） | `backgrounds/*` + `bgModes.js` |
+| 改关卡版面背景/场景 | `js/bg3d/scenes/*` + `js/bg3d/kit.js` + `js/bgModes.js` + `assets/bg/{scene,backdrop,mat}` + `docs/level-background-redesign.md` |
+| 改 2D 兜底绘卷 | `js/bg/renderer.js` + `js/bg/scenes/*` + `js/bg/atoms.js` |
 | 改立绘/精灵 | `assets.js` / `sprites.js` + `assets/` |
 | 改排行榜 | `ranking.js` + `rankingScreen.js` + `scoreRanking.js` + `index.html` |
 | 改录像/回放 | `replay.js` + `replayCodec.js` + `replayStore.js` + `replayScreen.js` + `game.js` + `rng.js` |

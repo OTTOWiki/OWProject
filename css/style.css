@@ -1716,6 +1716,31 @@ input, select, textarea {
     linear-gradient(90deg, rgba(8, 26, 35, 0.2), transparent 22%, transparent 78%, rgba(8, 26, 35, 0.28)),
     linear-gradient(180deg, rgba(255, 248, 226, 0.1), transparent 34%, rgba(10, 22, 28, 0.22));
 }
+/* 每面舞台底材（关卡背景系统 P6）：叠在 battle-print 兜底之上，淡入切换 */
+.stage-bg {
+  position: absolute;
+  inset: 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity;
+}
+
+.stage-bg.has-bg { opacity: 1; }
+
+/* 双层交叉淡入：stage-bg-next 在后（DOM 中更靠后，自然叠在前层之上）；#bg3d 画布仍保持在其上 */
+.stage-bg-next { z-index: 0; }
+
+/* Boss / 巡查面：底材略提饱和与对比，与版面场景升级呼应 */
+.stage-bg[data-boss="1"] { filter: saturate(1.12) contrast(1.04); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-bg { transition: none; }
+}
+
 #bg3d {
   position: absolute;
   inset: 0;
@@ -1931,7 +1956,32 @@ input, select, textarea {
   clip-path: polygon(0 28%, 100% 0, 84% 78%, 8% 100%);
   transform: rotate(-3deg);
 }
+#playfield-bg3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  background: #0a0d12;
+}
+
+#playfield-bg3d.bg3d-flash {
+  animation: bg3dFlash 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes bg3dFlash {
+  0% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #playfield-bg3d.bg3d-flash { animation: none; }
+}
+
 #playfield {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -1940,7 +1990,9 @@ input, select, textarea {
   margin: 0;
   border: 0;
   outline: 0;
-  background: #132029;
+  /* 2D 版面必须透明，才能看到其下方的 3D 舞台（#playfield-bg3d）；
+     2D 兜底背景每帧整幅绘制，不依赖此底色 */
+  background: transparent;
   image-rendering: auto;
   touch-action: none;
   user-select: none;
