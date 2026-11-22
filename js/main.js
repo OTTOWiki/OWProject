@@ -434,7 +434,7 @@ async function boot() {
     setLoadStatus('正在准备游戏缓存');
     try {
       const warmResults = await withTimeout(
-        Promise.all([preloadArtAssets(), preloadSprites(), preloadPlayfieldBg()]),
+        Promise.all([preloadArtAssets(), preloadSprites()]),
         10000,
         '资源缓存预热',
       );
@@ -567,6 +567,10 @@ async function boot() {
     game.applySettings();
     installDebug(game);
     bindScoreRanking(game);
+    // 版面背景素材/首章 3D 舞台放到菜单期预热（不阻塞启动；完成后 warmup 避免首次进关卡顿）
+    preloadPlayfieldBg()
+      .then(() => { try { game.playBg?.warmup?.('s1_mid'); } catch (err) { console.warn('[playfield3d] warmup failed:', err); } })
+      .catch((err) => { console.warn('[playfield3d] preload failed:', err); });
 
     // 印象场景加载失败占位：重试 → 重新加载 three 并替换 game 使用的背景
     const retryBtn = document.getElementById('bg3d-fallback-retry');

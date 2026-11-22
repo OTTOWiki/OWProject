@@ -103,6 +103,20 @@ export class AdaptivePlayfieldBackground {
     this.is3D = false;
   }
 
+  /**
+   * 菜单期预热：提前构建 3D 舞台与首章场景，避免首次进关卡时同步构建导致卡顿。
+   * 失败时静默（后续 setMode 仍会走正常创建/回退流程）。
+   * @param {string} [mode]
+   */
+  warmup(mode = 's1_mid') {
+    if (this.impl || this._force2d) return;
+    try {
+      this._ensure(mode);
+    } catch (err) {
+      console.warn('[playfield3d] warmup failed:', err);
+    }
+  }
+
   setMode(mode, opts = {}) {
     this._mode = mode;
     this._ensure(mode);
