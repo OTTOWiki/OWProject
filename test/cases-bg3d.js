@@ -99,3 +99,12 @@ test('3D 舞台运镜/过渡：相机分段推进与场景交叉淡化、UI 双�
   const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
   assert(/\.stage-bg-next\s*\{/.test(css), 'CSS 缺少 .stage-bg-next 层');
 });
+
+test('叙事运镜：一段章节一段旅程（JOURNEY）+ 三面特殊运镜（fork/rush）', () => {
+  const src = readFileSync(new URL('../js/bg3d/stage3d.js', import.meta.url), 'utf8');
+  assert(/const JOURNEY = \{/.test(src), '缺少逐 stage 的叙事旅程配置');
+  assert(/function journeyProgress/.test(src), '缺少出发→赶路→抵达进度曲线');
+  assert(/special === 'fork'/.test(src), '缺少三面 mid 左右张望运镜');
+  assert(/special === 'rush'/.test(src), '缺少三面 boss 冲门运镜');
+  assert(!/_applyCameraMotionUnused/.test(src), '不应保留废弃运镜实现');
+});

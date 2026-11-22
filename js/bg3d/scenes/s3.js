@@ -44,6 +44,18 @@ function buildScene(ctx, boss) {
   ctx.add(gate);
   ctx.add(K.volumetricBeam({ x: 0, y: 12, z: boss ? -48 : -60, length: 44, radius: 5.2, color: 0xffe0b0, opacity: boss ? 0.1 : 0.06, tilt: 0, spin: 0.1 }));
 
+  // 抉择路口的双色引导光路：从左右两条石道汇入中央防火墙门（叙事：你必须选一条路）
+  for (const side of [-1, 1]) {
+    const col = side < 0 ? 0x9fc0ff : 0xffb060;
+    for (let i = 0; i < 6; i++) {
+      const strip = K.box(0.28, 0.03, 7.5, 0x000000, {
+        kind: 'metal', emissive: col, emissiveIntensity: 2.2, castShadow: false, receiveShadow: false,
+      });
+      strip.position.set(side * (5.2 - i * 0.78), -5.95, -16 - i * 8.6);
+      strip.rotation.y = side * 0.07 * i;
+      ctx.add(strip);
+    }
+  }
   // 两侧分色鸟居列（左冷右暖）
   for (let i = 0; i < (boss ? 12 : 9); i++) {
     const side = i % 2 ? 1 : -1;
