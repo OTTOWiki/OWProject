@@ -1,5 +1,10 @@
 # 背景系统重作方案（参考 TH20 STD 数据驱动背景引擎）
 
+> **2026-11-22 方向修正**：用户要求关卡背景改为「不断深入的 3D 场景 + Billboard + 真 3D 物体混合 + 超现实手法」。
+> 本文 P6 观感重作部分由 [`level-background-redesign.md`](./level-background-redesign.md) §8 接替；
+> Canvas 2D 绘卷（本文推荐路线 b）保留为 WebGL 不可用时的兜底。两者共享 `bgModes.js` 资产登记与公有领域素材。
+
+
 > 日期: 2026-10-05
 > 参考对象: `~/Touhou20`（TH20 的**独立 C++ 源码重建**，`source_reconstruction/stage_background/`）——参考仓库**全程只读**。
 > 方式: **未改动任何运行时代码**。本文档是方案，供你决定是否实施。

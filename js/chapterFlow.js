@@ -15,6 +15,7 @@ import { openScoreRanking } from './scoreRanking.js';
 import { formatRunStats, formatRunStatsShort } from './runStats.js';
 import { trackForStage } from './audio.js';
 import { bgModeFor } from './bgModes.js';
+import { applyStageBackdrop } from './bg/backdrops.js';
 import { portraitFor } from './assets.js';
 import { unstableHintFor, updateGameHud, updateLetterHud } from './hud.js';
 import { debugSkipDialogue } from './debug.js';
@@ -154,9 +155,10 @@ export function startChapter(game) {
       : 0;
   }
   const bgMode = ch.bg || bgModeFor(ch.stageKey, isBoss);
-  game.background?.setMode(bgMode);
+  if (!game.playBg?.is3D) game.background?.setMode(bgMode);
   const doTrans = game._lastBgMode != null && game._lastBgMode !== bgMode;
   game.playBg.setMode(bgMode, { transition: doTrans });
+  applyStageBackdrop(bgMode, { boss: isBoss });
   game._lastBgMode = bgMode;
   game.el.stageLabel.textContent = chapterStageLabel(ch);
 

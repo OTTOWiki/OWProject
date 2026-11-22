@@ -345,6 +345,7 @@
     <!-- 游戏主界面 -->
     <div id="screen-game" class="screen">
       <div class="game-backdrop" id="game-backdrop">
+        <div id="stage-bg" class="stage-bg" aria-hidden="true"></div>
         <canvas id="bg3d"></canvas>
         <div class="overlay-fx" id="bg-overlay"></div>
       </div>
@@ -371,6 +372,7 @@
 
         <main class="panel-center">
           <div class="playfield-wrap">
+            <canvas id="playfield-bg3d" width="450" height="600" aria-hidden="true"></canvas>
             <canvas id="playfield" width="450" height="600"></canvas>
             <div id="letter-banner" class="letter-banner hidden">
               <div class="letter-remain" id="letter-remain"></div>

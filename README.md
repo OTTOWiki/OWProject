@@ -54,7 +54,7 @@ python -m http.server 8080
 - **Nomiss 无伤模式**：Start Game → 先选普通模式 / Nomiss → 选难度 → 自机进入；Nomiss 有已保存进度时从下一章续接，无进度从第1章开始。被弹自动重开当前章（不扣残机、不 Game Over、资源回滚至进章状态、BGM 回带、Unstable 还原）；进度持久化可续章；仅暂停手动结算或通关结局结算；不录制、不入榜
 - Letter 卡收取记录（成功收取 / 总尝试 = 收率%，实战与练习共用一份持久记录）
 - 击破连击 Combo、续关（续关后分数清零）、结算统计、练习各章最佳记录
-- 共享纸墨／Three.js 关卡舞台，左侧题字、中央版面、右侧资源与状态；BGM 为 **OGG**（`assets/bgm/*.ogg`，东方 Project 原作音乐，见 `assets/NOTICE.md`）
+- 共享纸墨／Three.js 外围舞台，左侧题字、中央版面（3D 深入舞台背景）、右侧资源与状态；BGM 为 **OGG**（`assets/bgm/*.ogg`，东方 Project 原作音乐，见 `assets/NOTICE.md`）
 - 高分 / 键位 / 设置 / 排行榜 localStorage 存档；录像帧数据存 IndexedDB
 - History 依赖 Cloudflare Pages Functions（`functions/api/`），本地纯静态可能不可用
 
@@ -83,7 +83,7 @@ tools/ docs/ functions/api/
 
 - 代码：**GPL-3.0-or-later**，全文见 `LICENSE`。
 - BGM：东方 Project **原作游戏音乐**，著作权归上海爱丽丝幻乐团（上海アリス幻樂団 / Team Shanghai Alice）。本项目作为二次创作使用，详见 `assets/NOTICE.md`（含官方指南中「原作游戏素材」的相关提示）。
-- 立绘 / 背景：AI 生成的东方 Project **同人创作素材**，不随代码 GPL 授权；详见 `assets/NOTICE.md`。
+- 立绘 / 背景：立绘与菜单/设置底材为 AI 生成的东方 Project **同人创作素材**；关卡背景 plate/backdrop/材质为**公有领域 / CC0 博物馆开放素材**（尾形光琳、宗达派、若冲、广重、墨笑、地狱草纸等）裁切与调色处理，不随代码 GPL 授权；逐项来源见 `assets/NOTICE.md`。
 - 本作是基于东方 Project 的 fan work，遵循官方《東方Projectの二次創作ガイドライン》（https://touhou-project.news/guideline/ ，2024-05-31 更新）。
 
 ## 平衡与开发
