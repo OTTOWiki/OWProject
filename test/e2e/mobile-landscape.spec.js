@@ -102,10 +102,14 @@ test('横屏版面、完整不可滚动 HUD、HUD 下方四键与暂停菜单尺
   expect(panelState.scoreScrollH).toBeLessThanOrEqual(panelState.scoreClientH + 1);
   expect(panelState.screenScrollTop).toBe(0);
   await expect(page.locator('#ui-details')).toHaveJSProperty('open', true);
-  for (const sel of ['#ui-difficulty', '#ui-score-compact', '#ui-lives', '#ui-bombs', '#ui-edit',
+  // #ui-edit 是 Edit 进度条填充，edit=0 时 width:0 按设计不可见（bounding box 为空）；
+  // 可见性应断言进度条容器，填充元素只断言存在，避免与弹幕擦弹时机耦合的 flaky。
+  for (const sel of ['#ui-difficulty', '#ui-score-compact', '#ui-lives', '#ui-bombs',
     '#ui-unstable', '#ui-tendency', '#ui-hiscore', '#ui-player-name', '#ui-chapter', '#ui-bonus']) {
     await expect(page.locator(sel)).toBeVisible();
   }
+  await expect(page.locator('.edit-meter')).toBeVisible();
+  await expect(page.locator('#ui-edit')).toBeAttached();
 
   const buttons = page.locator('.touch-controls .touch-btn');
   await expect(buttons).toHaveCount(4);
