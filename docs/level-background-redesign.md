@@ -253,6 +253,13 @@ PBR 场景（程序化 albedo/normal/roughness + 程序化 IBL 环境 + 实时�
 ```
 
 - 相机 fov 54、y≈1.4 眼高、极轻微手持漂浮；景物沿 +Z 循环逼近；WebGL 渲染上限 40fps。
+- **层叠硬约束**：`#playfield-bg3d`（z0）必须在透明 2D 版面 canvas `#playfield`（z1）之下；`#playfield` 的 CSS 背景必须为 `transparent`，否则会完全遮住 3D 舞台（2026-11-22 实机排查结论）。
+- **无视觉影响的减压/自测参数**（默认全部关闭，不改变美术效果）：
+  - `?bgscale=0.5~1`：内部 3D 渲染分辨率缩放（CSS 仍铺满 450×600，默认 1）
+  - `?bgshadow=256~1024`：阴影图尺寸（默认 1024）
+  - `?bgpost=0`：跳过泛光/色调后处理（仅诊断用，会改变观感）
+  - `?no3dleft=1`：跳过左侧 `StageBackground` WebGL 上下文（版面 3D 启用时该层本就不渲染，画面不变）
+  - `?bg2d=1`：强制 2D 绘卷兜底（功能验证用）
 - 失败兜底：后处理异常 → 直出渲染；Three/WebGL 整体失败 → 2D 绘卷兜底（`js/bg/`）。
 - 阴影：`PCFShadowMap` 1024²、方向光 `shadow.camera` 45×45；小碎块由 builder 传 `{castShadow:false}` 省开销。
 

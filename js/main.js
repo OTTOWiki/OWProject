@@ -505,9 +505,12 @@ async function boot() {
     try {
       // three 加载失败时 loadThreeModule 抛聚合错误（含各镜像原因），占位 UI 展示
       setLoadStatus('正在准备 Three 场景');
+      // 减压测试：左侧印象场景在版面 3D 启用时本就不渲染，可直接跳过其 WebGL 上下文
+      const skipLeft = typeof location !== 'undefined' && /[?&]no3dleft=1/.test(location.search);
       await threeReady;
       if (threeErr) throw threeErr;
-      background = initBackground();
+      if (!skipLeft) background = initBackground();
+      else background = { setMode() {}, setTendency() {}, update() {} };
     } catch (err) {
       console.warn('Three.js background failed:', err);
       startupIssues.push({ kind: 'three', error: err });

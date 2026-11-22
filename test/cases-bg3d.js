@@ -77,3 +77,13 @@ test('3D 超写实舞台：后处理管线与 PBR 环境 API 存在', async () =
   }
   assert(kit.MATERIAL_KINDS === undefined || true);
 });
+
+test('3D 舞台层叠：2D 版面 canvas 不得有不透明 CSS 背景（否则遮住 #playfield-bg3d）', () => {
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const m = /#playfield\s*\{([^}]*)\}/.exec(css);
+  assert(m, 'css/style.css 缺少 #playfield 规则');
+  const body = m[1];
+  const bg = /background\s*:\s*([^;]+);/.exec(body);
+  assert(bg, '#playfield 应显式声明 background');
+  assert(/transparent|none|rgba\(0\s*,\s*0\s*,\s*0\s*,\s*0\)/.test(bg[1].trim()), `#playfield 背景必须透明，当前: ${bg[1].trim()}`);
+});

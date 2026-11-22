@@ -52,6 +52,8 @@ class AdaptivePlayfieldBackground {
     this._pendingMode = null;
     this._pendingTransition = false;
     this._force2d = typeof location !== 'undefined' && /[?&]bg2d=1/.test(location.search);
+    // 自测钩子（只读；不影响运行）：便于外部读取 3D/2D 状态与渲染统计
+    if (typeof window !== 'undefined') window.__playfieldBg = this;
   }
 
   _ensure(mode) {

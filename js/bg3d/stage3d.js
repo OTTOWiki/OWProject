@@ -19,6 +19,20 @@ const W = 450;
 const H = 600;
 const BLOOM_DIV = 4;
 
+/** 测试/低配减压参数（只缩内部渲染分辨率/阴影图，不改变构图与观感；缺省 1.0 / 1024） */
+function runtimeOptions() {
+  try {
+    if (typeof location === 'undefined') return { scale: 1, shadowSize: 1024, post: true };
+    const q = new URLSearchParams(location.search);
+    const scale = Math.min(1, Math.max(0.5, Number(q.get('bgscale') || 1) || 1));
+    const shadowSize = Math.min(1024, Math.max(256, Number(q.get('bgshadow') || 1024) || 1024));
+    const post = q.get('bgpost') !== '0';
+    return { scale, shadowSize, post };
+  } catch {
+    return { scale: 1, shadowSize: 1024, post: true };
+  }
+}
+
 function cssToHex(color) {
   if (typeof color === 'number') return color;
   const c = String(color || '#000000').trim();
@@ -129,12 +143,15 @@ export class PlayfieldStage3D {
     if (!canvas) throw new Error('missing 3d canvas');
     this.THREE = THREE;
     this.canvas = canvas;
+    this.runtime = runtimeOptions();
+    this._renderW = Math.round(W * this.runtime.scale);
+    this._renderH = Math.round(H * this.runtime.scale);
     this.renderer = new THREE.WebGLRenderer({
       canvas, antialias: false, alpha: false, powerPreference: 'high-performance',
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
     });
     this.renderer.setPixelRatio(1);
-    this.renderer.setSize(W, H, false);
+    this.renderer.setSize(this._renderW, this._renderH, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -165,11 +182,13 @@ export class PlayfieldStage3D {
     this._contextLost = false;
 
     this._postOk = false;
-    try {
-      this._initPost();
-      this._postOk = true;
-    } catch (err) {
-      console.warn('[bg3d] post-processing unavailable, direct render:', err);
+    if (this.runtime.post) {
+      try {
+        this._initPost();
+        this._postOk = true;
+      } catch (err) {
+        console.warn('[bg3d] post-processing unavailable, direct render:', err);
+      }
     }
 
     this.canvas.addEventListener('webglcontextlost', (e) => {
@@ -196,12 +215,12 @@ export class PlayfieldStage3D {
   _initPost() {
     const THREE = this.THREE;
     const half = this.renderer.capabilities.isWebGL2 ? THREE.HalfFloatType : THREE.UnsignedByteType;
-    this._rt = new THREE.WebGLRenderTarget(W, H, {
+    this._rt = new THREE.WebGLRenderTarget(this._renderW, this._renderH, {
       type: half, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
       depthBuffer: true, stencilBuffer: false, samples: 0,
     });
-    const bw = Math.max(1, Math.ceil(W / BLOOM_DIV));
-    const bh = Math.max(1, Math.ceil(H / BLOOM_DIV));
+    const bw = Math.max(1, Math.ceil(this._renderW / BLOOM_DIV));
+    const bh = Math.max(1, Math.ceil(this._renderH / BLOOM_DIV));
     const base = { type: half, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false };
     this._brightRT = new THREE.WebGLRenderTarget(bw, bh, base);
     this._blurA = new THREE.WebGLRenderTarget(bw, bh, base);
@@ -230,7 +249,7 @@ export class PlayfieldStage3D {
     this._compositeMat = makePass(FRAG_COMPOSITE, {
       tScene: { value: this._rt.texture },
       tBloom: { value: this._blurB.texture },
-      uResolution: { value: new THREE.Vector2(W, H) },
+      uResolution: { value: new THREE.Vector2(this._renderW, this._renderH) },
       uTime: { value: 0 },
       uBloom: { value: 0.62 },
       uExposure: { value: 1.04 },
@@ -305,7 +324,7 @@ export class PlayfieldStage3D {
         return ps;
       },
       atmosphere(opts = {}) {
-        const lights = K.atmosphere(self.scene, opts);
+        const lights = K.atmosphere(self.scene, { ...opts, shadowSize: self.runtime.shadowSize });
         self.lights.push(lights.amb, lights.dir, lights.hemi, lights.rim);
         return lights;
       },

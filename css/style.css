@@ -1987,7 +1987,9 @@ input, select, textarea {
   margin: 0;
   border: 0;
   outline: 0;
-  background: #132029;
+  /* 2D 版面必须透明，才能看到其下方的 3D 舞台（#playfield-bg3d）；
+     2D 兜底背景每帧整幅绘制，不依赖此底色 */
+  background: transparent;
   image-rendering: auto;
   touch-action: none;
   user-select: none;
