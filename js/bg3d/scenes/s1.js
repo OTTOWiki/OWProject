@@ -91,7 +91,11 @@ function buildScene(ctx, boss) {
   });
 
   // 镜面浅水（真实反射天空/月亮）
-  ctx.add(K.waterFloor({ y: -5.6, size: [320, 360], color: boss ? 0x0a0508 : 0x04080a, normalScale: 1.5, roughness: 0.06 }));
+  ctx.add(K.waterFloor({
+    y: -5.6, size: [320, 360], color: boss ? 0x0a0508 : 0x04080a,
+    // 降低镜面高光/环境反射强度，避免水面出现移动的“无意义闪光”
+    normalScale: 0.26, roughness: 0.24, metalness: 0.12, envMapIntensity: 0.42, flow: 0.35,
+  }));
 
   // 巨月 + 体积月光柱
   ctx.add(K.moon({

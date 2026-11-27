@@ -172,3 +172,41 @@ test('自适应工厂：WebGL context lost / draw 连续异常必须回退 2D（
   bg2.draw({});
   assert(bg2.is3D === false, '连续 draw 失败应回退 2D');
 });
+
+test('EX 镜头不得出现逐帧跳变（抽搐回归守卫）', async () => {
+  const mod = await import('../js/bg3d/cameraDirectors.js');
+  for (const mode of ['ex_mid', 'ex_boss']) {
+    const d = mod.makeCameraDirector(mode, 'ex');
+    const fps = 60;
+    let prev = null;
+    let maxDX = 0;
+    let maxDF = 0;
+    let maxDR = 0;
+    for (let i = 0; i <= fps * 12; i++) {
+      const t = i / fps;
+      const s = d.sample({ u: t / d.dur, t, boss: /_boss$/.test(mode), stage: 'ex' });
+      if (prev) {
+        maxDX = Math.max(maxDX, Math.abs(s.lookX - prev.lookX));
+        maxDF = Math.max(maxDF, Math.abs(s.fov - prev.fov));
+        maxDR = Math.max(maxDR, Math.abs(s.roll - prev.roll));
+      }
+      prev = s;
+    }
+    assert(maxDX < 0.5, `${mode} lookX 逐帧跳变过大: ${maxDX.toFixed(3)}`);
+    assert(maxDF < 0.3, `${mode} fov 逐帧跳变过大: ${maxDF.toFixed(3)}`);
+    assert(maxDR < 0.004, `${mode} roll 逐帧跳变过大: ${maxDR.toFixed(4)}`);
+  }
+});
+
+test('s1 水面高光参数已收敛（避免无意义闪光回归）', () => {
+  const src = readFileSync(new URL('../js/bg3d/scenes/s1.js', import.meta.url), 'utf8');
+  const m = /waterFloor\(\{([\s\S]*?)\}\)/.exec(src);
+  assert(m, 's1 缺少 waterFloor 调用');
+  const body = m[1];
+  const ns = /normalScale:\s*([0-9.]+)/.exec(body);
+  const rough = /roughness:\s*([0-9.]+)/.exec(body);
+  const env = /envMapIntensity:\s*([0-9.]+)/.exec(body);
+  assert(ns && Number(ns[1]) <= 0.5, 's1 水面 normalScale 需 ≤0.5');
+  assert(rough && Number(rough[1]) >= 0.18, 's1 水面 roughness 需 ≥0.18');
+  assert(env && Number(env[1]) <= 0.6, 's1 水面 envMapIntensity 需 ≤0.6');
+});

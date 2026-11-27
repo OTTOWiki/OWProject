@@ -38,6 +38,12 @@ function easeInCubic(u) {
   return x * x * x;
 }
 
+/** 0..1 内平滑（用于软步进） */
+function smooth01(x) {
+  const v = clamp01(x);
+  return v * v * (3 - 2 * v);
+}
+
 /** 中间隆起的钟形（0→1→0），width 为半宽比例 */
 function bell(u, center, width) {
   const x = (u - center) / Math.max(1e-4, width);
@@ -468,38 +474,41 @@ const DIRECTORS = {
   ex_mid: {
     dur: 28,
     sample({ u, t }) {
-      // 步进式推进（被"覆写"的数据块）+ 定时甩头
-      const moved = 0.72 * easeInOut(u) + 0.28 * (Math.floor(u * 9) / 9);
-      const snap = Math.sign(Math.sin(t * 1.05)) * 5.2 * (1 - 0.25 * easeInOut(u));
-      const glitch = Math.sin(t * 5.3) > 0.96 ? 1 : 0;
+      // 数据故障感：软步进推进 + 连续 tanh 甩头 + 平滑故障包络；
+      // 禁止 Math.sign/二值跳变（否则在 60/120fps 下会视觉“抽搐”）
+      const su = clamp01(u) * 9;
+      const stepEase = (Math.floor(su) + smooth01(su - Math.floor(su))) / 9;
+      const moved = 0.84 * easeInOut(u) + 0.16 * stepEase;
+      const scan = Math.tanh(Math.sin(t * 0.55) * 1.8) * 4.0;
+      const glitch = Math.pow(Math.max(0, Math.sin(t * 1.7 + 0.6)), 8);
       return {
         x: Math.sin(t * 0.5) * 0.35,
-        y: BASE_Y - 0.1 * easeInOut(u) + glitch * 0.03,
+        y: BASE_Y - 0.1 * easeInOut(u) + glitch * 0.018,
         z: -16 * moved,
-        lookX: snap + (Math.sin(t * 13) * 0.5 * glitch),
+        lookX: scan + Math.sin(t * 9) * 0.25 * glitch,
         lookY: BASE_LOOK_Y + 1.2 * easeOutCubic(u),
-        fov: 57 - 4.5 * easeInOut(u) + glitch * 1.6,
-        roll: glitch * 0.03 + Math.sin(t * 0.3) * 0.004,
-        gain: 0.3 + 1.4 * travelSpeed(u) + glitch * 0.6,
+        fov: 57 - 4.5 * easeInOut(u) + glitch * 1.0,
+        roll: Math.sin(t * 0.4) * 0.003 + glitch * 0.012,
+        gain: 0.3 + 1.4 * travelSpeed(u) + glitch * 0.35,
       };
     },
   },
   ex_boss: {
     dur: 18,
     sample({ u, t }) {
-      // 覆写终局：高速冲刺 + 连续甩头 + 故障抖动
+      // 覆写终局：高速冲刺 + 连续甩头 + 平滑故障抖动（同样避免二值跳变）
       const p = seg(u, [[0, 0], [0.15, 0.18], [0.4, 0.5], [0.62, 0.8], [0.85, 0.97], [1, 1]]);
-      const snap = Math.sign(Math.sin(t * 1.7)) * 7.5;
-      const glitch = Math.sin(t * 9.1) > 0.9 ? 1 : 0;
+      const scan = Math.tanh(Math.sin(t * 0.9) * 1.6) * 5.2 * (1 - 0.25 * easeInOut(u));
+      const glitch = Math.pow(Math.max(0, Math.sin(t * 2.3 + 0.4)), 8);
       return {
         x: Math.sin(t * 1.2) * 1.2,
-        y: BASE_Y - 0.2 * easeInOut(u) + glitch * 0.04,
+        y: BASE_Y - 0.2 * easeInOut(u) + glitch * 0.02,
         z: -22 * p,
-        lookX: snap * (1 - 0.3 * easeInOut(u)) + glitch * 1.2,
+        lookX: scan + Math.sin(t * 11) * 0.3 * glitch,
         lookY: BASE_LOOK_Y + 1.8 * easeOutCubic(u),
-        fov: 59 - 8 * easeInOut(u) + glitch * 2,
-        roll: Math.sin(t * 2.2) * 0.025 + glitch * 0.04,
-        gain: 0.4 + 2.1 * travelSpeed(u) + glitch,
+        fov: 59 - 8 * easeInOut(u) + glitch * 1.2,
+        roll: Math.sin(t * 0.8) * 0.012 + glitch * 0.014,
+        gain: 0.4 + 2.1 * travelSpeed(u) + glitch * 0.5,
       };
     },
   },

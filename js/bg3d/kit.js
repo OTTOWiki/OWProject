@@ -616,7 +616,10 @@ export function atmosphere(scene, {
 }
 
 /** 镜面/湿滑地面（PBR 水面 + 程序化法线；超写实反射） */
-export function waterFloor({ y = -6, size = [260, 320], color = 0x03050a, normalScale = 0.16, roughness = 0.14 } = {}) {
+export function waterFloor({
+  y = -6, size = [260, 320], color = 0x03050a,
+  normalScale = 0.16, roughness = 0.14, metalness = 0.35, envMapIntensity = 0.8, flow = 1,
+} = {}) {
   const tex = materialTextureSet('water');
   const mat = new THREE.MeshStandardMaterial({
     color,
@@ -624,8 +627,8 @@ export function waterFloor({ y = -6, size = [260, 320], color = 0x03050a, normal
     normalMap: tex.normalMap,
     normalScale: new THREE.Vector2(normalScale, normalScale),
     roughness,
-    metalness: 0.35,
-    envMapIntensity: 0.8,
+    metalness,
+    envMapIntensity,
     transparent: true,
     opacity: 0.96,
   });
@@ -633,7 +636,7 @@ export function waterFloor({ y = -6, size = [260, 320], color = 0x03050a, normal
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(0, y, -100);
   mesh.receiveShadow = true;
-  mesh.userData.water = { tex, speed: 0.008 };
+  mesh.userData.water = { tex, speed: 0.008 * flow };
   return mesh;
 }
 

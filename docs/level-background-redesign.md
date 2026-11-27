@@ -280,6 +280,13 @@ PBR 场景（程序化 albedo/normal/roughness + 程序化 IBL 环境 + 实时�
 - **结构**：`js/bg3d/cameraDirectors.js` 为 21 个 mode 各写一套导演（`sample({u,t,...}) → {x,y,z,lookX,lookY,fov,roll,gain}`）。
   章节内时间驱动、确定性、不进玩法随机流；`stage3d` 只负责应用结果与场景过渡。
   `makeCameraDirector` 在模块边界统一把 `u` clamp 到 0..1（抵达后保持，轻摆只用 `t`），防止长时间章节里相机无限前飞。
+
+- **EX 故障运镜（2026-11-28 修复）**：`ex_mid` / `ex_boss` 的甩头与故障抖动改为连续 `tanh` 曲线 + 平滑幂次包络
+  （`Math.pow(max(0,sin), 8)`）；禁止 `Math.sign` 二值跳变/逐帧 fov/roll 硬切，否则在 60/120fps 下会视觉“抽搐”。
+  回归守卫：`test/cases-bg3d.js` 以 60fps 采样 12s，断言 lookX 逐帧 Δ<0.5、fov Δ<0.3、roll Δ<0.004。
+- **s1 水面高光（2026-11-28 修复）**：`s1` 水面由 `normalScale 1.5 / roughness 0.06` 收敛到
+  `0.26 / 0.24 / metalness 0.12 / envMapIntensity 0.42 / flow 0.35`，消除移动的无意义镜面闪光；
+  `kit.waterFloor` 新增 `metalness / envMapIntensity / flow` 可调项（默认值保持旧观感，避免影响其它关卡）。
 - **每关镜头语言各不相同**（不是一套模板换参数）：
   - s1 草稿：慢出发→回廊加速→巨月前收住抬头；boss 起手后退半步再冲刺急停。
   - s2 审核：机位偏高、被「扫描」式步进推进，视线在悬浮巨眼间缓慢巡检；boss 快速左右扫视 + 两次审查急停。
