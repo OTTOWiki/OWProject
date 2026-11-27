@@ -284,6 +284,12 @@ PBR 场景（程序化 albedo/normal/roughness + 程序化 IBL 环境 + 实时�
 - **EX 故障运镜（2026-11-28 修复）**：`ex_mid` / `ex_boss` 的甩头与故障抖动改为连续 `tanh` 曲线 + 平滑幂次包络
   （`Math.pow(max(0,sin), 8)`）；禁止 `Math.sign` 二值跳变/逐帧 fov/roll 硬切，否则在 60/120fps 下会视觉“抽搐”。
   回归守卫：`test/cases-bg3d.js` 以 60fps 采样 12s，断言 lookX 逐帧 Δ<0.5、fov Δ<0.3、roll Δ<0.004。
+- **s1 / b4 镜头节奏（2026-11-28 修复）**：用户反馈这两关节奏过慢。`s1_mid` 30s/16→**22s/18**、`s1_boss` 20s/22→**15s/24**、
+  `b4_mid` 30s/20→**22s/22**、`b4_boss` 20s/24→**15s/26**，并把前进曲线前移（10s 内 s1_mid z -3.4→-9.6、b4_mid z -6.7→-12.6），
+  保留「出发→赶路→抵达」的叙事节奏，不再前段空耗。回归守卫：四关首 10s 推进里程下限。
+- **其它关卡水面高光（2026-11-28 修复）**：a4/a5/a6/b4/b5/b6/ex/s2/s3/patrol 的 `waterFloor` 参数统一收敛
+  （normalScale ≤0.32、roughness ≥0.22、metalness 0.12、envMapIntensity 0.45、flow 0.4）；
+  `waterFloor` 内部再加安全 clamp（normalScale≤0.5、roughness≥0.18、env≤0.65、metalness≤0.25），防止未来场景再引入强镜面闪光。
 - **s1 水面高光（2026-11-28 修复）**：`s1` 水面由 `normalScale 1.5 / roughness 0.06` 收敛到
   `0.26 / 0.24 / metalness 0.12 / envMapIntensity 0.42 / flow 0.35`，消除移动的无意义镜面闪光；
   `kit.waterFloor` 新增 `metalness / envMapIntensity / flow` 可调项（默认值保持旧观感，避免影响其它关卡）。

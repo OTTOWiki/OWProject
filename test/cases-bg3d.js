@@ -210,3 +210,38 @@ test('s1 水面高光参数已收敛（避免无意义闪光回归）', () => {
   assert(rough && Number(rough[1]) >= 0.18, 's1 水面 roughness 需 ≥0.18');
   assert(env && Number(env[1]) <= 0.6, 's1 水面 envMapIntensity 需 ≤0.6');
 });
+
+test('s1/b4 镜头首 10s 推进里程下限（修“速度过慢”）', async () => {
+  const mod = await import('../js/bg3d/cameraDirectors.js');
+  const limits = { s1_mid: -7, s1_boss: -14, b4_mid: -9, b4_boss: -17 };
+  for (const [mode, limit] of Object.entries(limits)) {
+    const d = mod.makeCameraDirector(mode, mode.split('_')[0]);
+    const s = d.sample({ u: 10 / d.dur, t: 10, boss: /_boss$/.test(mode), stage: mode.split('_')[0] });
+    assert(s.z <= limit, `${mode} 首 10s 推进不足: z=${s.z.toFixed(2)}（应 ≤ ${limit}）`);
+  }
+});
+
+test('全部关卡水面高光参数安全（防 s1 式无意义闪光回归）', () => {
+  const kit = readFileSync(new URL('../js/bg3d/kit.js', import.meta.url), 'utf8');
+  assert(/normalScale = Math\.min\(0\.5/.test(kit), 'waterFloor 缺少 normalScale 安全上限');
+  assert(/roughness = Math\.max\(0\.18/.test(kit), 'waterFloor 缺少 roughness 安全下限');
+  const files = ['s1', 's2', 's3', 'patrol', 'a4', 'a5', 'a6', 'b4', 'b5', 'b6', 'ex'];
+  for (const f of files) {
+    const src = readFileSync(new URL(`../js/bg3d/scenes/${f}.js`, import.meta.url), 'utf8');
+    for (const m of src.matchAll(/waterFloor\(\{([\s\S]*?)\}\)\)/g)) {
+      const body = m[1];
+      const ns = /normalScale:\s*([^,\n]+)/.exec(body);
+      const rough = /roughness:\s*([^,\n]+)/.exec(body);
+      if (ns) {
+        for (const num of ns[1].match(/[0-9]+(?:\.[0-9]+)?/g) || []) {
+          assert(Number(num) <= 0.5, `${f} 水面 normalScale 过大: ${ns[1]}`);
+        }
+      }
+      if (rough) {
+        for (const num of rough[1].match(/[0-9]+(?:\.[0-9]+)?/g) || []) {
+          assert(Number(num) >= 0.18, `${f} 水面 roughness 过小: ${rough[1]}`);
+        }
+      }
+    }
+  }
+});

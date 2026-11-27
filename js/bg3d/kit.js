@@ -618,8 +618,14 @@ export function atmosphere(scene, {
 /** 镜面/湿滑地面（PBR 水面 + 程序化法线；超写实反射） */
 export function waterFloor({
   y = -6, size = [260, 320], color = 0x03050a,
-  normalScale = 0.16, roughness = 0.14, metalness = 0.35, envMapIntensity = 0.8, flow = 1,
+  normalScale = 0.2, roughness = 0.22, metalness = 0.12, envMapIntensity = 0.45, flow = 0.5,
 } = {}) {
+  // 安全性收敛：防止各场景传入过强的高光参数，水面出现移动的无意义镜面闪光。
+  normalScale = Math.min(0.5, Math.max(0.05, normalScale));
+  roughness = Math.max(0.18, roughness);
+  metalness = Math.min(0.25, Math.max(0, metalness));
+  envMapIntensity = Math.min(0.65, Math.max(0, envMapIntensity));
+  flow = Math.max(0, flow);
   const tex = materialTextureSet('water');
   const mat = new THREE.MeshStandardMaterial({
     color,

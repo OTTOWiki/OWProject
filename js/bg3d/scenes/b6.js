@@ -42,7 +42,7 @@ function addSwampFloor(ctx, boss) {
   ctx.add(ground);
   const water = K.waterFloor({
     y: -6.34, size: [180, 340], color: boss ? 0x0c1404 : 0x0a1204,
-    normalScale: boss ? 1.5 : 1.1, roughness: boss ? 0.1 : 0.14,
+    normalScale: boss ? 0.3 : 0.25, roughness: boss ? 0.25 : 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4,
   });
   ctx.add(water);
   // 毒沼发光脉络（细条，压暗中心亮度）

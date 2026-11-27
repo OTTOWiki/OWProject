@@ -34,7 +34,7 @@ function addWetStreet(ctx, boss) {
   ctx.add(ground);
   const water = K.waterFloor({
     y: -6.3, size: [64, 320], color: 0x05070e,
-    normalScale: boss ? 1.4 : 1.1, roughness: boss ? 0.06 : 0.08,
+    normalScale: boss ? 0.3 : 0.24, roughness: boss ? 0.24 : 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4,
   });
   ctx.add(water);
   // 两侧路缘石与排水沟（真 3D 体块）

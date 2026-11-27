@@ -33,7 +33,7 @@ export function mid(ctx) {
   });
 
   // 雨湿荒原（镜面反射红光）
-  ctx.add(K.waterFloor({ y: -5.6, size: [380, 400], color: 0x0a0304, normalScale: 0.28, roughness: 0.1 }));
+  ctx.add(K.waterFloor({ y: -5.6, size: [380, 400], color: 0x0a0304, normalScale: 0.26, roughness: 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4 }));
 
   // 监视塔（锈蚀钢架 + 舱室 + 信标 + 旋转体积探照灯）
   const tower = new ctx.THREE.Group();
