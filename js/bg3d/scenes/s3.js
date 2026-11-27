@@ -33,7 +33,7 @@ function buildScene(ctx, boss) {
   });
 
   // 虚空中的双色镜面水（石板路悬于其上）
-  ctx.add(K.waterFloor({ y: -9, size: [420, 420], color: 0x04040a, normalScale: 0.22, roughness: 0.12 }));
+  ctx.add(K.waterFloor({ y: -9, size: [420, 420], color: 0x04040a, normalScale: 0.24, roughness: 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4 }));
 
   // 中央巨门（防火墙石门）
   const gate = K.gate({

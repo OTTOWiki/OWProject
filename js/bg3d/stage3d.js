@@ -167,6 +167,43 @@ function smoothstep(a, b, x) {
   return t * t * (3 - 2 * t);
 }
 
+/**
+ * 无限世界跟随/回收的纯函数版本（可单测）：
+ * - ambient 对象随镜头平移，保持相对位置；
+ * - 可回收景物被镜头越过 12 单位后回收到前方 138 单位（150 回卷），雾遮接缝。
+ * @param {Array} children root.children
+ * @param {number} travelZ 当前旅程 z（不含转场推镜偏移）
+ * @param {number} prevTravelZ 上一帧旅程 z（null=首帧）
+ * @returns {{dz:number, wrapped:number}}
+ */
+export function applyWorldFollow(children, travelZ, prevTravelZ) {
+  if (travelZ == null || !children || !children.length) return { dz: 0, wrapped: 0 };
+  if (prevTravelZ == null) return { dz: 0, wrapped: 0 };
+  const dz = travelZ - prevTravelZ;
+  let wrapped = 0;
+  if (dz) {
+    for (let i = 0; i < children.length; i++) {
+      const o = children[i];
+      const ud = o.userData || {};
+      if (ud.ambient) {
+        o.position.z += dz;
+        continue;
+      }
+      if (ud.recyclable && o.position.z > travelZ + 12) {
+        o.position.z -= 150;
+        wrapped += 1;
+      }
+    }
+  }
+  return { dz, wrapped };
+}
+
+/** 导演节拍结束后的持续巡航距离（不驻留；速度从约 0.9 单位/s 起并缓增） */
+export function postArrivalCruise(over) {
+  if (!(over > 0)) return 0;
+  return 0.9 * over + 1.2 * Math.max(0, over - 2);
+}
+
 export class PlayfieldStage3D {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -341,7 +378,9 @@ export class PlayfieldStage3D {
       add(obj) {
         if (!obj) return obj;
         self.root.add(obj);
-        const ud = obj.userData || {};
+        const ud = obj.userData || (obj.userData = {});
+        // 背景是无限且不可达的世界：除 ambient（水/地/雾/光/天体/粒子）外，景物在镜头越过之后回收到前方
+        if (!ud.ambient) ud.recyclable = true;
         if (ud.water) self.specials.water.push(obj);
         if (ud.mist) self.specials.mist.push(obj);
         if (ud.beam) self.specials.beam.push(obj);
@@ -370,6 +409,7 @@ export class PlayfieldStage3D {
           obj.position.x = px;
           obj.position.y = y === null ? (K.hash01(i * 71 + 3) - 0.5) * yRange : y;
           obj.position.z = z;
+          if (obj.userData) obj.userData.recyclable = true;
           self.root.add(obj);
           items.push({ o: obj });
         }
@@ -494,6 +534,8 @@ export class PlayfieldStage3D {
       speed: 0,
     };
     this._approachGain = 1;
+    this._travelZ = null;
+    this._prevTravelZ = null;
     this.camera.position.set(0, 1.4, 0);
     this.camera.fov = 56;
     this.camera.updateProjectionMatrix();
@@ -511,7 +553,11 @@ export class PlayfieldStage3D {
       stage: this.stage,
       palette: this.palette,
     });
-    let z = out.z || 0;
+    // 背景是永续穿越的不可达世界：导演节拍结束后不抵达、不驻留，镜头继续以低速巡航。
+    // 视觉上永远「在路上」，不会停在某座门前成为静止端点。
+    const cruise = postArrivalCruise(m.t - m.dur);
+    let z = (out.z || 0) - cruise;
+    this._travelZ = z;
     let transZ = 0;
     if (this._transition) {
       const tk = Math.min(1, this._transition.t / this._transition.dur);
@@ -529,6 +575,19 @@ export class PlayfieldStage3D {
     this.camera.rotation.z = out.roll || 0;
     this._approachGain = (out.gain || 1) + (transZ ? 1.4 * (transZ / 7.0) : 0);
     return this._approachGain;
+  }
+
+  /**
+   * 无限世界跟随/回收：
+   * - ambient 对象（水面/地面/雾/体积光/天体/粒子）随镜头平移，始终保持在镜头周围；
+   * - 可回收景物被镜头越过（跑到身后）后回收到前方 138 单位处，由雾遮住接缝，世界永不耗尽。
+   */
+  _updateWorldFollow() {
+    const z = this._travelZ;
+    if (z == null) return;
+    const prev = this._prevTravelZ;
+    this._prevTravelZ = z;
+    applyWorldFollow(this.root.children, z, prev);
   }
 
   setMode(mode, { transition = true } = {}) {
@@ -614,6 +673,8 @@ export class PlayfieldStage3D {
     this.pointSets.length = 0;
     this.specials = { water: [], mist: [], beam: [], cloth: [] };
     this.scene.fog = null;
+    this._travelZ = null;
+    this._prevTravelZ = null;
     this.scene.background = null;
     this.scene.environment = null;
     this.sceneReady = false;
@@ -683,13 +744,13 @@ export class PlayfieldStage3D {
     for (const f of this.fields) {
       for (const it of f.items) {
         it.o.position.z += this.speed * dt * f.speedMul * gain;
-        if (it.o.position.z > -10) it.o.position.z -= f.range;
       }
     }
     for (const ps of this.pointSets) K.updatePoints(ps, dt * Math.min(1.8, gain), t);
     this._updateSpecials(dt, t);
     // 运镜：推近/保持/缓退 + 转场推镜 + 极轻微手持漂浮
     this._applyCameraMotion(dt);
+    this._updateWorldFollow();
     if (this._postOk && this._compositeMat) this._compositeMat.uniforms.uTime.value = t;
   }
 

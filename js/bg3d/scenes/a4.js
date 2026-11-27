@@ -144,8 +144,7 @@ function buildFloor(ctx, boss) {
     y: FLOOR_Y,
     size: [380, 420],
     color: boss ? 0x080401 : 0x050301,
-    normalScale: boss ? 0.75 : 0.5,
-    roughness: boss ? 0.075 : 0.095,
+    normalScale: boss ? 0.3 : 0.26, roughness: boss ? 0.24 : 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4,
   }));
   // 两侧金箔反光带（避开中线）
   for (const side of [-1, 1]) {

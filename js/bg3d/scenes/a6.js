@@ -314,8 +314,7 @@ function buildScene(ctx, boss) {
     y: FLOOR_Y,
     size: [380, 420],
     color: boss ? 0x080405 : 0x050303,
-    normalScale: boss ? 0.85 : 0.6,
-    roughness: boss ? 0.1 : 0.13,
+    normalScale: boss ? 0.28 : 0.24, roughness: boss ? 0.24 : 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4,
   }));
   floorGlow(ctx, { x: -10, z: -26, color: SUGAR, w: 8, d: 40, opacity: boss ? 0.06 : 0.04 });
   floorGlow(ctx, { x: 11, z: -34, color: AMBER, w: 7, d: 40, opacity: boss ? 0.055 : 0.038 });

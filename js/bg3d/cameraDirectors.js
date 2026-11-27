@@ -38,6 +38,12 @@ function easeInCubic(u) {
   return x * x * x;
 }
 
+/** 0..1 内平滑（用于软步进） */
+function smooth01(x) {
+  const v = clamp01(x);
+  return v * v * (3 - 2 * v);
+}
+
 /** 中间隆起的钟形（0→1→0），width 为半宽比例 */
 function bell(u, center, width) {
   const x = (u - center) / Math.max(1e-4, width);
@@ -87,9 +93,10 @@ const DIRECTORS = {
   // s1 零散草稿：慢出发，沿鸟居回廊逐步加速，到巨月前收住、抬头
   // -------------------------------------------------------------------------
   s1_mid: {
-    dur: 30,
+    dur: 22,
     sample({ u, t }) {
-      const p = seg(u, [[0, 0], [0.18, 0.06], [0.5, 0.42], [0.8, 0.86], [1, 1]]);
+      // 更早进入赶路段：10s 内应有明显推进里程（用户反馈原节奏过慢）
+      const p = seg(u, [[0, 0], [0.1, 0.14], [0.4, 0.58], [0.75, 0.93], [1, 1]]);
       const speed = travelSpeed(u);
       return {
         x: Math.sin(t * 0.16) * 0.3 + seg(u, [[0, 0], [1, 1.2]]),
@@ -99,16 +106,16 @@ const DIRECTORS = {
         lookY: BASE_LOOK_Y + 1.1 * easeOutCubic(u),
         fov: 56 - 3.6 * easeInOut(u),
         roll: Math.sin(t * 0.1) * 0.004,
-        gain: 0.3 + 1.6 * speed,
+        gain: 0.35 + 1.9 * speed,
       };
     },
   },
   s1_boss: {
-    dur: 20,
+    dur: 15,
     sample({ u, t }) {
-      // 起手后退半步 → 加速冲刺 → 赤月齿轮前急停
-      const p = seg(u, [[0, 0], [0.12, -0.04], [0.55, 0.5], [0.82, 0.94], [1, 1]]);
-      const speed = u < 0.55 ? 0.5 + u : 0.4;
+      // 起手后退半步 → 更快加速冲刺 → 赤月齿轮前急停
+      const p = seg(u, [[0, 0], [0.1, -0.03], [0.45, 0.62], [0.8, 0.96], [1, 1]]);
+      const speed = u < 0.55 ? 0.7 + u : 0.5;
       return {
         x: Math.sin(t * 0.22) * 0.35 + Math.sin(t * 0.7) * 0.08,
         y: BASE_Y - 0.32 * easeInOut(u),
@@ -346,9 +353,10 @@ const DIRECTORS = {
   // b4 血色巨轮隧道：低机位、车身侧倾，随巨轮转动加速/刹车
   // -------------------------------------------------------------------------
   b4_mid: {
-    dur: 30,
+    dur: 22,
     sample({ u, t }) {
-      const p = seg(u, [[0, 0], [0.12, 0.05], [0.4, 0.34], [0.5, 0.42], [0.68, 0.72], [0.78, 0.76], [1, 0.94]]);
+      // 更快进入隧道赶路段，10s 内已明显推进
+      const p = seg(u, [[0, 0], [0.1, 0.16], [0.42, 0.62], [0.78, 0.95], [1, 1]]);
       const accel = travelSpeed(u);
       return {
         x: Math.sin(t * 0.33) * 0.5,
@@ -363,10 +371,10 @@ const DIRECTORS = {
     },
   },
   b4_boss: {
-    dur: 20,
+    dur: 15,
     sample({ u, t }) {
-      // 双轮对转：镜头在两侧巨轮之间穿插，车身大幅侧倾
-      const p = seg(u, [[0, 0], [0.18, 0.16], [0.45, 0.5], [0.7, 0.84], [1, 1]]);
+      // 双轮对转：镜头在两侧巨轮之间穿插，车身大幅侧倾（推进更快）
+      const p = seg(u, [[0, 0], [0.1, 0.2], [0.45, 0.7], [0.8, 0.97], [1, 1]]);
       return {
         x: Math.sin(t * 0.85) * 2.6,
         y: 1.2 - 0.15 * easeInOut(u),
@@ -468,38 +476,41 @@ const DIRECTORS = {
   ex_mid: {
     dur: 28,
     sample({ u, t }) {
-      // 步进式推进（被"覆写"的数据块）+ 定时甩头
-      const moved = 0.72 * easeInOut(u) + 0.28 * (Math.floor(u * 9) / 9);
-      const snap = Math.sign(Math.sin(t * 1.05)) * 5.2 * (1 - 0.25 * easeInOut(u));
-      const glitch = Math.sin(t * 5.3) > 0.96 ? 1 : 0;
+      // 数据故障感：软步进推进 + 连续 tanh 甩头 + 平滑故障包络；
+      // 禁止 Math.sign/二值跳变（否则在 60/120fps 下会视觉“抽搐”）
+      const su = clamp01(u) * 9;
+      const stepEase = (Math.floor(su) + smooth01(su - Math.floor(su))) / 9;
+      const moved = 0.84 * easeInOut(u) + 0.16 * stepEase;
+      const scan = Math.tanh(Math.sin(t * 0.55) * 1.8) * 4.0;
+      const glitch = Math.pow(Math.max(0, Math.sin(t * 1.7 + 0.6)), 8);
       return {
         x: Math.sin(t * 0.5) * 0.35,
-        y: BASE_Y - 0.1 * easeInOut(u) + glitch * 0.03,
+        y: BASE_Y - 0.1 * easeInOut(u) + glitch * 0.018,
         z: -16 * moved,
-        lookX: snap + (Math.sin(t * 13) * 0.5 * glitch),
+        lookX: scan + Math.sin(t * 9) * 0.25 * glitch,
         lookY: BASE_LOOK_Y + 1.2 * easeOutCubic(u),
-        fov: 57 - 4.5 * easeInOut(u) + glitch * 1.6,
-        roll: glitch * 0.03 + Math.sin(t * 0.3) * 0.004,
-        gain: 0.3 + 1.4 * travelSpeed(u) + glitch * 0.6,
+        fov: 57 - 4.5 * easeInOut(u) + glitch * 1.0,
+        roll: Math.sin(t * 0.4) * 0.003 + glitch * 0.012,
+        gain: 0.3 + 1.4 * travelSpeed(u) + glitch * 0.35,
       };
     },
   },
   ex_boss: {
     dur: 18,
     sample({ u, t }) {
-      // 覆写终局：高速冲刺 + 连续甩头 + 故障抖动
+      // 覆写终局：高速冲刺 + 连续甩头 + 平滑故障抖动（同样避免二值跳变）
       const p = seg(u, [[0, 0], [0.15, 0.18], [0.4, 0.5], [0.62, 0.8], [0.85, 0.97], [1, 1]]);
-      const snap = Math.sign(Math.sin(t * 1.7)) * 7.5;
-      const glitch = Math.sin(t * 9.1) > 0.9 ? 1 : 0;
+      const scan = Math.tanh(Math.sin(t * 0.9) * 1.6) * 5.2 * (1 - 0.25 * easeInOut(u));
+      const glitch = Math.pow(Math.max(0, Math.sin(t * 2.3 + 0.4)), 8);
       return {
         x: Math.sin(t * 1.2) * 1.2,
-        y: BASE_Y - 0.2 * easeInOut(u) + glitch * 0.04,
+        y: BASE_Y - 0.2 * easeInOut(u) + glitch * 0.02,
         z: -22 * p,
-        lookX: snap * (1 - 0.3 * easeInOut(u)) + glitch * 1.2,
+        lookX: scan + Math.sin(t * 11) * 0.3 * glitch,
         lookY: BASE_LOOK_Y + 1.8 * easeOutCubic(u),
-        fov: 59 - 8 * easeInOut(u) + glitch * 2,
-        roll: Math.sin(t * 2.2) * 0.025 + glitch * 0.04,
-        gain: 0.4 + 2.1 * travelSpeed(u) + glitch,
+        fov: 59 - 8 * easeInOut(u) + glitch * 1.2,
+        roll: Math.sin(t * 0.8) * 0.012 + glitch * 0.014,
+        gain: 0.4 + 2.1 * travelSpeed(u) + glitch * 0.5,
       };
     },
   },

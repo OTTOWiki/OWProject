@@ -296,7 +296,7 @@ function buildScene(ctx, boss) {
   });
 
   // 镜面海（左右调色靠加色光斑与倒影光柱）
-  ctx.add(K.waterFloor({ y: FLOOR_Y, size: [380, 420], color: boss ? 0x04060c : 0x03040a, normalScale: boss ? 1.3 : 1.0, roughness: 0.07 }));
+  ctx.add(K.waterFloor({ y: FLOOR_Y, size: [380, 420], color: boss ? 0x04060c : 0x03040a, normalScale: boss ? 0.32 : 0.26, roughness: 0.24, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4 }));
   const veil = K.panel(null, { x: 0, y: FLOOR_Y + 0.05, z: -60, w: 380, h: 420, color: 0x04050c, opacity: 0.32, fog: false });
   veil.rotation.x = -Math.PI / 2;
   ctx.add(veil);

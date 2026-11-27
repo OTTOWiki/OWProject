@@ -39,7 +39,7 @@ function addDataFloor(ctx, boss) {
   const K = ctx.K;
   const water = K.waterFloor({
     y: -6.3, size: [300, 360], color: 0x05020c,
-    normalScale: boss ? 1.3 : 1.0, roughness: 0.05,
+    normalScale: boss ? 0.3 : 0.24, roughness: 0.24, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4,
   });
   ctx.add(water);
   // 贴地的六角数据格栅（镜面里的电路）

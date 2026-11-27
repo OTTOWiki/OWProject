@@ -33,7 +33,7 @@ function buildScene(ctx, boss) {
   });
 
   // 冻原水面（冷光反射）
-  ctx.add(K.waterFloor({ y: -5.4, size: [340, 380], color: boss ? 0x061220 : 0x040c16, normalScale: 0.2, roughness: 0.1 }));
+  ctx.add(K.waterFloor({ y: -5.4, size: [340, 380], color: boss ? 0x061220 : 0x040c16, normalScale: 0.24, roughness: 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4 }));
 
   // 两侧巨墙 + 发光电路线（持续深入）
   ctx.field((i) => {

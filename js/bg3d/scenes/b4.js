@@ -35,7 +35,7 @@ function addBloodFloor(ctx, boss) {
   const water = K.waterFloor({
     y: -6.2, size: [280, 360],
     color: boss ? 0x1c0407 : 0x120306,
-    normalScale: 1.35, roughness: boss ? 0.08 : 0.11,
+    normalScale: 0.26, roughness: boss ? 0.24 : 0.22, metalness: 0.12, envMapIntensity: 0.45, flow: 0.4,
   });
   ctx.add(water);
   // 血水镜面上漂着的血带（薄发光线，低亮度，不压中心）

@@ -172,3 +172,101 @@ test('自适应工厂：WebGL context lost / draw 连续异常必须回退 2D（
   bg2.draw({});
   assert(bg2.is3D === false, '连续 draw 失败应回退 2D');
 });
+
+test('EX 镜头不得出现逐帧跳变（抽搐回归守卫）', async () => {
+  const mod = await import('../js/bg3d/cameraDirectors.js');
+  for (const mode of ['ex_mid', 'ex_boss']) {
+    const d = mod.makeCameraDirector(mode, 'ex');
+    const fps = 60;
+    let prev = null;
+    let maxDX = 0;
+    let maxDF = 0;
+    let maxDR = 0;
+    for (let i = 0; i <= fps * 12; i++) {
+      const t = i / fps;
+      const s = d.sample({ u: t / d.dur, t, boss: /_boss$/.test(mode), stage: 'ex' });
+      if (prev) {
+        maxDX = Math.max(maxDX, Math.abs(s.lookX - prev.lookX));
+        maxDF = Math.max(maxDF, Math.abs(s.fov - prev.fov));
+        maxDR = Math.max(maxDR, Math.abs(s.roll - prev.roll));
+      }
+      prev = s;
+    }
+    assert(maxDX < 0.5, `${mode} lookX 逐帧跳变过大: ${maxDX.toFixed(3)}`);
+    assert(maxDF < 0.3, `${mode} fov 逐帧跳变过大: ${maxDF.toFixed(3)}`);
+    assert(maxDR < 0.004, `${mode} roll 逐帧跳变过大: ${maxDR.toFixed(4)}`);
+  }
+});
+
+test('s1 水面高光参数已收敛（避免无意义闪光回归）', () => {
+  const src = readFileSync(new URL('../js/bg3d/scenes/s1.js', import.meta.url), 'utf8');
+  const m = /waterFloor\(\{([\s\S]*?)\}\)/.exec(src);
+  assert(m, 's1 缺少 waterFloor 调用');
+  const body = m[1];
+  const ns = /normalScale:\s*([0-9.]+)/.exec(body);
+  const rough = /roughness:\s*([0-9.]+)/.exec(body);
+  const env = /envMapIntensity:\s*([0-9.]+)/.exec(body);
+  assert(ns && Number(ns[1]) <= 0.5, 's1 水面 normalScale 需 ≤0.5');
+  assert(rough && Number(rough[1]) >= 0.18, 's1 水面 roughness 需 ≥0.18');
+  assert(env && Number(env[1]) <= 0.6, 's1 水面 envMapIntensity 需 ≤0.6');
+});
+
+test('s1/b4 镜头首 10s 推进里程下限（修“速度过慢”）', async () => {
+  const mod = await import('../js/bg3d/cameraDirectors.js');
+  const limits = { s1_mid: -7, s1_boss: -14, b4_mid: -9, b4_boss: -17 };
+  for (const [mode, limit] of Object.entries(limits)) {
+    const d = mod.makeCameraDirector(mode, mode.split('_')[0]);
+    const s = d.sample({ u: 10 / d.dur, t: 10, boss: /_boss$/.test(mode), stage: mode.split('_')[0] });
+    assert(s.z <= limit, `${mode} 首 10s 推进不足: z=${s.z.toFixed(2)}（应 ≤ ${limit}）`);
+  }
+});
+
+test('全部关卡水面高光参数安全（防 s1 式无意义闪光回归）', () => {
+  const kit = readFileSync(new URL('../js/bg3d/kit.js', import.meta.url), 'utf8');
+  assert(/normalScale = Math\.min\(0\.5/.test(kit), 'waterFloor 缺少 normalScale 安全上限');
+  assert(/roughness = Math\.max\(0\.18/.test(kit), 'waterFloor 缺少 roughness 安全下限');
+  const files = ['s1', 's2', 's3', 'patrol', 'a4', 'a5', 'a6', 'b4', 'b5', 'b6', 'ex'];
+  for (const f of files) {
+    const src = readFileSync(new URL(`../js/bg3d/scenes/${f}.js`, import.meta.url), 'utf8');
+    for (const m of src.matchAll(/waterFloor\(\{([\s\S]*?)\}\)\)/g)) {
+      const body = m[1];
+      const ns = /normalScale:\s*([^,\n]+)/.exec(body);
+      const rough = /roughness:\s*([^,\n]+)/.exec(body);
+      if (ns) {
+        for (const num of ns[1].match(/[0-9]+(?:\.[0-9]+)?/g) || []) {
+          assert(Number(num) <= 0.5, `${f} 水面 normalScale 过大: ${ns[1]}`);
+        }
+      }
+      if (rough) {
+        for (const num of rough[1].match(/[0-9]+(?:\.[0-9]+)?/g) || []) {
+          assert(Number(num) >= 0.18, `${f} 水面 roughness 过小: ${rough[1]}`);
+        }
+      }
+    }
+  }
+});
+
+test('无限世界：ambient 跟随镜头、景物越过回收、巡航不停留（纯函数）', async () => {
+  const { applyWorldFollow, postArrivalCruise } = await import('../js/bg3d/stage3d.js');
+  const water = { position: { z: -100 }, userData: { ambient: true } };
+  const torii = { position: { z: -10 }, userData: { recyclable: true } };
+  const far = { position: { z: -120 }, userData: { recyclable: true } };
+  const root = [water, torii, far];
+  const prev = 0;
+  const now = -30; // 镜头前进 30，torii 被越过
+  const r = applyWorldFollow(root, now, prev);
+  assertEqual(r.dz, -30);
+  assertEqual(water.position.z, -130, 'ambient 应随镜头平移保持相对位置');
+  assertEqual(torii.position.z, -160, '越过的景物应回收到前方 150 单位');
+  assertEqual(far.position.z, -120, '前方景物不应回收');
+  // 首帧不移动
+  const first = applyWorldFollow(root, now, null);
+  assertEqual(first.dz, 0);
+  // 巡航持续增大且不停留
+  assertEqual(postArrivalCruise(-1), 0);
+  const c1 = postArrivalCruise(0);
+  const c2 = postArrivalCruise(10);
+  assertEqual(c1, 0);
+  assert(c2 > c1, '抵达后仍应持续巡航');
+  assert(postArrivalCruise(20) > postArrivalCruise(10), '巡航距离应继续增长');
+});
