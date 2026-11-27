@@ -643,6 +643,7 @@ export function waterFloor({
   mesh.position.set(0, y, -100);
   mesh.receiveShadow = true;
   mesh.userData.water = { tex, speed: 0.008 * flow };
+  mesh.userData.ambient = true; // 跟随镜头（无限世界），不参与景物回收
   return mesh;
 }
 
@@ -656,6 +657,7 @@ export function ground({
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(0, y, -95);
   mesh.receiveShadow = true;
+  mesh.userData.ambient = true; // 跟随镜头，避免无限前进时走出地面边缘
   return mesh;
 }
 
@@ -700,6 +702,7 @@ export function volumetricBeam({
   mesh.position.set(x, y, z);
   mesh.rotation.z = Math.PI + tilt;
   mesh.userData.beam = { spin, phase: hash01((x * 13 + y * 7 + z * 3) | 0) * 6.28 };
+  mesh.userData.ambient = true;
   return mesh;
 }
 
@@ -744,6 +747,7 @@ export function mistSheet({
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
   m.position.set(x, y, z);
   m.userData.mist = { speed };
+  m.userData.ambient = true;
   return m;
 }
 
@@ -798,6 +802,7 @@ export function points({
     toneMapped: false,
   });
   const p = new THREE.Points(geo, mat);
+  p.userData.ambient = true;
   return { points: p, meta, type, speed, xRange, yRange, zNear, zFar, count };
 }
 
@@ -1315,6 +1320,7 @@ export function moon({ x = 6, y = 12, z = -110, r = 9, color = 0xe8e2d0, halo = 
   hs.position.set(x, y, z);
   const wrap = new THREE.Group();
   wrap.add(g, hs);
+  wrap.userData.ambient = true;
   return wrap;
 }
 
@@ -1337,6 +1343,7 @@ export function skyEye({ x = 0, y = 8, z = -60, r = 3.5, color = 0xd8e0e8, iris 
   pupilMesh.scale.set(1, 1, 0.5);
   g.add(white, irisMesh, pupilMesh);
   g.position.set(x, y, z);
+  g.userData.ambient = true;
   return g;
 }
 

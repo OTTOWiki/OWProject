@@ -245,3 +245,28 @@ test('全部关卡水面高光参数安全（防 s1 式无意义闪光回归）'
     }
   }
 });
+
+test('无限世界：ambient 跟随镜头、景物越过回收、巡航不停留（纯函数）', async () => {
+  const { applyWorldFollow, postArrivalCruise } = await import('../js/bg3d/stage3d.js');
+  const water = { position: { z: -100 }, userData: { ambient: true } };
+  const torii = { position: { z: -10 }, userData: { recyclable: true } };
+  const far = { position: { z: -120 }, userData: { recyclable: true } };
+  const root = [water, torii, far];
+  const prev = 0;
+  const now = -30; // 镜头前进 30，torii 被越过
+  const r = applyWorldFollow(root, now, prev);
+  assertEqual(r.dz, -30);
+  assertEqual(water.position.z, -130, 'ambient 应随镜头平移保持相对位置');
+  assertEqual(torii.position.z, -160, '越过的景物应回收到前方 150 单位');
+  assertEqual(far.position.z, -120, '前方景物不应回收');
+  // 首帧不移动
+  const first = applyWorldFollow(root, now, null);
+  assertEqual(first.dz, 0);
+  // 巡航持续增大且不停留
+  assertEqual(postArrivalCruise(-1), 0);
+  const c1 = postArrivalCruise(0);
+  const c2 = postArrivalCruise(10);
+  assertEqual(c1, 0);
+  assert(c2 > c1, '抵达后仍应持续巡航');
+  assert(postArrivalCruise(20) > postArrivalCruise(10), '巡航距离应继续增长');
+});
