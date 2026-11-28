@@ -1,7 +1,7 @@
 # 关卡背景重作：数据驱动「绘卷」系统与分面场景
 
-> 日期：2026-11-22 · 分支：`feat/level-bg-rebuild` · 状态：实施中
-> 上游方案：[`background-rebuild-plan.md`](./background-rebuild-plan.md)（P0/P1/P3 已完成；本文承接 P2 后的观感重作 P6 并落到可运行系统）
+> 日期：2026-11-22 · 分支：`feat/level-bg-rebuild`（已并入 `main`） · **状态：已完成（2026-11-28 核对；后续仅按面观感微调）** ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+> 上游方案：[`background-rebuild-plan.md`](./archive/background-rebuild-plan.md)（P0/P1/P3 已完成；本文承接 P2 后的观感重作 P6 并落到可运行系统）
 > 素材授权：见 [`assets/NOTICE.md`](../assets/NOTICE.md)
 
 ## 0. 目标与验收
@@ -19,12 +19,12 @@
 | 7 | 不回归：转场/回放/章节流/性能/自动测试 | `npm test` + WebView 实测 |
 | 8 | 失败可兜底：素材/Plate 加载失败仍可玩 | 断网/404 注入验证 |
 
-## 1. 现状问题（2026-11-22 实测）
+## 1. 现状问题（2026-11-22 实测；旧文件已在实施中删除/改名，路径仅作历史记录）
 
 - **版面**（`js/playfieldBg.js` + `playfieldBgThemes.js` + `backgrounds/atoms2d.js`，已冻结待重做）：伪 Mode-7 直路 + 12 种几何柱子；21 mode 的 `assets/bg/tex_*.avif` 只有 8 个唯一内容，且多为通用 AI 纹理（齿轮/六边形/冰晶/网格），与章节叙事无关；整体过暗、中心大片死黑、重复感强。
 - **外围**（`#game-backdrop`）：全部关卡共用固定 `assets/bg/battle-print.avif`，与版面配色冲突（例：第 1 面绿色版面 + 红粉外围）。
 - **左侧 Three 印象场景**：`#bg3d` 透明度 0.025，实际不可见；本轮**不动**，保持既有兜底与测试契约。
-- 参考：TH14 战斗画面（暗底、高对比亮弹、装饰纹样）与 TH20 第 1 面（绘卷式森林、大圆形结界、低对比底）实际截图与本作现状对比后定方向。本机无 `参考/参考截图/` 原件（hud06 worktree 已清理），参考图存于 `.scratch/bg-refs/`（不入库）。
+- ⚠️ 参考：TH14 战斗画面（暗底、高对比亮弹、装饰纹样）与 TH20 第 1 面（绘卷式森林、大圆形结界、低对比底）实际截图与本作现状对比后定方向。本机无 `参考/参考截图/` 原件（hud06 worktree 已清理），参考图存于 `.scratch/bg-refs/`（不入库）。
 
 ## 2. 视觉方向：「绘卷 × 数据」印刷舞台
 
@@ -147,7 +147,7 @@ assets/bg/mat/plum.avif             # 1024×512 RGBA 灰度透明：梅枝剪影
 - 版面 plate 中心 60% 区域亮度均值 ≤14%（V 通道），四周可到 35%；中心不放人脸/文字；
 - 外围底材整体均值 ≤18%，左右各 22% 宽度额外压暗（保证题字/HUD 可读）；
 - 必须检查 AVIF 实际解码效果（`magick` + WebView）；单 plate ≤120KB、单 backdrop ≤220KB，总新增 ≤3.5MB；
-- 素材处理可复现：`tools/bg-assets/fetch-sources.sh`（curl/API 记录）+ `tools/bg-assets/build-assets.sh`（ImageMagick/avifenc 全量命令）；源图、许可证证据放 `.scratch/bg-assets/`（不入库）。
+- ⚠️ 素材处理可复现：`tools/bg-assets/fetch-sources.sh`（curl/API 记录）+ `tools/bg-assets/build-assets.sh`（ImageMagick/avifenc 全量命令）；源图、许可证证据放 `.scratch/bg-assets/`（不入库）。
 
 ### 5.2 授权
 
@@ -166,7 +166,7 @@ assets/bg/mat/plum.avif             # 1024×512 RGBA 灰度透明：梅枝剪影
 
 - 自动：`npm test`（`test/cases-bg3d.js`：21 mode builder/镜头导演/过渡/层叠/确定性守卫；`test/cases-bg-schema.js`：2D 兜底 schema/atom/材质路径；`test/cases-bg-rng.js`、`cases-bg-easing.js`）；
 - 实拍（WebViewProbe）：每面 mid/boss 版面 450×600 + 全屏 1365×900（含外围）；抽查 844×390 横屏；捕捉转场中帧；
-- 对比：改动前 baseline 截图（旧系统 21 mode 已有 `.local-evidence/bg-p1/before/`；本轮再拍真实游戏画面 baseline）；并排报告记入 `.local-evidence/level-bg/report.md`；
+- ⚠️ 对比：改动前 baseline 截图（旧系统 21 mode 已有 `.local-evidence/bg-p1/before/`；本轮再拍真实游戏画面 baseline）；并排报告记入 `.local-evidence/level-bg/report.md`；
 - 可读性：中心亮度/方差实测、亮弹幕对比度抽检；HUD 文字与题字遮挡检查；
 - 兜底：拦截 plate/backdrop 请求 → 仍可玩、不报错、有纯色/渐变兜底；
 - 性能：`owDebug`/`performance.now()` 采样背景绘制时间、WebView 帧率；
@@ -233,7 +233,7 @@ export function mid(ctx) {
 - 只用 `ctx.K` / `ctx.*` 提供的 API；禁止 DOM 事件、网络、Math.random、Date.now；随机用 `K.hash01(seed)` / `K.rr(seed,min,max)`。
 - 大物体（鸟居/塔/门）用 `xAbsMin` 让出中心；`zNear ≤ -20` 避免糊脸；中心 60% 保持低对比、亮弹幕可辨。
 - 3D 场景文件是主实现；`js/bg/scenes/<stage>.js`（2D）保留为兜底，不再投入美术迭代。
-- 预览/自检：`bash .scratch/bg-capture.sh <out.png> 'http://127.0.0.1:3125/.scratch/bg3d-sheet.html?modes=<modes>&cb=<唯一>&cols=2&cw=430' 900 2400 12000`
+- ⚠️ 预览/自检：`bash .scratch/bg-capture.sh <out.png> 'http://127.0.0.1:3125/.scratch/bg3d-sheet.html?modes=<modes>&cb=<唯一>&cols=2&cw=430' 900 2400 12000`
   → `read_image` 检查（等待加载 three+素材约 10s）。
 
 ---

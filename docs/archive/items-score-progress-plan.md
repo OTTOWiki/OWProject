@@ -1,14 +1,16 @@
 # 道具 / 得分 / 进度 / 排行 / 存档 — 改进方案
 
+> **状态：已归档（2026-11-28）** — A1–A8 已完成（A5/A6 于 2026-11-28 收尾，A7 只落了 `duration`、`slowPercent` 未做）；A9 用户决定不做；M2 可选未做。现行数值与行为以 `js/config.js` 和 `AGENTS.md` 为准。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期: 2026-10-05
-> 参考: `~/Touhou20`（TH20 的独立 C++ 源码重建，**只读**）的 `item_system/`、`small_score/`、`damage_regions/`、`hud_system/`、`progress_state/`、`stage_clear/`、`stage_completion/`。
+> ⚠️ 参考: `~/Touhou20`（TH20 的独立 C++ 源码重建，**只读**）的 `item_system/`、`small_score/`、`damage_regions/`、`hud_system/`、`progress_state/`、`stage_clear/`、`stage_completion/`。
 > 方式: **未改动任何运行时代码**。本文是方案。
 > 上一轮汇总报告见 [th20-reference-report.md](th20-reference-report.md)（§2 行动清单）；本文把其中道具/得分/进度相关条目**逐条对照当前代码复核**后细化，并修正了两处表述。
 > 可信度标注：**[已核]** 我读过两侧源码；**[impl]** 子代理读过 TH20 实现但该模块未经原 CPU 差分；**[cpu]** TH20 侧有原 CPU 差分记录。
 
 ## 0. 一句话结论
 
-> 实施状态（2026-11-14 核对）：A1–A4、A7、A8 已落地（对应 PR #49 / #55·#62 / #51 / #52 / #70 / #87）；A5、A6、A9、M2 未做。§1「现状」保留为方案撰写时（2026-10-05）快照；当前以代码为准。
+> 实施状态（2026-11-28 核对）：A1–A8 已落地（A1 PR #49 / A2 PR #55·#62 / A3 #51 / A4 #52 / A7 #70 / A8 #87；A5、A6 于 2026-11-28 收尾，A7 只落了 `duration`、`slowPercent` 未做）；A9 用户决定不做，M2 可选未做。§1「现状」保留为方案撰写时（2026-10-05）快照；当前以代码为准。
 
 **两个真问题、一个观感缺口、其余是"可选增补"。**（截至 2026-11-14，①②③ 均已修复，见下方实施状态）
 真问题：① 道具没有存活上限（`fullScreenClear` 一次可造数千对象）；② 存档写静默失败、无备份层。

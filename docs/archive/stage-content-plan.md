@@ -1,9 +1,11 @@
 # 关卡内容系统 — 改进方案（波次脚本 runner + 敌机原型表）
 
+> **状态：已归档（2026-11-28）** — B1 黄金哈希已完成；B0 的 `installWaveScript` 落地后因运行时零调用被清理；B2 完成 53/62 后停；B3–B5 未做。现行章节写法见 `AGENTS.md` 与 `js/stages/_shared.js`（`installMidWave` 等）。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期: 2026-10-05
-> 参考: `~/Touhou20` 的 `gameplay/`（EnemyController / 实体 opcode）、`ecl_vm/`（通用指令 VM）、`scripts/recovered/ecl/`（**真实关卡内容**）、`audit/ecl_opcode_coverage.md`。参考仓库**全程只读**。
+> ⚠️ 参考: `~/Touhou20` 的 `gameplay/`（EnemyController / 实体 opcode）、`ecl_vm/`（通用指令 VM）、`scripts/recovered/ecl/`（**真实关卡内容**）、`audit/ecl_opcode_coverage.md`。参考仓库**全程只读**。
 > 方式: **未改动任何运行时代码**。本文是方案。
-> 配套: [`.scratch/stages-factsheet.md`](../.scratch/stages-factsheet.md)（我方规模与 TH20 量的实测事实卡）。
+> ⚠️ 配套: [`evidence/stages-factsheet.md`](evidence/stages-factsheet.md)（我方规模与 TH20 量的实测事实卡）。
 > 可信度标注：**[已核]** 我读过两侧实现/数据；**[impl]** 子代理读过 TH20 实现但该模块未经原 CPU 差分；**[cpu]** TH20 侧有原 CPU 差分记录。
 
 ## 0. 一句话结论
@@ -228,7 +230,7 @@ export function chapter_a4_mid_1(g) {
 | **B1** | 建**黄金哈希基线**，全部章节 before 快照 | 后续每一批都要比它 |
 | **B2** | `ex_mid_0_31.js` / `ex_mid_32_61.js`：62 个 pattern、1,814 行、62 处调用 | **最均匀、收益最大、最易批量验证** |
 
-> 状态（2026-11-14）：B0/B1/B2 已完成。EX 62 个 pattern 中 53 个已迁 `spawnArch`（0–31：29、32–61：24），其余 9 个为纯弹幕墙/激光/回场移动，按设计保留 raw script 到 `archetypes.js`；B3–B5 未开始。黄金哈希已覆盖 spawn 帧号、敌机 script 开火与 600 帧最终状态。
+> 状态（2026-11-28 核对）：B0/B1 已完成，B0 的 runner 后因运行时零调用被清理；B2 完成 53/62；B3–B5 未开始。EX 62 个 pattern 中 53 个已迁 `spawnArch`（0–31：29、32–61：24），其余 9 个为纯弹幕墙/激光/回场移动，按设计保留 raw script 到 `archetypes.js`。黄金哈希已覆盖 spawn 帧号、敌机 script 开火与 600 帧最终状态。
 | **B3** | `a4..b6/mid.js`（约 60 处），此时原型表已稳定 | 中等体量，逐文件提交 |
 | **B4** | `s1/s2/s3`（`s1_alice.js` 的 `installWave` 试点） | 接通 `stageContext` |
 | **B5** | 文档同步：`AGENTS.md` 的「新章节」配方、`docs/refactor-queue.md` | 文档与代码一致 |

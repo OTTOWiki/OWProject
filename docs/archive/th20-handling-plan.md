@@ -1,9 +1,11 @@
 # 操作手感改进参考（以 TH20 源码重建为参考）
 
+> **状态：已归档（2026-11-28）** — 部分条目已落地（停帧期边沿输入、Boss 擦弹 2x、震屏确定性等，见 [`th20-reference-report.md`](./th20-reference-report.md) 实施状态），其余未排期。现行手感以 `js/config.js` / `AGENTS.md` 为准。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期: 2026-10-05
-> 参考对象: `~/Touhou20`（TH20 ver 1.00c 的**独立 C++ 源码重建**，按 x86 二进制恢复 + 原 CPU 差分验证；**不是原版源码**）
+> ⚠️ 参考对象: `~/Touhou20`（TH20 ver 1.00c 的**独立 C++ 源码重建**，按 x86 二进制恢复 + 原 CPU 差分验证；**不是原版源码**）
 > 方式: 参考仓库**全程只读**；本文档只做方案，**未改动任何运行时代码**。
-> 配套证据: `.scratch/th20-feel-factsheet.md`（主代理自查事实卡）与仓库外的 `~/ow-th20-handling-research.md`（子代理完整报告，210 行）。
+> ⚠️ 配套证据: [`evidence/th20-feel-factsheet.md`](evidence/th20-feel-factsheet.md)（主代理自查事实卡）与仓库外的 `~/ow-th20-handling-research.md`（子代理完整报告，210 行）。
 
 ## 0. 可信度标注约定
 

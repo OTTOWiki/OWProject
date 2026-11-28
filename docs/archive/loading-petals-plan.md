@@ -1,8 +1,10 @@
 # 加载界面「黑带 + 落花」实施方案
 
+> **状态：已归档（2026-11-28）** — P1–P4 / P6 已完成；P5 仅剩低端真机首帧未验证（完整 E2E 已有 CI 路径）。现行实现见 `js/loadingPetals.js`、`index.html`、`css/style.css`。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期：2026-11-08
-> 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ [`参考/loading.png`](../参考/loading.png)（TH20 原版加载画面，仅作构图参考）
-> 依据：TH20 素材与 ANM 语义见 [`.scratch/loading-petals-factsheet.md`](../.scratch/loading-petals-factsheet.md)（逐条 `文件:行号` 证据）。
+> ⚠️ 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ `参考/loading.png`（本机路径，TH20 原版加载画面，仅作构图参考）
+> ⚠️ 依据：TH20 素材与 ANM 语义见 [`evidence/loading-petals-factsheet.md`](evidence/loading-petals-factsheet.md)（逐条 `文件:行号` 证据）。
 > **状态**：开屏黑带复刻、真实进度、恢复面板、落花与进度联动 **均已实施**（2026-11-08）。落花素材为 FreeGameSprites CC0 水彩樱花，处理成 512×1024 无缝纵铺纹理；不使用原作像素。
 > **2026-11-08 修订**：落花收进右下“少女祈祷中”局部盒，并置于其**上层**；黑带始终居中、加载角始终右下；关键帧改为向下落，基础周期 14s→8s，WAAPI 只改 playbackRate；手机横屏统一紧凑布局，不再让加载角与黑带重叠。
 
@@ -23,7 +25,7 @@
 | 失败恢复 | PR #10 把 `load-hint` 与恢复路径删了 | **舍**；这是旧版最大退步 | `#load-reload` / `#load-continue` + `aria-busy="false"` 驱动的状态面板；44px 移动端命中区 |
 | 移动端 | PR #10 的 `.load-corner` 绝对定位，窄屏容易压字 | 舍硬贴角 | ≤720px：黑带纵向居中、加载角贴底；失败态改为「黑带 + 暗色状态面板」流式排布，可滚动 |
 | 减少动态效果 | PR #10 无处理 | 舍 | `prefers-reduced-motion` 下停掉背景漂移、横带淡入与进度条过渡 |
-| 原作素材 | `参考/loading.png` 是原作截图 | **只取构图，不取像素** | 新背景与落花素材均自绘/由项目内既有 AI 素材派生；`assets/NOTICE.md` 逐文件记录 |
+| ⚠️ 原作素材 | `参考/loading.png` 是原作截图 | **只取构图，不取像素** | 新背景与落花素材均自绘/由项目内既有 AI 素材派生；`assets/NOTICE.md` 逐文件记录 |
 
 **一句话取舍**：PR #10 的“开屏构图”是对的，“工程完整性”是退化的；复刻构图，保留现有真实进度、可访问性与恢复能力。
 
@@ -97,7 +99,7 @@
 
 ### 2.4 素材与授权
 
-- `assets/ui/loading-bg.avif`：1440×900，18KB；以 `assets/bg/difficulty-cathedral.avif` 为底，压暗、暗角、颗粒后导出；**不含 `参考/loading.png` 的像素**。
+- ⚠️ `assets/ui/loading-bg.avif`：1440×900，18KB；以 `assets/bg/difficulty-cathedral.avif` 为底，压暗、暗角、颗粒后导出；**不含 `参考/loading.png` 的像素**。
 - `assets/ui/loading.avif`：既有 128×128 暗纹理，仅作黑带材质叠加。
 - `assets/ui/petals-scroll.avif`：512×1024，14KB，38 片；由 [FreeGameSprites「Cherry Blossom Petals」](https://freegamesprites.com/en/assets/cherry-blossom-petals)（CC0 1.0）的 256×256 透明水彩图裁出三片花瓣重排；源图与处理脚本不进运行时。
 - `assets/NOTICE.md` 已补 `loading-bg` / `loading` / `petals-scroll` 三条逐文件记录。
@@ -112,11 +114,11 @@
   - 390×844 / 320×568 / 320×480：黑带中心与视口中心误差 0px（移除了移动端底部 padding）；加载角右下。
   - 恢复态：动画 `paused`；`prefers-reduced-motion`：动画数 0。
   - `pageerror` 为空。
-- 定向 e2e：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次因既有 Three 场景加载超时 7/8，单跑均通过。完整 `npm run test:e2e` 仍未在本机跑：标准 runner 在 Termux/Android 报 `Unsupported platform: android`；CI 的 `Test` / `E2E` 仍是合并门禁。
+- ⚠️ 定向 e2e：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次因既有 Three 场景加载超时 7/8，单跑均通过。完整 `npm run test:e2e` 仍未在本机跑：标准 runner 在 Termux/Android 报 `Unsupported platform: android`；CI 的 `Test` / `E2E` 仍是合并门禁。
 
 ## 3. 落花参考：TH20 实际做了什么（只取结构）
 
-参考图 `参考/loading.png` 是 646×493 的原版加载画面：紫黑满幅底、中央黑色横带、右下「少女祈祷中／Now Loading」。它的“落花”不是粒子系统，而是**一张 256×256 贴图切成 3 块，各自跑一条小时间轴**：
+⚠️ 参考图 `参考/loading.png` 是 646×493 的原版加载画面：紫黑满幅底、中央黑色横带、右下「少女祈祷中／Now Loading」。它的“落花”不是粒子系统，而是**一张 256×256 贴图切成 3 块，各自跑一条小时间轴**：
 
 | 层 | 精灵区域 | 已解出的动画 |
 |---|---|---|
@@ -126,7 +128,7 @@
 
 三条 ANM 指令承担全部动画：`ins_407` 位置插值、`ins_409` alpha 插值、`ins_408` 颜色插值；`mode` 是缓动号。更关键的是 **动画时钟与游戏时钟共用 `timer_rate`**——所以“变速”在引擎里是免费的。
 
-**不能直接抄贴图**：`参考/loading.png` 与 TH20 的 `loading@ascii@7.png` 都属于官方指南禁止的“截图/游玩视频以外的游戏素材”。我们只抄“分层 + 小时间轴 + 时钟倍率”的结构，像素全部自绘。
+⚠️ **不能直接抄贴图**：`参考/loading.png` 与 TH20 的 `loading@ascii@7.png` 都属于官方指南禁止的“截图/游玩视频以外的游戏素材”。我们只抄“分层 + 小时间轴 + 时钟倍率”的结构，像素全部自绘。
 
 ## 4. 落花设计目标
 
@@ -193,10 +195,10 @@
 - **512×1024**，带 alpha，38 片花瓣，**14KB**；首尾纵向接缝已实测无横线。
 - 来源：[FreeGameSprites — Cherry Blossom Petals](https://freegamesprites.com/en/assets/cherry-blossom-petals)，页面标注 **CC0 1.0**（公共领域）；原图 256×256 透明水彩樱花。
 - 处理：从原图裁出三片独立花瓣（避开整朵花与叶片），本地用 Pillow 以固定 seed 重排到 512×1024；上下越界花瓣在 y±1024 处复制，保证纵铺无缝。
-- 处理脚本与源图只在 `.local-evidence/loading-petals/source/`（本机证据），不进运行时。
+- ⚠️ 处理脚本与源图只在 `.local-evidence/loading-petals/source/`（本机证据），不进运行时。
 - `assets/NOTICE.md` 已记录来源、许可证与“非原作提取”。
 
-若替换素材，仍须满足：512×1024 / alpha / 纵铺无缝 / <40KB / CC0 或明确可商用；不要使用 `参考/loading.png`、TH20 原贴图或来源不明的素材。
+⚠️ 若替换素材，仍须满足：512×1024 / alpha / 纵铺无缝 / <40KB / CC0 或明确可商用；不要使用 `参考/loading.png`、TH20 原贴图或来源不明的素材。
 
 ## 7. 进度 → 播放速率
 
@@ -266,12 +268,12 @@ export function petalPlaybackRate(pct) {
   - 可恢复失败时动画 `paused`，继续按钮可用。
   - **1365×600 与 667×375 布局守卫**：黑带中心 = 视口中心（≤1px），“少女祈祷中”与花瓣盒仍在右下；667×375 还断言加载角不与黑带重叠。
   - 首条用例还断言：花瓣层 z-index > 加载角；动画 8s；两次采样 `translateY` 递增（向下）。
-- 本机用系统 Chromium + 平台 shim：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次 7/8，失败项是既有 Three 场景加载超时，单跑通过。完整 `npm run test:e2e` 仍未在本机跑（Android/Termux 平台限制），CI 为准。
+- ⚠️ 本机用系统 Chromium + 平台 shim：`boot.spec.js` 4/4、`loading-petals.spec.js` 4/4（分两次复跑）；合并跑首次 7/8，失败项是既有 Three 场景加载超时，单跑通过。完整 `npm run test:e2e` 仍未在本机跑（Android/Termux 平台限制），CI 为准。
 - 实拍：1365×900 / 1365×600 / 1264×625 / 844×390 / 667×375 / 740×360 / 812×375 / 390×844 / 320×568 / 320×480；恢复态 390；reduced 1365。黑带中心误差 0px，加载角右下；花瓣只在加载角盒子内。
 
 ### 截图与实拍
 
-- 证据存 `.local-evidence/loading-petals/`（本地，不入库）；与 `参考/loading.png` 并排检查“满幅底 + 居中黑带 + 右下加载角 + 局部落花”。
+- ⚠️ 证据存 `.local-evidence/loading-petals/`（本地，不入库）；与 `参考/loading.png` 并排检查“满幅底 + 居中黑带 + 右下加载角 + 局部落花”。
 - 只比对构图/色彩/层级，不对逐帧像素；动画用 `transform` 两次采样确认在动。
 - 低端机首帧未测：新增 14KB AVIF + 1 条 CSS transform 动画；若掉帧，先减到静态，不回到 background-position。
 
@@ -286,7 +288,7 @@ export function petalPlaybackRate(pct) {
 | P5 | e2e + 多档截图 + 真机首帧 | **部分** | boot 4/4 + 落花 4/4（合并跑首次 7/8）；含 1365×600/667×375 布局守卫；低端真机首帧未测 |
 | P6 | 文档同步：`AGENTS.md` / `README.md` / `assets/NOTICE.md` | **完成** | 文档与代码一致 |
 
-**红线**：不改 450×600 逻辑坐标；不引入打包器/框架；不动 `#load-progress` 的 `role`/`aria-*`；不把版本说明/修复列表写进加载文案；不使用 `参考/loading.png` 或 TH20 原贴图像素。
+⚠️ **红线**：不改 450×600 逻辑坐标；不引入打包器/框架；不动 `#load-progress` 的 `role`/`aria-*`；不把版本说明/修复列表写进加载文案；不使用 `参考/loading.png` 或 TH20 原贴图像素。
 
 ## 12. 风险与未决
 
@@ -294,7 +296,7 @@ export function petalPlaybackRate(pct) {
 2. **相位跳变**：只改 `playbackRate`，不改 `animation-duration`；轨道高度在 resize 时更新。
 3. **首屏重量**：花瓣图 14KB，未进 `preloadAll`；CSS 动画不依赖 JS 也能播放。
 4. **局部空间**：花瓣只在加载角盒子内，短屏可见区域更小、花瓣更稀；这是“只在组件位置”的代价，不改成全屏。
-5. **原作合规**：使用 CC0 素材并记录；不复制 `参考/loading.png` 与 `loading@ascii@7.png`。
+5. ⚠️ **原作合规**：使用 CC0 素材并记录；不复制 `参考/loading.png` 与 `loading@ascii@7.png`。
 6. **“变速”语义**：速度只跟真实处理进度；百分比隐藏时不要伪造加速。
 7. **低端帧率**：CSS transform 已比 background-position 更省，但未在低端真机测帧率；若掉帧，减到静态。
 8. **极窄横屏**：667/740 这类宽度已统一紧凑布局；若低于约 640×360，仍可能需要进一步压缩字号或减少黑带内容。

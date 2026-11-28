@@ -6,11 +6,13 @@
 |------|------|
 | **本文件** | 贡献流程与红线 |
 | [`AGENTS.md`](./AGENTS.md) | 架构、模块职责、发版、Agent 约定（开发权威） |
-| [`README.md`](./README.md) | 玩家向：运行、操作、内容范围 |
-| [`docs/refactor-queue.md`](./docs/refactor-queue.md) | 可维护性改造队列（任务制重构；**未指派勿擅自开工队列项**） |
-| `参考/需求.txt` | **已过时**，勿当规格 |
+| [`README.md`](./README.md) | 项目简介、运行方式、文档/Manual 入口、授权与素材（玩法细节以游戏内 Manual 为准） |
+| [`docs/README.md`](./docs/README.md) | 文档索引与任务状态（现行 / 归档 / 待处理） |
+| [`docs/refactor-queue.md`](./docs/refactor-queue.md) | 改造任务队列与历史台账（**未指派勿擅自开工队列项**） |
+| [`docs/local-environment.md`](./docs/local-environment.md) | ⚠️ 本机环境、外部调研来源与本地证据（非规格、不可从干净 clone 复现） |
 
 **规格冲突**：以**可运行代码**为准，并同步修正文档（见 AGENTS「文档对齐」）。
+**文档信息红线**：除 `docs/` 外，文档不得提供仅依赖提交者本机才能成立的信息；`docs/` 内的本地信息必须标 ⚠️（见 `docs/README.md`）。
 
 ---
 
@@ -74,7 +76,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 
 ## 2. 工作方式（红线）
 
-与 `docs/refactor-queue.md`「工作方式」一致，适用于**所有**贡献（不限队列任务）：
+本节是贡献流程的权威，适用于**所有**贡献（不限队列任务；队列文档只做补充约定）：
 
 1. **一次一件事**  
    一个 PR / 一次提交聚焦一个目标。队列任务一次只做一个 `Txx` / `Exx`。
@@ -92,13 +94,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 
 4. **自动测试绿 ≠ 可合并结束**  
    涉及玩法/UI 时：维护者或作者应**手测**关键路径（开局、一章、暂停、Bomb/Miss、换面等）。  
-   队列约定：绿了先标「等手测」，确认后再开下一项 / 再 push（见队列「提交流程」）。
+   队列约定：绿了先标「等手测」，确认后再开下一项 / 再 push（见队列「工作方式（队列补充）」）。
 
 5. **保持纯前端静态可托管**  
    ES modules、浏览器原生加载；不引入构建链与框架。
 
 6. **文档与代码同步**  
-   改模块路径、状态机、菜单、平衡契约、存档、测试入口时，更新 `AGENTS.md` / `README.md`（及本文件若流程有变）。
+   改模块路径、状态机、菜单、平衡契约、存档、测试入口时，更新 `AGENTS.md`（及本文件若流程有变）。玩家可见玩法说明以游戏内 Manual（`js/config.js` 的 `MANUAL_CHAPTERS`）为准；`README.md` 只随项目简介/运行/授权变化更新。
 
 ---
 
@@ -141,20 +143,21 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 
 ### 改背景
 
-1. `bgModes.js` 登记 mode + 贴图  
-2. `backgrounds/builders.js`（+ `scenes.js`）左侧 Three  
-3. 旧版面主题 `MODE_THEME`（`js/playfieldBgThemes.js`）已随旧 Mode-7 版面系统冻结，**不要新增/修改主题**；左侧 Three 背景走 `bgModes.js` → `backgrounds/builders.js`  
+1. 版面背景主路径：`js/bg3d/scenes/<stage>.js` + `js/bg3d/kit.js`；新 mode 先在 `bgModes.js` 登记  
+2. 2D 兜底：`js/bg/renderer.js` + `js/bg/scenes/*`  
+3. 左侧共享舞台：`bgModes.js` → `js/backgrounds/builders.js`  
 
 ### 改美术
 
-- 仅 **AVIF**；写入 `PORTRAIT_PATHS` / `DEDICATED_BOSS_BY_KIND`，并从 `PORTRAIT_HIDDEN_OK` / `PLACEHOLDER_BOSS_SPRITES` 去掉对应项  
-- 无 jpg/png runtime fallback
+- 位图素材（立绘 / Boss / 背景）仅 **AVIF**；UI 占位图可用 SVG/CSS  
+- 写入 `PORTRAIT_PATHS` / `DEDICATED_BOSS_BY_KIND`，并从 `PORTRAIT_HIDDEN_OK` / `PLACEHOLDER_BOSS_SPRITES` 去掉对应项  
+- 无 jpg/png 位图 runtime fallback
 
 ### 补测试
 
 - 新用例放 `test/cases-*.js`，并在 `test/cases.js` import  
 - 纯逻辑优先；**不要**在 CLI 用例里强依赖 Three / 真实主循环  
-- 参考队列 T05（章节 id、dialogue 键、letterTime、storage clamp）与 T09（spawn API / 难度缩放）
+- 参考 `test/cases-stages.js`（章节 id、dialogue 键、letterTime）与 `test/cases-storage-spawn.js`（spawn API / 难度缩放）
 
 ### 走改造队列
 
@@ -215,14 +218,13 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - 静默用错误角色立绘/Boss 脸顶替缺图  
 - 在 `collision.js` 里做得分、掉落、播 SFX（应返回事件由 combat 消费）  
 - 把重构队列多项揉进一次大爆炸改动  
-- 把 `参考/需求.txt` 当现网规格去「对齐」  
 
 ---
 
 ## 7. 提问与范围
 
 - 架构与「该改哪个文件」：先查 `AGENTS.md` 速查表与模块职责  
-- 历史重构意图与任务边界：`docs/refactor-queue.md`  
+- 历史重构意图与任务边界：`docs/refactor-queue.md`；文档状态与待处理项：`docs/README.md`  
 - 行为以当前 `main` 上可运行为准  
 
 感谢贡献。改之前先跑通游戏与 `npm test`，改之后保持文档诚实，比堆功能更重要。

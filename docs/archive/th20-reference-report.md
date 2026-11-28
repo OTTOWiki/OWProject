@@ -1,8 +1,10 @@
 # TH20（東方錦上京）源码重建工程的参考价值分析
 
+> **状态：已归档（2026-11-28）** — 调研报告，**不是现行规格**；文首「实施状态」为 2026-11-28 快照，注意：B0 `installWaveScript` 已随死代码清理删除、背景 P1 路径已改名为 `js/bg/atoms.js`；P7 内容扩充、背景 P2、M2 未做。现行实现见 `AGENTS.md`。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期: 2026-10-05
-> 对象: `~/Touhou20` — TH20 ver 1.00c PE32/x86 的**独立 C++ 源码重建**工程（非原版源码，是按二进制恢复 + 原 CPU 差分验证的实现）
-> 方式: **只读**调研。未修改 Touhou20 任何文件，未改动本仓运行时代码。
+> ⚠️ 对象: `~/Touhou20` — TH20 ver 1.00c PE32/x86 的**独立 C++ 源码重建**工程（非原版源码，是按二进制恢复 + 原 CPU 差分验证的实现）
+> ⚠️ 方式: **只读**调研。未修改 Touhou20 任何文件，未改动本仓运行时代码。
 > 目的: 找出其中值得我们借鉴的**机制/实现逻辑**，以及明确**不适用**的部分。
 
 ---
@@ -19,11 +21,11 @@
 | 存档写失败可感知 | ✅ 已完成 | `writeStored` / `onStorageError`，PR #55 |
 | 关键进度备份 | ✅ 已完成 | `<key>_bak`，PR #62 |
 | 屏外剔除宽限 | ✅ 已修 | `Bullet._cullAllowed`，PR #60 |
-| 波次 runner B0 | ✅ 已完成 | `installWaveScript`，PR #61 |
+| 波次 runner B0 | ✅ 已实现，后删除 | `installWaveScript` 无运行时调用，已随死代码清理删除（PR #61 引入） |
 | 黄金哈希 B1 | ✅ 已完成 | 202 章 × 600 帧，PR #56 / #64 |
 | 背景 P0 随机注入 | ✅ 已完成 | `StageBackground({ rand })`，PR #58 |
 | 背景 P3 easing | ✅ 已完成 | `backgrounds/easing.js`，PR #63 |
-| 背景 P1 版面原子化 | ✅ 已完成 | `backgrounds/atoms2d.js`（`playfieldBg.js` 运行时 import），PR #66 |
+| 背景 P1 版面原子化 | ✅ 已完成 | 原 `backgrounds/atoms2d.js`，后由 `js/bg/atoms.js` 2D 兜底系统取代；PR #66 |
 | 背景 P2 左侧场景数据化 | ⏳ 未做 | 需逐像素基线 |
 | B2 EX mob 原型化 | ✅ 53/62 | `stages/archetypes.js`，PR #61–#83 |
 | A7 排行用时 | ✅ 已完成 | `duration` + 榜单列，PR #70 |
@@ -44,7 +46,7 @@
 ## 0. 怎么读这份文档
 
 - 每条建议 = 「我们现状 → TH20 做法 → 证据 → 迁移到 450×600 Canvas 的落地方式 → 成本/风险」。
-- 证据路径统一相对 `~/Touhou20/source_reconstruction/`；本仓路径相对仓库根。
+- ⚠️ 证据路径统一相对 `~/Touhou20/source_reconstruction/`；本仓路径相对仓库根。
 - **重要前提**：TH20 工程的版本、差分验证覆盖度**因模块而异**。下文标注了哪些结论经过其原 CPU 差分（数千~百万项）验证，哪些是「已重建但未全量验证」。凡是把 TH20 当"权威设计"来抄之前，先看该条的验证状态。
 - 坐标/常量不可直接搬：TH20 版面是 **384×448**，我们是 **450×600**。搬**规则形状**，不搬数值。
 
@@ -260,7 +262,7 @@ const headingIn = (this.x < OFF_MIN_X && this.vx > 0)
 ```
 
 **收益**：修掉"雨弹第一帧消失"与"追踪弹出屏不回来"。
-**风险**：中——会**增加存活弹数**（多存活 ~5 帧 + 回场弹），需按 `docs/perf-optimization.md` 的方式实测帧率；若场上弹数明显上升，把宽限收到 2~3 帧。
+**风险**：中——会**增加存活弹数**（多存活 ~5 帧 + 回场弹），需按 `docs/archive/perf-optimization.md` 的方式实测帧率；若场上弹数明显上升，把宽限收到 2~3 帧。
 **验证**：`cases-patterns.js` / `cases-collision.js` 加"出生在屏外的弹存活 >1 帧"的断言。
 
 ---
@@ -338,7 +340,6 @@ struct RecordingChunk { InputFrame inputs[36000]; std::uint8_t fps[36000]; ... }
 
 1. **快进时同步 BGM 秒数**：快进期间每 8 帧才推进一次逻辑（`o.frame%8!=0` 时返回控制码 6 跳过），松手时按 `(当前帧 - 8) / 60` 调用 `seek_seconds`（`frame.cpp:42-44`）——快进结束不会画面与音乐脱节。我们已有 `audio.seekMusic`，可用于回放快进收尾。
 2. **回放期显示 FPS 并按帧率染色**：`if (o.fps<30) 红 : o.fps<50 粉 : 白`（`frame.cpp:48-52`），`fps` 每 30 帧采一次。**这既是信息展示，也是「回放掉帧/不同步」的现场诊断**——我们回放时若 `_runLogicBlock` 跟不上录像 steps，正好可用同一手段暴露。
-
 
 ---
 
@@ -540,7 +541,7 @@ sed -n '1,50p' ~/Touhou20/source_reconstruction/gameplay/ENEMY_ITERATOR_HAZARD.m
 
 ## 7. 本次调研的边界与自查
 
-- Touhou20 **全程只读**：`git status` 干净，未新增/修改任何文件；所有结论都能用第 5 节的命令复核。
+- ⚠️ Touhou20 **全程只读**：`git status` 干净，未新增/修改任何文件；所有结论都能用第 5 节的命令复核。
 - "已核实"仅指**我读过该实现源码**（多数还核对了行号），**不等于**该实现已被原版 CPU 差分证明。引用前看 `source_reconstruction/<module>/README.md` 与同目录 `*_validation.json`。
 - 未逐条比对各模块差分报告的实际覆盖范围。
 - 6.1 提到的"当前无实际随机泄漏"是我对照调用点逐个确认的结果，属**本轮结论**；若后续在这些位置新增随机消耗，结论需要重判。

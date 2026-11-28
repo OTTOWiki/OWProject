@@ -1,8 +1,10 @@
 # 内容量现状与扩充展望（约束：流程时长变化 ≤ +30%）
 
+> **状态：已归档（2026-11-28）** — 2026-10-05 一次性分析报告，数字为当时快照；扩充项（E1–E4 / P7）未排期。引用前先核对当前 `js/stages/`。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期: 2026-10-05
-> 数据来源: 本作侧为**无头实测**（`.scratch/face-capture.mjs`，202 章 × 7200 帧，逐发记录）；
-> TH20 侧为**静态解析**（`.scratch/v3.py`，**自带自检**：开火数须等于原文 `ins_601(` 计数）。方法与口径见 [stage-difficulty-model.md](stage-difficulty-model.md)。
+> ⚠️ 数据来源: 本作侧为**无头实测**（`.scratch/face-capture.mjs`，202 章 × 7200 帧，逐发记录）；
+> ⚠️ TH20 侧为**静态解析**（`.scratch/v3.py`，**自带自检**：开火数须等于原文 `ins_601(` 计数）。方法与口径见 [stage-difficulty-model.md](stage-difficulty-model.md)。
 > 版本口径: `js/stages/` 当前状态。**未改动任何运行时代码。**
 
 ## 0. 结论摘要
@@ -25,7 +27,7 @@
 
 ### 1.1 规模（实测）
 
-> 文本计数口径，2026-11-14 B2 原型迁移后实测。§1.2 的率/峰值来自 2026-10-05 无头捕获，迁移后需用 `.scratch/face-capture.mjs` 重跑才可作现行护栏依据。
+> ⚠️ 文本计数口径，2026-11-14 B2 原型迁移后实测。§1.2 的率/峰值来自 2026-10-05 无头捕获，迁移后需用 `.scratch/face-capture.mjs` 重跑才可作现行护栏依据。
 
 | 指标 | 数值 |
 |---|---|
@@ -195,7 +197,7 @@ E2 才是真正补"敌机种类 14 → 20+"的那一项，但它要美术，建�
    `test/cases-stages.js:114` 已有「有 letter 的章必须 `letterTime > 0`」断言；
    建议扩展为**逐面时限求和断言**：`Σ duration + Σ letterTime` 相对基线增幅 ≤ 30%。
    （这是"下界"口径，见 §2.1 说明。）
-2. **压力上界（实测）**：用 `.scratch/face-capture.mjs` 对改动面重跑，
+2. ⚠️ **压力上界（实测）**：用 `.scratch/face-capture.mjs` 对改动面重跑，
    断言**面内弹/秒峰值**不超过 §2.3 的护栏。
 3. **零观感变化（回归）**：未被有意改动的章节必须逐帧哈希一致——
    方法与 [stage-content-plan.md](stage-content-plan.md) §5 的黄金哈希相同（`test/mockGame.js` + 固定 seed + 逐帧状态哈希）。
