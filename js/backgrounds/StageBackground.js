@@ -37,6 +37,11 @@ export class StageBackground {
     window.addEventListener('resize', () => this._resize());
   }
 
+  /** 屏幕从隐藏变为可见后重新测量画布（构造/首次 setMode 时 clientWidth 可能为 0）。 */
+  resize() {
+    this._resize();
+  }
+
   _resize() {
     const w = this.canvas.clientWidth || 200;
     const h = this.canvas.clientHeight || 600;
