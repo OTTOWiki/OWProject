@@ -121,10 +121,14 @@ export const BALANCE = {
 
   editMax: 100,
   editPerGraze: 1.15,
+  /** Boss / midboss 战擦弹收益倍率（A5/H6：Boss 战更值钱） */
+  editPerGrazeBossMul: 2,
   grazeRadius: 33,
   editClearRadius: 150,
   /** 场上道具存活上限；超出后新道具静默丢弃，避免密集消弹无限累积 */
   itemLiveCap: 480,
+  /** 消弹掉道具配额：每 N 颗被消的弹掉 1 个道具（A6） */
+  clearDropEvery: 3,
 
   chapterPerfectMul: 1.05,
   letterCardTime: 42,

@@ -6,7 +6,7 @@
  */
 import { BALANCE } from '../js/config.js';
 import { runCollisions } from '../js/collision.js';
-import { addHitStop, addShake } from '../js/gameCombat.js';
+import { addHitStop, addShake, applyCollisionEvents } from '../js/gameCombat.js';
 import { shakeOffset } from '../js/gameDraw.js';
 import { drawEnemy } from '../js/draw/enemyDraw.js';
 import { test, assert, assertEqual } from './assert.js';
@@ -188,4 +188,30 @@ test('drawEnemy 受击白闪：translate(e.x,e.y) 后必须用本地中心 (0,0)
   // 同理：受击白闪径向渐变中心也必须为 (0,0)
   const gradOff = ctx.gradients.filter((g) => g.x0 !== 0 || g.y0 !== 0 || g.x1 !== 0 || g.y1 !== 0);
   assertEqual(gradOff.length, 0, `所有径向渐变中心必须本地 (0,0)；偏移渐变: ${JSON.stringify(gradOff.slice(0, 3))}`);
+});
+
+
+test('A5/H6：Boss/精英战擦弹编辑槽收益 2x，bossRef 死后回落', () => {
+  const grazeGame = (bossRef) => ({
+    player: { edit: 0 },
+    grazeMul: 1,
+    stats: { graze: 0 },
+    score: 0, chapterScore: 0, baseScore: 0, hiscore: 0,
+    extendCount: 0, diffScoreMul: 1, combo: 0,
+    audio: { sfx() {} },
+    el: {},
+    _grazeParticleCount: Number.MAX_SAFE_INTEGER,
+    bossRef,
+  });
+  const base = grazeGame(null);
+  applyCollisionEvents(base, [{ type: 'graze' }]);
+  assertEqual(base.player.edit, BALANCE.editPerGraze);
+
+  const boss = grazeGame({ dead: false });
+  applyCollisionEvents(boss, [{ type: 'graze' }]);
+  assertEqual(boss.player.edit, BALANCE.editPerGraze * BALANCE.editPerGrazeBossMul);
+
+  const dead = grazeGame({ dead: true });
+  applyCollisionEvents(dead, [{ type: 'graze' }]);
+  assertEqual(dead.player.edit, BALANCE.editPerGraze);
 });

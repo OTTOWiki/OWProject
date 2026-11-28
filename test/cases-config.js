@@ -91,6 +91,8 @@ test('Easy 比 Lunatic 更宽松（速/发数）', () => {
 test('BALANCE 关键字段存在', () => {
   assert(BALANCE.chapterPerfectMul === 1.05);
   assert(BALANCE.editMax === 100);
+  assertEqual(BALANCE.editPerGrazeBossMul, 2);
+  assertEqual(BALANCE.clearDropEvery, 3);
   assert(BALANCE.tendencyThreshold > 0);
   assert(BALANCE.score.letterBonus > 0);
   assert(BALANCE.resource?.extendThresholds?.length > 0);

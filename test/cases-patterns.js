@@ -5,6 +5,8 @@ import {
   scaleBulletCount, aimAngle, oddAim, evenAim, ring, fan,
 } from '../js/patterns.js';
 import { Bullet } from '../js/entities.js';
+import { clearBulletsToItems } from '../js/patterns.js';
+import { BALANCE } from '../js/config.js';
 import { test, assert, assertEqual, assertClose } from './assert.js';
 
 test('scaleBulletCount：mul=1 原样', () => {
@@ -110,4 +112,29 @@ test('M1：不传时长 = 永久（与历史行为一致）', () => {
   assertEqual(b.tGravity, null);
   assert(b.gravity > 0, '永久重力保持');
   assert(b.vy > 0, '弹体持续下落');
+});
+
+
+test('A6 消弹配额：每 3 颗掉 1 个道具，得分仍按每颗结算', () => {
+  const items = [];
+  let score = 0;
+  const game = {
+    enemyBullets: Array.from({ length: 6 }, (_, i) => ({ x: i, y: 0, dead: false })),
+    spawnItem(x, y, kind) { items.push(kind); },
+    addScore(n) { score += n; },
+  };
+  const cleared = clearBulletsToItems(game, 0, 0, -1);
+  assertEqual(cleared, 6);
+  assertEqual(items.length, 2); // 第 3、6 颗
+  assertEqual(score, 6 * BALANCE.score.clearBullet);
+
+  // 配额跨多次消弹累计：再消 2 颗不掉，第 3 颗才掉
+  game.enemyBullets = [
+    { x: 0, y: 0, dead: false }, { x: 1, y: 0, dead: false },
+  ];
+  clearBulletsToItems(game, 0, 0, 10);
+  assertEqual(items.length, 2);
+  game.enemyBullets = [{ x: 0, y: 0, dead: false }];
+  clearBulletsToItems(game, 0, 0, 10);
+  assertEqual(items.length, 3);
 });

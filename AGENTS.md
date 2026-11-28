@@ -238,8 +238,8 @@ docs/                  # 内部改造队列等（非运行时）
 ### 核心机制
 
 - 章节 Perfect × `BALANCE.chapterPerfectMul`（1.05）；超时失败不发
-- 擦弹 → edit；满 100 按 Item → 半径 `editClearRadius`（150）消弹
-- 场上道具上限：`BALANCE.itemLiveCap`（480，超出后新道具静默丢弃）
+- 擦弹 → edit（Boss/midboss 战 ×`BALANCE.editPerGrazeBossMul`=2；bossRef 死亡即回落）；满 100 按 Item → 半径 `editClearRadius`（150）消弹
+- 场上道具上限：`BALANCE.itemLiveCap`（480，超出后新道具静默丢弃）；消弹掉道具按 `BALANCE.clearDropEvery`（3）：每 3 颗被消的弹掉 1 个，得分仍每颗结算
 - 决死窗：`BALANCE.deathBombWindow`
 - 屏外剔除：子弹出生 0.08s 宽限；速度仍指向场内时保留（回场弹/雨弹第一帧不消失）
 - Unstable：道中 `unstable: true` 抽 `UNSTABLE_POOL`
