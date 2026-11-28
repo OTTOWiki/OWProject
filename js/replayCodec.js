@@ -32,7 +32,10 @@ export function replayKeyTable(keys = {}) {
   return table;
 }
 
-const AXIS_ENCODE = { '-1': 1, 0: 0, 1: 2 };
+/** 轴符号 → 2 位编码（1=负 2=正）。moveAxis 对角会返回 ±1/√2，必须按符号而非精确值编码。 */
+function axisBits(v) {
+  return v < 0 ? 1 : v > 0 ? 2 : 0;
+}
 
 function masksFor(codes, table) {
   let mask = 0;
@@ -47,13 +50,13 @@ function masksFor(codes, table) {
 /**
  * @param {object} snap `Input.snapshot()` 形状
  * @param {string[]} table `replayKeyTable()`
- * @param {{x:number,y:number}} axis `moveAxis()` 结果（-1/0/1）
+ * @param {{x:number,y:number}} axis `moveAxis()` 结果（-1/0/1，对角为 ±1/√2）
  * @returns {number[]} 紧凑帧
  */
 export function encodeReplayFrame(snap, table, axis = { x: 0, y: 0 }) {
   const flags = (snap.a ? 1 : 0) | (snap.b ? 2 : 0) | (snap.i ? 4 : 0) | (snap.l ? 8 : 0)
     | (snap.sl ? 256 : 0) | (snap.tl ? 512 : 0)
-    | ((AXIS_ENCODE[axis.x] ?? 0) << 4) | ((AXIS_ENCODE[axis.y] ?? 0) << 6);
+    | (axisBits(axis.x) << 4) | (axisBits(axis.y) << 6);
   const frame = [
     Number.isSafeInteger(snap.s) ? snap.s : 1,
     masksFor(snap.d, table),
