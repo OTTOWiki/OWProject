@@ -5,7 +5,7 @@
  * - 守卫：回放 / 非结果叠加层 / 次数用尽 / practice / nomiss 一律 no-op
  */
 import { BALANCE } from '../js/config.js';
-import { runOverlayAction } from '../js/gameOverlay.js';
+import { runOverlayAction, openPause } from '../js/gameOverlay.js';
 import { createMockGame } from './mockGame.js';
 import { test, assert, assertEqual } from './assert.js';
 
@@ -102,3 +102,144 @@ test('续关守卫：非结果叠加层（暂停）不可续关', () => {
   assertEqual(g.score, 50000, '暂停叠加层不触发续关');
   assertEqual(g.continuesLeft, 2);
 });
+
+/* ========== 审计修复回归（#3 / #38 / #39） ========== */
+
+/** 带最小 DOM 替身的叠加层 game mock（showOverlay/hideOverlay 不读真实文档） */
+function overlayGame(over = {}) {
+  const g = createMockGame();
+  g.replaying = false;
+  g.overlayMode = null;
+  g.paused = false;
+  g.state = 'playing';
+  g.mode = 'story';
+  g.el = {
+    overlay: null,
+    overlayActions: null,
+    overlayTitle: null,
+    overlayBody: null,
+    overlayHint: { textContent: '' },
+  };
+  Object.assign(g, over);
+  return g;
+}
+
+/** 用内存 Map 替代 localStorage，返回句柄便于断言写盘结果 */
+function withMemoryStorage(fn) {
+  const had = 'localStorage' in globalThis;
+  const prev = globalThis.localStorage;
+  const mem = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => { mem.set(k, String(v)); },
+    removeItem: (k) => { mem.delete(k); },
+  };
+  return Promise.resolve()
+    .then(() => fn(mem))
+    .finally(() => {
+      if (had) globalThis.localStorage = prev; else delete globalThis.localStorage;
+    });
+}
+
+test('#3 回放中触屏/键盘暂停入口不打开暂停层；非回放仍可暂停', () => {
+  const replay = overlayGame({ replaying: true });
+  openPause(replay);
+  assertEqual(replay.paused, false, '回放中不进入暂停');
+  assertEqual(replay.overlayMode, null, '回放中不显示暂停层');
+
+  const normal = overlayGame();
+  openPause(normal);
+  assertEqual(normal.paused, true);
+  assertEqual(normal.overlayMode, 'pause');
+});
+
+test('#39 练习结算“再试一次”沿用本局起始残机', async () => {
+  const g = overlayGame({
+    mode: 'practice',
+    overlayMode: 'result',
+    _startLives: 1,
+    resultPayload: { retryChapter: 3, difficulty: 'normal' },
+    chapters: [{ id: 3, name: '测试章' }],
+    chapterIndex: 0,
+  });
+  g.player.lives = 1;
+  g.practiceUnstable = false;
+  g.singleChapter = false;
+  let started = null;
+  g.start = (opts) => { started = opts; };
+  runOverlayAction(g, 'retry');
+  await Promise.resolve();
+  assert(started, '应重开对局');
+  assertEqual(started.lives, 1, '练习自定义残机不能被回落为默认 4');
+  assertEqual(started.mode, 'practice');
+});
+
+test('#39 暂停中“重开本章”仍沿用当前残机', async () => {
+  const g = overlayGame({
+    mode: 'story',
+    overlayMode: 'pause',
+    chapters: [{ id: 2, name: '测试章' }],
+    chapterIndex: 0,
+  });
+  g.player.lives = 3;
+  g.practiceUnstable = true;
+  g.singleChapter = false;
+  let started = null;
+  g.start = (opts) => { started = opts; };
+  runOverlayAction(g, 'retry');
+  await Promise.resolve();
+  assert(started);
+  assertEqual(started.lives, 3);
+});
+
+test('#38 结局对话中退出：暂存入榜成绩在 menu 分支落盘，不丢失', () => withMemoryStorage(async (mem) => {
+  const g = overlayGame();
+  g.overlayMode = 'pause';
+  g.ui = { showMenu() {}, showReplayScreen() {} };
+  let stopped = 0;
+  g.stop = () => { stopped += 1; };
+  g._rankingResult = {
+    qualifies: true,
+    difficultyId: 'normal',
+    entry: {
+      score: 123456,
+      name: '饮泉思',
+      playerName: '饮泉思源',
+      playerId: 'yinquan',
+      difficultyId: 'normal',
+      mode: 'story',
+      route: 'A',
+      cleared: true,
+      stageReached: 'Stage 3',
+      duration: 60,
+      date: 1,
+    },
+    rank: 0,
+  };
+  runOverlayAction(g, 'menu');
+  await Promise.resolve();
+  assertEqual(stopped, 1, '应正常停止对局');
+  assertEqual(g._rankingResult, null, '落盘后清标记');
+  const ranking = JSON.parse(mem.get('gunwei_ranking'));
+  assertEqual(ranking.normal.length, 1, '成绩应写入排行榜');
+  assertEqual(ranking.normal[0].score, 123456);
+  assertEqual(ranking.normal[0].cleared, true);
+  assertEqual(mem.get('gunwei_ranking_name'), '饮泉思', '同时记住昵称');
+
+  // 再执行一次 menu 不会重复写盘（_rankingResult 已处理）
+  g.overlayMode = 'pause';
+  runOverlayAction(g, 'menu');
+  await Promise.resolve();
+  assertEqual(JSON.parse(mem.get('gunwei_ranking')).normal.length, 1, '不得重复入榜');
+}));
+
+test('#38 未入榜成绩退出不写盘', () => withMemoryStorage(async (mem) => {
+  const g = overlayGame();
+  g.overlayMode = 'pause';
+  g.ui = { showMenu() {}, showReplayScreen() {} };
+  g.stop = () => {};
+  g._rankingResult = { qualifies: false };
+  runOverlayAction(g, 'menu');
+  await Promise.resolve();
+  assertEqual(mem.has('gunwei_ranking'), false, '未入榜不应写排行榜');
+}));

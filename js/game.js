@@ -116,6 +116,8 @@ export class Game {
     this._replayPlayer = null;
     this._replayFast = false;
     this._replayDone = false;
+    this._replaySaved = false;    // 本局录像已保存（防重复保存）
+    this._replaySaving = false;   // 保存进行中（防连点）
 
     this._bindUI();
   }
@@ -135,7 +137,14 @@ export class Game {
       this.fpsLimit = s.fpsLimit;
       this._lastDrawT = 0;
     }
-    this.realInput.applySettings(s);
+    // 录制中切换“单击发射”会让录像头（全局 shotToggleMode）与已录帧语义错位：
+    // 本局保持开录时的输入模式，设置仍持久化、下一局生效（不新增帧字段，录像格式不变）。
+    // 回放中同理不应用（回放输入的 shotToggleMode 来自录像头）。
+    const freezeShotToggle = (this.recording && !this.replaying && this._recordFrames.length > 0)
+      || this.replaying;
+    this.realInput.applySettings(freezeShotToggle
+      ? { ...s, shotToggle: this.realInput.shotToggleMode }
+      : s);
     this.audio.setMusicVolume(s.musicVolume);
   }
 
@@ -221,6 +230,8 @@ export class Game {
     this._letterLogEntry = null;
     this._replayDone = false;
     this._replayFast = false;
+    this._replaySaved = false;
+    this._replaySaving = false;
     this._startChapterId = startId;
     this._startLives = lives;
     /** Nomiss：被弹重开时的 BGM 回带位置（chapterFlow.startChapter 章首记录，null=未开播/换曲时兜底 0） */
@@ -364,6 +375,8 @@ export class Game {
       () => ({ x: this.player.x, y: this.player.y }),
       this.replaying ? this.canvas : this.el.screenGame,
     );
+    // 左侧印象场景在隐藏时构造，只有窗口 resize 才校正尺寸；进入对局时补一次测量
+    this.background?.resize?.();
     this.audio.ensure();
     withSeededRng(() => startChapter(this), this._rngNext);
     this.lastT = performance.now();
@@ -396,7 +409,6 @@ export class Game {
     applyEnemyDifficulty(e, this.enemyHpMul, this.fireIntervalMul);
     if (this.state === 'playing') {
       this._hadWaveEnemySpawn = true;
-      this._lastEnemySpawnChapterTime = this.chapterTime;
       this.wavesExhausted = false;
       this._dryWaveTicks = 0;
     }
@@ -472,6 +484,10 @@ export class Game {
     this.el.bossEnemyMarker?.classList.add('hidden');
     cancelAnimationFrame(this.raf);
     this.audio.stopMusic(0.5);
+    // 释放录制/回放缓冲（回菜单后不再占用；_exitReplay/_restartReplay 已先取走所需数据）
+    this._recordFrames = [];
+    this._replayPlayer = null;
+    this.replay = null;
   }
 
   _loop(t) {
@@ -497,6 +513,12 @@ export class Game {
           while (this._fpsBankMs >= LOGIC_FRAME_MS * 0.92 && !this._replayDone) {
             const frame = this._replayPlayer.next();
             if (!frame) {
+              this._replayDone = true;
+              this._showReplayEnd();
+              break;
+            }
+            // 防御手写录像：steps 非正会让 while 不退出/倒退，直接结束本次回放
+            if (!(frame.steps > 0)) {
               this._replayDone = true;
               this._showReplayEnd();
               break;
@@ -703,8 +725,8 @@ export class Game {
 
   /** 从录像数据启动回放 */
   startReplay(replay) {
+    // validateAnyReplay 已校验录像头（playerId/difficultyId/mode/startChapter）与帧契约
     if (!validateAnyReplay(replay)) return false;
-    if (!replay.playerId) return false;
     this.start({
       playerId: replay.playerId,
       startChapter: replay.startChapter,
@@ -721,6 +743,9 @@ export class Game {
   /** 保存录像（暂停=部分 / 结算=整局）。异步写 IndexedDB，返回 {ok, replayId?}。 */
   async _saveReplay({ partial = false, cleared = false } = {}) {
     if (!this.recording || this.replaying) return { ok: false, reason: 'unavailable' };
+    // 防重复保存：成功后本局不再写第二份（失败会清 _replaySaving，允许重试）
+    if (this._replaySaved) return { ok: false, reason: 'saved' };
+    if (this._replaySaving) return { ok: false, reason: 'saving' };
     if (!this._recordFrames.length) return { ok: false, reason: 'empty' };
     const ch = this.chapters[this.chapterIndex];
     const mobileCheat = !!this._mobileCheat || !!this.realInput.mobileCheat;
@@ -751,12 +776,16 @@ export class Game {
       },
       partial: !!partial,
     });
+    this._replaySaving = true;
     try {
       await saveReplay(replay);
+      this._replaySaved = true;
       return { ok: true, replayId: replay.replayId };
     } catch (e) {
       console.error('[replay save]', e);
       return { ok: false, reason: 'store' };
+    } finally {
+      this._replaySaving = false;
     }
   }
 

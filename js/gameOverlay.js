@@ -5,6 +5,7 @@
 import { BALANCE } from './config.js';
 import { startChapter } from './chapterFlow.js';
 import { saveHiscore, saveNomissProgress } from './storage.js';
+import { commitRankingEntry, loadName } from './ranking.js';
 import { formatRunStatsShort } from './runStats.js';
 
 export function bindOverlayClicks(game) {
@@ -202,6 +203,9 @@ async function resumeOverlay(game) {
 }
 
 export function openPause(game) {
+  // 回放中不得打开暂停层：回放游标会继续推进、暂停菜单还会提供无效的保存录像。
+  // 触屏暂停键与 Esc 都经由本函数（Esc 在回放中由 _handleReplayControl 处理）。
+  if (game.replaying) return;
   if (game.overlayMode === 'result' || game.overlayMode === 'pause') return;
   if (game.state !== 'playing' && game.state !== 'dialogue' && game.state !== 'stageTransit') return;
   game.paused = true;
@@ -299,7 +303,10 @@ export function runOverlayAction(game, action) {
     const chId = game.overlayMode === 'result'
       ? (game.resultPayload?.retryChapter ?? game.chapters[game.chapterIndex]?.id)
       : game.chapters[game.chapterIndex]?.id;
-    const keepLives = game.overlayMode === 'pause' ? game.player.lives : undefined;
+    // 练习开局可能自定义残机（#practice-lives）：结算重试沿用本局起始残机
+    const keepLives = game.mode === 'practice'
+      ? game._startLives
+      : (game.overlayMode === 'pause' ? game.player.lives : undefined);
     hideOverlay(game);
     // 延后到微任务，避免在逻辑块（withSeededRng）内重入 start → 打乱新局种子
     queueMicrotask(() => game.start({
@@ -315,19 +322,32 @@ export function runOverlayAction(game, action) {
   }
   if (action === 'save-replay') {
     const isPause = game.overlayMode === 'pause';
+    if (game._replaySaved) {
+      if (game.el.overlayHint) game.el.overlayHint.textContent = '录像已保存';
+      return;
+    }
     // _saveReplay 已把存储失败收敛为 {ok:false}；catch 仅兜程序性异常，文案一致
     game._saveReplay({
       partial: isPause,
       cleared: !isPause && !!game._endCleared,
     }).then((r) => {
-      if (game.el.overlayHint) game.el.overlayHint.textContent = r.ok ? '录像已保存' : '录像保存失败';
+      const text = r.ok ? '录像已保存' : (r.reason === 'saving' ? '正在保存…' : '录像保存失败');
+      if (game.el.overlayHint) game.el.overlayHint.textContent = text;
     }, () => {
       if (game.el.overlayHint) game.el.overlayHint.textContent = '录像保存失败';
     });
     return;
   }
   if (action === 'menu') {
-    if (!game.replaying) saveHiscore(game.score);
+    if (!game.replaying) {
+      saveHiscore(game.score);
+      // 结局对话中退出：submitRanking 已暂存入榜成绩但还没落盘（正常落盘在成绩排行面板
+      // “保存”时）。这里补交，避免 All Clear 成绩随 stop() 永久丢失。
+      if (game._rankingResult?.qualifies) {
+        commitRankingEntry(game._rankingResult, loadName(game._rankingResult.entry?.playerName));
+        game._rankingResult = null;
+      }
+    }
     hideOverlay(game);
     // 延后到微任务，避免在逻辑块内重入 stop
     queueMicrotask(() => {

@@ -9,6 +9,9 @@ const MOVE_UP = new Set(['ArrowUp', 'KeyW']);
 const MOVE_DOWN = new Set(['ArrowDown', 'KeyS']);
 const MOVE_KEYS = new Set([...MOVE_LEFT, ...MOVE_RIGHT, ...MOVE_UP, ...MOVE_DOWN]);
 
+/** 键位重绑时保留的固定键：移动键（方向/WASD）与菜单确认/返回键，不得被 Shot/Bomb/Item 占用 */
+export const RESERVED_BIND_CODES = new Set([...MOVE_KEYS, 'Enter', 'Escape', 'Space']);
+
 /**
  * 由移动键按下顺序（moveSeq）求移动轴（同轴对向后按为准；对角归一化）。
  * 抽出为纯函数供 Input.moveAxis 与回放输入复用，避免两处算法漂移。
@@ -80,6 +83,13 @@ export class Input {
       const formField = t && (
         t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable
       );
+      // 可原生激活的元素获得焦点时，Enter/Space 交给浏览器：不 preventDefault，也不进入游戏输入，
+      // 让按钮的原生点击生效且不被游戏键处理重复消费（否则聚焦“取消”按 Space 会执行“保存”）。
+      const nativeActivation = !!t?.closest?.(
+        'button, a, input, select, textarea, summary, [role="button"],'
+        + ' [contenteditable]:not([contenteditable="false"])',
+      );
+      if (nativeActivation && (e.code === 'Enter' || e.code === 'Space')) return;
       if (!formField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
         e.preventDefault();
       }

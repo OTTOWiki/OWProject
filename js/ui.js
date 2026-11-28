@@ -4,10 +4,11 @@ import {
 } from './config.js';
 import { createRepeatScheduler } from './menuRepeat.js';
 import {
-  loadKeys, saveKeys, saveSettings,
+  loadKeys, saveKeys, loadSettings, saveSettings,
   loadPracticePrefs, savePracticePrefs,
   loadPracticeBest, loadNomissProgress,
 } from './storage.js';
+import { RESERVED_BIND_CODES } from './input.js';
 import { stageSelectEntries, practiceChapterGroups } from './stages/index.js';
 import { stageSelectStartMode, isExtraRestrictedMode, extraDifficultyIds } from './startMode.js';
 import {
@@ -36,6 +37,21 @@ function isCoarsePointer() {
   return typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
     && window.matchMedia('(pointer: coarse)').matches;
+}
+
+/**
+ * 键位重绑校验：占用菜单/移动保留键 → 'reserved'，与其它动作重复 → 'conflict'。
+ * @param {object} keys 当前键位（shot/bomb/item）
+ * @param {'shot'|'bomb'|'item'} binding 正在重绑的动作
+ * @param {string} code 候选 KeyboardEvent.code
+ * @returns {'reserved'|'conflict'|null} null = 可绑定
+ */
+export function keyBindError(keys, binding, code) {
+  if (RESERVED_BIND_CODES.has(code)) return 'reserved';
+  for (const action of ['shot', 'bomb', 'item']) {
+    if (action !== binding && keys[action] === code) return 'conflict';
+  }
+  return null;
 }
 
 
@@ -112,6 +128,11 @@ const UI_ACTION_HANDLERS = {
     const next = saveSettings({ ...DEFAULT_SETTINGS });
     ui.refreshSettingsForm();
     ui.onSettingsChange?.(next);
+    // 对局暂停中同样不允许改键（见 _initKeys）：只恢复通用设置，键位回主菜单再恢复
+    if (ui.settingsReturn) {
+      ui._settingsHint('对局进行中不可改键，请回到主菜单设置');
+      return;
+    }
     saveKeys({ ...DEFAULT_KEYS });
     ui.refreshKeyLabels();
   },
@@ -741,10 +762,29 @@ export class UI {
     savePracticePrefs({ chapter: this.practiceChapterId, diff: this.practiceDiffId });
   }
 
+  /** 复用设置页提示行做即时反馈（键位冲突 / 对局中不可改键），到时恢复原文 */
+  _settingsHint(text) {
+    const el = document.querySelector('#screen-settings .settings-note');
+    if (!el) return;
+    if (this._settingsNoteDefault == null) this._settingsNoteDefault = el.textContent;
+    window.clearTimeout(this._settingsHintTimer);
+    el.textContent = text;
+    this._settingsHintTimer = window.setTimeout(() => {
+      el.textContent = this._settingsNoteDefault;
+      this._settingsHintTimer = 0;
+    }, 2600);
+  }
+
   _initKeys() {
     document.querySelectorAll('.key-row').forEach((row) => {
       row.addEventListener('click', () => {
         if (!this.screens.settings?.classList.contains('active')) return;
+        // 对局暂停中打开设置：本局键位已参与录像帧编码，中途改键会让录像头的键位表
+        // 与已录帧不一致（回放错位），因此限制为回到主菜单后再改。
+        if (this.settingsReturn) {
+          this._settingsHint('对局进行中不可改键，请回到主菜单设置');
+          return;
+        }
         this.binding = row.dataset.bind;
         document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
         row.classList.add('listening');
@@ -760,12 +800,21 @@ export class UI {
         this._sfx('cancel');
         return;
       }
+      const error = keyBindError(loadKeys(), this.binding, e.code);
+      if (error) {
+        this._settingsHint(error === 'reserved'
+          ? '该键为菜单/移动保留键，请换一个'
+          : '该键已被其他动作占用，请换一个');
+        return; // 保持监听，等一个可用键
+      }
       const keys = loadKeys();
       keys[this.binding] = e.code;
       saveKeys(keys);
       this.refreshKeyLabels();
       document.querySelectorAll('.key-row').forEach((r) => r.classList.remove('listening'));
       this.binding = null;
+      // 同步运行时输入（main 的 onSettingsChange 会 input.reloadKeys()）
+      this.onSettingsChange?.(loadSettings());
       this._sfx('ok');
     }, true);
   }

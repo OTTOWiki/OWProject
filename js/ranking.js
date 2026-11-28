@@ -89,16 +89,16 @@ export function saveName(name) {
  * 结算界面「保存」入榜：填入昵称并写盘。
  * @param {{qualifies:boolean, difficultyId:string, entry:object}} result 即 game._rankingResult
  * @param {string} name 玩家输入的昵称
- * @returns {number} 最终名次（0-based），未入榜 -1
+ * @returns {boolean} 排行榜是否成功写盘；失败时调用方不得关闭成绩排行面板
  */
 export function commitRankingEntry(result, name) {
-  if (!result || !result.qualifies || !result.entry) return -1;
+  if (!result || !result.qualifies || !result.entry) return false;
   const entry = { ...result.entry, name: normalizeName(name, result.entry.playerName) };
   const ranking = loadRanking();
   const idx = submitEntry(ranking, result.difficultyId, entry);
-  saveRanking(ranking);
+  const saved = saveRanking(ranking);
   saveName(entry.name);
   result.entry = entry;
   result.rank = idx;
-  return idx;
+  return saved;
 }

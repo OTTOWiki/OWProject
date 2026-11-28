@@ -35,6 +35,12 @@ export const AUDIO_FILE_MAP = {
 };
 
 /**
+ * 按需解码缓存上限（当前曲目 + 上一首）。
+ * 启动时全库预解码曾常驻约 2 GB PCM；改为 playTrack 按需解码后必须限制缓存增长。
+ */
+export const AUDIO_CACHE_LIMIT = 2;
+
+/**
  * 循环内播放位置纯函数：now 相对 startT 的偏移按 dur 取模回绕 ∈ [0, dur)。
  * 数据异常（非有限值 / dur≤0）返回 null。musicPosition 与 seekMusic 共用。
  * @param {number} now
@@ -64,6 +70,10 @@ export class AudioEngine {
     this._audioSourceNode = null;
     this._audioBufferCache = new Map();
     this._audioBufferLoading = new Map();
+    /** 播放请求代际：并发 playTrack 时只有最新请求允许启动 source */
+    this._playReq = 0;
+    /** 因 context suspended / 解码失败而未开播的曲目，首个用户手势后重试 */
+    this._pendingTrackId = null;
     /** 当前曲目开始播放的 ctx 时间（musicPosition/seekMusic 用） */
     this._musicStartT = 0;
     /** 当前曲目 AudioBuffer 与其时长（seekMusic 用；stopMusic 时清空 buffer） */
@@ -150,12 +160,15 @@ export class AudioEngine {
   }
 
   /**
-   * 将预载 decode 的 AudioBuffer 写入缓存（path 与 AUDIO_FILE_MAP 值一致）
-   * @param {string} path
-   * @param {AudioBuffer} buf
+   * 只保留最近解码的曲目缓存（上限 AUDIO_CACHE_LIMIT），淘汰最旧的非当前曲目。
+   * 正在播放的 buffer 由 source / _musicBuf 持有，删缓存条目不会断音。
+   * @param {string} keepPath
    */
-  cacheAudioBuffer(path, buf) {
-    if (path && buf) this._audioBufferCache.set(path, buf);
+  _pruneAudioBufferCache(keepPath) {
+    for (const path of this._audioBufferCache.keys()) {
+      if (this._audioBufferCache.size <= AUDIO_CACHE_LIMIT) break;
+      if (path !== keepPath) this._audioBufferCache.delete(path);
+    }
   }
 
   async loadAudioBuffer(musicId) {
@@ -184,26 +197,15 @@ export class AudioEngine {
   }
 
   /**
-   * 用户手势后调用：resume AudioContext，并对预载失败的曲目补 decode。
-   * 移动端常见 boot 时 context suspended 导致预载静默失败。
+   * 用户手势后调用：resume AudioContext，并重试上次未能开播的曲目。
+   * BGM 改为按需解码后只可能欠一首（当前请求），不再扫描整个曲库。
    */
-  async unlockAndRetryPreload() {
+  async unlock() {
     if (!(await this._ensureSafe())) return;
-    const missing = [];
-    for (const path of Object.values(AUDIO_FILE_MAP)) {
-      if (path && !this._audioBufferCache.has(path)) missing.push(path);
-    }
-    if (!missing.length) return;
-    await Promise.all(missing.map(async (path) => {
-      try {
-        const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
-        const res = await fetch(url);
-        if (!res.ok) return;
-        const arrayBuf = await res.arrayBuffer();
-        const decoded = await this.ctx.decodeAudioData(arrayBuf.slice(0));
-        this.cacheAudioBuffer(path, decoded);
-      } catch (_) { /* 单曲失败不阻塞 */ }
-    }));
+    const pending = this._pendingTrackId;
+    if (!pending) return;
+    this._pendingTrackId = null;
+    await this.playTrack(pending);
   }
 
   stopMusic(fade = 0.4) {
@@ -233,10 +235,16 @@ export class AudioEngine {
     if (!this.enabled) return;
     if (!(await this._ensureSafe())) return;
     const musicId = id || 's1_mid';
-    if (this.currentId === musicId) return;
+    if (this.currentId === musicId) {
+      this._pendingTrackId = null;
+      return;
+    }
 
     if (!AUDIO_FILE_MAP[musicId]) return;
 
+    // 加载期间可能已经换了下一首：只有最新请求允许启动 source，
+    // 否则两个请求都会起循环源，先起的那个不再被 stopMusic 跟踪（BGM 叠放/错曲）。
+    const req = ++this._playReq;
     this.stopMusic(0.25);
 
     let audioBuf;
@@ -244,13 +252,20 @@ export class AudioEngine {
       audioBuf = await this.loadAudioBuffer(musicId);
     } catch (e) {
       console.warn(`[audio] failed to load '${musicId}'`, e);
+      if (req === this._playReq) this._pendingTrackId = musicId;
       return;
     }
-    if (!audioBuf) return;
+    if (!audioBuf) {
+      if (req === this._playReq) this._pendingTrackId = musicId;
+      return;
+    }
+    if (req !== this._playReq) return;
+    this._pendingTrackId = null;
 
     this.currentId = musicId;
     this._musicBuf = audioBuf;
     this._musicBufDur = audioBuf.duration;
+    this._pruneAudioBufferCache(AUDIO_FILE_MAP[musicId]);
 
     const now = this.ctx.currentTime;
     this._musicStartT = now;

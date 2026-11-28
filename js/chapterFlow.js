@@ -37,7 +37,6 @@ export function wrapWaveFn(game, raw) {
     const afterWc = game.waveCount || 0;
     if (afterLen > beforeLen) {
       game._hadWaveEnemySpawn = true;
-      game._lastEnemySpawnChapterTime = game.chapterTime;
       game.wavesExhausted = false;
       game._dryWaveTicks = 0;
     } else if (afterWc > beforeWc) {
@@ -75,14 +74,19 @@ export function startChapter(game) {
   game.waveFn = null;
   game.waveTimer = 0;
   game.waveCount = 0;
-  game._lastWaveCount = 0;
-  game._waveStall = 0;
   game.wavesExhausted = false;
   game._hadWaveEnemySpawn = false;
   game._dryWaveTicks = 0;
-  game._lastEnemySpawnChapterTime = -999;
   game.rainT = 0;
   game.laserT = 0;
+  // 章内计时器统一归零：各章直接挂在 game 上，跨章/重开不得继承（否则章首弹幕节奏漂移）
+  game.crossT = 0;
+  game.aimT = 0;
+  game.rainPhase = 0;
+  game.wallT = 0;
+  game.gapTimer = 0;
+  game.aimTimer = 0;
+  game._a6Alt = 0;
   game.chapterTime = 0;
   game.chapterScore = 0;
   game.chapterMiss = false;
@@ -112,8 +116,8 @@ export function startChapter(game) {
     game.bombCost = game.unstableFx.bombCost || 1;
   }
 
-  // Nomiss：快照本章开头状态（Unstable 异常 + 分数/资源），被弹重开时回滚到进章时状态（该次尝试作废）
-  if (game.mode === 'nomiss') {
+  // Nomiss：快照本章开头状态（Unstable 异常 + 分数/资源/连击/编辑度），被弹重开时回滚到进章时状态（该次尝试作废）
+  if (game.mode === 'nomiss' && !game.replaying) {
     game._nomissSnapshot = {
       unstableFx: game.unstableFx,
       score: game.score,
@@ -121,7 +125,12 @@ export function startChapter(game) {
       extendCount: game.extendCount,
       lives: game.player.lives,
       bombs: game.player.bombs,
+      combo: game.combo,
+      comboTimer: game.comboTimer,
+      edit: game.player.edit,
     };
+    // 当前章永远是正确续接点：覆盖章中退出，以及 winDialogue/routeCheck/routeSelect 等所有推进路径
+    saveNomissProgress(ch.id);
   }
 
   game.letterTimeMax = ch.letterTime || 0;
@@ -201,10 +210,7 @@ export function startChapter(game) {
     } else {
       game.wavesExhausted = true;
     }
-    if (game.enemies.length > 0) {
-      game._hadWaveEnemySpawn = true;
-      game._lastEnemySpawnChapterTime = game.chapterTime;
-    }
+    if (game.enemies.length > 0) game._hadWaveEnemySpawn = true;
     for (const e of game.enemies) {
       e._fireMul = game.fireIntervalMul;
     }
@@ -477,11 +483,7 @@ export function finishChapter(game, success) {
   scheduleAdvance(game, NEXT_DELAY_SEC, () => {
     game.chapterIndex++;
     skipToValidChapter(game);
-    // Nomiss：进度持久化为下一章 id（到末尾无章则 null）
-    if (game.mode === 'nomiss' && !game.replaying) {
-      saveNomissProgress(game.chapters[game.chapterIndex]?.id ?? null);
-    }
-    startChapter(game);
+    startChapter(game); // Nomiss 进度由 startChapter 统一落盘（当前章 id）
   });
 }
 

@@ -67,11 +67,6 @@ const SPRITE_PATHS = {
   boss_lastgod: 'assets/sprites/boss_alice.avif',
 };
 
-/** 占位 key 集合（测试 / 文档：这些 key 不代表角色真身） */
-export const PLACEHOLDER_SPRITE_KEYS = new Set(
-  Object.values(PLACEHOLDER_BOSS_SPRITES).filter(Boolean),
-);
-
 const cache = new Map();
 
 export function loadSprite(key) {
@@ -262,8 +257,4 @@ export function drawSprite(ctx, img, x, y, w, h, opts = {}) {
 
 export function getSpritePaths() {
   return [...new Set(Object.values(SPRITE_PATHS))];
-}
-
-export function getSpritePathMap() {
-  return { ...SPRITE_PATHS };
 }

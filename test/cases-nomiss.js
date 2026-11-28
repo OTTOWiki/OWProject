@@ -9,7 +9,7 @@ import {
   loadNomissProgress, saveNomissProgress,
 } from '../js/storage.js';
 import { miss, spawnItem, collectItem } from '../js/gameCombat.js';
-import { startChapter } from '../js/chapterFlow.js';
+import { startChapter, nextChapterOrEnd } from '../js/chapterFlow.js';
 import { wrapMusicPos } from '../js/audio.js';
 import { runOverlayAction } from '../js/gameOverlay.js';
 import { formatRunStatsShort } from '../js/runStats.js';
@@ -106,6 +106,9 @@ test('miss()：nomiss 分支不扣残机、自动重开当前章（Unstable 还�
   g.player.invuln = 0;
   g.player.lives = 4; // 当前（尝试中 Extend/生命道具所得，应随回滚作废）
   g.player.bombs = 3;
+  g.combo = 25; // 尝试内连击/编辑度收益，同样应作废
+  g.comboTimer = 2.8;
+  g.player.edit = 60;
   g._nomissBgmPos = 12.5;
   const fx = { id: 'atk_up', label: '攻击力+8%', atkMul: 1.08, scoreMul: 1, compMul: 1 };
   // 进章时快照：与当前值不同 → 被弹后应回滚到快照
@@ -116,6 +119,9 @@ test('miss()：nomiss 分支不扣残机、自动重开当前章（Unstable 还�
     extendCount: 1,
     lives: 3,
     bombs: 2,
+    combo: 7,
+    comboTimer: 1.25,
+    edit: 42,
   };
   g.nextUnstableFx = null;
 
@@ -127,6 +133,9 @@ test('miss()：nomiss 分支不扣残机、自动重开当前章（Unstable 还�
   assertEqual(g.extendCount, 1, 'extendCount 回滚');
   assertEqual(g.player.lives, 3, 'lives 回滚（尝试内所得作废）');
   assertEqual(g.player.bombs, 2, 'bombs 回滚');
+  assertEqual(g.combo, 7, 'combo 回滚');
+  assertEqual(g.comboTimer, 1.25, 'comboTimer 回滚');
+  assertEqual(g.player.edit, 42, 'edit 回滚');
   assertEqual(g.hiscore, 99999, 'hiscore 保留峰值不降');
   assert(!g.chapterMiss);
   assertEqual(g.player.invuln, 1.5);
@@ -134,6 +143,8 @@ test('miss()：nomiss 分支不扣残机、自动重开当前章（Unstable 还�
   assertEqual(g.lastStageKey, '1');
   assertEqual(g.chapterTime, 0);
   assertEqual(g._nomissSnapshot.score, 12000, '重开后快照为回滚后的分数');
+  assertEqual(g._nomissSnapshot.combo, 7, '重开后快照为回滚后的连击');
+  assertEqual(g._nomissSnapshot.edit, 42, '重开后快照为回滚后的编辑度');
   // Unstable 还原为本单开头那次（startChapter 经 nextUnstableFx 采用并消费）
   assert(g.unstableFx === fx);
   assertEqual(g.nextUnstableFx, null);
@@ -178,6 +189,11 @@ function nomissStartChapterMock(ch) {
   g.player.resetPos = () => {};
   g._nomissSnapshot = null;
   g.nextUnstableFx = null;
+  g.audio = {
+    currentId: null,
+    musicPosition: () => 0,
+    playTrack() {}, sfx() {}, stopMusic() {}, seekMusic() {},
+  };
   return g;
 }
 
@@ -220,6 +236,37 @@ test('startChapter（非 Nomiss）：不写 _nomissBgmPos', () => {
   };
   startChapter(g);
   assertEqual(g._nomissBgmPos, 42, '非 nomiss 不动回带位置');
+});
+
+test('startChapter（Nomiss）：快照含 combo/comboTimer/player.edit（#12）', () => {
+  const ch = { id: 12, stageKey: '1', kind: 'mid', name: '章', unstable: false, music: null, letter: null, build() {} };
+  const g = nomissStartChapterMock(ch);
+  g.combo = 17;
+  g.comboTimer = 2.2;
+  g.player.edit = 55;
+  startChapter(g);
+  assertEqual(g._nomissSnapshot.combo, 17);
+  assertEqual(g._nomissSnapshot.comboTimer, 2.2);
+  assertEqual(g._nomissSnapshot.edit, 55);
+});
+
+test('startChapter（Nomiss）：统一持久化当前章；winDialogue 推进后为下一章 id（#29）', () => {
+  localStorage.removeItem(STORAGE_KEYS.nomissProgress);
+  const chA = {
+    id: 39, stageKey: 'A4', kind: 'boss', name: 'A4 终章', music: null, letter: null,
+    winDialogue: 'a4_win', build() {},
+  };
+  const chB = { id: 40, stageKey: 'A4', kind: 'boss', name: 'A4 下一章', music: null, letter: null, build() {} };
+  const g = nomissStartChapterMock(chA);
+  g.chapters = [chA, chB];
+  g.chapterIndex = 0;
+  g.dialogues = { a4_win: [] };
+  startChapter(g);
+  assertEqual(loadNomissProgress(), 39, '进章即落盘当前章（章中退出可续接）');
+  nextChapterOrEnd(g, chA); // finishChapter 的 winDialogue 回调路径
+  assertEqual(g.chapterIndex, 1);
+  assertEqual(loadNomissProgress(), 40, 'winDialogue 后持久化下一章 id');
+  localStorage.removeItem(STORAGE_KEYS.nomissProgress);
 });
 
 test('formatRunStatsShort：统计两行简版（容错缺失字段）', () => {

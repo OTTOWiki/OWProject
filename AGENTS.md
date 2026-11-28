@@ -55,9 +55,10 @@ npm run hooks:install
 ```
 
 - 设置 `core.hooksPath=.githooks`（本机配置，**每个工作副本跑一次**）
-- 每次 `git commit`：pre-commit 将 `js/version.js` 的 **`VERSION` +1** 并入**同一次**提交
+- 每次普通 `git commit`：pre-commit 将 `js/version.js` 的 **`VERSION` +1** 并入**同一次**提交
 - 跳过：`git commit --no-verify`
-- 不自动 +1：`amend` / `rebase` / `merge` / `cherry-pick` 过程中
+- 不自动 +1：`amend` / `rebase` / `merge` / `cherry-pick` / `revert` 过程中
+- `amend` 由 pre-commit 读父进程命令行（`/proc` 或 `ps`）识别；两者都不可用时按普通提交 +1
 
 ### Debug（自测）
 
@@ -87,14 +88,14 @@ npm run test:e2e       # Playwright e2e（playwright.config.mjs + test/e2e/*.spe
 
 - 分发：`test/run-tests.mjs` — 有 bun 跑 `bun test`，否则 node `check-syntax` + `run-node`
 
-- CLI：`test/check-syntax.mjs` + `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
+- CLI：`test/check-syntax.mjs`（`node --check` 覆盖 `js/` `test/` `functions/` `tools/`，并校验相对 import 目标文件存在）+ `test/run-node.mjs`（`assert.js` 桥接 `node:test`）；bun 下用 `test/run-bun.test.mjs` 包装（bun 要求文件名含 `.test`，`node:test` 只能在 runner 内调）；入口 `test/run-tests.mjs` 负责 bun/node 分发
 - 浏览器：`test/index.html` → `run.js` + `cases.js`；页面同时读取 `test-results/e2e.json` 展示 Playwright 结果（`test/e2e-results.js`）
 - E2E：`playwright.config.mjs` + `test/e2e/*.spec.js`（boot/smoke/menu/game/hud/touch/mobile-landscape/replay/settings/ranking-nomiss/loading-petals）；本地先 `npx playwright install chromium`；脚本自带 webServer，复用 3000 端口已有 serve；JSON reporter 写 `test-results/e2e.json`，`/test/` 页面读取展示
 - E2E 启动助手只在可恢复资源失败时点击真实「继续进入」，仍等待初始化与菜单入场完成；核心程序失败直接报告加载状态。`boot.spec.js` 覆盖这两个分支。
-- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|three|nomiss|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|bg3d|menu-repeat|services|mobile.js` + `mockGame.js`（共 28 个用例模块，以 `test/cases.js` 为准）
-- CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块
-- CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + `npm run test:e2e` + 上传 `test-results` Artifact）。E2E 默认**不在每个 PR 跑**：仅给最终集成 PR 加 `run-e2e` 标签，或 `workflow_dispatch` 手动触发；小改动只等 `Test`
-- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 由最终 PR 的 `run-e2e` 标签统一跑一次，避免逐 PR 等待 14–16 分钟
+- 分文件：`cases-config|patterns|collision|feedback|pools|stages|boss-dps|storage-spawn|letterrate|runstats|continue|assets|ranking|replay|three|nomiss|smoke|load|loadanim|edges|golden|bg-rng|bg-easing|bg-schema|bg3d|menu-repeat|services|functions|syntax|mobile.js` + `mockGame.js`（共 30 个用例模块，以 `test/cases.js` 为准）
+- CLI 不 import Three；`cases-load.js` 仅浏览器动态 import 主模块；`cases-functions.js` / `cases-syntax.js` 仅 Node（浏览器不加载 `functions/` 与 `check-syntax.mjs`）
+- CI：`.github/workflows/test.yml` — 两个 job：`Test`（`npm test` 逻辑，每个 PR 都跑）+ `E2E`（`npm ci` + Playwright Chromium + 上传 `test-results` Artifact）。`E2E` 每次 PR 都真实跑浏览器测试：普通 PR 跑必过子集（`boot` + `game` 冒烟，约数分钟）；给 PR 加 `run-e2e` 标签或 `workflow_dispatch` 跑全量（14–16 分钟）
+- **合并门禁**（ruleset `protect-main`）：required checks = **`Test`**（逻辑）+ **`E2E`**（Playwright）+ **`CodeRabbit`**。逻辑加测进 `Test` job；E2E 必过子集随每个 PR 跑，全量由最终集成 PR 的 `run-e2e` 标签（或 dispatch）跑一次
 
 ---
 
@@ -222,7 +223,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
-**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（旧绝对目标按旧语义回放）。触屏相对拖动以既有 `v` 绝对目标记录；抬手后 `virtualMove` 清空，回放按原目标/限速语义行走，不新增帧字段。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。
+**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（旧绝对目标按旧语义回放）。触屏相对拖动以既有 `v` 绝对目标记录；抬手后 `virtualMove` 清空，回放按原目标/限速语义行走，不新增帧字段。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。导入/播放前校验录像契约：`playerId` ∈ `PLAYER_DEFS`、`difficultyId` ∈ `DIFFICULTIES`、`mode` 合法、`startChapter` 为正整数，每帧 `steps≥1`、RLE `count≥1` 且不超过上限；坏文件在录像屏报错，不进入回放。
 
 ### 章节流
 
@@ -310,7 +311,7 @@ docs/                  # 内部改造队列等（非运行时）
 ## 改代码约定
 
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
-2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）；通用 aim 怪用 `spawnArch`。
+2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave`；通用 aim 怪用 `spawnArch`。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
 4. 新背景 mode：`bgModes.js` 登记路径 → `js/bg3d/scenes/<stage>.js` 写 3D builder（可直接复用 `kit.js` 部件与 `_atmo.js` 氛围）；2D 兜底场景在 `js/bg/scenes/`（与 3D 同 brief，一般无需同步新增）。左侧 Three 另走 `backgrounds/builders.js`。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。
@@ -332,6 +333,8 @@ docs/                  # 内部改造队列等（非运行时）
 ### 操作（默认）
 
 方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏全屏相对拖动（位移 ×0.5、平滑追平、抬手即停、低速仅由低速键触发）+ 触屏低速/Item/Bomb/暂停。
+
+键位：重绑拒绝与其它动作冲突的键及菜单/移动保留键（方向键、WASD、Enter、Esc、Space），冲突时设置页提示行给出反馈；对局暂停中打开设置时不可改键（回到主菜单再改），改键保存后 `Input.reloadKeys()` 立即同步。录制中切换「单击发射」本局不生效（设置仍持久化、下一局生效），保证录像头 `shotToggleMode` 与全程帧语义一致；回放中不应用该设置。
 
 ### 常见任务
 
