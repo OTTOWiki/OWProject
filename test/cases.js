@@ -1,6 +1,6 @@
 /**
  * 用例聚合入口（浏览器 / Node 均 import 本文件注册全部用例）
- * 分文件：config / patterns / collision / feedback / pools / stages / boss-dps / storage-spawn / letterrate / runstats / continue / assets / ranking / replay / three / nomiss / smoke / load / loadanim / edges / golden / bg-rng / bg-easing / bg-schema / menu-repeat / services / mobile
+ * 分文件：config / patterns / collision / feedback / pools / stages / boss-dps / storage-spawn / letterrate / runstats / continue / assets / ranking / replay / three / nomiss / smoke / load / loadanim / edges / golden / bg-rng / bg-easing / bg-schema / menu-repeat / services / functions / mobile
  */
 import './cases-config.js';
 import './cases-patterns.js';
@@ -29,4 +29,6 @@ import './cases-bg-schema.js';
 import './cases-bg3d.js';
 import './cases-menu-repeat.js';
 import './cases-services.js';
+import './cases-functions.js'; // Node：functions/api 契约；浏览器不加载
+import './cases-syntax.js'; // Node：check-syntax 门禁自身的回归
 import './cases-mobile.js';
