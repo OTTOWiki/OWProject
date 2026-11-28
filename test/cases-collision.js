@@ -1,9 +1,7 @@
 /**
  * 碰撞几何 + 事件形状（T16：runCollisions 只吐事件）
  */
-import {
-  distPointSeg, bulletDistToPlayer, runCollisions, rebuildBulletLists,
-} from '../js/collision.js';
+import { distPointSeg, bulletDistToPlayer, runCollisions } from '../js/collision.js';
 import { BALANCE } from '../js/config.js';
 import { test, assert, assertEqual, assertClose } from './assert.js';
 
@@ -43,7 +41,6 @@ function mockGame({ player, enemies = [], bullets = [] } = {}) {
   const g = {
     player,
     enemies,
-    bullets,
     playerBullets,
     enemyBullets,
     _homeList: null,
@@ -145,23 +142,6 @@ test('runCollisions：体术碰撞吐 body playerHit', () => {
   const events = runCollisions(g);
   assert(events.some((e) => e.type === 'playerHit' && e.source === 'body'));
   assert(!enemy.dead, 'body collision must not kill enemy');
-});
-
-test('rebuildBulletLists 从合并表按 from 分表', () => {
-  const g = {
-    player: { x: 0, y: 0, r: 3 },
-    enemies: [],
-    bullets: [
-      mockBullet({ from: 'player', x: 1, y: 1 }),
-      mockBullet({ from: 'enemy', x: 2, y: 2 }),
-      { ...mockBullet({ from: 'player' }), dead: true },
-    ],
-    playerBullets: [],
-    enemyBullets: [],
-  };
-  rebuildBulletLists(g);
-  assertEqual(g.playerBullets.length, 1);
-  assertEqual(g.enemyBullets.length, 1);
 });
 
 test('runCollisions：激光 graze/hit 用 dist² 且写 _grazeNear', () => {
