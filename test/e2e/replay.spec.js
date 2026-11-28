@@ -2,7 +2,10 @@ import { test, expect } from '@playwright/test';
 import { waitForGameReady, cleanStorage, startGame, exitReplay } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  // CI headless（SwiftShader）下版面 3D 深入舞台只有约 1 FPS，真实时间 15s 内游戏几乎不推进，
+  // 本用例依赖“游戏进程（分数/录像帧）”与后续回放实时推进。强制 2D 兜底以保持流程确定性；
+  // 游戏逻辑/输入/录像路径与正式运行完全相同，3D 渲染本身由 game/hud 等其它 e2e 覆盖。
+  await page.goto('/?bg2d=1&no3dleft=1');
   await waitForGameReady(page);
   await cleanStorage(page);
 });
