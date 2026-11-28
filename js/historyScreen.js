@@ -36,6 +36,7 @@ export class HistoryScreen {
     this.actionIndex = 1; // 0 刷新 / 1 返回
     this.items = [];
     this.loading = false;
+    this._loadGen = 0;
   }
 
   resetFocus() {
@@ -76,6 +77,8 @@ export class HistoryScreen {
 
   async load(force = false) {
     if (this.loading && !force) return;
+    // 刷新可并发：只允许最新一次请求写列表，慢网下的旧响应直接丢弃
+    const gen = ++this._loadGen;
     this.loading = true;
     const statusEl = document.getElementById('history-status');
     const listEl = document.getElementById('history-list');
@@ -83,6 +86,7 @@ export class HistoryScreen {
     if (listEl && force) listEl.innerHTML = '';
 
     const data = await fetchHistoryVersions();
+    if (gen !== this._loadGen) return;
     this.loading = false;
     if (!this.isActive()) return;
 
