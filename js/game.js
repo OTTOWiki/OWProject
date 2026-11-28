@@ -363,6 +363,8 @@ export class Game {
       () => ({ x: this.player.x, y: this.player.y }),
       this.replaying ? this.canvas : this.el.screenGame,
     );
+    // 左侧印象场景在隐藏时构造，只有窗口 resize 才校正尺寸；进入对局时补一次测量
+    this.background?.resize?.();
     this.audio.ensure();
     withSeededRng(() => startChapter(this), this._rngNext);
     this.lastT = performance.now();

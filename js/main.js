@@ -422,17 +422,11 @@ async function boot() {
     };
     const hideBgFallback = () => elBgFallback?.classList.add('hidden');
 
-    const screenGameEl = document.getElementById('screen-game');
     const initBackground = () => {
       const bg = new StageBackground(bgCanvas);
       bg.setMode('s1_mid');
-      const idle = () => {
-        if (!screenGameEl.classList.contains('active')) {
-          bg.update();
-        }
-        requestAnimationFrame(idle);
-      };
-      requestAnimationFrame(idle);
+      // 不再挂 idle rAF：菜单期 #screen-game 为 display:none，循环只会渲染不可见画布；
+      // 2D 兜底路径下对局中的左侧场景由 game.js 主循环驱动。
       return bg;
     };
 
@@ -503,7 +497,11 @@ async function boot() {
     bindScoreRanking(game);
     // 版面背景素材/首章 3D 舞台放到菜单期预热（不阻塞启动；完成后 warmup 避免首次进关卡顿）
     preloadPlayfieldBg()
-      .then(() => { try { game.playBg?.warmup?.('s1_mid'); } catch (err) { console.warn('[playfield3d] warmup failed:', err); } })
+      .then(() => {
+        try { game.playBg?.warmup?.('s1_mid'); } catch (err) { console.warn('[playfield3d] warmup failed:', err); }
+        // 玩家在 plate 载入完成前开局：当前 3D 场景会缺绘卷贴图，素材到达后补建一次
+        try { game.playBg?.refresh?.(); } catch (err) { console.warn('[playfield3d] refresh failed:', err); }
+      })
       .catch((err) => { console.warn('[playfield3d] preload failed:', err); });
 
     // 印象场景加载失败占位：重试 → 重新加载 three 并替换 game 使用的背景

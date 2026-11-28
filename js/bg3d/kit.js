@@ -349,7 +349,7 @@ export function disposeEnvironment(renderer) {
   }
   for (const rec of ENV_CACHE.values()) {
     try {
-      rec.envMap?.dispose?.();
+      rec.rt?.dispose?.();
       rec.background?.dispose?.();
     } catch (err) {
       /* ignore */
@@ -447,14 +447,16 @@ export function environment(renderer, key, palette) {
   equirect.mapping = THREE.EquirectangularReflectionMapping;
   equirect.generateMipmaps = false;
   equirect.minFilter = THREE.LinearFilter;
-  const envMap = pmrem.fromEquirectangular(equirect).texture;
-  const rec = { envMap, background: equirect };
+  // PMREM 输出是 WebGLRenderTarget：真正分配显存的是 RT（envMap 只是它的 texture，
+  // 单独 dispose 该 texture 对 RT 是 no-op），所以缓存里必须同时保存 RT 才能释放。
+  const rt = pmrem.fromEquirectangular(equirect);
+  const rec = { envMap: rt.texture, background: equirect, rt };
   // 缓存上限：保留最近 3 个（场景切换不频繁，且切换时可释放旧的）
   if (ENV_CACHE.size >= 3) {
     const first = ENV_CACHE.keys().next().value;
     const old = ENV_CACHE.get(first);
     ENV_CACHE.delete(first);
-    old?.envMap?.dispose?.();
+    old?.rt?.dispose?.();
     old?.background?.dispose?.();
   }
   ENV_CACHE.set(key, rec);
@@ -1073,6 +1075,8 @@ export function eye({ x = 0, y = 0, z = -25, scale = 1, color = 0x8fb8c8, iris =
     ctx.stroke();
   }
   const irisTex = new THREE.CanvasTexture(c);
+  // 场景重建时由 stage3d._clear 释放（材质 map 走共享缓存约定，不能靠材质 dispose 回收）
+  g.userData.disposeTextures = [irisTex];
   const irisMesh = new THREE.Mesh(new THREE.CircleGeometry(0.95 * scale, 32), new THREE.MeshStandardMaterial({
     map: irisTex, roughness: 0.25, metalness: 0.05, emissive: iris, emissiveIntensity: 0.18,
   }));
@@ -1275,6 +1279,7 @@ export function giantSeal({ x = 0, y = 0, z = -25, size = 6, color = 0x8a1f1f, t
     roughness: 0.6, metalness: 0.1, emissive: glow, emissiveIntensity: 0.35, side: THREE.DoubleSide, toneMapped: false,
   });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+  m.userData.disposeTextures = [tex];
   m.position.set(x, y, z);
   return m;
 }

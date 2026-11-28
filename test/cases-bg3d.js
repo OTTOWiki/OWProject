@@ -138,30 +138,46 @@ test('镜头导演 u>1 必须保持抵达状态（不得无限前飞）', async 
   }
 });
 
-test('自适应工厂：WebGL context lost / draw 连续异常必须回退 2D（注入假实现）', async () => {
+test('自适应工厂：context lost 先等 restored，超时才回退 2D（注入假实现）', async () => {
   const { AdaptivePlayfieldBackground } = await import('../js/playfieldBg.js');
   const makeFake3d = () => ({
-    is3D: true, sceneReady: true, onContextLost: null,
-    setMode() {}, update() {}, draw() { throw new Error('boom'); }, dispose() {},
+    is3D: true, sceneReady: true, onContextLost: null, onContextRestored: null,
+    setMode() {}, update() {}, draw() {}, dispose() {}, refreshed: 0,
+    refresh() { this.refreshed += 1; },
   });
   const makeFake2d = () => ({
     is3D: false, mode: null, disposed: false,
     setMode(m) { this.mode = m; }, update() {}, draw() {}, dispose() { this.disposed = true; },
   });
-  // 1) context lost → 立即回退 2D，并保留当前 mode
+  // 1) lost 后在宽限期内 restored → 不回退；超时 → 回退 2D 并保留当前 mode
   let fake3d = makeFake3d();
   let fake2d = makeFake2d();
-  const bg = new AdaptivePlayfieldBackground({}, { style: {} }, {
-    create3D: () => fake3d, create2D: () => fake2d,
-  });
+  let canvasRemoved = false;
+  const bg = new AdaptivePlayfieldBackground({}, {
+    style: {},
+    remove() { canvasRemoved = true; },
+  }, { create3D: () => fake3d, create2D: () => fake2d });
+  bg._contextRestoreWaitMs = 20;
   bg.setMode('s2_boss');
   assert(bg.is3D === true, '应初始为 3D');
   fake3d.onContextLost();
-  assert(bg.is3D === false, 'context lost 后应回退 2D');
+  assert(bg.is3D === true, 'context lost 后应先用恢复窗口，不立即回退');
+  fake3d.onContextRestored();
+  await new Promise((r) => setTimeout(r, 40));
+  assert(bg.is3D === true, 'restored 在宽限期内到达则继续 3D');
+
+  fake3d.onContextLost();
+  await new Promise((r) => setTimeout(r, 40));
+  assert(bg.is3D === false, '恢复超时后应回退 2D');
   assert(bg.impl === fake2d && fake2d.mode === 's2_boss', '回退 2D 后应保留当前 mode');
-  // 2) 3D draw 连续抛错 → 回退 2D
+  assert(canvasRemoved, '永久回退时应移除 3D 画布');
+
+  // 2) 3D draw 连续抛错 → 回退 2D，并释放 3D 上下文
   fake3d = makeFake3d();
   fake2d = makeFake2d();
+  let lost = 0;
+  fake3d.renderer = { forceContextLoss() { lost += 1; } };
+  fake3d.draw = () => { throw new Error('boom'); };
   const bg2 = new AdaptivePlayfieldBackground({}, { style: {} }, {
     create3D: () => fake3d, create2D: () => fake2d,
   });
@@ -170,6 +186,43 @@ test('自适应工厂：WebGL context lost / draw 连续异常必须回退 2D（
   assert(bg2.is3D === true, '单次 draw 失败不应立刻回退');
   bg2.draw({});
   assert(bg2.is3D === false, '连续 draw 失败应回退 2D');
+  assertEqual(lost, 1, '回退时应丢弃 WebGL 上下文');
+});
+
+test('自适应工厂：refresh 只在 3D 时转给实现（plate 晚到补建）', async () => {
+  const { AdaptivePlayfieldBackground } = await import('../js/playfieldBg.js');
+  const fake3d = {
+    is3D: true, sceneReady: true, onContextLost: null, onContextRestored: null,
+    setMode() {}, update() {}, draw() {}, dispose() {}, refreshed: 0,
+    refresh() { this.refreshed += 1; },
+  };
+  const bg = new AdaptivePlayfieldBackground({}, { style: {} }, {
+    create3D: () => fake3d,
+    create2D: () => ({ is3D: false, setMode() {}, update() {}, draw() {}, dispose() {} }),
+  });
+  bg.setMode('s1_mid');
+  bg.refresh();
+  assertEqual(fake3d.refreshed, 1, '3D 实现应收到 refresh');
+});
+
+test('渲染资源生命周期：阴影/PMREM/共享纹理/底材位图/隐藏渲染已接线', () => {
+  const stage = readFileSync(new URL('../js/bg3d/stage3d.js', import.meta.url), 'utf8');
+  assert(/l\.shadow\?\.dispose/.test(stage), '重建场景需释放灯光阴影贴图');
+  assert(/environmentIntensity = 1/.test(stage), '_clear 需重置环境强度');
+  assert(/K\.clearKitTextureCache/.test(stage), 'dispose 需释放 kit 共享纹理缓存');
+  assert(/disposeTextures/.test(stage), '需释放场景专属 CanvasTexture');
+  assert(/onContextRestored\?\.?\(\)/.test(stage), '需上报 context restored 供恢复窗口取消');
+  const kit = readFileSync(new URL('../js/bg3d/kit.js', import.meta.url), 'utf8');
+  assert(/rec = \{ envMap: rt\.texture, background: equirect, rt \}/.test(kit), 'PMREM 缓存需保留 RT');
+  assert(/old\?\.rt\?\.dispose/.test(kit), 'IBL 淘汰需 dispose RT');
+  assert(/g\.userData\.disposeTextures/.test(kit) && /m\.userData\.disposeTextures/.test(kit), 'eye/giantSeal 纹理需登记释放');
+  const backdrops = readFileSync(new URL('../js/bg/backdrops.js', import.meta.url), 'utf8');
+  assert(!/rec\.img\s*=/.test(backdrops), '外围底材不再长期持有解码位图');
+  assert(/rec\.loaded/.test(backdrops), '外围底材改用 loaded 标志');
+  const mainSrc = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  assert(!/requestAnimationFrame\(idle\)/.test(mainSrc), '菜单期不得再用 idle rAF 渲染隐藏画布');
+  const stageBackground = readFileSync(new URL('../js/backgrounds/StageBackground.js', import.meta.url), 'utf8');
+  assert(/resize\(\)\s*\{\s*this\._resize\(\)/.test(stageBackground), 'StageBackground 需暴露 resize');
 });
 
 test('EX 镜头不得出现逐帧跳变（抽搐回归守卫）', async () => {
