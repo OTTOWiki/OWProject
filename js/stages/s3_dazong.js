@@ -16,12 +16,16 @@ const FACE = faceDefaults(3);
 
 /* ========== s3 builds ========== */
 function chapter_s3_1(g) {
-  pushBossRef(g, {
+  // 非 midboss：有 elite 但不挂 bossRef（到时 duration 成功，与相邻 chapter_s3_6 一致；
+  // 挂 bossRef 会让 kind:'mid' 的限时章超时=失败、击杀=提前结束）
+  const e = elite({
     x: LOGICAL_W / 2, y: 100, hp: 1200, color: '#fbbf24', r: 28,
     label: '防火墙节点', enterY: 100,
-  }, (en, d, game) => {
+  });
+  e.script = (en, d, game) => {
     timer(en, 'laser', 0.35, d, () => spawnAimedLaser(game, en, game.player, '#fbbf24'));
-  }, 'elite');
+  };
+  g.spawnEnemy(e);
   // 仅辅压大玉：不挂 onWave，避免 waveCount 推进误触发 wavesExhausted
   installMidWave(g, {
     continuous: (game, dt) => {

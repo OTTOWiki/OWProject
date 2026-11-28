@@ -414,8 +414,9 @@ export function tryBomb(game, isDeath) {
 /**
  * Nomiss：被弹（决死未救回）→ 不扣残机不 Game Over，自动重开当前章节。
  * - 回滚到进章时状态（该次尝试作废）：Unstable 异常（经 nextUnstableFx）、
- *   分数 score/baseScore/extendCount、残机/Bomb（含尝试内 Extend/生命道具所得一并回滚）
- * - hiscore 保留峰值不降；combo 与 stats 不回滚（stats 为累计对局统计，非单章尝试）
+ *   分数 score/baseScore/extendCount、残机/Bomb（含尝试内 Extend/生命道具所得一并回滚）、
+ *   连击 combo/comboTimer 与编辑度 player.edit（尝试内的击杀/擦弹收益作废）
+ * - hiscore 保留峰值不降；stats 不回滚（stats 为累计对局统计，非单章尝试）
  * - BGM 回带到进章位置（chapterFlow.startChapter 章首记录的 _nomissBgmPos）
  */
 export function nomissRestart(game) {
@@ -432,6 +433,9 @@ export function nomissRestart(game) {
   game.extendCount = snap.extendCount;
   game.player.lives = snap.lives;
   game.player.bombs = snap.bombs;
+  game.combo = snap.combo;
+  game.comboTimer = snap.comboTimer;
+  game.player.edit = snap.edit;
   if (game._nomissBgmPos != null) game.audio.seekMusic(game._nomissBgmPos);
   flashMsg(game, '无伤重开', 1.2);
 

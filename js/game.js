@@ -397,7 +397,6 @@ export class Game {
     applyEnemyDifficulty(e, this.enemyHpMul, this.fireIntervalMul);
     if (this.state === 'playing') {
       this._hadWaveEnemySpawn = true;
-      this._lastEnemySpawnChapterTime = this.chapterTime;
       this.wavesExhausted = false;
       this._dryWaveTicks = 0;
     }

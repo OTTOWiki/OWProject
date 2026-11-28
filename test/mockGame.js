@@ -45,14 +45,12 @@ export function createMockGame(opts = {}) {
     wavesExhausted: false,
     _hadWaveEnemySpawn: false,
     _dryWaveTicks: 0,
-    _lastEnemySpawnChapterTime: -999,
 
     spawnEnemy(e) {
       if (!e) return e;
       applyEnemyDifficulty(e, this.enemyHpMul, this.fireIntervalMul);
       if (this.state === 'playing') {
         this._hadWaveEnemySpawn = true;
-        this._lastEnemySpawnChapterTime = this.chapterTime;
         this.wavesExhausted = false;
         this._dryWaveTicks = 0;
       }
