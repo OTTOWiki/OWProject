@@ -2,7 +2,7 @@
  * OWProject — 入口
  */
 import { Input } from './input.js';
-import { AudioEngine, AUDIO_FILE_MAP } from './audio.js';
+import { AudioEngine } from './audio.js';
 import { StageBackground } from './backgrounds.js';
 import { loadThreeModule } from './backgrounds/threeLoader.js';
 import { Game } from './game.js';
@@ -206,28 +206,26 @@ function withTimeout(promise, ms, label = 'operation') {
 }
 
 /**
- * Preloads artwork and OGG audio files while updating processed-resource progress.
+ * Preloads artwork images while updating processed-resource progress.
+ * BGM is decoded on demand by AudioEngine.playTrack instead of decoding the
+ * whole soundtrack at boot (that used to hold ~2 GB of PCM for the session).
  * Individual failures are returned as data so the caller can offer recovery after
  * all initialization needed for Continue has completed.
- * @param {import('./audio.js').AudioEngine} [audio] - Audio engine used to decode and cache audio buffers.
  */
-async function preloadAll(audio) {
+async function preloadAll() {
   const imagePaths = [...new Set([
     ...getAssetPaths(),
     ...getSpritePaths(),
     ...getPlayfieldBgPaths(),
   ])];
-  const audioFilePaths = [...new Set(Object.values(AUDIO_FILE_MAP).filter(Boolean))];
-  const total = imagePaths.length + audioFilePaths.length;
+  const total = imagePaths.length;
   let processed = 0;
   let loaded = 0;
-  let unavailable = 0;
   const failures = [];
 
   const note = (result) => {
     processed += 1;
     if (result.status === 'loaded') loaded += 1;
-    if (result.status === 'unavailable') unavailable += 1;
     if (result.issue) failures.push(result);
     setLoadProgress(total ? (processed / total) * 100 : 100);
     const suffix = failures.length ? `（${failures.length} 项失败）` : '';
@@ -279,76 +277,12 @@ async function preloadAll(audio) {
     }
   });
 
-  const audioTask = (path) => new Promise((resolve) => {
-    const abort = new AbortController();
-    let timer = 0;
-    let settled = false;
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      note(result);
-      resolve(result);
-    };
-    timer = setTimeout(() => {
-      abort.abort();
-      finish({
-        type: 'audio',
-        path,
-        status: 'timeout',
-        issue: true,
-        error: new Error(`音频加载超时: ${path}`),
-      });
-    }, 10000);
-    const url = path.split('/').map((seg) => encodeURIComponent(seg)).join('/');
-    Promise.resolve()
-      .then(() => fetch(url, { signal: abort.signal }))
-      .then((response) => {
-        if (!response.ok) throw new Error(`音频加载失败: ${path} (${response.status})`);
-        return response.arrayBuffer();
-      })
-      .then(async (buffer) => {
-        // Fetch success is useful evidence even when mobile audio decoding must
-        // wait for a user gesture; that case is intentionally non-blocking.
-        if (!audio?.ctx || settled) {
-          return { type: 'audio', path, status: 'unavailable', issue: false };
-        }
-        try {
-          const decoded = await audio.ctx.decodeAudioData(buffer.slice(0));
-          if (!decoded || settled) {
-            return { type: 'audio', path, status: 'unavailable', issue: false };
-          }
-          audio.cacheAudioBuffer(path, decoded);
-          return { type: 'audio', path, status: 'loaded', issue: false };
-        } catch (error) {
-          return {
-            type: 'audio',
-            path,
-            status: 'unavailable',
-            issue: false,
-            error,
-          };
-        }
-      })
-      .then(finish, (error) => finish({
-        type: 'audio',
-        path,
-        status: 'failed',
-        issue: true,
-        error,
-      }));
-  });
-
-  const tasks = [
-    ...imagePaths.map(imageTask),
-    ...audioFilePaths.map(audioTask),
-  ];
-  await Promise.all(tasks);
+  await Promise.all(imagePaths.map(imageTask));
   if (total) setLoadProgress(100);
   setLoadStatus(
     failures.length
-      ? `资源处理完成（${loaded}/${total} 成功，${unavailable} 项待后续解码，${failures.length} 项失败）`
-      : `资源处理完成（${loaded}/${total} 成功，${unavailable} 项待后续解码）`,
+      ? `资源处理完成（${loaded}/${total} 成功，${failures.length} 项失败）`
+      : `资源处理完成（${loaded}/${total} 成功）`,
   );
   return failures;
 }
@@ -403,8 +337,8 @@ async function boot() {
   let threeErr = null;
   const threeReady = loadThreeModule().catch((e) => { threeErr = e; });
 
-  // Audio 先于预载创建，使 OGG Buffer 直接进引擎缓存
-  // ensure() 在部分移动端可能保持 suspended；失败曲目在首次手势后补 decode
+  // Audio 先于预载创建：boot 时尝试建立 context，BGM 改为首次 playTrack 按需解码。
+  // ensure() 在部分移动端可能保持 suspended；未能开播的曲目在首次手势后重试。
   const audio = new AudioEngine();
   const input = new Input();
 
@@ -418,7 +352,7 @@ async function boot() {
     }
 
     try {
-      startupIssues.push(...await preloadAll(audio));
+      startupIssues.push(...await preloadAll());
     } catch (e) {
       // The per-resource tasks settle locally; this is only for an unexpected
       // preload controller failure, which still permits the existing fallbacks.
@@ -466,12 +400,12 @@ async function boot() {
   // The UI/game initialization below remains covered by the loader. The menu
   // is inert until UI.showMenu() is called after dismissal at the end of boot.
 
-  // 首次用户手势：resume + 补预载失败的 BGM（移动端 suspended 时常见）
+  // 首次用户手势：resume + 重试未能开播的 BGM（移动端 suspended 时常见）
   let audioUnlocked = false;
   const unlockAudio = () => {
     if (audioUnlocked) return;
     audioUnlocked = true;
-    audio.unlockAndRetryPreload().catch(() => {});
+    audio.unlock().catch(() => {});
   };
   window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
   window.addEventListener('keydown', unlockAudio, { once: true });
@@ -488,17 +422,11 @@ async function boot() {
     };
     const hideBgFallback = () => elBgFallback?.classList.add('hidden');
 
-    const screenGameEl = document.getElementById('screen-game');
     const initBackground = () => {
       const bg = new StageBackground(bgCanvas);
       bg.setMode('s1_mid');
-      const idle = () => {
-        if (!screenGameEl.classList.contains('active')) {
-          bg.update();
-        }
-        requestAnimationFrame(idle);
-      };
-      requestAnimationFrame(idle);
+      // 不再挂 idle rAF：菜单期 #screen-game 为 display:none，循环只会渲染不可见画布；
+      // 2D 兜底路径下对局中的左侧场景由 game.js 主循环驱动。
       return bg;
     };
 
@@ -569,7 +497,11 @@ async function boot() {
     bindScoreRanking(game);
     // 版面背景素材/首章 3D 舞台放到菜单期预热（不阻塞启动；完成后 warmup 避免首次进关卡顿）
     preloadPlayfieldBg()
-      .then(() => { try { game.playBg?.warmup?.('s1_mid'); } catch (err) { console.warn('[playfield3d] warmup failed:', err); } })
+      .then(() => {
+        try { game.playBg?.warmup?.('s1_mid'); } catch (err) { console.warn('[playfield3d] warmup failed:', err); }
+        // 玩家在 plate 载入完成前开局：当前 3D 场景会缺绘卷贴图，素材到达后补建一次
+        try { game.playBg?.refresh?.(); } catch (err) { console.warn('[playfield3d] refresh failed:', err); }
+      })
       .catch((err) => { console.warn('[playfield3d] preload failed:', err); });
 
     // 印象场景加载失败占位：重试 → 重新加载 three 并替换 game 使用的背景

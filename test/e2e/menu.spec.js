@@ -411,13 +411,24 @@ test('菜单按住导航：首延迟内不动，超过后重复，松手停止',
   });
 
   await expect.poll(selectedIndex).toBe(0);
-  await page.keyboard.down('ArrowDown');
-  await page.waitForTimeout(150);
-  expect(await selectedIndex()).toBe(1); // 首次按下只走一格，首延迟内不重复
-  await page.waitForTimeout(450);         // 越过 350ms 首延迟
-  expect(await selectedIndex()).toBeGreaterThanOrEqual(2);
-  await page.keyboard.up('ArrowDown');
-  await page.waitForTimeout(120);
+
+  const release = () => page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', {
+    key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true,
+  })));
+
+  // 同一任务内派发按键并读取：不依赖墙上时钟，CI 再卡也不会把正确构建判红。
+  const afterFirstPress = await page.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true,
+    }));
+    const rows = [...document.querySelectorAll('#ranking-list .ranking-row')];
+    return rows.findIndex((row) => row.classList.contains('selected'));
+  });
+  expect(afterFirstPress).toBe(1); // 首次按下只走一格，首延迟内不重复
+
+  // 按住超过首延迟后进入重复：轮询等待（不固定 sleep）；精确节拍由 menu-repeat 单测覆盖。
+  await expect.poll(selectedIndex, { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+  await release();
   const stopped = await selectedIndex();
   await page.waitForTimeout(300);
   expect(await selectedIndex()).toBe(stopped); // 松手后停止

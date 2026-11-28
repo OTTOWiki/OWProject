@@ -6,7 +6,7 @@
  */
 import { backdropFor } from '../bgModes.js';
 
-/** @type {Map<string, {img: HTMLImageElement|null, failed: boolean, waiters: Function[]}>} */
+/** @type {Map<string, {loaded: boolean, failed: boolean, waiters: Function[]}>} */
 const cache = new Map();
 
 /** 当前在前层的元素（交叉淡入时另一块成为目标层） */
@@ -17,7 +17,7 @@ let switchToken = 0;
 function ensure(path) {
   let rec = cache.get(path);
   if (rec) return rec;
-  rec = { img: null, failed: false, waiters: [] };
+  rec = { loaded: false, failed: false, waiters: [] };
   cache.set(path, rec);
   if (typeof Image === 'undefined') {
     rec.failed = true;
@@ -25,9 +25,10 @@ function ensure(path) {
   }
   const img = new Image();
   img.onload = () => {
-    rec.img = img;
+    // 只当布尔标志用：渲染走 CSS background-image，解码后的位图不必被 JS 长期持有
+    rec.loaded = true;
     const waiters = rec.waiters.splice(0);
-    for (const fn of waiters) fn(img);
+    for (const fn of waiters) fn();
   };
   img.onerror = () => {
     rec.failed = true;
@@ -105,7 +106,7 @@ export function applyStageBackdrop(mode, { boss = false } = {}) {
   const rec = ensure(path);
   if (reducedMotion()) {
     if (prev && prev !== target) prev.classList.remove('has-bg');
-    if (rec.img) {
+    if (rec.loaded) {
       target.style.backgroundImage = `url("${path}")`;
       target.classList.add('has-bg');
     } else if (!rec.failed) {
@@ -119,7 +120,7 @@ export function applyStageBackdrop(mode, { boss = false } = {}) {
     }
     return;
   }
-  if (rec.img) reveal();
+  if (rec.loaded) reveal();
   else if (!rec.failed) rec.waiters.push(reveal);
   else {
     target.classList.remove('has-bg');
