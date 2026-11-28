@@ -3,7 +3,9 @@
  * 快照字段与 Input.snapshot() 约定一致：d,p,m,t,v,a,b,i,l,sl,tl（见 input.js snapshot()）。
  * 帧数据结构：{ s: steps(0..3), i: snapshot }；仅 s>0 帧进入录像。
  */
-import { REPLAY_VERSION, REPLAY_LEGACY_VERSIONS } from './config.js';
+import {
+  REPLAY_VERSION, REPLAY_LEGACY_VERSIONS, PLAYER_DEFS, DIFFICULTIES,
+} from './config.js';
 import { moveAxisFromSeq } from './input.js';
 import {
   decodeReplayFrame, isCompactReplayFrame, replayKeyTable, sameReplayFrame,
@@ -114,19 +116,40 @@ export function buildReplay({ header, frames, endState, partial }) {
   };
 }
 
+/** 对局模式白名单（与 Game.mode 一致） */
+const REPLAY_MODES = new Set(['story', 'practice', 'stage', 'extra', 'nomiss']);
+/** 单条 RLE run 的帧数上限：正常 60fps 录像远小于此，用于拒绝手写的超大 count */
+const MAX_FRAME_RUN_COUNT = 1_000_000;
+
+/**
+ * 录像头契约：导入/播放前必须校验，坏文件不得进入回放（playerId/difficultyId
+ * 会直接影响玩家与难度创建；startChapter 越界会静默落到第 1 章）。
+ * @param {object} data
+ */
+function hasValidReplayHeader(data) {
+  if (!data || typeof data !== 'object') return false;
+  const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+  return typeof data.playerId === 'string' && has(PLAYER_DEFS, data.playerId)
+    && typeof data.difficultyId === 'string' && has(DIFFICULTIES, data.difficultyId)
+    && REPLAY_MODES.has(data.mode)
+    && Number.isSafeInteger(data.startChapter) && data.startChapter > 0;
+}
+
 /**
  * 当前格式（v2）校验。
  * @param {object} data
  */
 export function validateReplay(data) {
-  if (!(data && data.version === REPLAY_VERSION && Array.isArray(data.frames) && data.seed != null)) {
+  if (!(data && data.version === REPLAY_VERSION && Array.isArray(data.frames)
+    && data.seed != null && hasValidReplayHeader(data))) {
     return false;
   }
   for (const run of data.frames) {
     if (!Array.isArray(run) || run.length !== 3) return false;
     const [count, steps, frame] = run;
-    if (!Number.isSafeInteger(count) || count < 1) return false;
-    if (!Number.isSafeInteger(steps) || steps < 0) return false;
+    if (!Number.isSafeInteger(count) || count < 1 || count > MAX_FRAME_RUN_COUNT) return false;
+    // steps 必须为正：0/负数会让回放循环空转或倒退，手写录像可借此冻结标签页
+    if (!Number.isSafeInteger(steps) || steps < 1) return false;
     if (!isCompactReplayFrame(frame)) return false;
     if (frame[0] !== steps) return false;
   }
@@ -139,14 +162,16 @@ export function validateReplay(data) {
  */
 export function validateLegacyReplay(data) {
   if (!(data && REPLAY_LEGACY_VERSIONS.includes(replayVersionOf(data))
-    && Array.isArray(data.frames) && data.seed != null)) {
+    && Array.isArray(data.frames) && data.seed != null && hasValidReplayHeader(data))) {
     return false;
   }
   // Validate every frame run as [count, steps, snapshot]
   for (const run of data.frames) {
     if (!Array.isArray(run) || run.length !== 3) return false;
     const [count, steps, snapshot] = run;
-    if (!Number.isSafeInteger(count) || !Number.isSafeInteger(steps)) return false;
+    // 旧格式冻结：只补防御性下限（负数/0 会让播放循环空转）
+    if (!Number.isSafeInteger(count) || count < 1) return false;
+    if (!Number.isSafeInteger(steps) || steps < 1) return false;
     if (!snapshot || typeof snapshot !== 'object') return false;
     if (!Array.isArray(snapshot.d) || !Array.isArray(snapshot.p) || !Array.isArray(snapshot.m)) return false;
     if (snapshot.t != null && (!Array.isArray(snapshot.t) || snapshot.t.length !== 2 || !Number.isFinite(snapshot.t[0]) || !Number.isFinite(snapshot.t[1]))) return false;
