@@ -10,11 +10,13 @@ async function finishSelectionAnimations(page) {
   });
 }
 
-test('boot 可恢复态：可选音乐失败后 helper 选择继续进入菜单', async ({ page }) => {
-  let failedMusicRequest = false;
-  await page.route('**/*.ogg', async (route) => {
-    if (!failedMusicRequest) {
-      failedMusicRequest = true;
+test('boot 可恢复态：可选图片失败后 helper 选择继续进入菜单', async ({ page }) => {
+  // BGM 改为 playTrack 按需解码后，启动预载阶段只剩图片资源；这里用一张版面绘卷失败
+  // 触发同一套“可恢复失败 → 继续进入”路径。
+  let failedImageRequest = false;
+  await page.route('**/assets/bg/scene/**', async (route) => {
+    if (!failedImageRequest) {
+      failedImageRequest = true;
       await route.abort();
       return;
     }
@@ -22,8 +24,8 @@ test('boot 可恢复态：可选音乐失败后 helper 选择继续进入菜单'
   });
 
   await page.goto('/');
-  await expect.poll(() => failedMusicRequest).toBe(true);
-  await expect(page.locator('#load-status')).toContainText(/音乐加载(?:失败|超时)/);
+  await expect.poll(() => failedImageRequest).toBe(true);
+  await expect(page.locator('#load-status')).toContainText(/图片加载(?:失败|超时)/);
   await expect(page.locator('#load-continue')).toBeVisible();
   await expect(page.locator('#load-reload')).toBeVisible();
 

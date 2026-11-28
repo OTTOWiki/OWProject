@@ -130,30 +130,6 @@ export function forEnemiesNear(g, x, y, radius, visit) {
 }
 
 /**
- * 生产路径兼容守卫：runCollisions 每帧在「合并 bullets 旧状态」下调用。
- * 正常分表（playerBullets/enemyBullets）已是权威时本函数直接返回。
- */
-export function rebuildBulletLists(game) {
-  const player = game.playerBullets || (game.playerBullets = []);
-  const enemy = game.enemyBullets || (game.enemyBullets = []);
-  // 分表已有存活弹且无合并表 → 已是权威
-  if ((!game.bullets || game.bullets.length === 0)
-    && (player.length > 0 || enemy.length > 0)) {
-    return;
-  }
-  // 从合并表重建（测试 / 旧路径）
-  if (game.bullets && game.bullets.length) {
-    player.length = 0;
-    enemy.length = 0;
-    for (const b of game.bullets) {
-      if (b.dead) continue;
-      if (b.from === 'player') player.push(b);
-      else enemy.push(b);
-    }
-  }
-}
-
-/**
  * 运行一帧碰撞：几何 + 命中状态，返回事件列表（不写分/SFX/掉落）
  * @param {import('./game.js').Game} game
  * @returns {CollisionEvent[]}
@@ -165,11 +141,6 @@ export function runCollisions(game) {
 
   const p = game.player;
   if (!p) return events;
-
-  // 兼容：仅 bullets 有数据时补分表
-  if ((!game.playerBullets?.length && !game.enemyBullets?.length) && game.bullets?.length) {
-    rebuildBulletLists(game);
-  }
 
   const playerBullets = game.playerBullets || (game.playerBullets = []);
   const enemyBullets = game.enemyBullets || (game.enemyBullets = []);

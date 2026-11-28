@@ -210,7 +210,6 @@ export function spawnPlayerShot(game, player, dmgMul = 1) {
   }
 
   // 侧方子机：无需瞄准的追踪弹（始终发射）
-  player._shotCount = (player._shotCount || 0) + 1;
   const ox = player.slow ? 16 : 22;
   const oy = player.slow ? -6 : 2;
   const home = player.slow ? 9.5 : 7.2;

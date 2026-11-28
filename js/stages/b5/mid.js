@@ -145,13 +145,13 @@ export function chapter_b5_mid_5(g) {
       const e = mob(side > 0 ? -20 : LOGICAL_W + 20, y, 30, side > 0 ? '#fb923c' : '#fdba74');
       e.hp = 30;
       e.vx = -side * 2.2;
-      e.vy = Math.sin(wave * 1.3) * 0.6;
+      e.vy = Math.abs(Math.sin(wave * 1.3)) * 0.6; // 只向下/停：负 vy 会飘出上边界且永不剔除
       e.script = (en, d, gm) => {
         timer(en, 'aim', 0.35, d, () => {
           spawnAimed(gm, en, gm.player, { n: 2, parity: 'even', type: 'rice', speed: 2.4, spread: 0.15, color: '#f97316' });
         });
         timer(en, 'ring', 0.7, d, () => {
-          spawnRingAt(gm, en.x, en.y, { n: 8, speed: 1.6 + Math.random() * 0.4, color: '#fdba74', type: 'dot' });
+          spawnRingAt(gm, en.x, en.y, 8, 1.6 + Math.random() * 0.4, 'dot', '#fdba74');
         });
         timer(en, 'reverse', 1.2, d, () => {
           en.vx = -en.vx;
@@ -161,7 +161,7 @@ export function chapter_b5_mid_5(g) {
       if (wave % 2 === 0) {
         const filler = mob(side > 0 ? -20 : LOGICAL_W + 20, 60 + Math.random() * 380, 15, '#fda4af');
         filler.hp = 12;
-        filler.vx = -side * 3.0;
+        filler.vx = side * 3.0; // 朝场内（主敌靠 reverse 回场，补位机没有 reverse）
         filler.script = (en, d2, gm) => {
           timer(en, 'f', 0.5, d2, () => {
             spawnAimed(gm, en, gm.player, { n: 2, type: 'talisman', speed: 2.8, color: '#fda4af' });

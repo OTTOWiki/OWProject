@@ -54,6 +54,9 @@ export class AdaptivePlayfieldBackground {
     this._updateFails = 0;
     this._force2d = typeof location !== 'undefined' && /[?&]bg2d=1/.test(location.search);
     this._factories = factories || {};
+    this._contextLostTimer = 0;
+    /** context lost 后等待浏览器恢复的宽限（超时才永久回退 2D） */
+    this._contextRestoreWaitMs = 1500;
     // 自测钩子（只读；不影响运行）：便于外部读取 3D/2D 状态与渲染统计
     if (typeof window !== 'undefined') window.__playfieldBg = this;
   }
@@ -74,14 +77,46 @@ export class AdaptivePlayfieldBackground {
     return this._factories.create2D ? this._factories.create2D() : new PlayfieldBackground();
   }
 
+  _on3dContextLost(bg) {
+    if (this.impl !== bg || this._contextLostTimer) return;
+    this._contextLostTimer = setTimeout(() => {
+      this._contextLostTimer = 0;
+      if (this.impl === bg) this._fallback2d('webglcontextlost');
+    }, this._contextRestoreWaitMs);
+    this._contextLostTimer?.unref?.();
+  }
+
+  _on3dContextRestored(bg) {
+    if (this.impl !== bg) return;
+    clearTimeout(this._contextLostTimer);
+    this._contextLostTimer = 0;
+    // 恢复事件来了但场景重建失败：不能停在坏 3D 上，直接回退 2D
+    if (bg.sceneReady === false) this._fallback2d('context restore failed');
+  }
+
+  /** 永久放弃 3D：销毁舞台、显式丢弃 WebGL 上下文并移除画布。 */
+  _release3d(bg) {
+    if (!bg) return;
+    clearTimeout(this._contextLostTimer);
+    this._contextLostTimer = 0;
+    bg.onContextLost = null;
+    bg.onContextRestored = null;
+    try { bg.dispose?.(); } catch (err) { /* ignore */ }
+    try { bg.renderer?.forceContextLoss?.(); } catch (err) { /* ignore */ }
+    try { this.canvas3d?.remove?.(); } catch (err) { /* ignore */ }
+  }
+
   _ensure(mode) {
     if (this.impl) return;
     const can3D = !this._force2d && this.canvas3d && (this._factories.create3D || getThree());
     if (can3D) {
+      let bg = null;
       try {
-        const bg = this._make3d();
-        // WebGL context lost 时立即切 2D，避免背景永久黑屏（Android 退后台/内存压力会触发）
-        bg.onContextLost = () => this._fallback2d('webglcontextlost');
+        bg = this._make3d();
+        // Android 退后台/显存压力会触发 context lost；通常随后会自动 restored，
+        // 先给一个恢复窗口，超时仍没恢复才永久回退 2D。
+        bg.onContextLost = () => this._on3dContextLost(bg);
+        bg.onContextRestored = () => this._on3dContextRestored(bg);
         bg.setMode(mode || 's1_mid', { transition: false });
         if (bg.sceneReady !== false) {
           this.impl = bg;
@@ -93,9 +128,10 @@ export class AdaptivePlayfieldBackground {
           return;
         }
         console.warn('[playfield3d] scene not ready at init, fallback 2D');
-        bg.dispose?.();
+        this._release3d(bg);
       } catch (err) {
         console.warn('[playfield3d] init failed, fallback 2D:', err);
+        this._release3d(bg);
       }
     }
     this._hide3dCanvas();
@@ -115,6 +151,12 @@ export class AdaptivePlayfieldBackground {
     } catch (err) {
       console.warn('[playfield3d] warmup failed:', err);
     }
+  }
+
+  /** 绘卷素材晚到后：让 3D 舞台在缺贴图时重建当前场景（2D 渲染器自己会重烘）。 */
+  refresh() {
+    if (!this.is3D || !this.impl) return;
+    try { this.impl.refresh?.(); } catch (err) { console.warn('[playfield3d] refresh failed:', err); }
   }
 
   setMode(mode, opts = {}) {
@@ -151,10 +193,7 @@ export class AdaptivePlayfieldBackground {
     this.is3D = false;
     this._drawFails = 0;
     this._updateFails = 0;
-    if (old) {
-      old.onContextLost = null;
-      try { old.dispose?.(); } catch (err) { /* ignore */ }
-    }
+    this._release3d(old);
     this._hide3dCanvas();
     this.impl = this._make2d();
     if (this._mode) {
@@ -197,11 +236,12 @@ export class AdaptivePlayfieldBackground {
   }
 
   dispose() {
-    if (this.impl) {
-      this.impl.onContextLost = null;
+    if (this.is3D) this._release3d(this.impl);
+    else if (this.impl) {
       try { this.impl.dispose?.(); } catch (err) { /* ignore */ }
     }
     this.impl = null;
+    this.is3D = false;
   }
 }
 

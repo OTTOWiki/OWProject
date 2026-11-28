@@ -2,6 +2,8 @@
 # 版本短哈希不由 CI 回写仓库；CF Pages 构建时 tools/inject-deploy-hash.mjs 注入
 #
 # 分支保护 required checks：**Test**（逻辑）+ **E2E**（Playwright）+ CodeRabbit。
+# E2E 的 required check 每次都真实跑浏览器测试：普通 PR 跑必过子集（boot + game 冒烟，约数分钟），
+# 带 `run-e2e` 标签或 workflow_dispatch 跑全量（14–16 分钟）。
 # 以后加测：逻辑进 test job，浏览器 e2e 进 e2e job。
 name: Test
 
@@ -36,15 +38,12 @@ jobs:
 
   e2e:
     name: E2E
-    # 全量 e2e 14–16 分钟：默认不在每个 PR 跑，避免小改动反复等待。
-    # 最终集成 PR 打 `run-e2e` 标签，或手动 workflow_dispatch。
-    if: >-
-      github.event_name == 'workflow_dispatch'
-      || (github.event_name == 'pull_request'
-          && contains(github.event.pull_request.labels.*.name, 'run-e2e'))
+    # 全量 E2E 单 worker 串行约 14–16 分钟；普通 PR 只跑必过子集，仍然真实执行浏览器测试。
+    # 打 `run-e2e` 标签或 workflow_dispatch 时跑全量，保证 required check 不缩水。
     runs-on: ubuntu-latest
-    # 全量 e2e 单 worker 串行约 14–16 分钟；15 分钟会在测试步骤中途被取消
     timeout-minutes: 30
+    env:
+      E2E_FULL: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-e2e')) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,7 +59,12 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright e2e
+      - name: Run Playwright e2e (PR smoke subset)
+        if: env.E2E_FULL != 'true'
+        run: npx playwright test test/e2e/boot.spec.js test/e2e/game.spec.js
+
+      - name: Run Playwright e2e (full)
+        if: env.E2E_FULL == 'true'
         run: npm run test:e2e
 
       - name: Upload e2e report

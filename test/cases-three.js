@@ -7,7 +7,7 @@
  * 本用例锁定代理契约：加载（setThree）前不可用、加载后即时解析、镜像回退顺序。
  */
 import {
-  THREE, getThree, setThree, threeMirrors,
+  THREE, getThree, setThree, threeMirrors, loadThreeModule, relativeModuleDeps,
 } from '../js/backgrounds/threeLoader.js';
 import { StageBackground } from '../js/backgrounds/StageBackground.js';
 import { test, assert, assertEqual } from './assert.js';
@@ -35,6 +35,27 @@ test('镜像回退顺序 jsdelivr → unpkg → esm.sh', () => {
   assert(m[0].includes('jsdelivr'), '首选 jsdelivr');
   assert(m[1].includes('unpkg'), '次选 unpkg');
   assert(m[2].includes('esm.sh'), '三选 esm.sh');
+});
+
+test('threeLoader：相对模块依赖解析（three.module.js → three.core.js 兄弟文件）', () => {
+  const deps = relativeModuleDeps(
+    "import { A } from './three.core.js';\nexport * from '../x/y.js';",
+    'https://cdn.example/build/three.module.js',
+  );
+  assertEqual(deps.length, 2);
+  assert(deps.includes('https://cdn.example/build/three.core.js'));
+  assert(deps.includes('https://cdn.example/x/y.js'));
+  assertEqual(relativeModuleDeps('const a = 1;', 'https://cdn.example/a.js').length, 0);
+});
+
+test('loadThreeModule：已加载时直接复用缓存模块，不再发起网络加载', async () => {
+  const fake = { Scene: 'CachedScene' };
+  setThree(fake);
+  try {
+    assertEqual(await loadThreeModule(), fake);
+  } finally {
+    setThree(null);
+  }
 });
 
 test('StageBackground 初始 mode 为 null：首次 setMode（含 s1_mid）必触发重建', () => {

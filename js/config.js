@@ -65,9 +65,6 @@ export const FPS_SLIDER_UNLIMITED = 241;
  */
 export const TOUCH_DRAG_SCALE = 0.5;
 
-/** @deprecated 旧名；仅为避免外部引用断裂，值与硬约束一致。 */
-export const TOUCH_SENSITIVITY = TOUCH_DRAG_SCALE;
-
 /** 玩家设置默认值 */
 export const DEFAULT_SETTINGS = {
   /** 音乐音量 0–1（默认 100%） */

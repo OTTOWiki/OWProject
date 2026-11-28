@@ -33,6 +33,7 @@ export function openScoreRanking(game, onDone) {
   game.paused = true;
   game.state = 'gameover';
   render(game);
+  setStatus('');
   document.getElementById('score-ranking')?.classList.remove('hidden');
   game._srFocusIndex = 0;
   highlight(game);
@@ -73,10 +74,20 @@ export function handleScoreRankingKey(game) {
 
 function save(game) {
   const name = document.querySelector('#score-ranking .sr-name-input')?.value ?? '';
-  commitRankingEntry(game._rankingResult, name);
+  if (!commitRankingEntry(game._rankingResult, name)) {
+    // 写盘失败（配额满/隐私模式）：留在面板内提示并允许重试，不假装已保存
+    setStatus('保存失败：本地存储不可用。请检查浏览器存储权限或空间后重试。');
+    return;
+  }
   // 已处理：退出菜单时（gameOverlay menu 分支）只补交“暂存未落盘”的成绩，避免重复写入
   game._rankingResult = null;
   close(game);
+}
+
+/** 面板内错误提示（无全局 toast 依赖） */
+function setStatus(text) {
+  const el = document.getElementById('sr-status');
+  if (el) el.textContent = text;
 }
 
 function cancel(game) {
