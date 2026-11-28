@@ -234,6 +234,12 @@ export function runCollisions(game) {
       const x2 = b.x + Math.cos(ang) * len;
       const y2 = b.y + Math.sin(ang) * len;
       const dist2 = distPointSeg2(px, py, b.x, b.y, x2, y2);
+      // #46：绘制期擦弹辉光按「中心距」口径（同改前）；顺手存下其平方，绘制期不再 hypot
+      const cdx = b.x - px;
+      const cdy = b.y - py;
+      b._dist2 = cdx * cdx + cdy * cdy;
+      b._distPx = px;
+      b._distPy = py;
       const hitSum = pr + hitR;
       const grazeSum = grazeR + hitR;
       const hitSum2 = hitSum * hitSum;
@@ -253,6 +259,10 @@ export function runCollisions(game) {
       const dy = b.y - py;
       const hitR = b.r;
       const dist2 = dx * dx + dy * dy;
+      // #46：存下自机中心距离²（rice/talisman 绘制期擦弹辉光直接复用，不再 hypot）
+      b._dist2 = dist2;
+      b._distPx = px;
+      b._distPy = py;
       const hitSum = pr + hitR;
       const grazeSum = grazeR + hitR;
 

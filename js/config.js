@@ -80,9 +80,10 @@ export const DEFAULT_SETTINGS = {
   mobileSpeedLimit: true,
   /**
    * 描画帧率上限：0 = 不限制；否则 24–240
-   * 逻辑步进始终锁定 60fps。←→ 调数值（到不了无限制）；Z/Enter 切换无限制；拖最右=无限制
+   * 逻辑步进始终锁定 60fps。默认 60（高刷屏不再白跑 1.5–2.4× 绘制）；
+   * 手动仍可放开：←→ 调数值（到不了无限制）；Z/Enter 切换无限制；拖最右=无限制
    */
-  fpsLimit: 0,
+  fpsLimit: 60,
 };
 
 /** 基础平衡；资源对齐 Easy（全难度共用） */

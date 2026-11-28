@@ -365,6 +365,7 @@ export class Game {
     updateGameHud(this);
     setEndingCinematic(this, false);
     hideOverlay(this);
+    this._bossMarker = null; // 新版开局清 #48 标记缓存（stop/旧局可能已直接写过 DOM）
     this.el.flash.classList.add('hidden');
     this.el.dialogueBox.classList.add('hidden');
 

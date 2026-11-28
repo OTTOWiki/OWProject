@@ -1,6 +1,6 @@
 import { LOGICAL_W, LOGICAL_H } from '../config.js';
 import {
-  frameNow, withAlpha, softGlow, isEnemyInGrazeRange, grazeJitterOffset,
+  frameNow, withAlpha, softGlow, softGlowEntry, isEnemyInGrazeRange, grazeJitterOffset,
   GRAZE_PURPLE, GRAZE_PURPLE_HI,
 } from './drawUtils.js';
 
@@ -84,9 +84,26 @@ function buildRiceSprite(w, h, col, col2, grazeFx) {
   return { canvas: c, pad };
 }
 
+/** 弹对象上的绘制缓存袋：对象池复用由 Bullet.reset 置空（#42/#44） */
+function drawCache(b) {
+  return b._dc || (b._dc = {});
+}
+
+/** 取（并缓存到弹对象）rice/talisman/laser 的 sprite entry：同弹同参数只拼一次 key */
+function spriteFor(b, slot, key, build) {
+  const dc = drawCache(b);
+  let entry = dc[slot];
+  if (entry === undefined) {
+    entry = cachedSprite(key, build) || null;
+    dc[slot] = entry;
+  }
+  return entry;
+}
+
 function drawRice(ctx, b, col, col2, grazeFx) {
   const key = `rice|${b.w}|${b.h}|${col}|${col2}|${grazeFx ? 1 : 0}`;
-  const entry = cachedSprite(key, () => buildRiceSprite(b.w, b.h, col, col2, grazeFx));
+  const entry = spriteFor(b, grazeFx ? 'riceG' : 'riceN', key,
+    () => buildRiceSprite(b.w, b.h, col, col2, grazeFx));
   if (entry) {
     ctx.drawImage(entry.canvas, -entry.pad, -entry.pad);
     return;
@@ -158,7 +175,8 @@ function buildTalismanSprite(w, h, col, col2, grazeFx) {
 
 function drawTalisman(ctx, b, col, col2, grazeFx) {
   const key = `talisman|${b.w}|${b.h}|${col}|${col2}|${grazeFx ? 1 : 0}`;
-  const entry = cachedSprite(key, () => buildTalismanSprite(b.w, b.h, col, col2, grazeFx));
+  const entry = spriteFor(b, grazeFx ? 'talismanG' : 'talismanN', key,
+    () => buildTalismanSprite(b.w, b.h, col, col2, grazeFx));
   if (entry) {
     ctx.drawImage(entry.canvas, -entry.pad, -entry.pad);
     return;
@@ -182,7 +200,8 @@ function drawLaserBeam(ctx, b, col, col2, a, grazeFx) {
   if (len < 1.5) return;
   const halfMid = Math.max(1.1, (b.w || 10) * 0.26);
   const key = `laser|${halfMid}|${col}|${col2}|${grazeFx ? 1 : 0}`;
-  const tex = cachedSprite(key, () => buildLaserTexture(halfMid, col, col2, grazeFx));
+  const tex = spriteFor(b, grazeFx ? 'laserG' : 'laserN', key,
+    () => buildLaserTexture(halfMid, col, col2, grazeFx));
   if (tex) {
     // 纺锤轮廓在 u 空间预烘焙，纵向拉伸到 len 后与原逐帧重建的路径几何一致；全局 alpha 由 drawBullet 注入
     ctx.drawImage(tex, -tex.width / 2, -len, tex.width, len);
@@ -354,6 +373,89 @@ function paintLaserBeam(ctx, b, col, col2, a, grazeFx) {
   ctx.lineCap = 'butt';
 }
 
+/** 碰撞/擦弹态光晕：entry 缓存在弹对象上（#42）；无离屏 canvas 时回退原绘制 */
+function glowAt(ctx, b, x, y, r, grazeFx, col, col2) {
+  const dc = drawCache(b);
+  const slot = grazeFx ? 'glowG' : 'glowN';
+  let entry = dc[slot];
+  if (entry === undefined) {
+    entry = softGlowEntry(r, col, col2);
+    dc[slot] = entry;
+  }
+  if (entry) {
+    ctx.drawImage(entry.canvas, x - entry.pad, y - entry.pad);
+    return;
+  }
+  ctx.save();
+  ctx.translate(x, y);
+  softGlow(ctx, r, col, col2);
+  ctx.restore();
+}
+
+/** 自机弹 sprite（#44）：线性渐变 + shadowBlur 辉光 + 拖尾光烘焙，之后只 drawImage */
+function buildShotSprite(w, h, color, color2) {
+  const hw = w / 2;
+  const hh = h / 2;
+  const pad = Math.ceil(hh * 1.05 + 14 * 2) + 2;
+  const c = document.createElement('canvas');
+  c.width = pad * 2;
+  c.height = pad * 2;
+  const g = c.getContext('2d');
+  g.translate(pad, pad);
+  g.shadowColor = color;
+  g.shadowBlur = 14;
+  const grad = g.createLinearGradient(0, hh, 0, -hh);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.4, color2 || '#fff');
+  grad.addColorStop(1, '#fff');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.ellipse(0, 0, hw * 0.65, hh * 1.05, 0, 0, Math.PI * 2);
+  g.fill();
+  g.shadowBlur = 0;
+  g.globalAlpha = 0.45;
+  g.beginPath();
+  g.ellipse(0, hh * 0.6, hw * 0.35, hh * 0.5, 0, 0, Math.PI * 2);
+  g.fill();
+  return { canvas: c, pad };
+}
+
+/** 自机弹绘制：局部锚点 (0,0)，变换由调用方负责（改前该型也随 angle 旋转） */
+function drawShot(ctx, b) {
+  const dc = drawCache(b);
+  let entry = dc.shot;
+  if (entry === undefined) {
+    const key = `shot|${b.w || 10}|${b.h || 22}|${b.color}|${b.color2 || '#fff'}`;
+    entry = cachedSprite(key, () => buildShotSprite(b.w || 10, b.h || 22, b.color, b.color2)) || null;
+    dc.shot = entry;
+  }
+  if (entry) {
+    ctx.drawImage(entry.canvas, -entry.pad, -entry.pad);
+    return;
+  }
+  // 无离屏 canvas 回退：原逐帧渐变/模糊路径
+  const hw = (b.w || 10) / 2;
+  const hh = (b.h || 22) / 2;
+  ctx.shadowColor = b.color;
+  ctx.shadowBlur = 14;
+  const g = ctx.createLinearGradient(0, hh, 0, -hh);
+  g.addColorStop(0, b.color);
+  g.addColorStop(0.4, b.color2 || '#fff');
+  g.addColorStop(1, '#fff');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, hw * 0.65, hh * 1.05, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 拖尾光（原 0.45×整体不透明度；外层 globalAlpha 已是 a）
+  const a = ctx.globalAlpha;
+  ctx.globalAlpha = 0.45 * a;
+  ctx.beginPath();
+  ctx.ellipse(0, hh * 0.6, hw * 0.35, hh * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = a;
+  ctx.shadowBlur = 0;
+}
+
 /**
  * @param {CanvasRenderingContext2D} ctx
  * @param {*} b
@@ -409,81 +511,78 @@ export function drawBullet(ctx, b, alphaMul = 1, player = null) {
     drawY += jy;
   }
 
-  ctx.save();
-  ctx.globalAlpha = a;
-  ctx.translate(drawX, drawY);
-  if (b.type !== 'dot' && b.type !== 'medium' && b.type !== 'large' && b.type !== 'option' && b.type !== 'bomb') {
+  // 旋转弹型（含自机弹：改前也随 angle 旋转）保留变换栈；
+  // dot/medium/large/option/bomb 直接绝对坐标绘制，省 save/translate/rotate/restore（#47）
+  if (b.type === 'rice' || b.type === 'talisman' || b.type === 'laser' || b.type === 'player') {
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(drawX, drawY);
     ctx.rotate(b.angle + Math.PI / 2);
+    if (b.type === 'player') drawShot(ctx, b);
+    else if (b.type === 'rice') drawRice(ctx, b, col, col2, grazeFx);
+    else if (b.type === 'talisman') drawTalisman(ctx, b, col, col2, grazeFx);
+    else drawLaserBeam(ctx, b, col, col2, a, grazeFx);
+    ctx.restore();
+    return;
   }
 
+  const prevAlpha = ctx.globalAlpha;
+  ctx.globalAlpha = a;
   if (b.type === 'dot' || b.type === 'medium' || b.type === 'large') {
-    softGlow(ctx, b.w / 2, col, col2);
+    glowAt(ctx, b, drawX, drawY, b.w / 2, grazeFx, col, col2);
   } else if (b.type === 'bomb') {
-    // Bomb 巨型追踪弹：大光球 + 外环
+    // Bomb 巨型追踪弹：大光球 + 外环（光环 sprite 化，圆环/十字用绝对坐标）
+    const prevStroke = ctx.strokeStyle;
+    const prevLineW = ctx.lineWidth;
     const rr = (b.w || 40) / 2;
-    softGlow(ctx, rr * 0.95, col, col2);
+    glowAt(ctx, b, drawX, drawY, rr * 0.95, grazeFx, col, col2);
     ctx.strokeStyle = withAlpha(col2, 0.75);
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, rr * 1.05, 0, Math.PI * 2);
+    ctx.arc(drawX, drawY, rr * 1.05, 0, Math.PI * 2);
     ctx.stroke();
     ctx.strokeStyle = withAlpha(col, 0.45);
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, rr * 1.35, 0, Math.PI * 2);
+    ctx.arc(drawX, drawY, rr * 1.35, 0, Math.PI * 2);
     ctx.stroke();
-    // 旋转十字
-    ctx.rotate(frameNow() / 280);
+    // 旋转十字：手算旋转端点，等价于改前的局部坐标 rotate(frameNow()/280)
+    const crot = frameNow() / 280;
+    const cr = Math.cos(crot);
+    const sr = Math.sin(crot);
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
       const ang = (i / 4) * Math.PI * 2;
+      const ux = Math.cos(ang);
+      const uy = Math.sin(ang);
+      const rx = ux * cr - uy * sr;
+      const ry = ux * sr + uy * cr;
       ctx.beginPath();
-      ctx.moveTo(Math.cos(ang) * rr * 0.35, Math.sin(ang) * rr * 0.35);
-      ctx.lineTo(Math.cos(ang) * rr * 1.15, Math.sin(ang) * rr * 1.15);
+      ctx.moveTo(drawX + rx * rr * 0.35, drawY + ry * rr * 0.35);
+      ctx.lineTo(drawX + rx * rr * 1.15, drawY + ry * rr * 1.15);
       ctx.stroke();
     }
-  } else if (b.type === 'rice') {
-    drawRice(ctx, b, col, col2, grazeFx);
-  } else if (b.type === 'talisman') {
-    drawTalisman(ctx, b, col, col2, grazeFx);
-  } else if (b.type === 'laser') {
-    drawLaserBeam(ctx, b, col, col2, a, grazeFx);
-  } else if (b.type === 'player') {
-    const hw = (b.w || 10) / 2;
-    const hh = (b.h || 22) / 2;
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 14;
-    const g = ctx.createLinearGradient(0, hh, 0, -hh);
-    g.addColorStop(0, b.color);
-    g.addColorStop(0.4, b.color2 || '#fff');
-    g.addColorStop(1, '#fff');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, hw * 0.65, hh * 1.05, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // 拖尾光
-    ctx.globalAlpha = 0.45 * a;
-    ctx.beginPath();
-    ctx.ellipse(0, hh * 0.6, hw * 0.35, hh * 0.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = a;
-    ctx.shadowBlur = 0;
+    ctx.strokeStyle = prevStroke;
+    ctx.lineWidth = prevLineW;
   } else if (b.type === 'option') {
+    const prevStroke = ctx.strokeStyle;
+    const prevLineW = ctx.lineWidth;
     const r = (b.w || 12) / 2;
-    softGlow(ctx, r * 0.95, b.color, b.color2 || '#fff');
-    // 星形高光
+    glowAt(ctx, b, drawX, drawY, r * 0.95, false, b.color, b.color2 || '#fff');
+    // 星形高光（绝对坐标）
     ctx.strokeStyle = 'rgba(255,255,255,0.65)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i < 4; i++) {
       const ang = (i / 4) * Math.PI * 2 + frameNow() / 400;
-      ctx.moveTo(0, 0);
-      ctx.lineTo(Math.cos(ang) * r * 1.1, Math.sin(ang) * r * 1.1);
+      ctx.moveTo(drawX, drawY);
+      ctx.lineTo(drawX + Math.cos(ang) * r * 1.1, drawY + Math.sin(ang) * r * 1.1);
     }
     ctx.stroke();
+    ctx.strokeStyle = prevStroke;
+    ctx.lineWidth = prevLineW;
   }
-
-  ctx.restore();
+  ctx.globalAlpha = prevAlpha;
 }
 

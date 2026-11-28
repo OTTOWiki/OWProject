@@ -49,6 +49,14 @@ export const GRAZE_PURPLE_HI = '#f0abfc';
 const _glowCache = new Map();
 const GLOW_CACHE_MAX = 96;
 
+/** 擦弹视觉外包半径（旧实现的逐帧常量；Bullet.reset 已缓存到 _grazeReach） */
+function grazeReachOf(b) {
+  if (b.type === 'laser') return (b.w || 10) * 0.5;
+  if (b.type === 'rice') return Math.max(b.w || 8, b.h || 8) * 0.55;
+  if (b.type === 'talisman') return Math.hypot((b.w || 10) / 2, (b.h || 14) / 2);
+  return b.r || 4;
+}
+
 /** 敌弹是否进入自机擦弹范围（中心距 ≤ grazeR + 判定外包） */
 export function isEnemyInGrazeRange(b, player) {
   if (!player || b.from !== 'enemy' || b.delay > 0) return false;
@@ -58,13 +66,18 @@ export function isEnemyInGrazeRange(b, player) {
     && b.type !== 'rice' && b.type !== 'talisman' && b.type !== 'laser') {
     return false;
   }
-  const hitR = b.type === 'laser' ? (b.w || 10) * 0.5 : (b.r || 4);
-  let reach = hitR;
-  if (b.type === 'laser') reach = Math.max(hitR, (b.laserLen || 0) * 0.5);
-  else if (b.type === 'rice') reach = Math.max(b.w || 8, b.h || 8) * 0.55;
-  else if (b.type === 'talisman') reach = Math.hypot((b.w || 10) / 2, (b.h || 14) / 2);
-  const dist = Math.hypot(b.x - player.x, b.y - player.y);
-  return dist < BALANCE.grazeRadius + reach;
+  const reach = b._grazeReach ?? grazeReachOf(b);
+  // #46：改平方比较；半径缓存到弹对象，距离²优先复用同帧碰撞结果
+  const sum = BALANCE.grazeRadius + (b.type === 'laser'
+    ? Math.max(reach, (b.laserLen || 0) * 0.5)
+    : reach);
+  const sum2 = sum * sum;
+  if (b._dist2 != null && b._distPx === player.x && b._distPy === player.y) {
+    return b._dist2 < sum2;
+  }
+  const dx = b.x - player.x;
+  const dy = b.y - player.y;
+  return dx * dx + dy * dy < sum2;
 }
 
 /** 擦弹时视觉微抖：小幅度、高频率，相位跟子弹 id 绑定 */
@@ -106,7 +119,11 @@ function softGlowPaint(ctx, r, color, color2) {
   ctx.fill();
 }
 
-export function softGlow(ctx, r, color, color2) {
+/**
+ * softGlow sprite entry（#42：调用方可把返回值缓存在实体上，避免每帧拼 key + Map.get）
+ * @returns {{canvas: HTMLCanvasElement, pad: number}|null}
+ */
+export function softGlowEntry(r, color, color2) {
   const c2 = color2 || '#fff';
   const key = `${r}|${color}|${c2}`;
   let entry = _glowCache.get(key);
@@ -132,11 +149,16 @@ export function softGlow(ctx, r, color, color2) {
       entry = null;
     }
   }
+  return entry || null;
+}
+
+export function softGlow(ctx, r, color, color2) {
+  const entry = softGlowEntry(r, color, color2);
   if (entry) {
     ctx.drawImage(entry.canvas, -entry.pad, -entry.pad);
     return;
   }
-  softGlowPaint(ctx, r, color, c2);
+  softGlowPaint(ctx, r, color, color2 || '#fff');
 }
 
 export function softGlowAt(ctx, x, y, r, color, color2) {

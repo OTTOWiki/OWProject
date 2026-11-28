@@ -46,14 +46,26 @@ export function updateBossEnemyMarker(game) {
     && !boss.dead
     && (game.state === 'playing' || game.state === 'dialogue');
 
+  // #48：只在 pct / 显隐变化时写 DOM（改前每绘制帧都写 style.left + classList）
+  const cache = game._bossMarker || (game._bossMarker = { hidden: null, pct: null });
   if (!show) {
-    el.classList.add('hidden');
+    if (cache.hidden !== true) {
+      el.classList.add('hidden');
+      cache.hidden = true;
+      cache.pct = null;
+    }
     return;
   }
 
-  const pct = (Math.max(0, Math.min(LOGICAL_W, boss.x)) / LOGICAL_W) * 100;
-  el.style.left = `${pct}%`;
-  el.classList.remove('hidden');
+  const pct = `${(Math.max(0, Math.min(LOGICAL_W, boss.x)) / LOGICAL_W) * 100}%`;
+  if (cache.pct !== pct) {
+    el.style.left = pct;
+    cache.pct = pct;
+  }
+  if (cache.hidden !== false) {
+    el.classList.remove('hidden');
+    cache.hidden = false;
+  }
 }
 
 
