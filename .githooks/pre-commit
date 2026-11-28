@@ -1,19 +1,35 @@
 #!/bin/sh
-# 每次 commit 将 js/version.js 的 VERSION +1，并加入本次提交（不另开 commit）。
+# 每次提交将 js/version.js 的 VERSION +1，并加入本次提交（不另开 commit）。
 # 启用：git config core.hooksPath .githooks
 # 跳过：git commit --no-verify
 
 set -e
 
-# amend / rebase / merge 进行中不自动 +1，避免意外连加
-if [ "${GIT_REFLOG_ACTION-}" = "commit (amend)" ]; then
-  exit 0
-fi
+# rebase / merge / cherry-pick / revert 进行中不自动 +1
 GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || exit 0
 if [ -d "$GIT_DIR/rebase-merge" ] || [ -d "$GIT_DIR/rebase-apply" ]; then
   exit 0
 fi
-if [ -f "$GIT_DIR/MERGE_HEAD" ] || [ -f "$GIT_DIR/CHERRY_PICK_HEAD" ]; then
+if [ -f "$GIT_DIR/MERGE_HEAD" ] || [ -f "$GIT_DIR/CHERRY_PICK_HEAD" ] || [ -f "$GIT_DIR/REVERT_HEAD" ]; then
+  exit 0
+fi
+
+# amend 识别：pre-commit 无参数，prepare-commit-msg 又晚于本 hook（索引快照已生成），
+# 只能看父进程 git 命令行。取不到进程信息时按普通提交处理。
+PARENT_PID=$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ' || true)
+IS_AMEND=0
+if [ -n "$PARENT_PID" ]; then
+  if [ -r "/proc/$PARENT_PID/cmdline" ]; then
+    if tr '\0' '\n' < "/proc/$PARENT_PID/cmdline" | grep -qxF -- '--amend'; then
+      IS_AMEND=1
+    fi
+  else
+    case " $(ps -o args= -p "$PARENT_PID" 2>/dev/null || true) " in
+      *" --amend "*) IS_AMEND=1 ;;
+    esac
+  fi
+fi
+if [ "$IS_AMEND" = 1 ]; then
   exit 0
 fi
 

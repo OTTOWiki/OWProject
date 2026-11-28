@@ -75,7 +75,6 @@ test('3D 超写实舞台：后处理管线与 PBR 环境 API 存在', async () =
   ]) {
     assertEqual(typeof kit[name], 'function', `kit.${name}`);
   }
-  assert(kit.MATERIAL_KINDS === undefined || true);
 });
 
 test('3D 舞台层叠：2D 版面 canvas 不得有不透明 CSS 背景（否则遮住 #playfield-bg3d）', () => {

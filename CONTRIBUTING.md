@@ -21,7 +21,7 @@
 1. 从最新 `main` 拉出功能分支  
 2. 在分支上 commit  
 3. 推送到远程分支并开 **Pull Request → `main`**  
-4. 合并门禁（ruleset `protect-main`）required checks = **`Test`** + **`E2E`** + **`CodeRabbit`**（**允许作者自合**；欢迎互相 Review，但不强制 Approve）；全量 **`E2E`** 默认只在最终集成 PR 打 `run-e2e` 标签（或 `workflow_dispatch`）时触发一次  
+4. 合并门禁（ruleset `protect-main`）required checks = **`Test`** + **`E2E`** + **`CodeRabbit`**（**允许作者自合**；欢迎互相 Review，但不强制 Approve）；**`E2E`** 在每个 PR 都真实跑必过子集（boot + game 冒烟）；全量 **`E2E`** 在最终集成 PR 打 `run-e2e` 标签（或 `workflow_dispatch`）时跑一次  
 
 ```bash
 git fetch origin
@@ -173,7 +173,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 
 ### 构建号
 
-- 启用 hooks 后，`git commit` 会自动把 `js/version.js` 的 `VERSION` +1 并进**同一次**提交  
+- 启用 hooks 后，普通 `git commit` 会自动把 `js/version.js` 的 `VERSION` +1 并进**同一次**提交；`--amend` / rebase / merge / cherry-pick / revert 过程中不 +1  
 - 营销版本改 `VERSION_NAME`；**不必**手改 `VERSION`  
 - 跳过 hook：`git commit --no-verify`（仅在有理由时）  
 - **不要**把含真实部署 hash 的 `js/git-hash.js` 提交进仓库（仓库内应保持 `DEPLOY_GIT_HASH = ''`）
@@ -183,7 +183,7 @@ Debug 自测（控制台）：`owDebug()` / `owDebug.help()`，详见 `AGENTS.md
 - **禁止** `git push` 到 `main`（见 §0）  
 - 日常在功能分支上多 commit 迭代；推远程分支后开 PR  
 - 涉及玩法/UI：作者先手测，再在 PR 里写手测要点；Reviewer 抽查  
-- 合并前 PR 上 **`Test`**、**`E2E`**、**`CodeRabbit`** 须通过（本地可先跑 `npm test`；E2E 由最终集成 PR 的 `run-e2e` 标签触发）  
+- 合并前 PR 上 **`Test`**、**`E2E`**、**`CodeRabbit`** 须通过（本地可先跑 `npm test`；E2E 必过子集随每个 PR 自动跑，全量 E2E 由最终集成 PR 的 `run-e2e` 标签触发）  
 - 队列任务：测绿 → 等手测 → PR 合并后再开下一项  
 
 ### PR 建议自检（作者）
