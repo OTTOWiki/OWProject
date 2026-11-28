@@ -244,6 +244,8 @@ export class PlayfieldStage3D {
     this.pointSets = [];
     this.lights = [];
     this.ownedTextures = [];
+    /** 当前场景构建时是否缺 plate 绘卷贴图（素材晚到后 refresh 重建用） */
+    this._plateMissing = false;
     this.specials = { water: [], mist: [], beam: [], cloth: [] };
     this._lastRender = 0;
     this._renderEvery = 1000 / 40;
@@ -266,6 +268,7 @@ export class PlayfieldStage3D {
     }
 
     this.onContextLost = null;
+    this.onContextRestored = null;
     this._onLost = (e) => {
       e.preventDefault();
       this._contextLost = true;
@@ -278,10 +281,15 @@ export class PlayfieldStage3D {
     this._onRestored = () => {
       this._contextLost = false;
       this.sceneReady = false;
+      // 上下文丢失后 PMREM/IBL 的显存内容已不存在，缓存必须丢弃重建，否则光照全黑
+      try { K.disposeEnvironment?.(this.renderer); } catch (err) { /* ignore */ }
       try {
-        this.setMode(this.mode || 's1_mid', { transition: false });
+        this.setMode(this.mode || 's1_mid', { transition: false, rebuild: true });
       } catch (err) {
         this._warn(err);
+      }
+      try { this.onContextRestored?.(); } catch (err) {
+        console.warn('[bg3d] onContextRestored callback failed:', err);
       }
     };
     this.canvas.addEventListener('webglcontextlost', this._onLost, false);
@@ -437,7 +445,11 @@ export class PlayfieldStage3D {
       },
       setSpeed(v) { self.speed = v; },
       setSway(x, y) { self.swayX = x; self.swayY = y; },
-      plateTexture() { return K.plateTexture(self.mode); },
+      plateTexture() {
+        const tex = K.plateTexture(self.mode);
+        if (!tex) self._plateMissing = true;
+        return tex;
+      },
       matTexture(name, color) { return K.matTexture(name, color); },
       plateCrop(sx, sy, sw, sh) {
         const raw = K.plateTexture(self.mode);
@@ -590,9 +602,9 @@ export class PlayfieldStage3D {
     applyWorldFollow(this.root.children, z, prev);
   }
 
-  setMode(mode, { transition = true } = {}) {
+  setMode(mode, { transition = true, rebuild = false } = {}) {
     const next = resolveBgMode(mode);
-    if (this.sceneReady && next === this.mode) return;
+    if (!rebuild && this.sceneReady && next === this.mode) return;
     const canTrans = !!(transition && this.sceneReady && this._postOk && !this._reduceMotion && this.runtime.post);
     const captured = canTrans ? this._capturePrev() : false;
     this._clear();
@@ -600,6 +612,7 @@ export class PlayfieldStage3D {
     this.mode = next;
     this.stage = sceneFor(next)?.stage || 's1';
     this.palette = paletteForMode(next);
+    this._plateMissing = false;
     const THREE = this.THREE;
     try {
       const builder = SCENES3D[next];
@@ -637,6 +650,16 @@ export class PlayfieldStage3D {
     }
   }
 
+  /** 绘卷 plate 素材晚到后：仅当当前场景确实缺绘卷贴图时重建一次。 */
+  refresh() {
+    if (!this._plateMissing || !this.sceneReady || this._contextLost) return;
+    try {
+      this.setMode(this.mode, { transition: false, rebuild: true });
+    } catch (err) {
+      this._warn(err);
+    }
+  }
+
   flash(strength = 0.4) {
     const el = this.canvas;
     if (!el || typeof el.classList === 'undefined') return;
@@ -650,6 +673,10 @@ export class PlayfieldStage3D {
     if (!this.scene) return;
     for (const l of this.lights) {
       this.scene.remove(l);
+      // THREE 的 Light 没有 dispose；投射阴影的 RT 由 light.shadow.map 持有，
+      // 不显式释放的话每次场景重建泄漏一张 shadowSize² 阴影贴图。
+      if (l.shadow?.dispose) l.shadow.dispose();
+      else l.shadow?.map?.dispose?.();
       l.dispose?.();
     }
     this.lights.length = 0;
@@ -659,6 +686,7 @@ export class PlayfieldStage3D {
       const o = this.root.children[0];
       this.root.remove(o);
       o.traverse?.((c) => {
+        for (const tex of c.userData?.disposeTextures || []) tex?.dispose?.();
         c.geometry?.dispose?.();
         if (c.material) {
           const mats = Array.isArray(c.material) ? c.material : [c.material];
@@ -677,6 +705,8 @@ export class PlayfieldStage3D {
     this._prevTravelZ = null;
     this.scene.background = null;
     this.scene.environment = null;
+    // 环境强度是 scene 级状态：A4/A5/A6 会改成 0.62~0.74，不重置会漂到后续关卡
+    this.scene.environmentIntensity = 1;
     this.sceneReady = false;
   }
 
@@ -809,11 +839,14 @@ export class PlayfieldStage3D {
       /* ignore */
     }
     this.onContextLost = null;
+    this.onContextRestored = null;
     try {
       K.disposeEnvironment?.(this.renderer);
     } catch (err) {
       /* ignore */
     }
+    // 真正放弃 3D 舞台（回退 2D）时释放 kit 共享纹理缓存，否则 GPU 纹理只涨不跌
+    try { K.clearKitTextureCache?.(); } catch (err) { /* ignore */ }
     this.renderer?.dispose?.();
     this.is3D = false;
   }

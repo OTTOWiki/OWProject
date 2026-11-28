@@ -2,7 +2,7 @@
  * 移动端移动契约：0.5 硬缩放 + 与桌面同速的触屏跟随。
  */
 import {
-  BALANCE, LOGICAL_W, PLAYER_DEFS, TOUCH_DRAG_SCALE, TOUCH_SENSITIVITY,
+  BALANCE, LOGICAL_W, PLAYER_DEFS, TOUCH_DRAG_SCALE,
 } from '../js/config.js';
 import { Player } from '../js/entities.js';
 import { test, assert, assertEqual } from './assert.js';
@@ -16,9 +16,8 @@ function touchInput(virtualMove, { slow = false, limit = true } = {}) {
   };
 }
 
-test('触屏缩放 0.5 是硬约束（旧别名同值）', () => {
+test('触屏缩放 0.5 是硬约束', () => {
   assertEqual(TOUCH_DRAG_SCALE, 0.5);
-  assertEqual(TOUCH_SENSITIVITY, 0.5);
 });
 
 test('触屏相对移动默认按桌面同速跟随，不瞬移', () => {
