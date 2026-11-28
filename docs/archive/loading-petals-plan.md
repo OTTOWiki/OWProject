@@ -3,7 +3,7 @@
 > **状态：已归档（2026-11-28）** — P1–P4 / P6 已完成；P5 仅剩低端真机首帧未验证（完整 E2E 已有 CI 路径）。现行实现见 `js/loadingPetals.js`、`index.html`、`css/style.css`。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
 
 > 日期：2026-11-08
-> ⚠️ 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ [`参考/loading.png`](../../参考/loading.png)（TH20 原版加载画面，仅作构图参考）
+> ⚠️ 参考：[PR #10](https://github.com/OTTOWiki/OWProject/pull/10)（已合并，2026-07-27）+ `参考/loading.png`（本机路径，TH20 原版加载画面，仅作构图参考）
 > ⚠️ 依据：TH20 素材与 ANM 语义见 [`evidence/loading-petals-factsheet.md`](evidence/loading-petals-factsheet.md)（逐条 `文件:行号` 证据）。
 > **状态**：开屏黑带复刻、真实进度、恢复面板、落花与进度联动 **均已实施**（2026-11-08）。落花素材为 FreeGameSprites CC0 水彩樱花，处理成 512×1024 无缝纵铺纹理；不使用原作像素。
 > **2026-11-08 修订**：落花收进右下“少女祈祷中”局部盒，并置于其**上层**；黑带始终居中、加载角始终右下；关键帧改为向下落，基础周期 14s→8s，WAAPI 只改 playbackRate；手机横屏统一紧凑布局，不再让加载角与黑带重叠。

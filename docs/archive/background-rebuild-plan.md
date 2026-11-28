@@ -145,7 +145,7 @@
 
 ### 2.5 性能现状
 
-- `docs/perf-optimization.md` 的 P1（背景渲染不受描画节流）**已实现**：`js/game.js:513-518` 把 `background.update()` 挂在 `shouldDraw` 分支内。粒子也已改由顶点着色器 `uTime` 驱动（`StageBackground.js:167-176`）。
+- `docs/archive/perf-optimization.md` 的 P1（背景渲染不受描画节流）**已实现**：`js/game.js:513-518` 把 `background.update()` 挂在 `shouldDraw` 分支内。粒子也已改由顶点着色器 `uTime` 驱动（`StageBackground.js:167-176`）。
 - **但该文档对 `playfieldBg.js` 没有任何条目**。其代码推导常量：离屏重绘 28Hz、每次重绘约 204 次 `drawImage`（地面逐 2px 切片）+ 200 次 `fillRect`（扫描线）、每帧 1 次 `createRadialGradient`（暗角，`:661-663`，可缓存）。
 - **这些数字全部是代码推导，未经实测**——本方案**不做未实测的优化**。
 
@@ -243,10 +243,10 @@ js/bg/apply3d.js    // Scene3D → StageBackground 的解释器
 ### 3.3 两条路线对比
 
 **(a) 版面背景改由 Three 渲染 —— 不推荐。**
-代价：新增一个 WebGL 渲染目标 + 每帧全屏合成到 450×600；WebGL 上下文丢失成为新的游戏内故障面（现在 Three 失败已有空实现兜底，见 `js/main.js:455`）；版面是弹幕热点层（`docs/perf-optimization.md` 指出 Canvas 2D 弹幕已是主热点），GPU 抢占风险高；还必须原样维持 450×600 逻辑坐标与触控映射（`AGENTS.md` 硬约束）。收益只是"3D 更真"。
+代价：新增一个 WebGL 渲染目标 + 每帧全屏合成到 450×600；WebGL 上下文丢失成为新的游戏内故障面（现在 Three 失败已有空实现兜底，见 `js/main.js:455`）；版面是弹幕热点层（`docs/archive/perf-optimization.md` 指出 Canvas 2D 弹幕已是主热点），GPU 抢占风险高；还必须原样维持 450×600 逻辑坐标与触控映射（`AGENTS.md` 硬约束）。收益只是"3D 更真"。
 
 **(b) 版面保持 Canvas 2D、改为数据表 + 原子 —— 推荐作为主路线。**
-版面本来就只有 Canvas 2D，所以实质是"把手写 `kind`/`sil` 分支换成原子表 + 用时间轴描述运动"。绘图调用数不变 ⇒ 帧时不变。与 `docs/perf-optimization.md` 不冲突（该文档对版面层无结论，且本路线不回归已实现的 P1）。
+版面本来就只有 Canvas 2D，所以实质是"把手写 `kind`/`sil` 分支换成原子表 + 用时间轴描述运动"。绘图调用数不变 ⇒ 帧时不变。与 `docs/archive/perf-optimization.md` 不冲突（该文档对版面层无结论，且本路线不回归已实现的 P1）。
 
 **推荐组合**：**(b) 为版面主线 + (a) 仅作用于左侧面板**。执行顺序上先做面板数据化（风险最低、收益最直接），再做版面原子化，最后才接线时间轴。
 
@@ -308,7 +308,7 @@ js/bg/apply3d.js    // Scene3D → StageBackground 的解释器
 5. **`camera.vectors[3]/[4]` 与 `final_vector` 在背景模块之外的消费者未追踪**（`final_vector` 只在 `vm.cpp:34` 写）。
 6. **`640×480` 剔除常量的含义未确认**（TH20 有 6 个 viewport，哪个对应版面未确认）。
 7. **TH20 一面的实际时长未确认**（最大帧标签 st06 = 16690 ≈ 278s，但存在回跳，实际循环几次未端到端验证）。本文引用的是**数据规模**，不是时长。
-8. **本作侧没有任何实测帧时数据**：§2.5 所有数字都是代码推导，`docs/perf-optimization.md` 对版面层无条目。**P1/P2 之前必须先实测。**
+8. **本作侧没有任何实测帧时数据**：§2.5 所有数字都是代码推导，`docs/archive/perf-optimization.md` 对版面层无条目。**P1/P2 之前必须先实测。**
 
 ---
 

@@ -29,7 +29,7 @@
 | #2 回放头校验 | 页面内调用 `validateAnyReplay`：未知 `playerId`、未知 `difficultyId`、`steps:0` 均返回 `true`；`deserializeReplay(JSON.stringify({playerId:'nobody',...}))` 返回 `ok:true` | **已实机确认** |
 | #3 回放中暂停 | 用应用自身 `replayStore` 保存合成录像并回放，点击游戏内暂停键：暂停层以 `PAUSED` 打开（含「保存录像/设置」等无效项）；保持暂停 **14 秒后回放把剩余帧全部消费完**，暂停层变成「回放结束」；按 Esc 返回录像列表而不是关闭暂停 | **已实机确认** |
 | #4 Space 键 | 对聚焦按钮派发可取消的 Space keydown：`dispatchEvent` 返回 `false`、`defaultPrevented=true`；成绩排行内聚焦真实「取消」按 Space 后写入排行榜条目（详见下表补充行） | **已实机确认** |
-| #11 菜单隐藏渲染 | 主菜单激活（`#screen-game` 为 `display:none`、`#bg3d` 的 `getClientRects().length=0`）时，包裹 WebGL `drawElements/drawArrays` 统计：**~4.5 秒内绘制调用 206,003 → 239,784（约 3.5k 次/秒）**，即隐藏画布仍在持续渲染 | **已实机确认** |
+| #11 菜单隐藏渲染 | 主菜单激活（`#screen-game` 为 `display:none`、`#bg3d` 的 `getClientRects().length=0`）时，包裹 WebGL `drawElements/drawArrays` 统计：**~4.5 秒内绘制调用 206,003 → 239,784（约 7.5k 次/秒）**，即隐藏画布仍在持续渲染 | **已实机确认** |
 | #12 Nomiss 回滚 | 直接以 `mode:'nomiss'` 开局后设 `combo=25 / comboTimer=3 / player.edit=60 / score=1234`，调用 `_miss()` 触发自动重开：score 回滚为 0（符合预期），但 **combo=25、comboTimer=3、player.edit=60 全部保留**；快照键仅 `[unstableFx, score, baseScore, extendCount, lives, bombs]` | **已实机确认** |
 | #6 键位冲突 | 经 `localStorage.gunwei_keys` 写入 `{shot:'KeyZ', bomb:'KeyZ'}` 并 `reloadKeys()`：一次 Z 按下同时满足 `bombPressed=true` 与 `shotHeld=true`；350ms 后 **Bomb 4→3（`bombTimer=0.9`、`stats.bombs=1`）且射出 63 发子弹（55 发普通弹 + Bomb 巨弹）** | **已实机确认** |
 | #4 后半 | 用应用自身 `openScoreRanking` 打开成绩排行，原生聚焦真实「取消」按钮后按 Space：`defaultPrevented=true`、面板关闭、`gunwei_ranking` 被写入 score 1234 的条目（`rankingName` 也被保存）——聚焦「取消」实际执行了「保存」 | **已实机确认（完整）** |
@@ -108,7 +108,7 @@
 
 11. **菜单 idle 循环每帧渲染一个不可见的 WebGL 场景** — `js/main.js:492-503`、`js/game.js:529-533`、`css/style.css:501-523`
     - **这是什么**：`#bg3d` 在 `#screen-game` 内，而该屏非 active 时 `display:none`；idle 循环恰好只在它非 active（不可见）时调用 `bg.update()`，真正该看的时候（对局中 3D 版面）反而不更新。
-    - **问题**（已实机）：主菜单停留时隐藏画布仍持续产生约 3.5k 次/秒 WebGL 绘制调用（10 分钟 ≈ 20 万次），纯耗电/发热；且场景在启动时按隐藏画布尺寸（`clientWidth||200`）测量，`js/backgrounds/StageBackground.js:40-46`，只有窗口 resize 才修正。
+    - **问题**（已实机）：主菜单停留时隐藏画布仍持续产生约 7.5k 次/秒 WebGL 绘制调用（10 分钟 ≈ 450 万次），纯耗电/发热；且场景在启动时按隐藏画布尺寸（`clientWidth||200`）测量，`js/backgrounds/StageBackground.js:40-46`，只有窗口 resize 才修正。
     - **修法**：删除 idle rAF 循环（2D 兜底路径本就由游戏循环驱动），并在屏幕激活时触发一次 resize。
     - **不修的后果**：玩家停留最久的菜单界面持续空转 GPU。
 
@@ -219,7 +219,7 @@
 27. **Nice — plate 素材晚到时 3D 场景不会补建，慢网首章缺少绘卷贴图** — `js/bg3d/kit.js:293-303`、`js/bg3d/stage3d.js:593-595`
     - **这是什么**：`plateTexture()` 在 AVIF 未加载时返回 null 且不缓存，场景 builder 静默跳过该贴图；`setMode()` 在 `sceneReady && next===mode` 时提前返回，素材到达后不会重建。
     - **问题**：`preloadPlayfieldBg()` 与菜单并行（`js/main.js:571-572`），慢网下玩家立刻开局的第 1 章会用缺失绘卷的裸 3D 构图，直到下一章 mode 切换才恢复。
-    - **修法**：plate 预载完成后若当前 mode 构建时缺 plate，触发一次 `setMode(current, {transition:false})` 重建（与 2D 兜底“晚到素材重烘”行为对齐）。
+    - **修法**：plate 预载完成后若当前 mode 构建时缺 plate，触发一次 `setMode(current, {transition:false, rebuild:true})` 重建（`rebuild:true` 绕过同 mode 守卫；`_onRestored` 亦先置 `sceneReady=false` 再重建，等效且不触发过渡）。
     - **不修的后果**：慢网首章观感明显变差（仅视觉，不影响玩法）。
 
 **第四轮阅读/边界**：子代理通读 `js/bg3d/stage3d.js`、`kit.js`（1397 行）、`cameraDirectors.js`、`playfieldBg.js`、`backgrounds/*`、`bg/{renderer,materials,particles,backdrops}.js`、`draw/*`；未逐行读全部 21 个 scene builder 与 `bg/atoms.js`（891 行，仅 grep + 抽样），上述显存数值为估算量级，未在 GPU 上实测，也未实机复现 context lost。
@@ -326,7 +326,7 @@
 38. **Should — 结局对话期间退出会丢掉本可入榜的成绩** — `js/chapterFlow.js:603-646`、`js/gameOverlay.js:329-338`
     - **这是什么**：`showEnding` 先 `submitRanking`（暂存 `_rankingResult`）→ 再播结局对话；入榜真正落盘只发生在成绩排行面板点“保存”。结局对话里可按 Esc 暂停 → 主菜单，`menu` action 只存 hiscore，没有 `commitRankingEntry`。
     - **问题**：通关后结局对话中退出：hiscore 有、排行榜没有，成绩排行面板根本没弹过；下次 `start()` 丢弃 `_rankingResult`，这条 All Clear 成绩永久丢失。
-    - **修法**：`menu` action 里若 `game._rankingResult?.qualifies` 先 `commitRankingEntry(..., loadName(...))` 再 stop；或把 submitRanking 预判挪到结局对话回调之后再执行。
+    - **修法**：`menu` action 里若 `game._rankingResult?.qualifies` 先 `commitRankingEntry(..., loadName(...))` 再 stop（当前 `main` 已按此实现，见 `js/gameOverlay.js:344-348`）；不能只把 `submitRanking` 延后到结局对话回调之后——从暂停/菜单退出仍会跳过落盘。
     - **不修的后果**：玩家最高成绩静默丢失（与 #20 同类数据损失）。
 39. **Nice — 练习结算“再试一次”丢掉本局配置的残机** — `js/gameOverlay.js:297-313`、`js/game.js:254`
     - **这是什么**：`keepLives` 只在 `overlayMode==='pause'` 时取值，结算重试传 `lives: undefined`；`start()` 于是回落到 `BALANCE.startLives`(4)，而练习开局可通过 `#practice-lives` 配置（`js/ui.js:94-102,828` 传入 start）。

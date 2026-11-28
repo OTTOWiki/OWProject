@@ -262,7 +262,7 @@ const headingIn = (this.x < OFF_MIN_X && this.vx > 0)
 ```
 
 **收益**：修掉"雨弹第一帧消失"与"追踪弹出屏不回来"。
-**风险**：中——会**增加存活弹数**（多存活 ~5 帧 + 回场弹），需按 `docs/perf-optimization.md` 的方式实测帧率；若场上弹数明显上升，把宽限收到 2~3 帧。
+**风险**：中——会**增加存活弹数**（多存活 ~5 帧 + 回场弹），需按 `docs/archive/perf-optimization.md` 的方式实测帧率；若场上弹数明显上升，把宽限收到 2~3 帧。
 **验证**：`cases-patterns.js` / `cases-collision.js` 加"出生在屏外的弹存活 >1 帧"的断言。
 
 ---
