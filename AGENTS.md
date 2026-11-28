@@ -310,7 +310,7 @@ docs/                  # 内部改造队列等（非运行时）
 ## 改代码约定
 
 1. 平衡数值优先 `config.js` 的 `BALANCE` / `DIFFICULTIES`。
-2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave` / `installWaveScript`（多轨脚本）；通用 aim 怪用 `spawnArch`。
+2. 新章节：`js/stages/` 对应面 + `stages/index.js` 已聚合；出弹复用 `patterns.js`；道中可用 `installMidWave`；通用 aim 怪用 `spawnArch`。
 3. 新对话：`dialogue.js` + `SPEAKER_COLORS`。
 4. 新背景 mode：`bgModes.js` 登记路径 → `js/bg3d/scenes/<stage>.js` 写 3D builder（可直接复用 `kit.js` 部件与 `_atmo.js` 氛围）；2D 兜底场景在 `js/bg/scenes/`（与 3D 同 brief，一般无需同步新增）。左侧 Three 另走 `backgrounds/builders.js`。
 5. ES modules，无打包器；勿引入框架，除非用户明确要求。
