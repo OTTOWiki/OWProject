@@ -244,6 +244,21 @@ test('H7 紧凑帧：掩码 / flags / 轴 / tap / virtual 往返', () => {
   assert(!old.sl && !old.tl);
 });
 
+test('H7 紧凑帧：对角线移动轴按符号往返（moveAxis 返回 ±1/√2）', () => {
+  const keys = { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' };
+  const table = replayKeyTable(keys);
+  for (const pair of [
+    ['ArrowLeft', 'ArrowUp'], ['ArrowLeft', 'ArrowDown'],
+    ['ArrowRight', 'ArrowUp'], ['ArrowRight', 'ArrowDown'],
+  ]) {
+    const axis = moveAxisFromSeq(pair);
+    const back = decodeReplayFrame(encodeReplayFrame({ ...EMPTY_SNAP }, table, axis), table);
+    const again = moveAxisFromSeq(back.m);
+    assertEqual(again.x, axis.x, `${pair.join('+')} x`);
+    assertEqual(again.y, axis.y, `${pair.join('+')} y`);
+  }
+});
+
 test('回放输入：触屏低速与逐帧限速语义', () => {
   const ri = createReplayInput();
   ri.set({ ...EMPTY_SNAP, sl: true, tl: true });
