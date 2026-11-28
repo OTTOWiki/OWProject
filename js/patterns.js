@@ -242,13 +242,20 @@ export function clearBulletsToItems(game, cx, cy, radius) {
   const list = game.enemyBullets;
   if (!list) return 0;
   const r2 = radius < 0 ? -1 : radius * radius;
+  // A6：每 N 颗消弹掉 1 个道具；15% 概率升级为 scoreL 只在真正掉落时掷
+  const dropQuota = Math.max(1, BALANCE.clearDropEvery || 1);
+  const dropOne = (b) => {
+    game._clearDropAcc = (game._clearDropAcc || 0) + 1;
+    if (game._clearDropAcc % dropQuota !== 0) return;
+    game.spawnItem(b.x, b.y, Math.random() < 0.15 ? 'scoreL' : 'score');
+  };
   for (let i = 0; i < list.length; i++) {
     const b = list[i];
     if (b.dead) continue;
     if (r2 < 0) {
       b.dead = true;
       n++;
-      game.spawnItem(b.x, b.y, Math.random() < 0.15 ? 'scoreL' : 'score');
+      dropOne(b);
       game.addScore(BALANCE.score.clearBullet ?? 10);
     } else {
       const dx = b.x - cx;
@@ -256,7 +263,7 @@ export function clearBulletsToItems(game, cx, cy, radius) {
       if (dx * dx + dy * dy <= r2) {
         b.dead = true;
         n++;
-        game.spawnItem(b.x, b.y, Math.random() < 0.15 ? 'scoreL' : 'score');
+        dropOne(b);
         game.addScore(BALANCE.score.clearBullet ?? 10);
       }
     }

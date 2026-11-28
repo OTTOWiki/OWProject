@@ -211,6 +211,8 @@ export class Game {
     this.recording = !this.replaying;   // 普通对局常驻缓冲；回放不录制
     if (mode === 'nomiss') this.recording = false; // Nomiss 全程不录制录像
     this._recordFrames = [];
+    /** A6 消弹掉道具配额计数（每局重置） */
+    this._clearDropAcc = 0;
     /** 本局是否在关闭移动端限速后实际触屏拖动过（作弊标记） */
     this._mobileCheat = false;
     this.realInput.resetMobileCheat();

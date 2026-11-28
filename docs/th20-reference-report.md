@@ -29,7 +29,9 @@
 | A7 排行用时 | ✅ 已完成 | `duration` + 榜单列，PR #70 |
 | A8 stageReached 去 DOM | ✅ 已完成 | `chapterLabel.js` + `furthestChapterId`，PR #87 |
 | M1 弹体修饰符时长 | ✅ 已完成 | `tSpin/tAccel/tGravity/tHoming`，PR #88 |
-| 平衡项 A5/A6/H2/H6（P6） | ⏳ 未做 | 改变手感，需手测/倍率决策 |
+| A5/H6 Boss 擦弹 2x | ✅ 已完成 | `BALANCE.editPerGrazeBossMul=2` |
+| A6 消弹道具配额 | ✅ 已完成 | `BALANCE.clearDropEvery=3` |
+| H2 擦弹半径派生 | 取消 | 用户决定放弃 |
 | 内容扩充 E1/E3/E4（P7） | ⏳ 未做 | 需章节/主题方向 |
 | H7/H8 | ✅ 已完成 | v2 紧凑帧 + `endState.letters`；v1 冻结分支可读不维护 |
 | H9 菜单按住重复 | ✅ 已完成 | `menuRepeat.js` + `MENU_REPEAT`（350/80ms）；确认/返回/删除边沿触发 |
@@ -126,7 +128,7 @@ if (this.phase === 'cancelled') {
 
 ---
 
-### H2 擦弹半径应由弹体尺寸派生（当前对所有弹一视同仁）
+### H2 擦弹半径应由弹体尺寸派生（当前对所有弹一视同仁）【已放弃】
 
 **现状**：`js/config.js:103` `grazeRadius: 33` 是全局常量，`js/collision.js:246,286` 对任何弹都用 `grazeR + b.r` 与 `pr + b.r`。于是：
 
@@ -263,7 +265,7 @@ const headingIn = (this.x < OFF_MIN_X && this.vx > 0)
 
 ---
 
-### H6 编辑槽增益：区分"是否正在打选中敌机"
+### H6 编辑槽增益：区分"是否正在打选中敌机"【✅ 已完成：Boss 战 2x】
 
 **现状**：`js/gameCombat.js:99-106` 擦弹固定 `p.edit += BALANCE.editPerGraze * grazeMul`（1.15），满分 100。无论道中还是 Boss 阶段，涨速完全一样。
 

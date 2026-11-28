@@ -176,14 +176,14 @@ else if (e._hpShown < real) e._hpShown = Math.min(e._hpShown + 0.025 * (dt * 60)
 
 ---
 
-### A5 编辑槽增益区分"有选中敌机"【已核 TH20 侧】
+### A5 编辑槽增益区分"有选中敌机"【已核 · ✅ 已完成：Boss 战 2x】
 
 上一轮报告已详细写过，此处只留结论与红线：TH20 是 `gain = selected_enemy_present ? 50 : 10`（`player_entity/events.cpp:31-33`），我们固定 `BALANCE.editPerGraze = 1.15`（`js/config.js:102`）。
 **属平衡改动**：会改变 Letter 战与道中的擦弹收益差，**必须先手测再定倍率**。详见 [th20-handling-plan.md](th20-handling-plan.md) §3.1/§3.2。
 
 ---
 
-### A6 消弹掉道具改配额【已核】
+### A6 消弹掉道具改配额【已核 · ✅ 已完成：N=3】
 
 **现状**：`js/patterns.js:251-252` 每颗弹必掉 1 件（15% 为 `scoreL`），且每颗弹各加一次 `clearBullet` 分。
 

@@ -97,7 +97,11 @@ export function applyCollisionEvents(game, events) {
       }
     } else if (ev.type === 'graze') {
       if (!p) continue;
-      p.edit = Math.min(BALANCE.editMax, p.edit + BALANCE.editPerGraze * (game.grazeMul || 1));
+      // Boss/精英战擦弹收益更高（A5/H6）；bossRef 死亡后立即回到常态
+      const bossFight = !!(game.bossRef && !game.bossRef.dead);
+      const gain = BALANCE.editPerGraze * (game.grazeMul || 1)
+        * (bossFight ? BALANCE.editPerGrazeBossMul : 1);
+      p.edit = Math.min(BALANCE.editMax, p.edit + gain);
       addScore(game, BALANCE.score.graze);
       game.stats.graze++;
       spawnGrazeParticles(game, p);
