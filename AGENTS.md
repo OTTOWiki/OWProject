@@ -222,7 +222,7 @@ docs/                  # 内部改造队列等（非运行时）
 
 **录像回放**：`Game.replaying` 标志（不是 `mode`/`state`）。回放复用同一状态机，输入来自录像快照、随机数来自录像头种子；回放期间跳过暂停/叠加层。
 
-**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（旧绝对目标按旧语义回放）。触屏相对拖动以既有 `v` 绝对目标记录；抬手后 `virtualMove` 清空，回放按原目标/限速语义行走，不新增帧字段。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。
+**录像格式**：`REPLAY_VERSION=2`，每帧为紧凑数组 `[steps, downMask, pressMask, flags, ...触摸坐标]`（见 `replayCodec.js`）；flags 位 8=触屏低速、位 9=本帧移动端限速，旧帧缺位按 false（旧绝对目标按旧语义回放）。触屏相对拖动以既有 `v` 绝对目标记录；抬手后 `virtualMove` 清空，回放按原目标/限速语义行走，不新增帧字段。`REPLAY_LEGACY_VERSIONS=[1]` 只保留冻结的旧格式读取/播放分支，**不维护**（不加字段、不修旧格式缺陷）。录像头携带 `mobileSpeedLimit` 与 `cheat`；`endState.letters` 携带本局 Letter 记录（章节、尝试/收取、最佳用时），列表行显示 `Letter x/y`。关闭限速并实际触屏拖动的对局在录像与排行榜标「作弊」。导入/播放前校验录像契约：`playerId` ∈ `PLAYER_DEFS`、`difficultyId` ∈ `DIFFICULTIES`、`mode` 合法、`startChapter` 为正整数，每帧 `steps≥1`、RLE `count≥1` 且不超过上限；坏文件在录像屏报错，不进入回放。
 
 ### 章节流
 
@@ -332,6 +332,8 @@ docs/                  # 内部改造队列等（非运行时）
 ### 操作（默认）
 
 方向/WASD 移动 · Shift 低速 · Z/X/C Shot/Bomb/Item · Esc 暂停 · 触屏全屏相对拖动（位移 ×0.5、平滑追平、抬手即停、低速仅由低速键触发）+ 触屏低速/Item/Bomb/暂停。
+
+键位：重绑拒绝与其它动作冲突的键及菜单/移动保留键（方向键、WASD、Enter、Esc、Space），冲突时设置页提示行给出反馈；对局暂停中打开设置时不可改键（回到主菜单再改），改键保存后 `Input.reloadKeys()` 立即同步。录制中切换「单击发射」本局不生效（设置仍持久化、下一局生效），保证录像头 `shotToggleMode` 与全程帧语义一致；回放中不应用该设置。
 
 ### 常见任务
 

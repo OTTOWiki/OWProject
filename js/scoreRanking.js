@@ -40,7 +40,11 @@ export function openScoreRanking(game, onDone) {
 
 /** 键盘导航：↑↓ 选择 · Z/Enter 确认 · Esc/X 取消。返回是否已处理。 */
 export function handleScoreRankingKey(game) {
-  if (document.activeElement?.classList.contains('sr-name-input')) return false;
+  const active = document.activeElement;
+  if (active?.classList.contains('sr-name-input')) return false;
+  // 真实焦点在保存/取消按钮上时交给浏览器原生激活，避免同一按键再按 _srFocusIndex
+  // 二次消费（例如聚焦“取消”按 Space 却执行“保存”）。
+  if (active?.closest?.('[data-sr-action]')) return false;
   const btns = [...document.querySelectorAll('[data-sr-action]')];
   if (!btns.length) return false;
   const i = game._srFocusIndex || 0;
@@ -70,6 +74,8 @@ export function handleScoreRankingKey(game) {
 function save(game) {
   const name = document.querySelector('#score-ranking .sr-name-input')?.value ?? '';
   commitRankingEntry(game._rankingResult, name);
+  // 已处理：退出菜单时（gameOverlay menu 分支）只补交“暂存未落盘”的成绩，避免重复写入
+  game._rankingResult = null;
   close(game);
 }
 

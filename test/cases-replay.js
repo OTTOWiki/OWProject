@@ -287,6 +287,7 @@ test('H7 v2 校验：steps 与帧内 steps 必须一致', () => {
   frame[0] = 1;
   const base = {
     version: REPLAY_VERSION, seed: 1, playerId: 'yinquan', mode: 'story',
+    difficultyId: 'normal', startChapter: 1,
     frames: [[1, 1, frame]],
   };
   assert(validateReplay(base));
@@ -297,6 +298,7 @@ test('H7 v2 校验：steps 与帧内 steps 必须一致', () => {
 test('H7/H8 旧格式冻结分支仍可读，新字段随 v2 携带', () => {
   const legacy = {
     version: 1, seed: 2, playerId: 'shama', mode: 'story',
+    difficultyId: 'hard', startChapter: 1,
     frames: [[1, 1, { ...EMPTY_SNAP }]],
     endState: { score: 10 },
   };
@@ -310,11 +312,261 @@ test('H7/H8 旧格式冻结分支仍可读，新字段随 v2 携带', () => {
   frame[0] = 1;
   const letters = [{ chapterId: 3, name: '三章', attempts: 1, captures: 1, bestTimeSec: 12 }];
   const r = buildReplay({
-    header: { seed: 3, playerId: 'yinquan', keys: { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' } },
+    header: {
+      seed: 3, playerId: 'yinquan', mode: 'story', difficultyId: 'normal',
+      startChapter: 1, keys: { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' },
+    },
     frames: [{ s: 1, i: frame }],
     endState: { score: 1, letters },
   });
   assertEqual(r.version, REPLAY_VERSION);
   assertEqual(r.endState.letters[0].bestTimeSec, 12);
   assert(validateAnyReplay(JSON.parse(serializeReplay(r))));
+});
+
+/* ========== 审计修复回归（#2 / #35 / #36 / #40） ========== */
+
+const KEY_TABLE_DEFAULT = replayKeyTable({ shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' });
+const V2_HEADER = {
+  version: REPLAY_VERSION,
+  seed: 1,
+  playerId: 'yinquan',
+  difficultyId: 'normal',
+  mode: 'story',
+  startChapter: 1,
+};
+
+/** 构造一条通过头/帧校验的 v2 录像（可覆盖头字段/帧 runs 做坏样本） */
+function v2Replay(overrides = {}) {
+  const frame = encodeReplayFrame({ ...EMPTY_SNAP }, KEY_TABLE_DEFAULT, { x: 0, y: 0 });
+  frame[0] = 1;
+  return { ...V2_HEADER, frames: [[1, 1, frame]], ...overrides };
+}
+
+/** 动态载入 game.js（Node 无 DOM：构造器需要页面元素，测试只用原型方法） */
+async function loadGameClass() {
+  const hadWindow = typeof globalThis.window !== 'undefined';
+  const prevWindow = globalThis.window;
+  if (!hadWindow) globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  const hadDocument = typeof globalThis.document !== 'undefined';
+  const prevDocument = globalThis.document;
+  if (!hadDocument) globalThis.document = { getElementById: () => null, querySelector: () => null, addEventListener() {} };
+  try {
+    return (await import('../js/game.js')).Game;
+  } finally {
+    if (hadWindow) globalThis.window = prevWindow; else delete globalThis.window;
+    if (hadDocument) globalThis.document = prevDocument; else delete globalThis.document;
+  }
+}
+
+test('#2 录像头契约：未知 playerId / difficultyId、非法 mode、startChapter 一律拒绝', () => {
+  assert(validateReplay(v2Replay()));
+  for (const bad of [
+    { playerId: 'nobody' },
+    { playerId: '' },
+    { playerId: null },
+    { difficultyId: 'hell' },
+    { difficultyId: null },
+    { mode: 'debug' },
+    { mode: undefined },
+    { startChapter: 0 },
+    { startChapter: -3 },
+    { startChapter: 1.5 },
+    { startChapter: '1' },
+  ]) {
+    const tag = JSON.stringify(bad);
+    assert(!validateReplay(v2Replay(bad)), 'validateReplay 应拒 ' + tag);
+    assert(!validateAnyReplay(v2Replay(bad)), 'validateAnyReplay 应拒 ' + tag);
+  }
+  // 导入坏录像必须落在失败分支（录像屏/主流程报错），不能静默播放
+  assert(!deserializeReplay(serializeReplay(v2Replay({ playerId: 'nobody' }))).ok);
+  // 合法的 extra 难度（EX 录像）仍应通过
+  assert(validateReplay(v2Replay({ difficultyId: 'extra', startChapter: 129 })));
+});
+
+test('#2 帧契约：steps/count 非正数与超大 count 被拒', () => {
+  const make = (count, steps) => ({
+    ...V2_HEADER,
+    frames: [[count, steps, [steps, 0, 0, 0]]],
+  });
+  assert(validateReplay(make(1, 1)));
+  assert(!validateReplay(make(1, 0)), 'steps:0 会空转回放循环');
+  assert(!validateReplay(make(1, -1)), '负数 steps');
+  assert(!validateReplay(make(0, 1)), 'count 必须 ≥1');
+  assert(!validateReplay(make(-1, 1)), '负数 count');
+  assert(!validateReplay(make(1_000_000_001, 1)), '超大 count');
+});
+
+test('#2 v1 旧格式只补防御校验：header 合法 + count/steps ≥1', () => {
+  const snap = { ...EMPTY_SNAP };
+  const base = {
+    version: 1, seed: 2, playerId: 'shama', difficultyId: 'hard', mode: 'story',
+    startChapter: 1, frames: [[1, 1, snap]],
+  };
+  assert(validateLegacyReplay(base));
+  assert(!validateLegacyReplay({ ...base, frames: [[1, 0, snap]] }));
+  assert(!validateLegacyReplay({ ...base, frames: [[1, -1, snap]] }));
+  assert(!validateLegacyReplay({ ...base, frames: [[0, 1, snap]] }));
+  assert(!validateLegacyReplay({ ...base, frames: [[-2, 1, snap]] }));
+  assert(!validateLegacyReplay({ ...base, playerId: 'nobody' }));
+  assert(!validateLegacyReplay({ ...base, difficultyId: 'hell' }));
+  assert(!validateAnyReplay({ ...base, frames: [[1, -1, snap]] }));
+});
+
+test('#35 录制中切换“单击发射”不改变本局输入模式；回放期间不应用', async () => {
+  const Game = await loadGameClass();
+  const settings = {
+    shotToggle: true, musicVolume: 0.5, playerBulletOpacity: 0.3,
+    mobileSpeedLimit: true, fpsLimit: 0,
+  };
+  const makeGame = (over = {}) => {
+    const g = Object.create(Game.prototype);
+    g.recording = true;
+    g.replaying = false;
+    g._recordFrames = [{ s: 1, i: [] }];
+    g.realInput = {
+      shotToggleMode: false,
+      applied: null,
+      applySettings(s) { this.applied = s; },
+    };
+    g.audio = { setMusicVolume() {} };
+    Object.assign(g, over);
+    return g;
+  };
+
+  // 已开始录制：忽略切换，本局保持开录时的模式（录像头与帧语义一致）
+  const recording = makeGame();
+  Game.prototype.applySettings.call(recording, settings);
+  assertEqual(recording.realInput.applied.shotToggle, false, '录制中应保持原输入模式');
+
+  // 新局开局（尚无录制帧）：应用保存的设置
+  const fresh = makeGame({ _recordFrames: [] });
+  Game.prototype.applySettings.call(fresh, settings);
+  assertEqual(fresh.realInput.applied.shotToggle, true, '新局应应用保存的设置');
+
+  // 回放期间：不应用该设置（回放输入模式来自录像头）
+  const replaying = makeGame({ recording: false, replaying: true });
+  Game.prototype.applySettings.call(replaying, settings);
+  assertEqual(replaying.realInput.applied.shotToggle, false, '回放中不应切换输入模式');
+});
+
+test('#36 保存录像防重：成功后重复保存早退，失败可重试', async () => {
+  const Game = await loadGameClass();
+  const hadLocal = 'localStorage' in globalThis;
+  const prevLocal = globalThis.localStorage;
+  const hadIdb = 'indexedDB' in globalThis;
+  const prevIdb = globalThis.indexedDB;
+  const mem = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => { mem.set(k, String(v)); },
+    removeItem: (k) => { mem.delete(k); },
+  };
+  let puts = 0;
+  let failOpen = false;
+  globalThis.indexedDB = {
+    open() {
+      if (failOpen) throw new Error('storage disabled');
+      const req = {
+        result: {
+          objectStoreNames: { contains: () => true },
+          transaction: () => ({
+            objectStore: () => ({
+              put() {
+                puts += 1;
+                const done = {};
+                setTimeout(() => done.onsuccess?.(), 0);
+                return done;
+              },
+            }),
+          }),
+          close() {},
+        },
+      };
+      setTimeout(() => { req.onupgradeneeded?.(); req.onsuccess?.(); }, 0);
+      return req;
+    },
+  };
+  try {
+    const makeGame = () => {
+      const g = Object.create(Game.prototype);
+      g.recording = true;
+      g.replaying = false;
+      g._recordFrames = [{ s: 1, i: [1, 0, 0, 0] }];
+      g._mobileCheat = false;
+      g.realInput = {
+        shotToggleMode: false,
+        keys: { shot: 'KeyZ', bomb: 'KeyX', item: 'KeyC' },
+        mobileCheat: false,
+      };
+      g._replaySeed = 5;
+      g.playerId = 'yinquan';
+      g.difficultyId = 'normal';
+      g.mode = 'story';
+      g.routeChoice = null;
+      g._startChapterId = 1;
+      g._startLives = null;
+      g.singleChapter = false;
+      g.practiceUnstable = true;
+      g.mobileSpeedLimit = true;
+      g.score = 100;
+      g.stats = { time: 1 };
+      g.letterLog = [];
+      g.chapters = [{ id: 1, stage: 1, name: '一章' }];
+      g.chapterIndex = 0;
+      g._replaySaved = false;
+      g._replaySaving = false;
+      return g;
+    };
+
+    const g = makeGame();
+    const first = await Game.prototype._saveReplay.call(g, { partial: true });
+    assert(first.ok, '首次保存成功');
+    const second = await Game.prototype._saveReplay.call(g, { partial: true });
+    assert(!second.ok);
+    assertEqual(second.reason, 'saved');
+    assertEqual(puts, 1, 'IndexedDB 只写入一份帧数据');
+
+    failOpen = true;
+    const g2 = makeGame();
+    const failed = await Game.prototype._saveReplay.call(g2, { partial: true });
+    assert(!failed.ok);
+    assertEqual(failed.reason, 'store');
+    failOpen = false;
+    const retried = await Game.prototype._saveReplay.call(g2, { partial: true });
+    assert(retried.ok, '写盘失败后允许重试');
+  } finally {
+    if (hadLocal) globalThis.localStorage = prevLocal; else delete globalThis.localStorage;
+    if (hadIdb) globalThis.indexedDB = prevIdb; else delete globalThis.indexedDB;
+  }
+});
+
+test('#40 stop() 释放录制/回放缓冲', async () => {
+  const Game = await loadGameClass();
+  const hadDoc = 'document' in globalThis;
+  const prevDoc = globalThis.document;
+  const hadRaf = 'cancelAnimationFrame' in globalThis;
+  const prevRaf = globalThis.cancelAnimationFrame;
+  globalThis.document = { getElementById: () => null };
+  globalThis.cancelAnimationFrame = () => {};
+  try {
+    const g = Object.create(Game.prototype);
+    g.running = true;
+    g.raf = 1;
+    g.input = { resetShotLatch() {} };
+    g.realInput = { _releaseTransientInput() {} };
+    g.audio = { stopMusic() {} };
+    g.el = { bossEnemyMarker: null };
+    g._recordFrames = [{ s: 1 }, { s: 2 }];
+    g._replayPlayer = { next() {} };
+    g.replay = { replayId: 'r1' };
+    Game.prototype.stop.call(g);
+    assertEqual(g.running, false);
+    assertEqual(g._recordFrames.length, 0, '录制帧缓冲释放');
+    assertEqual(g._replayPlayer, null, '回放游标释放');
+    assertEqual(g.replay, null, '录像对象释放');
+  } finally {
+    if (hadDoc) globalThis.document = prevDoc; else delete globalThis.document;
+    if (hadRaf) globalThis.cancelAnimationFrame = prevRaf; else delete globalThis.cancelAnimationFrame;
+  }
 });

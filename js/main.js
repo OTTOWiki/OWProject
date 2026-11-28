@@ -13,6 +13,8 @@ import { getPlayfieldBgPaths, preloadPlayfieldBg } from './playfieldBg.js';
 import { VERSION_LABEL, applyVersionToDom } from './version.js';
 import { installDebug } from './debug.js';
 import { loadReplay } from './replayStore.js';
+import { validateAnyReplay } from './replay.js';
+import { isReplayPlayRequestCurrent } from './replayScreen.js';
 import { bindScoreRanking } from './scoreRanking.js';
 import { onStorageError } from './storage.js';
 import { initLoadingPetals } from './loadingPetals.js';
@@ -520,6 +522,13 @@ async function boot() {
     }
 
     let game = null;
+    /** 录像播放请求代际：异步载入返回后丢弃过期/已离开录像屏的结果 */
+    let replayPlayToken = 0;
+    /** 失败反馈复用录像屏 #replay-status：先重渲染列表（会复位状态行）再写错误 */
+    const showReplayReadError = (text) => {
+      ui.showReplayScreen();
+      ui.replay._setStatus(text, true);
+    };
     const ui = new UI({
       audio,
       onStartGame(opts, presentation) {
@@ -533,6 +542,7 @@ async function boot() {
         }
       },
       onSettingsChange(s) {
+        input.reloadKeys(); // 键位重绑后立即同步运行时输入
         if (game) game.applySettings(s);
         else {
           input.applySettings(s);
@@ -540,23 +550,34 @@ async function boot() {
         }
       },
       onPlayReplay(replayId) {
+        const token = ++replayPlayToken;
+        const stillOnReplayScreen = () => isReplayPlayRequestCurrent(
+          token, replayPlayToken, !!ui.replay.isActive(),
+        );
         loadReplay(replayId)
           .then((data) => {
+            // 等待 IndexedDB 期间已返回/离开录像屏，或已发起新请求：丢弃结果，不强行切屏
+            if (!stillOnReplayScreen()) return;
             if (!data) {
               console.warn('[replay] not found:', replayId);
-              ui.showReplayScreen();
+              showReplayReadError('录像读取失败：本机已找不到这条录像');
+              return;
+            }
+            if (!validateAnyReplay(data)) {
+              console.warn('[replay] rejected:', replayId);
+              showReplayReadError('录像读取失败：数据损坏或版本不受支持');
               return;
             }
             ui.showGame();
-            // 录像校验失败时不能停在 game 屏（会黑屏无提示）：退回 Replay 屏
             if (!game.startReplay(data)) {
-              console.warn('[replay] rejected:', replayId);
-              ui.showReplayScreen();
+              console.warn('[replay] start failed:', replayId);
+              showReplayReadError('录像读取失败：无法开始回放');
             }
           })
           .catch((e) => {
             console.error('[replay] load failed:', e);
-            ui.showReplayScreen();
+            if (!stillOnReplayScreen()) return;
+            showReplayReadError('录像读取失败：本地录像存储不可用');
           });
       },
     });

@@ -14,6 +14,18 @@ const MODE_LABEL = { story: '故事', stage: '选关', extra: 'Extra', practice:
 const PLAYER_LABEL = { yinquan: '饮泉思源', shama: '誓约沙玛' };
 const CONFIRM_RESET_MS = 3000;
 
+/**
+ * 录像异步载入返回后是否仍应生效：同一请求且玩家仍停留在录像屏。
+ * 离开录像屏或已发起新请求时丢弃结果，避免把玩家强行拉进对局。
+ * @param {number} token 发起载入时的请求代际
+ * @param {number} currentToken 当前请求代际
+ * @param {boolean} onReplayScreen 载入完成时录像屏是否仍激活
+ * @returns {boolean}
+ */
+export function isReplayPlayRequestCurrent(token, currentToken, onReplayScreen) {
+  return token === currentToken && !!onReplayScreen;
+}
+
 /** 触发浏览器下载文本文件 */
 function downloadTextFile(filename, text) {
   const blob = new Blob([text], { type: 'application/json' });
