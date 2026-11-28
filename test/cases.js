@@ -32,3 +32,4 @@ import './cases-services.js';
 import './cases-functions.js'; // Node：functions/api 契约；浏览器不加载
 import './cases-syntax.js'; // Node：check-syntax 门禁自身的回归
 import './cases-mobile.js';
+import './cases-audio.js';

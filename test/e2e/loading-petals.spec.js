@@ -1,18 +1,24 @@
 import { test, expect } from '@playwright/test';
 import { waitForGameReady } from './helpers.js';
 
-async function holdAudio(page) {
+// BGM 不再启动预载（playTrack 按需解码），加载层进度只受图片资源影响；
+// 这里暂停首张版面绘卷的预载请求来保持加载层，供落花/布局断言使用。
+async function holdBootImage(page) {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
-  await page.route('**/*.ogg', async (route) => {
-    await gate;
+  let held = false;
+  await page.route('**/assets/bg/scene/**', async (route) => {
+    if (!held) {
+      held = true;
+      await gate;
+    }
     await route.continue();
   });
   return release;
 }
 
 test('加载落花：局部单轨动画随真实进度存在，完成后随加载层移除', async ({ page }) => {
-  const release = await holdAudio(page);
+  const release = await holdBootImage(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.load-petals-track')).toHaveCount(1);
 
@@ -49,7 +55,7 @@ test('加载落花：局部单轨动画随真实进度存在，完成后随加�
 
 test('加载落花：减少动态效果时不创建 WAAPI 动画，静态纹理仍存在', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const release = await holdAudio(page);
+  const release = await holdBootImage(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.load-petals-track')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => (
@@ -59,7 +65,7 @@ test('加载落花：减少动态效果时不创建 WAAPI 动画，静态纹理�
 });
 
 test('加载落花：可恢复失败时暂停，继续按钮仍可用', async ({ page }) => {
-  await page.route('**/*.ogg', (route) => route.abort());
+  await page.route('**/assets/bg/scene/**', (route) => route.abort());
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('#load-continue').waitFor({ state: 'visible', timeout: 60000 });
 
@@ -74,7 +80,7 @@ test('加载落花：可恢复失败时暂停，继续按钮仍可用', async ({
 
 test('加载落花：矮屏 / 手机横屏仍保持黑带居中、少女祈祷中在右下', async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 600 });
-  const release = await holdAudio(page);
+  const release = await holdBootImage(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
   const readLayout = () => page.evaluate(() => {
