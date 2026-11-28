@@ -1,14 +1,15 @@
 # 背景系统重作方案（参考 TH20 STD 数据驱动背景引擎）
 
+> **状态：已归档（2026-11-28）** — 历史方案与证据，**不是现行规格**。P0/P1/P3 已完成；P2（左侧场景数据化）未做并被 3D 方案取代；P6 观感重作由 [`level-background-redesign.md`](../level-background-redesign.md) 接替。现行实现见 `js/bg3d/`（主）与 `js/bg/`（2D 兜底）。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > **2026-11-22 方向修正**：用户要求关卡背景改为「不断深入的 3D 场景 + Billboard + 真 3D 物体混合 + 超现实手法」。
-> 本文 P6 观感重作部分由 [`level-background-redesign.md`](./level-background-redesign.md) §8 接替；
+> 本文 P6 观感重作部分由 [`level-background-redesign.md`](../level-background-redesign.md) §8 接替；
 > Canvas 2D 绘卷（本文推荐路线 b）保留为 WebGL 不可用时的兜底。两者共享 `bgModes.js` 资产登记与公有领域素材。
 
-
 > 日期: 2026-10-05
-> 参考对象: `~/Touhou20`（TH20 的**独立 C++ 源码重建**，`source_reconstruction/stage_background/`）——参考仓库**全程只读**。
+> ⚠️ 参考对象: `~/Touhou20`（TH20 的**独立 C++ 源码重建**，`source_reconstruction/stage_background/`）——参考仓库**全程只读**。
 > 方式: **未改动任何运行时代码**。本文档是方案，供你决定是否实施。
-> 配套证据: `.scratch/th20-std-factsheet.md`（主代理自查事实卡，含逐 opcode 表）、`~/ow-th20-handling-research.md`（手感方向，非本文）。
+> ⚠️ 配套证据: [`evidence/th20-std-factsheet.md`](evidence/th20-std-factsheet.md)（主代理自查事实卡，含逐 opcode 表）、`~/ow-th20-handling-research.md`（手感方向，非本文）。
 
 ## 0. 一句话结论
 
@@ -75,7 +76,7 @@
 ### 1.3 渲染侧与规模
 
 - **纯数学可抄**：透视相机 `look_at(eye = vectors[0]+vectors[5], target = eye+vectors[3], up = vectors[2])` + `perspective(fov, w/h, near=30, far=8000)`（`object_projection.cpp:37-43`）；雾是 **7 字段数值向量**逐字段加/减/缩放/插值（`fog.cpp:9-31`）——「雾色 + 近远距」可以像位置一样插值，这是很值得抄的一点。
-- **不可抄**：`D3DXVec3ProjectArray` 的 16 角点投影剔除（`object_projection.cpp:28-36`）、`D3DRS_*` 状态机（`draw.cpp:20-42`）、THA1 归档（`th20.dat` 285 条 / 152MB）、ANM 二级 VM（舞台背景用到 31 个 opcode）。
+- ⚠️ **不可抄**：`D3DXVec3ProjectArray` 的 16 角点投影剔除（`object_projection.cpp:28-36`）、`D3DRS_*` 状态机（`draw.cpp:20-42`）、THA1 归档（`th20.dat` 285 条 / 152MB）、ANM 二级 VM（舞台背景用到 31 个 opcode）。
 - **真实规模**（子代理独立解析 10 个 STD，**我用同一脚本复核，逐面数字完全一致**）：
 
 | STD | object | primitive | instance | instruction | 帧标签 |

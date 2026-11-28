@@ -173,7 +173,7 @@ export class StageBackground {
       color, size, transparent: true, opacity: 0.85, sizeAttenuation: true,
     });
     // 粒子 y 上移/回绕放进顶点着色器（uTime 驱动），替代每帧逐顶点 setY——
-    // 逐顶点 CPU 更新是背景热点（docs/perf-optimization.md P2），着色器一次 uniform 赋值等价
+    // 逐顶点 CPU 更新是背景热点（docs/archive/perf-optimization.md P2），着色器一次 uniform 赋值等价
     const uTime = { value: 0 };
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = uTime;

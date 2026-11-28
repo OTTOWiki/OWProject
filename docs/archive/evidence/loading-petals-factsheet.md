@@ -1,8 +1,9 @@
 # TH20 加载界面「落花」动画 · 事实卡（主代理提取 + 语义解码）
+> **状态：⚠️ 已归档（2026-11-28）** — 本机调研/证据文档，外部路径与命令仅在本机可复现；不属于规格。
 
-> 素材来源：`/data/user/0/com.termux/files/home/th20.dat`（SHA-256 `9db8d7c4…0494`，与 `~/Touhou20/reports/assets_recovery.md:37` 一致）。**归档只读**，产物在 `.scratch/th20-extract/`。
-> 语义来源：`~/Touhou20/source_reconstruction/sprite_renderer/anm_vm.cpp`（TH20 ANM 解释器的独立 C++ 重建）。
-> 参数形状来源：thtk 官方仓库 `thpatch/thtk` @ `892114a0`（正是 `~/Touhou20/README.md` 记录的那个固定 commit）的 `thanm/thanm.c:475-482` 格式表。
+> ⚠️ 素材来源：`/data/user/0/com.termux/files/home/th20.dat`（SHA-256 `9db8d7c4…0494`，与 `~/Touhou20/reports/assets_recovery.md:37` 一致）。**归档只读**，产物在 `.scratch/th20-extract/`。
+> ⚠️ 语义来源：`~/Touhou20/source_reconstruction/sprite_renderer/anm_vm.cpp`（TH20 ANM 解释器的独立 C++ 重建）。
+> ⚠️ 参数形状来源：thtk 官方仓库 `thpatch/thtk` @ `892114a0`（正是 `~/Touhou20/README.md` 记录的那个固定 commit）的 `thanm/thanm.c:475-482` 格式表。
 > 用途：「加载界面落花 + 变速」实施方案的依据。非运行时产物。
 
 ## 1. 素材实体

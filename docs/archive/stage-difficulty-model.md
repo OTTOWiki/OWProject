@@ -1,10 +1,12 @@
 # 每面难度与体量对比模型（TH20 ↔ 本作）
 
+> ⚠️ **状态：已归档（2026-11-28）** — 2026-10-05 一次性对比模型与数据快照；外部参考 `~/Touhou20` 只读且可能缺失，复算方法见 [`.scratch/README.md`](../../.scratch/README.md)。 ⚠️ 本文含仅本机可复现的调研/实测信息，非仓库可复现（见 docs/local-environment.md）。
+
 > 日期: 2026-10-05
-> 参考: `~/Touhou20`（**只读**）的 `scripts/recovered/ecl/`（真实关卡内容）、`bullet_system/style_data.cpp`（弹种半径）、`ecl_vm/`、`player_entity/collision.cpp`。
+> ⚠️ 参考: `~/Touhou20`（**只读**）的 `scripts/recovered/ecl/`（真实关卡内容）、`bullet_system/style_data.cpp`（弹种半径）、`ecl_vm/`、`player_entity/collision.cpp`。
 > 本作侧: `js/stages/`（关卡）、`js/entities.js`（弹体运动与半径）、`js/config.js`（基准量）。
-> 工具（均在 `.scratch/`，属分析产物）: `face-capture.mjs`（无头章节捕获）、`face-difficulty.mjs`（率量与反应窗）、`v3.py`（**唯一**的 TH20 ECL 开火提取器，自带自检）、`th20-bullet-radii.json`（50 弹种半径）、`th20-ecl-shots.json`（278 次开火）。
-> 获取与使用方式见 [.scratch/README.md](../.scratch/README.md)。
+> ⚠️ 工具（均在 `.scratch/`，属分析产物）: `face-capture.mjs`（无头章节捕获）、`face-difficulty.mjs`（率量与反应窗）、`v3.py`（**唯一**的 TH20 ECL 开火提取器，自带自检）、`th20-bullet-radii.json`（50 弹种半径）、`th20-ecl-shots.json`（278 次开火）。
+> ⚠️ 获取与使用方式见 [.scratch/README.md](../../.scratch/README.md)。
 > **未改动任何运行时代码。**
 
 ## 0. 结论摘要（含一条反直觉）
@@ -43,7 +45,7 @@
 
 ### 2.1 本作：无头实测，不是读代码估算
 
-`.scratch/face-capture.mjs` 用 `test/mockGame.js` 的轻量替身（不启 Canvas/Audio/DOM）逐章 `build()`，
+⚠️ `.scratch/face-capture.mjs` 用 `test/mockGame.js` 的轻量替身（不启 Canvas/Audio/DOM）逐章 `build()`，
 注入固定 seed 的 `createRng`，按 `dt = 1/60` 驱动 `waveFn` 与每只敌机的 `script`，**记录每一发**：
 
 ```
@@ -56,7 +58,7 @@
 
 ### 2.2 TH20：静态解析真实 ECL 脚本
 
-`.scratch/v3.py` 逐行解析 `scripts/recovered/ecl/*.ecl.txt`（21 个文件），提取：
+⚠️ `.scratch/v3.py` 逐行解析 `scripts/recovered/ecl/*.ecl.txt`（21 个文件），提取：
 `ins_601`（开火）+ 该队列最近一次 `ins_602/604/605/606/607` 的参数 + 其后最近的 `ins_23(n)`（等待帧数）。
 
 - **自带一致性自检**：解析出的 `ins_601` 次数必须等于原文中 `ins_601(` 的出现次数。
@@ -227,7 +229,6 @@ python3 .scratch/v3.py --ecl /path/to/Touhou20/scripts/recovered/ecl --out .scra
 ```
 
 **注意**：`face-capture.mjs` 默认 7200 帧；如需对比"率"以外的东西，**不要**改小帧数后比较总数（见 §5.1）。
-
 
 ---
 
