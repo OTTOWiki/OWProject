@@ -140,12 +140,82 @@ export function spriteKeyForPlayer(player) {
   return player?.def?.id === 'shama' ? 'player_shama' : 'player_yinquan';
 }
 
+/**
+ * 圆形裁剪贴图 sprite 缓存（#49：clip + shadowBlur 描边每帧光栅化 → 按 img/size/glow 预渲染一次）。
+ * 光晕与本体一起烘焙：烘焙时本体 alpha=1、光晕 alpha=0.45，调用方整体乘 alpha 与改前等价。
+ */
+const _circSprites = new Map();
+const CIRC_CACHE_MAX = 48;
+
+function circSprite(img, size, opts) {
+  const glow = opts.glow || '';
+  const key = `${img.src || ''}|${size}|${glow}|${opts.glowBlur ?? 16}`;
+  let entry = _circSprites.get(key);
+  if (entry === undefined) {
+    entry = null;
+    if (typeof document !== 'undefined' && document.createElement) {
+      try {
+        const r = size / 2;
+        // shadowBlur 12 的扩散余量（约 1.5–2×blur）+ 描边半宽
+        const pad = Math.ceil(r + 2 + 12 * 2) + 2;
+        const c = document.createElement('canvas');
+        c.width = pad * 2;
+        c.height = pad * 2;
+        const g = c.getContext('2d');
+        if (g) {
+          g.translate(pad, pad);
+          g.save();
+          g.beginPath();
+          g.arc(0, 0, r, 0, Math.PI * 2);
+          g.closePath();
+          g.clip();
+          // 轻微放大裁掉边缘杂色
+          const s = size * 1.15;
+          g.drawImage(img, -s / 2, -s / 2, s, s);
+          g.restore();
+          if (glow) {
+            g.strokeStyle = glow;
+            g.globalAlpha = 0.45;
+            g.lineWidth = 2;
+            g.shadowColor = glow;
+            g.shadowBlur = 12;
+            g.beginPath();
+            g.arc(0, 0, r + 1, 0, Math.PI * 2);
+            g.stroke();
+          }
+          entry = { canvas: c, pad };
+        }
+      } catch (_) {
+        entry = null;
+      }
+    }
+    if (entry) {
+      if (_circSprites.size >= CIRC_CACHE_MAX) {
+        _circSprites.delete(_circSprites.keys().next().value);
+      }
+      _circSprites.set(key, entry);
+    }
+  }
+  return entry;
+}
+
 /** 圆形裁剪绘制贴图（去掉方底） */
 export function drawSpriteCirc(ctx, img, x, y, size, opts = {}) {
   if (!img || !img.complete || !img.naturalWidth) return false;
   const r = size / 2;
   const rot = opts.rot || 0;
   const alpha = opts.alpha ?? 1;
+  const entry = circSprite(img, size, opts);
+  if (entry) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(entry.canvas, -entry.pad, -entry.pad);
+    ctx.restore();
+    return true;
+  }
+  // 回退（无离屏 canvas 环境）：原裁剪 + shadowBlur 路径
   ctx.save();
   ctx.translate(x, y);
   if (rot) ctx.rotate(rot);
@@ -154,7 +224,6 @@ export function drawSpriteCirc(ctx, img, x, y, size, opts = {}) {
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.closePath();
   ctx.clip();
-  // 轻微放大裁掉边缘杂色
   const s = size * 1.15;
   ctx.drawImage(img, -s / 2, -s / 2, s, s);
   ctx.restore();

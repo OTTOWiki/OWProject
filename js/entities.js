@@ -79,6 +79,18 @@ export class Bullet {
     this._homeSlot = opts._homeSlot;
     this._diffScaled = false;
     this._grazeNear = false;
+    // #46：绘制期擦弹视觉外包半径（半径常量，避免每帧重算 hypot / max）
+    this._grazeReach = this.type === 'talisman'
+      ? Math.hypot(this.w / 2, this.h / 2)
+      : this.type === 'rice'
+        ? Math.max(this.w, this.h) * 0.55
+        : this.type === 'laser' ? this.w * 0.5 : this.r;
+    // #46：碰撞帧已算的自机中心距离²（与自机坐标配套使用，避免绘制期重算 hypot）
+    this._dist2 = null;
+    this._distPx = 0;
+    this._distPy = 0;
+    // #42/#44：绘制期 sprite / 光晕 entry 缓存袋（对象池复用必须清空，防脏缓存）
+    this._dc = null;
     if (this.speed && !opts.vx && !opts.vy) {
       this.vx = Math.cos(this.angle) * this.speed;
       this.vy = Math.sin(this.angle) * this.speed;

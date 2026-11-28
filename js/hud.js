@@ -21,6 +21,7 @@ export function createHudCache() {
     score: null,
     scoreCompact: null,
     scoreDetails: null,
+    scoreTitle: null,
     hiscore: null,
     lives: null,
     bombs: null,
@@ -181,12 +182,21 @@ export function updateGameHud(game) {
   game._scoreSpeed = roll.speed;
   const shownScore = Math.floor(roll.shown);
 
-  const score = fullScore(shownScore);
-  setText(el.score, score, 'score', cache);
-  setText(el.scoreDetails, score, 'scoreDetails', cache);
-  const compact = compactScore(shownScore);
-  setText(el.scoreCompact, compact, 'scoreCompact', cache);
-  if (el.scoreCompact && el.scoreCompact.title !== score) el.scoreCompact.title = score;
+  // 分数文本按 ~30Hz 节流（#48）：滚动中隔一个逻辑帧才写；落定/非对局立即写，
+  // 最终显示值不变（roll.speed === 0 即已到真值）。
+  const animating = game.state === 'playing' && !game.paused;
+  game._hudScoreTick = ((game._hudScoreTick || 0) + 1) % 2;
+  if (!animating || roll.speed === 0 || game._hudScoreTick === 0) {
+    const score = fullScore(shownScore);
+    setText(el.score, score, 'score', cache);
+    setText(el.scoreDetails, score, 'scoreDetails', cache);
+    const compact = compactScore(shownScore);
+    setText(el.scoreCompact, compact, 'scoreCompact', cache);
+    if (cache.scoreTitle !== score) {
+      cache.scoreTitle = score;
+      if (el.scoreCompact) el.scoreCompact.title = score;
+    }
+  }
 
   setText(el.hiscore, fullScore(game.hiscore), 'hiscore', cache);
   updateResource(el.lives, p.lives, 'lives', cache, 'life');

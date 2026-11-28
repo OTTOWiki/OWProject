@@ -1,6 +1,48 @@
 import { withAlpha } from './drawUtils.js';
 import { spriteKeyForEnemy, loadSprite, drawSpriteCirc } from '../sprites.js';
 
+/** 底层光环 sprite 缓存（#49：径向渐变每帧创建 → 按 size/颜色预渲染，圆旋转无视觉影响） */
+const _auraSprites = new Map();
+const AURA_CACHE_MAX = 32;
+
+function enemyAuraSprite(size, color) {
+  const key = `${size}|${color}`;
+  let entry = _auraSprites.get(key);
+  if (entry === undefined) {
+    entry = null;
+    if (typeof document !== 'undefined' && document.createElement) {
+      try {
+        const r = size * 0.7;
+        const pad = Math.ceil(r) + 2;
+        const c = document.createElement('canvas');
+        c.width = pad * 2;
+        c.height = pad * 2;
+        const g = c.getContext('2d');
+        if (g) {
+          g.translate(pad, pad);
+          const ring = g.createRadialGradient(0, 0, size * 0.2, 0, 0, r);
+          ring.addColorStop(0, withAlpha(color, 0.35));
+          ring.addColorStop(1, 'transparent');
+          g.fillStyle = ring;
+          g.beginPath();
+          g.arc(0, 0, r, 0, Math.PI * 2);
+          g.fill();
+          entry = { canvas: c, pad };
+        }
+      } catch (_) {
+        entry = null;
+      }
+    }
+    if (entry) {
+      if (_auraSprites.size >= AURA_CACHE_MAX) {
+        _auraSprites.delete(_auraSprites.keys().next().value);
+      }
+      _auraSprites.set(key, entry);
+    }
+  }
+  return entry;
+}
+
 export function drawEnemy(ctx, e) {
   const key = spriteKeyForEnemy(e);
   // key 为 null：占位策略为几何绘制（无专用/显式无图 Boss）
@@ -32,18 +74,23 @@ export function drawEnemy(ctx, e) {
   ctx.save();
   ctx.globalAlpha = bodyAlpha;
 
-  // 底层光环
-  ctx.save();
-  ctx.translate(e.x, e.y);
-  ctx.rotate(e.spin * (isBoss ? 0.4 : 1.2));
-  const ring = ctx.createRadialGradient(0, 0, size * 0.2, 0, 0, size * 0.7);
-  ring.addColorStop(0, withAlpha(e.color, 0.35));
-  ring.addColorStop(1, 'transparent');
-  ctx.fillStyle = ring;
-  ctx.beginPath();
-  ctx.arc(0, 0, size * 0.7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  // 底层光环（#49 预渲染 sprite；无 canvas 环境回退原逐帧渐变）
+  const aura = enemyAuraSprite(size, e.color);
+  if (aura) {
+    ctx.drawImage(aura.canvas, e.x - aura.pad, e.y - aura.pad);
+  } else {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.rotate(e.spin * (isBoss ? 0.4 : 1.2));
+    const ring = ctx.createRadialGradient(0, 0, size * 0.2, 0, 0, size * 0.7);
+    ring.addColorStop(0, withAlpha(e.color, 0.35));
+    ring.addColorStop(1, 'transparent');
+    ctx.fillStyle = ring;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   const drawn = drawSpriteCirc(ctx, img, e.x, e.y, size, {
     glow: e.color,
